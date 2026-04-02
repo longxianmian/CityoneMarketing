@@ -17,6 +17,27 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "CityOne Growth Backend"
+
+[[workflows.workflow]]
+name = "CityOne Growth Backend"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=3001 pnpm --filter @workspace/cityone-growth-backend run dev"
+waitForPort = 3001
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true

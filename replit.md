@@ -50,6 +50,16 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ## Packages
 
+### `artifacts/cityone-growth-backend` (`@workspace/cityone-growth-backend`)
+
+空白 Node.js Express 后端应用，用于 CityOne Growth 业务逻辑。
+
+- Entry: `src/index.ts` — 读取 `PORT`，启动 Express
+- App setup: `src/app.ts` — 配置 CORS、JSON 解析、路由（前缀 `/cityone`）
+- Routes: `src/routes/index.ts` 挂载子路由；`src/routes/health.ts` 提供健康检查 `GET /cityone/healthz`
+- 工作流: `CityOne Growth Backend`（端口 3001）
+- `pnpm --filter @workspace/cityone-growth-backend run dev` — 启动开发服务器
+
 ### `artifacts/api-server` (`@workspace/api-server`)
 
 Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
