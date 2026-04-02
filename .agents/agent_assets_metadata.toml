@@ -5,4 +5,4 @@ generated = []
 id = "Sb-B74RjfBUQLex-F4q4t"
 uri = "file://cityone-growth-backend.tar.gz"
 type = "unspecified"
-title = "cityone-growth-backend 源码包"
+title = "cityone-growth-backend 完整源码（包含 AI Agent 层）"

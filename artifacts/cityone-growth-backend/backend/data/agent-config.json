@@ -1,0 +1,86 @@
+{
+  "enabled": true,
+  "welcome_messages": {
+    "zh": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "th": "สวัสดี ฉันคือ CityOne AI Assistant มีอะไรให้ช่วยไหม?",
+    "en": "Hi, I'm CityOne AI Assistant. How can I help you today?"
+  },
+  "identity_rules": {
+    "guest_unfollowed": [
+      "borrow_help",
+      "return_help",
+      "invite_help",
+      "points_redeem_help"
+    ],
+    "oa_fan": [
+      "borrow_help",
+      "return_help",
+      "invite_help",
+      "points_redeem_help",
+      "nearby_sites_query",
+      "benefit_claim_query",
+      "invite_poster_generate"
+    ],
+    "identified_user": [
+      "borrow_help",
+      "return_help",
+      "invite_help",
+      "points_redeem_help",
+      "nearby_sites_query",
+      "benefit_claim_query",
+      "invite_poster_generate",
+      "coupon_list_query",
+      "coupon_recommend",
+      "recent_orders_query",
+      "points_balance_query"
+    ],
+    "member": [
+      "borrow_help",
+      "return_help",
+      "invite_help",
+      "points_redeem_help",
+      "nearby_sites_query",
+      "benefit_claim_query",
+      "invite_poster_generate",
+      "coupon_list_query",
+      "coupon_recommend",
+      "recent_orders_query",
+      "points_balance_query",
+      "after_sale_apply",
+      "member_rights_query"
+    ]
+  },
+  "tool_switches": {
+    "tool-nearby-sites": true,
+    "tool-coupon-list": true,
+    "tool-coupon-recommend": true,
+    "tool-claim-benefits": true,
+    "tool-invite-poster": true,
+    "tool-order-query": true,
+    "tool-points-query": true,
+    "tool-member-rights": false,
+    "tool-after-sale": true,
+    "tool-activity-query": true
+  },
+  "quick_prompts": {
+    "zh": [
+      "帮我找附近站点",
+      "帮我看看有哪些券能用",
+      "积分怎么兑换？",
+      "如何邀请好友？"
+    ],
+    "th": [
+      "ช่วยหาสถานีใกล้เคียง",
+      "ดูคูปองที่ใช้ได้",
+      "แลกคะแนนอย่างไร?",
+      "เชิญเพื่อนอย่างไร?"
+    ],
+    "en": [
+      "Find nearby stations",
+      "Check my available coupons",
+      "How to redeem points?",
+      "How to invite friends?"
+    ]
+  },
+  "updated_at": "2026-04-02T18:30:41.873Z"
+}

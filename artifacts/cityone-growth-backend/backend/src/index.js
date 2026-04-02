@@ -78,6 +78,22 @@ import {
   handleFortuneStart,
   handleFortuneDraw
 } from "./routes/interactions.js";
+import {
+  handleAgentSessionInit,
+  handleAgentGetMessages,
+  handleAgentSendMessage,
+  handleAgentConfirm,
+  handleAgentCapabilities,
+  handleAgentQuickPrompts,
+  handleAdminAgentConfigGet,
+  handleAdminAgentConfigUpdate,
+  handleAdminAgentIntentsGet,
+  handleAdminAgentIntentsUpdate,
+  handleAdminAgentToolsGet,
+  handleAdminAgentToolsUpdate,
+  handleAdminAgentLogsGet,
+  handleAdminAgentMetricsGet
+} from "./routes/agent.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -526,6 +542,52 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/activity/fortune/draw") {
       return handleFortuneDraw(req, res, url, sendJson, readBody);
+    }
+
+    // ── AI Agent 用户端 ──────────────────────────────────────────────────────
+    if (req.method === "POST" && url.pathname === "/api/agent/session/init") {
+      return handleAgentSessionInit(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && /^\/api\/agent\/session\/[^/]+\/messages$/.test(url.pathname)) {
+      return handleAgentGetMessages(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/agent\/session\/[^/]+\/message$/.test(url.pathname)) {
+      return handleAgentSendMessage(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/agent\/session\/[^/]+\/confirm$/.test(url.pathname)) {
+      return handleAgentConfirm(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/agent/capabilities") {
+      return handleAgentCapabilities(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/agent/quick-prompts") {
+      return handleAgentQuickPrompts(req, res, url, sendJson);
+    }
+
+    // ── AI Agent 管理端 ──────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/admin/agent/config") {
+      return handleAdminAgentConfigGet(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/agent/config/update") {
+      return handleAdminAgentConfigUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/admin/agent/intents") {
+      return handleAdminAgentIntentsGet(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/agent/intents/update") {
+      return handleAdminAgentIntentsUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/admin/agent/tools") {
+      return handleAdminAgentToolsGet(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/agent/tools/update") {
+      return handleAdminAgentToolsUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/admin/agent/logs") {
+      return handleAdminAgentLogsGet(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/admin/agent/metrics") {
+      return handleAdminAgentMetricsGet(req, res, url, sendJson);
     }
 
     return fail(res, 404, "Route not found", { error: "NOT_FOUND" });
