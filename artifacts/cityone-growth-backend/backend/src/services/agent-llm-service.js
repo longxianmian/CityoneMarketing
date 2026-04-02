@@ -63,6 +63,7 @@ export async function recognizeIntentWithLLM(text, language = "zh", allowedInten
   const langLabel = { zh: "中文", th: "泰文", en: "英文" }[language] || "中文";
 
   const intentDescriptions = {
+    greeting: "用户打招呼、问好、或泛问「有没有人」「在吗」等",
     nearby_sites_query: "查附近可用共享充电宝站点",
     borrow_help: "询问如何借共享充电宝的流程",
     return_help: "询问如何归还共享充电宝的流程",
@@ -80,7 +81,8 @@ export async function recognizeIntentWithLLM(text, language = "zh", allowedInten
     unknown: "以上意图都不匹配"
   };
 
-  const intentList = [...allowedIntents, "unknown"].map((code) => ({
+  const baseIntents = ["greeting", ...allowedIntents];
+  const intentList = [...new Set([...baseIntents, "unknown"])].map((code) => ({
     code,
     desc: intentDescriptions[code] || code
   }));

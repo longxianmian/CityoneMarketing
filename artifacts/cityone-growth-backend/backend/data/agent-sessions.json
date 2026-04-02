@@ -138,5 +138,61 @@
     "message_count": 9,
     "created_at": "2026-04-02T18:46:51.114Z",
     "updated_at": "2026-04-02T18:47:42.353Z"
+  },
+  {
+    "session_id": "as_00011",
+    "line_user_id": "u_debug",
+    "user_id": "",
+    "site_id": "site_001",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "zh",
+    "identity_tier": "oa_fan",
+    "status": "active",
+    "message_count": 3,
+    "created_at": "2026-04-02T18:52:14.130Z",
+    "updated_at": "2026-04-02T18:52:17.743Z"
+  },
+  {
+    "session_id": "as_00012",
+    "line_user_id": "u_cors_test",
+    "user_id": "",
+    "site_id": "site_001",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "zh",
+    "identity_tier": "oa_fan",
+    "status": "active",
+    "message_count": 1,
+    "created_at": "2026-04-02T18:54:04.751Z",
+    "updated_at": "2026-04-02T18:54:04.753Z"
+  },
+  {
+    "session_id": "as_00013",
+    "line_user_id": "u_cors_test",
+    "user_id": "",
+    "site_id": "site_001",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "zh",
+    "identity_tier": "oa_fan",
+    "status": "active",
+    "message_count": 3,
+    "created_at": "2026-04-02T18:54:04.810Z",
+    "updated_at": "2026-04-02T18:54:09.152Z"
+  },
+  {
+    "session_id": "as_00014",
+    "line_user_id": "u_test",
+    "user_id": "",
+    "site_id": "site_001",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "zh",
+    "identity_tier": "oa_fan",
+    "status": "active",
+    "message_count": 7,
+    "created_at": "2026-04-02T18:55:53.366Z",
+    "updated_at": "2026-04-02T18:56:30.031Z"
   }
 ]

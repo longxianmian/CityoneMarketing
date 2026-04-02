@@ -74,6 +74,17 @@ const DEFAULT_CONFIG = {
 
 const DEFAULT_INTENTS = [
   {
+    intent_code: "greeting",
+    intent_name: "问候 / 打招呼",
+    enabled: true,
+    need_confirm: false,
+    phrases: {
+      zh: ["在吗", "你好", "嗨", "hi", "hello", "你在吗", "有人吗", "帮我", "请问", "问一下", "你好啊", "早", "晚上好"],
+      th: ["สวัสดี", "หวัดดี", "อยู่ไหม", "มีคนอยู่ไหม", "ช่วยได้ไหม"],
+      en: ["hello", "hi", "hey", "are you there", "anyone there", "help me", "can you help"]
+    }
+  },
+  {
     intent_code: "nearby_sites_query",
     intent_name: "查附近站点",
     enabled: true,

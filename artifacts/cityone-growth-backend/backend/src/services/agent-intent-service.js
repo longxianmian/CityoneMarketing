@@ -58,8 +58,10 @@ function recognizeByKeyword(text, language, allowedIntents) {
   let bestMatch = null;
   let bestScore = 0;
 
+  const ALWAYS_ALLOWED = ["greeting"];
+
   for (const intent of intents) {
-    if (allowedIntents.length > 0 && !allowedIntents.includes(intent.intent_code)) continue;
+    if (allowedIntents.length > 0 && !allowedIntents.includes(intent.intent_code) && !ALWAYS_ALLOWED.includes(intent.intent_code)) continue;
 
     const phrases = intent.phrases?.[lang] || intent.phrases?.zh || [];
     const allPhrases = [...new Set([

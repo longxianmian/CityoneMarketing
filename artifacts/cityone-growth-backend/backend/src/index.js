@@ -203,7 +203,7 @@ function serveStaticUpload(req, res, pathname) {
     ".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"
   };
   const mime = mimeMap[ext] || "application/octet-stream";
-  res.writeHead(200, { "Content-Type": mime });
+  res.writeHead(200, { "Content-Type": mime, ...CORS_HEADERS });
   fs.createReadStream(filePath).pipe(res);
 }
 
@@ -225,9 +225,16 @@ function readBody(req) {
   });
 }
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With"
+};
+
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8"
+    "Content-Type": "application/json; charset=utf-8",
+    ...CORS_HEADERS
   });
   res.end(JSON.stringify(payload, null, 2));
 }
@@ -260,6 +267,11 @@ function saveLineConfig(nextConfig) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, CORS_HEADERS);
+    return res.end();
+  }
 
   try {
     if (req.method === "POST" && url.pathname === "/api/upload") {

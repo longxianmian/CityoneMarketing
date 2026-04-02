@@ -28,6 +28,16 @@ export function buildReply({ intentCode, toolResult, identityTier, language = "z
     };
   }
 
+  // 问候意图
+  if (intentCode === "greeting") {
+    const greetText = {
+      zh: "你好！我是 CityOne AI 助理，随时为你服务。你可以问我附近站点、优惠券、积分、邀请好友等问题。",
+      th: "สวัสดีครับ! ฉันคือ CityOne AI ช่วยคุณหาสถานี คูปอง แต้ม หรือชวนเพื่อนได้เลย",
+      en: "Hello! I'm CityOne AI Assistant. Ask me about nearby stations, coupons, points, or inviting friends!"
+    }[language] || "你好！我是 CityOne AI 助理，有什么可以帮你的吗？";
+    return buildTextReply(greetText, suggestions, "greeting");
+  }
+
   // 未识别意图
   if (!intentCode || intentCode === "unknown") {
     const fallbackText = {
