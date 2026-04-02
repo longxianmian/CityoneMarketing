@@ -1117,5 +1117,153 @@
       ]
     },
     "created_at": "2026-04-02T18:56:30.030Z"
+  },
+  {
+    "message_id": "am_00058",
+    "session_id": "as_00015",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-02T19:40:15.394Z"
+  },
+  {
+    "message_id": "am_00059",
+    "session_id": "as_00016",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-02T19:40:25.092Z"
+  },
+  {
+    "message_id": "am_00060",
+    "session_id": "as_00016",
+    "role": "user",
+    "text": "在吗",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T19:40:25.215Z"
+  },
+  {
+    "message_id": "am_00061",
+    "session_id": "as_00016",
+    "role": "agent",
+    "text": "在的，我是小城，请问有什么可以帮您？",
+    "intent_code": "greeting",
+    "reply_payload": {
+      "reply_type": "greeting",
+      "text": "在的，我是小城，请问有什么可以帮您？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T19:40:33.613Z"
+  },
+  {
+    "message_id": "am_00062",
+    "session_id": "as_00016",
+    "role": "user",
+    "text": "帮我找附近站点",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T19:40:33.686Z"
+  },
+  {
+    "message_id": "am_00063",
+    "session_id": "as_00016",
+    "role": "agent",
+    "text": "我找到了 5 个附近可用站点：",
+    "intent_code": "nearby_sites_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "我找到了 5 个附近可用站点：",
+      "cards": [
+        {
+          "card_type": "site",
+          "title": "Central World 1F",
+          "desc": "999 Rama I Rd, Bangkok",
+          "tag": "可用 8 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_001"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "Siam Paragon B1",
+          "desc": "991 Rama I Rd, Bangkok",
+          "tag": "可用 3 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_002"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "MBK Center 2F",
+          "desc": "444 Phayathai Rd, Bangkok",
+          "tag": "暂无可用设备",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_003"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "Terminal 21 3F",
+          "desc": "88 Sukhumvit Soi 19, Bangkok",
+          "tag": "可用 5 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_004"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "EmQuartier 1F",
+          "desc": "689 Sukhumvit Rd, Bangkok",
+          "tag": "可用 2 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_005"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T19:40:44.825Z"
   }
 ]
