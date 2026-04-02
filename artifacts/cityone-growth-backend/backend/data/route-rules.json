@@ -1,0 +1,33 @@
+[
+  {
+    "route_rule_id": "route_001",
+    "rule_name": "site_001 桌贴默认摇一摇",
+    "site_id": "site_001",
+    "entry_type": "table_card",
+    "entry_code": "",
+    "referrer_type": "",
+    "referrer_id": "",
+    "feature_name": "shake",
+    "activity_id": "",
+    "priority": 100,
+    "status": "disabled",
+    "route_source": "site_and_entry_type_rule",
+    "created_at": "2026-04-01T10:00:00+07:00",
+    "updated_at": "2026-04-01T13:38:45.043Z"
+  },
+  {
+    "route_rule_id": "route_002",
+    "rule_name": "site_001 设备码先走借电分流",
+    "site_id": "site_001",
+    "entry_type": "device_qr",
+    "entry_code": "",
+    "referrer_type": "",
+    "referrer_id": "",
+    "feature_name": "battery_sos",
+    "activity_id": "",
+    "priority": 200,
+    "status": "enabled",
+    "route_source": "system_fallback_rule",
+    "created_at": "2026-04-01T10:05:00+07:00"
+  }
+]

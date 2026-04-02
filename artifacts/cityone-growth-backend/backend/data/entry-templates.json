@@ -1,0 +1,23 @@
+[
+  {
+    "template_id": "tpl_001",
+    "template_name": "桌贴固定码模板-测试",
+    "entry_type": "table_card",
+    "default_feature_name": "shake",
+    "status": "enabled"
+  },
+  {
+    "template_id": "tpl_002",
+    "template_name": "设备固定码模板",
+    "entry_type": "device_qr",
+    "default_feature_name": "battery_sos",
+    "status": "enabled"
+  },
+  {
+    "template_id": "tpl_003",
+    "template_name": "设备站点活动模板",
+    "entry_type": "device_qr",
+    "default_feature_name": "flash_coupon",
+    "status": "enabled"
+  }
+]

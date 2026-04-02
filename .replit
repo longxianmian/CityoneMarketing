@@ -35,8 +35,8 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=3001 pnpm --filter @workspace/cityone-growth-backend run dev"
-waitForPort = 3001
+args = "cd artifacts/cityone-growth-backend/backend && PORT=3100 node --watch src/index.js"
+waitForPort = 3100
 
 [agent]
 stack = "PNPM_WORKSPACE"

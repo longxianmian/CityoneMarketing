@@ -1,0 +1,29 @@
+[
+  {
+    "entry_id": "entry_001",
+    "site_id": "site_001",
+    "site_name": "site_001 示例站点-测试",
+    "entry_type": "table_card",
+    "entry_code": "T001",
+    "current_feature_name": "shake",
+    "status": "disabled"
+  },
+  {
+    "entry_id": "entry_002",
+    "site_id": "site_001",
+    "site_name": "site_001 示例站点",
+    "entry_type": "device_qr",
+    "entry_code": "D001",
+    "current_feature_name": "battery_sos",
+    "status": "enabled"
+  },
+  {
+    "entry_id": "entry_003",
+    "site_id": "site_002",
+    "site_name": "site_002 新站点",
+    "entry_type": "device_qr",
+    "entry_code": "D002",
+    "current_feature_name": "battery_sos",
+    "status": "disabled"
+  }
+]

@@ -1,0 +1,14 @@
+.DS_Store
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.local
+.idea/
+.vscode/
+
+_tmp_backup_*/
+*.bak
+*.bak_*
+*.before_*
