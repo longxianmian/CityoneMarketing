@@ -17,6 +17,7 @@ import {
   loadAgentConfig, saveAgentConfig,
   loadAgentIntents, saveAgentIntents
 } from "../services/agent-config-service.js";
+import { generateReplyText, checkLLMHealth } from "../services/agent-llm-service.js";
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -161,11 +162,12 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
       user_stage_code: session.user_id ? "identified_user" : (session.line_user_id ? "oa_followed_registered" : "visitor_unfollowed")
     });
 
-    // 2. 意图识别
-    const intentResult = recognizeIntent(text, language, {
+    // 2. 意图识别（LLM优先，关键词兜底；传入当前身份可用意图白名单）
+    const intentResult = await recognizeIntent(text, language, {
       site_id: session.site_id,
       entry_type: session.entry_type,
-      entry_code: session.entry_code
+      entry_code: session.entry_code,
+      allowed_intents: identity.capabilities
     });
 
     // 3. 权限检查
@@ -188,7 +190,7 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
       toolResultStatus = policyResult.result;
     }
 
-    // 5. 构建结构化回复
+    // 5. 构建结构化回复（rule-based 骨架：cards + suggestions）
     const replyPayload = buildReply({
       intentCode: intentResult.intent_code,
       toolResult,
@@ -197,7 +199,25 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
       policyResult
     });
 
-    // 6. 写入 Agent 回复消息
+    // 6. LLM 生成自然语言回复文本（替换 rule-based 文本，仅在允许执行时使用）
+    if (policyResult.result === POLICY_RESULTS.ALLOWED && intentResult.intent_code !== "unknown") {
+      try {
+        const recentMsgs = getSessionMessages(sessionId, 6);
+        const history = recentMsgs.map((m) => `${m.role === "user" ? "用户" : "助理"}: ${m.text}`);
+        const llmText = await generateReplyText(
+          intentResult.intent_code,
+          toolResult,
+          identity.identity_tier,
+          language,
+          history
+        );
+        if (llmText && llmText.trim()) replyPayload.text = llmText.trim();
+      } catch {
+        // LLM 生成失败，保留 rule-based 文本
+      }
+    }
+
+    // 7. 写入 Agent 回复消息
     const agentMsg = addMessage({
       sessionId,
       role: "agent",
@@ -228,7 +248,8 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
       intent: {
         code: intentResult.intent_code,
         name: intentResult.intent_name,
-        confidence: intentResult.confidence
+        confidence: intentResult.confidence,
+        recognition_mode: intentResult.recognition_mode || "unknown"
       },
       identity_tier: identity.identity_tier,
       policy_result: policyResult.result,
@@ -426,4 +447,17 @@ export function handleAdminAgentLogsGet(req, res, url, sendJson) {
 export function handleAdminAgentMetricsGet(req, res, url, sendJson) {
   const metrics = computeAgentMetrics();
   return sendOk(res, sendJson, "agent metrics loaded", metrics);
+}
+
+/**
+ * GET /api/agent/llm/health
+ * 检查 LLM 是否可用
+ */
+export async function handleAgentLLMHealth(req, res, url, sendJson) {
+  try {
+    const result = await checkLLMHealth();
+    return sendOk(res, sendJson, "llm health checked", result);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "LLM_HEALTH_FAILED", err.message || "LLM 健康检查失败");
+  }
 }

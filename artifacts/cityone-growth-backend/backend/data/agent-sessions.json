@@ -96,5 +96,47 @@
     "message_count": 3,
     "created_at": "2026-04-02T18:30:41.982Z",
     "updated_at": "2026-04-02T18:30:42.136Z"
+  },
+  {
+    "session_id": "as_00008",
+    "line_user_id": "u_llm_test",
+    "user_id": "user_llm_001",
+    "site_id": "site_001",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "zh",
+    "identity_tier": "identified_user",
+    "status": "active",
+    "message_count": 7,
+    "created_at": "2026-04-02T18:42:15.761Z",
+    "updated_at": "2026-04-02T18:42:38.226Z"
+  },
+  {
+    "session_id": "as_00009",
+    "line_user_id": "u_verify",
+    "user_id": "user_v01",
+    "site_id": "",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "zh",
+    "identity_tier": "identified_user",
+    "status": "active",
+    "message_count": 7,
+    "created_at": "2026-04-02T18:43:14.469Z",
+    "updated_at": "2026-04-02T18:43:34.540Z"
+  },
+  {
+    "session_id": "as_00010",
+    "line_user_id": "u_e2e",
+    "user_id": "user_e2e",
+    "site_id": "site_001",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "zh",
+    "identity_tier": "identified_user",
+    "status": "active",
+    "message_count": 9,
+    "created_at": "2026-04-02T18:46:51.114Z",
+    "updated_at": "2026-04-02T18:47:42.353Z"
   }
 ]

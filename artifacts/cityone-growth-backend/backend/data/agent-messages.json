@@ -367,5 +367,544 @@
       ]
     },
     "created_at": "2026-04-02T18:30:42.136Z"
+  },
+  {
+    "message_id": "am_00021",
+    "session_id": "as_00008",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-02T18:42:15.762Z"
+  },
+  {
+    "message_id": "am_00022",
+    "session_id": "as_00008",
+    "role": "user",
+    "text": "我想在附近找一个可以借充电宝的地方",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:42:15.974Z"
+  },
+  {
+    "message_id": "am_00023",
+    "session_id": "as_00008",
+    "role": "agent",
+    "text": "我找到了 5 个附近可用站点：",
+    "intent_code": "nearby_sites_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "我找到了 5 个附近可用站点：",
+      "cards": [
+        {
+          "card_type": "site",
+          "title": "Central World 1F",
+          "desc": "999 Rama I Rd, Bangkok",
+          "tag": "可用 8 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_001"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "Siam Paragon B1",
+          "desc": "991 Rama I Rd, Bangkok",
+          "tag": "可用 3 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_002"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "MBK Center 2F",
+          "desc": "444 Phayathai Rd, Bangkok",
+          "tag": "暂无可用设备",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_003"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "Terminal 21 3F",
+          "desc": "88 Sukhumvit Soi 19, Bangkok",
+          "tag": "可用 5 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_004"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "EmQuartier 1F",
+          "desc": "689 Sukhumvit Rd, Bangkok",
+          "tag": "可用 2 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_005"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:42:22.802Z"
+  },
+  {
+    "message_id": "am_00024",
+    "session_id": "as_00008",
+    "role": "user",
+    "text": "我这边有没有什么可以省钱的",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:42:22.938Z"
+  },
+  {
+    "message_id": "am_00025",
+    "session_id": "as_00008",
+    "role": "agent",
+    "text": "你还可以领取 2 个福利：",
+    "intent_code": "benefit_claim_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "你还可以领取 2 个福利：",
+      "cards": [
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_001"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_002"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:42:31.096Z"
+  },
+  {
+    "message_id": "am_00026",
+    "session_id": "as_00008",
+    "role": "user",
+    "text": "ฉันอยากยืมแบตเตอรี่ แต่ไม่รู้ต้องทำยังไง",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:42:31.165Z"
+  },
+  {
+    "message_id": "am_00027",
+    "session_id": "as_00008",
+    "role": "agent",
+    "text": "วิธียืม: 1. สแกน QR code ที่อุปกรณ์ 2. กด Follow OA (ครั้งแรก) 3. ชำระมัดจำ (ครั้งแรก) 4. กดยืม",
+    "intent_code": "borrow_help",
+    "reply_payload": {
+      "reply_type": "info_reply",
+      "text": "วิธียืม: 1. สแกน QR code ที่อุปกรณ์ 2. กด Follow OA (ครั้งแรก) 3. ชำระมัดจำ (ครั้งแรก) 4. กดยืม",
+      "cards": [],
+      "suggestions": [
+        "ช่วยหาสถานีใกล้เคียง",
+        "ดูคูปองที่ใช้ได้",
+        "แลกคะแนนอย่างไร?"
+      ]
+    },
+    "created_at": "2026-04-02T18:42:38.225Z"
+  },
+  {
+    "message_id": "am_00028",
+    "session_id": "as_00009",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-02T18:43:14.470Z"
+  },
+  {
+    "message_id": "am_00029",
+    "session_id": "as_00009",
+    "role": "user",
+    "text": "帮我生成一个邀请朋友的链接",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:43:14.708Z"
+  },
+  {
+    "message_id": "am_00030",
+    "session_id": "as_00009",
+    "role": "agent",
+    "text": "你的专属邀请信息已生成：",
+    "intent_code": "invite_poster_generate",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "你的专属邀请信息已生成：",
+      "cards": [
+        {
+          "card_type": "invite",
+          "title": "用 CityOne 借充电宝，首借免费！",
+          "desc": "🎁 我在 CityOne 借了充电宝超方便！用我的专属链接注册，你的首借完全免费！\n邀请链接：https://city.one/invite/UVERIFY",
+          "invite_link": "https://city.one/invite/UVERIFY",
+          "action_text": "复制邀请链接",
+          "action_type": "copy_link",
+          "action_data": {
+            "link": "https://city.one/invite/UVERIFY"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:43:22.312Z"
+  },
+  {
+    "message_id": "am_00031",
+    "session_id": "as_00009",
+    "role": "user",
+    "text": "我最近借了几次电，帮我查一下",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:43:22.379Z"
+  },
+  {
+    "message_id": "am_00032",
+    "session_id": "as_00009",
+    "role": "agent",
+    "text": "你最近有 3 条借电记录：",
+    "intent_code": "recent_orders_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "你最近有 3 条借电记录：",
+      "cards": [
+        {
+          "card_type": "order",
+          "title": "借电 - Central World",
+          "desc": "Central World 1F",
+          "tag": "returned",
+          "action_text": "查看详情",
+          "action_type": "open_order",
+          "action_data": {
+            "order_id": "ord_20260401_001"
+          }
+        },
+        {
+          "card_type": "order",
+          "title": "借电 - Siam Paragon",
+          "desc": "Siam Paragon B1",
+          "tag": "returned",
+          "action_text": "查看详情",
+          "action_type": "open_order",
+          "action_data": {
+            "order_id": "ord_20260328_002"
+          }
+        },
+        {
+          "card_type": "order",
+          "title": "借电 - MBK Center",
+          "desc": "MBK Center 2F",
+          "tag": "returned",
+          "action_text": "查看详情",
+          "action_type": "open_order",
+          "action_data": {
+            "order_id": "ord_20260320_003"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:43:31.137Z"
+  },
+  {
+    "message_id": "am_00033",
+    "session_id": "as_00009",
+    "role": "user",
+    "text": "今天天气怎么样",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:43:31.199Z"
+  },
+  {
+    "message_id": "am_00034",
+    "session_id": "as_00009",
+    "role": "agent",
+    "text": "抱歉，我没有理解你的问题。你可以试试：",
+    "intent_code": "unknown",
+    "reply_payload": {
+      "reply_type": "intent_unknown",
+      "text": "抱歉，我没有理解你的问题。你可以试试：",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:43:34.540Z"
+  },
+  {
+    "message_id": "am_00035",
+    "session_id": "as_00010",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-02T18:46:51.115Z"
+  },
+  {
+    "message_id": "am_00036",
+    "session_id": "as_00010",
+    "role": "user",
+    "text": "我附近有没有可以借充电宝的地方",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:46:51.282Z"
+  },
+  {
+    "message_id": "am_00037",
+    "session_id": "as_00010",
+    "role": "agent",
+    "text": "我找到了 5 个附近可用站点：",
+    "intent_code": "nearby_sites_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "我找到了 5 个附近可用站点：",
+      "cards": [
+        {
+          "card_type": "site",
+          "title": "Central World 1F",
+          "desc": "999 Rama I Rd, Bangkok",
+          "tag": "可用 8 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_001"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "Siam Paragon B1",
+          "desc": "991 Rama I Rd, Bangkok",
+          "tag": "可用 3 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_002"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "MBK Center 2F",
+          "desc": "444 Phayathai Rd, Bangkok",
+          "tag": "暂无可用设备",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_003"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "Terminal 21 3F",
+          "desc": "88 Sukhumvit Soi 19, Bangkok",
+          "tag": "可用 5 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_004"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "EmQuartier 1F",
+          "desc": "689 Sukhumvit Rd, Bangkok",
+          "tag": "可用 2 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_005"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:47:06.269Z"
+  },
+  {
+    "message_id": "am_00038",
+    "session_id": "as_00010",
+    "role": "user",
+    "text": "我想看看有什么优惠可以用",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:47:06.333Z"
+  },
+  {
+    "message_id": "am_00039",
+    "session_id": "as_00010",
+    "role": "agent",
+    "text": "抱歉，目前暂无可用优惠券。可稍后再查或关注活动、成为会员获取优惠。",
+    "intent_code": "coupon_list_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "抱歉，目前暂无可用优惠券。可稍后再查或关注活动、成为会员获取优惠。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:47:16.841Z"
+  },
+  {
+    "message_id": "am_00040",
+    "session_id": "as_00010",
+    "role": "user",
+    "text": "帮我生成一个可以分享给朋友的邀请链接",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:47:16.915Z"
+  },
+  {
+    "message_id": "am_00041",
+    "session_id": "as_00010",
+    "role": "agent",
+    "text": "已生成邀请：链接 https://city.one/invite/UE2E，邀请码 UE2E。好友首借免费！",
+    "intent_code": "invite_poster_generate",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "已生成邀请：链接 https://city.one/invite/UE2E，邀请码 UE2E。好友首借免费！",
+      "cards": [
+        {
+          "card_type": "invite",
+          "title": "用 CityOne 借充电宝，首借免费！",
+          "desc": "🎁 我在 CityOne 借了充电宝超方便！用我的专属链接注册，你的首借完全免费！\n邀请链接：https://city.one/invite/UE2E",
+          "invite_link": "https://city.one/invite/UE2E",
+          "action_text": "复制邀请链接",
+          "action_type": "copy_link",
+          "action_data": {
+            "link": "https://city.one/invite/UE2E"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:47:28.934Z"
+  },
+  {
+    "message_id": "am_00042",
+    "session_id": "as_00010",
+    "role": "user",
+    "text": "最近有没有什么活动福利可以领",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-02T18:47:28.997Z"
+  },
+  {
+    "message_id": "am_00043",
+    "session_id": "as_00010",
+    "role": "agent",
+    "text": "当前有2款可领福利：30分钟充电券，总库存299张，可立即领取，先到先得。",
+    "intent_code": "benefit_claim_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "当前有2款可领福利：30分钟充电券，总库存299张，可立即领取，先到先得。",
+      "cards": [
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_001"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_002"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-02T18:47:42.352Z"
   }
 ]

@@ -92,7 +92,8 @@ import {
   handleAdminAgentToolsGet,
   handleAdminAgentToolsUpdate,
   handleAdminAgentLogsGet,
-  handleAdminAgentMetricsGet
+  handleAdminAgentMetricsGet,
+  handleAgentLLMHealth
 } from "./routes/agent.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -562,6 +563,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/agent/quick-prompts") {
       return handleAgentQuickPrompts(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/agent/llm/health") {
+      return handleAgentLLMHealth(req, res, url, sendJson);
     }
 
     // ── AI Agent 管理端 ──────────────────────────────────────────────────────
