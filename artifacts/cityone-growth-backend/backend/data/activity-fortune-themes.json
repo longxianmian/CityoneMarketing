@@ -1,0 +1,26 @@
+[
+  {
+    "theme_id": "ft_001",
+    "activity_id": "act_005",
+    "theme_name": "财运",
+    "theme_icon": "💰",
+    "sort_no": 0,
+    "status": "enabled"
+  },
+  {
+    "theme_id": "ft_002",
+    "activity_id": "act_006",
+    "theme_name": "财运",
+    "theme_icon": "",
+    "sort_no": 0,
+    "status": "enabled"
+  },
+  {
+    "theme_id": "ft_003",
+    "activity_id": "act_007",
+    "theme_name": "财运",
+    "theme_icon": "",
+    "sort_no": 0,
+    "status": "enabled"
+  }
+]

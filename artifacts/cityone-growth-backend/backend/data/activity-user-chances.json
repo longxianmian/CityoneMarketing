@@ -1,0 +1,52 @@
+[
+  {
+    "chance_id": "ch_001",
+    "activity_id": "act_003",
+    "line_user_id": "U001",
+    "granted_count": 3,
+    "used_count": 1,
+    "remaining_count": 2,
+    "grant_source": "first_follow",
+    "updated_at": "2026-04-02T17:20:34.116Z"
+  },
+  {
+    "chance_id": "ch_002",
+    "activity_id": "act_004",
+    "line_user_id": "U002",
+    "granted_count": 2,
+    "used_count": 1,
+    "remaining_count": 1,
+    "grant_source": "system",
+    "updated_at": "2026-04-02T17:20:34.671Z"
+  },
+  {
+    "chance_id": "ch_003",
+    "activity_id": "act_005",
+    "line_user_id": "U003",
+    "granted_count": 1,
+    "used_count": 1,
+    "remaining_count": 0,
+    "grant_source": "system",
+    "updated_at": "2026-04-02T17:20:35.448Z"
+  },
+  {
+    "chance_id": "ch_004",
+    "activity_id": "act_006",
+    "line_user_id": "UDEBUG",
+    "granted_count": 1,
+    "used_count": 1,
+    "remaining_count": 0,
+    "grant_source": "system",
+    "updated_at": "2026-04-02T17:20:47.359Z"
+  },
+  {
+    "chance_id": "ch_005",
+    "activity_id": "act_007",
+    "line_user_id": "UFINAL",
+    "granted_count": 3,
+    "used_count": 3,
+    "remaining_count": 0,
+    "grant_source": "system",
+    "updated_at": "2026-04-02T17:21:16.851Z"
+  }
+]

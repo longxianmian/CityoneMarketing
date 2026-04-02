@@ -32,6 +32,52 @@ import {
   handleEntryInstanceDisable,
   handleQrAssetList
 } from "./routes/entries.js";
+import {
+  handleLandingTemplateGet,
+  handleLandingTemplateCreate,
+  handleLandingTemplateUpdate,
+  handleCreativeBindingList,
+  handleCreativeBindingCreate,
+  handleFollowSuccessDispatch
+} from "./routes/landing.js";
+import {
+  handleActivityTemplateGet,
+  handleActivityTemplateCreate,
+  handleActivityTemplateUpdate,
+  handleActivityList,
+  handleActivityGet,
+  handleActivityCreate,
+  handleActivityUpdate,
+  handleActivityProductBindingList,
+  handleActivityProductBindingCreate
+} from "./routes/activities.js";
+import {
+  handleProductTemplateGet,
+  handleProductTemplateCreate,
+  handleProductTemplateUpdate,
+  handleDigitalProductGet,
+  handleDigitalProductCreate,
+  handleDigitalProductUpdate,
+  handleProductClaim,
+  handleProductExchange,
+  handleProductPurchase,
+  handleProductUse
+} from "./routes/products.js";
+import {
+  handlePrizeList,
+  handlePrizeCreate,
+  handleFortuneThemeList,
+  handleFortuneThemeCreate,
+  handleSignList,
+  handleSignCreate,
+  handleGrantChance,
+  handleWheelStart,
+  handleWheelDraw,
+  handleScratchStart,
+  handleScratchReveal,
+  handleFortuneStart,
+  handleFortuneDraw
+} from "./routes/interactions.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -356,6 +402,130 @@ const server = http.createServer(async (req, res) => {
         hasChannelSecret: !!nextConfig.channelSecret,
         hasChannelAccessToken: !!nextConfig.channelAccessToken
       }, "保存成功");
+    }
+
+    // ── 落地页模板层 ─────────────────────────────────────────────────────────
+    if (req.method === "GET" && /^\/api\/landing-templates\/[^/]+$/.test(url.pathname)) {
+      return handleLandingTemplateGet(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/landing-templates") {
+      return handleLandingTemplateCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "PUT" && /^\/api\/landing-templates\/[^/]+$/.test(url.pathname)) {
+      return handleLandingTemplateUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/creative-landing-bindings") {
+      return handleCreativeBindingList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/creative-landing-bindings") {
+      return handleCreativeBindingCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/follow/success-dispatch") {
+      return handleFollowSuccessDispatch(req, res, url, sendJson, readBody);
+    }
+
+    // ── 活动模板层 ───────────────────────────────────────────────────────────
+    if (req.method === "GET" && /^\/api\/activity-templates\/[^/]+$/.test(url.pathname)) {
+      return handleActivityTemplateGet(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity-templates") {
+      return handleActivityTemplateCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "PUT" && /^\/api\/activity-templates\/[^/]+$/.test(url.pathname)) {
+      return handleActivityTemplateUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/activities") {
+      return handleActivityList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activities") {
+      return handleActivityCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && /^\/api\/activities\/[^/]+$/.test(url.pathname)) {
+      return handleActivityGet(req, res, url, sendJson);
+    }
+    if (req.method === "PUT" && /^\/api\/activities\/[^/]+$/.test(url.pathname)) {
+      return handleActivityUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/activity-product-bindings") {
+      return handleActivityProductBindingList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity-product-bindings") {
+      return handleActivityProductBindingCreate(req, res, url, sendJson, readBody);
+    }
+
+    // ── 商品模板层 ───────────────────────────────────────────────────────────
+    if (req.method === "GET" && /^\/api\/product-templates\/[^/]+$/.test(url.pathname)) {
+      return handleProductTemplateGet(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/product-templates") {
+      return handleProductTemplateCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "PUT" && /^\/api\/product-templates\/[^/]+$/.test(url.pathname)) {
+      return handleProductTemplateUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && /^\/api\/digital-products\/[^/]+$/.test(url.pathname)) {
+      return handleDigitalProductGet(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/digital-products") {
+      return handleDigitalProductCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "PUT" && /^\/api\/digital-products\/[^/]+$/.test(url.pathname)) {
+      return handleDigitalProductUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/products/claim") {
+      return handleProductClaim(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/products/exchange") {
+      return handleProductExchange(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/products/purchase") {
+      return handleProductPurchase(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/products/use") {
+      return handleProductUse(req, res, url, sendJson, readBody);
+    }
+
+    // ── 互动工具管理 ─────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/activity-prizes") {
+      return handlePrizeList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity-prizes") {
+      return handlePrizeCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/activity-fortune-themes") {
+      return handleFortuneThemeList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity-fortune-themes") {
+      return handleFortuneThemeCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/activity-signs") {
+      return handleSignList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity-signs") {
+      return handleSignCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity-chances/grant") {
+      return handleGrantChance(req, res, url, sendJson, readBody);
+    }
+
+    // ── 三种互动工具执行 ─────────────────────────────────────────────────────
+    if (req.method === "POST" && url.pathname === "/api/activity/wheel/start") {
+      return handleWheelStart(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity/wheel/draw") {
+      return handleWheelDraw(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity/scratch/start") {
+      return handleScratchStart(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity/scratch/reveal") {
+      return handleScratchReveal(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity/fortune/start") {
+      return handleFortuneStart(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/activity/fortune/draw") {
+      return handleFortuneDraw(req, res, url, sendJson, readBody);
     }
 
     return fail(res, 404, "Route not found", { error: "NOT_FOUND" });

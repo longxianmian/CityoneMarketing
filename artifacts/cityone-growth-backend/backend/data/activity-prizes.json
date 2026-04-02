@@ -1,0 +1,62 @@
+[
+  {
+    "prize_id": "pz_001",
+    "activity_id": "act_003",
+    "prize_name": "充电券",
+    "prize_type": "digital_product",
+    "reward_product_id": "dp_002",
+    "probability_weight": 30,
+    "stock_qty": 50,
+    "display_text": "充电券",
+    "display_color": "#FF6B35",
+    "sort_no": 0,
+    "status": "enabled",
+    "created_at": "2026-04-02T17:20:33.240Z",
+    "updated_at": "2026-04-02T17:20:33.240Z"
+  },
+  {
+    "prize_id": "pz_002",
+    "activity_id": "act_003",
+    "prize_name": "谢谢参与",
+    "prize_type": "thanks",
+    "reward_product_id": "",
+    "probability_weight": 70,
+    "stock_qty": -1,
+    "display_text": "谢谢参与",
+    "display_color": "#FF6B35",
+    "sort_no": 0,
+    "status": "enabled",
+    "created_at": "2026-04-02T17:20:33.448Z",
+    "updated_at": "2026-04-02T17:20:33.448Z"
+  },
+  {
+    "prize_id": "pz_003",
+    "activity_id": "act_004",
+    "prize_name": "免费时长",
+    "prize_type": "digital_product",
+    "reward_product_id": "dp_002",
+    "probability_weight": 50,
+    "stock_qty": -1,
+    "display_text": "免费时长",
+    "display_color": "#FF6B35",
+    "sort_no": 0,
+    "status": "enabled",
+    "created_at": "2026-04-02T17:20:34.414Z",
+    "updated_at": "2026-04-02T17:20:34.414Z"
+  },
+  {
+    "prize_id": "pz_004",
+    "activity_id": "act_004",
+    "prize_name": "谢谢参与",
+    "prize_type": "thanks",
+    "reward_product_id": "",
+    "probability_weight": 50,
+    "stock_qty": -1,
+    "display_text": "谢谢参与",
+    "display_color": "#FF6B35",
+    "sort_no": 0,
+    "status": "enabled",
+    "created_at": "2026-04-02T17:20:34.449Z",
+    "updated_at": "2026-04-02T17:20:34.449Z"
+  }
+]

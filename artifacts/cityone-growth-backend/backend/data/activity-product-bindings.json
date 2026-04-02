@@ -1,0 +1,14 @@
+[
+  {
+    "binding_id": "apb_001",
+    "activity_id": "act_003",
+    "product_id": "dp_001",
+    "binding_type": "reward_delivery",
+    "trigger_event": "",
+    "user_scope": "all",
+    "sort_no": 0,
+    "status": "enabled",
+    "created_at": "2026-04-02T17:20:32.235Z",
+    "updated_at": "2026-04-02T17:20:32.235Z"
+  }
+]

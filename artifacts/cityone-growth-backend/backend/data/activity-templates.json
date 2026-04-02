@@ -1,0 +1,32 @@
+[
+  {
+    "template_id": "at_001",
+    "template_name": "大转盘模板",
+    "activity_type": "lucky_wheel",
+    "header_json": null,
+    "media_assets_json": null,
+    "intro_block_json": null,
+    "steps_block_json": null,
+    "reward_block_json": null,
+    "notice_block_json": null,
+    "cta_block_json": null,
+    "status": "enabled",
+    "created_at": "2026-04-02T17:19:34.230Z",
+    "updated_at": "2026-04-02T17:19:34.230Z"
+  },
+  {
+    "template_id": "at_002",
+    "template_name": "大转盘模板",
+    "activity_type": "lucky_wheel",
+    "header_json": null,
+    "media_assets_json": null,
+    "intro_block_json": null,
+    "steps_block_json": null,
+    "reward_block_json": null,
+    "notice_block_json": null,
+    "cta_block_json": null,
+    "status": "enabled",
+    "created_at": "2026-04-02T17:20:31.498Z",
+    "updated_at": "2026-04-02T17:20:31.498Z"
+  }
+]
