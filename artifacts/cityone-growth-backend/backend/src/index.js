@@ -2,6 +2,8 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import busboy from "busboy";
+import crypto from "node:crypto";
 import {
   handleEntryResolve,
   handleEntryLivePreview,
@@ -37,11 +39,109 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 3100;
 const DATA_DIR = path.join(__dirname, "..", "data");
 const LINE_CONFIG_FILE = path.join(DATA_DIR, "line-config.json");
+const UPLOADS_DIR = path.join(__dirname, "..", "uploads");
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
+}
+
+function ensureUploadsDir() {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
+}
+
+const ALLOWED_MIME = new Set([
+  "image/jpeg", "image/png", "image/gif", "image/webp",
+  "video/mp4", "video/quicktime", "video/webm"
+]);
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+function handleUpload(req, res) {
+  ensureUploadsDir();
+
+  const contentType = req.headers["content-type"] || "";
+  if (!contentType.includes("multipart/form-data")) {
+    return fail(res, 400, "请求必须为 multipart/form-data");
+  }
+
+  const bb = busboy({ headers: req.headers, limits: { fileSize: MAX_FILE_SIZE } });
+  let settled = false;
+
+  bb.on("file", (_fieldname, fileStream, info) => {
+    const { filename, mimeType } = info;
+
+    if (!ALLOWED_MIME.has(mimeType)) {
+      fileStream.resume();
+      if (!settled) {
+        settled = true;
+        return fail(res, 400, `不支持的文件类型: ${mimeType}，仅支持图片和视频`);
+      }
+      return;
+    }
+
+    const ext = path.extname(filename || "").toLowerCase() || `.${mimeType.split("/")[1]}`;
+    const saveName = `${Date.now()}_${crypto.randomBytes(6).toString("hex")}${ext}`;
+    const savePath = path.join(UPLOADS_DIR, saveName);
+    const writeStream = fs.createWriteStream(savePath);
+    let sizeExceeded = false;
+
+    fileStream.on("limit", () => {
+      sizeExceeded = true;
+      writeStream.destroy();
+      fs.unlink(savePath, () => {});
+      if (!settled) {
+        settled = true;
+        fail(res, 400, `文件超过最大限制 ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+      }
+    });
+
+    fileStream.pipe(writeStream);
+
+    writeStream.on("finish", () => {
+      if (sizeExceeded || settled) return;
+      settled = true;
+      ok(res, { url: `/uploads/${saveName}`, filename: saveName, mimeType }, "上传成功");
+    });
+
+    writeStream.on("error", (err) => {
+      if (!settled) {
+        settled = true;
+        fail(res, 500, `文件写入失败: ${err.message}`);
+      }
+    });
+  });
+
+  bb.on("error", (err) => {
+    if (!settled) {
+      settled = true;
+      fail(res, 400, `上传解析失败: ${err.message}`);
+    }
+  });
+
+  req.pipe(bb);
+}
+
+function serveStaticUpload(req, res, pathname) {
+  const filename = pathname.replace(/^\/uploads\//, "");
+  if (!filename || filename.includes("..")) {
+    return fail(res, 400, "非法路径");
+  }
+  const filePath = path.join(UPLOADS_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    return fail(res, 404, "文件不存在");
+  }
+  const ext = path.extname(filename).toLowerCase();
+  const mimeMap = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+    ".gif": "image/gif", ".webp": "image/webp",
+    ".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"
+  };
+  const mime = mimeMap[ext] || "application/octet-stream";
+  res.writeHead(200, { "Content-Type": mime });
+  fs.createReadStream(filePath).pipe(res);
 }
 
 function readBody(req) {
@@ -99,6 +199,14 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   try {
+    if (req.method === "POST" && url.pathname === "/api/upload") {
+      return handleUpload(req, res);
+    }
+
+    if (req.method === "GET" && url.pathname.startsWith("/uploads/")) {
+      return serveStaticUpload(req, res, url.pathname);
+    }
+
     if (req.method === "GET" && url.pathname === "/health") {
       return ok(res, {
         ok: true,
