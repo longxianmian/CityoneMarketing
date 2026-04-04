@@ -7,22 +7,22 @@ import SharePromoModal from '../../components/SharePromoModal'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
-const ACTION_MAP: Record<string, { text: string; color: string }> = {
-  free_claim: { text: '立即领取', color: 'linear-gradient(135deg, #52c41a, #73d13d)' },
-  points_redeem: { text: '积分兑换', color: 'linear-gradient(135deg, #1677ff, #4096ff)' },
-  cash_buy: { text: '立即购买', color: 'linear-gradient(135deg, #fa8c16, #ffc53d)' },
-  use_now: { text: '去使用', color: 'linear-gradient(135deg, #722ed1, #9254de)' },
-}
-
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
-  const { language } = useI18n()
+  const { language, t } = useI18n()
   const lang = language as AppLanguage
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
   const [shareVisible, setShareVisible] = useState(false)
+
+  const ACTION_MAP: Record<string, { text: string; color: string }> = {
+    free_claim: { text: t('productDetail.actionFreeClaim'), color: 'linear-gradient(135deg, #52c41a, #73d13d)' },
+    points_redeem: { text: t('productDetail.actionPointsRedeem'), color: 'linear-gradient(135deg, #1677ff, #4096ff)' },
+    cash_buy: { text: t('productDetail.actionCashBuy'), color: 'linear-gradient(135deg, #fa8c16, #ffc53d)' },
+    use_now: { text: t('productDetail.actionUseNow'), color: 'linear-gradient(135deg, #722ed1, #9254de)' },
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -50,13 +50,13 @@ export default function ProductDetailPage() {
       const res = await fetch(`${API_BASE}/api/digital-products/${id}/claim`, { method: 'POST' })
       const json = await res.json()
       if (json.code === 200) {
-        message.success('操作成功！')
+        message.success(t('productDetail.actionSuccess'))
         setTimeout(() => nav('/my-coupons'), 1000)
       } else {
-        message.error(json.message || '操作失败，请重试')
+        message.error(json.message || t('productDetail.actionFail'))
       }
     } catch {
-      message.error('网络错误，请重试')
+      message.error(t('productDetail.networkError'))
     } finally {
       setActing(false)
     }
@@ -68,7 +68,7 @@ export default function ProductDetailPage() {
     </div>
   )
 
-  const title = pick(product?.title) || product?.name || '商品详情'
+  const title = pick(product?.title) || product?.name || t('productDetail.pageTitle')
   const subTitle = pick(product?.subTitle) || ''
   const benefitContent = pick(product?.benefitContent) || product?.benefitContent || ''
   const usageRules = pick(product?.usageRules) || product?.usageRules || ''
@@ -78,7 +78,7 @@ export default function ProductDetailPage() {
   const pointsPrice = product?.pointsPrice || 0
   const cashPrice = product?.cashPrice || 0
   const actionType = product?.actionType || 'free_claim'
-  const actionText = pick(product?.actionText) || ACTION_MAP[actionType]?.text || '立即领取'
+  const actionText = pick(product?.actionText) || ACTION_MAP[actionType]?.text || t('productDetail.actionFreeClaim')
   const actionColor = ACTION_MAP[actionType]?.color || ACTION_MAP.free_claim.color
   const linkedActivities: any[] = product?.linkedActivities || []
 
@@ -88,10 +88,9 @@ export default function ProductDetailPage() {
         <button onClick={() => nav(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
           <ArrowLeftOutlined style={{ fontSize: 20 }} />
         </button>
-        <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>商品详情</span>
+        <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>{t('productDetail.pageTitle')}</span>
         <button
           onClick={() => setShareVisible(true)}
-          title="分享好友赚积分"
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, display: 'flex', alignItems: 'center', color: '#52c41a' }}
         >
           <ShareAltOutlined style={{ fontSize: 20 }} />
@@ -124,12 +123,12 @@ export default function ProductDetailPage() {
         </div>
 
         {(pointsPrice > 0 || cashPrice > 0) && (
-          <ProdSection title="价格">
+          <ProdSection title={t('productDetail.sectionPrice')}>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               {pointsPrice > 0 && (
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                   <span style={{ fontSize: 28, fontWeight: 700, color: '#1677ff' }}>{pointsPrice}</span>
-                  <span style={{ fontSize: 13, color: '#1677ff' }}>积分</span>
+                  <span style={{ fontSize: 13, color: '#1677ff' }}>{t('productDetail.pts')}</span>
                 </div>
               )}
               {cashPrice > 0 && (
@@ -139,20 +138,20 @@ export default function ProductDetailPage() {
                 </div>
               )}
               {pointsPrice === 0 && cashPrice === 0 && (
-                <span style={{ fontSize: 24, fontWeight: 700, color: '#52c41a' }}>免费</span>
+                <span style={{ fontSize: 24, fontWeight: 700, color: '#52c41a' }}>{t('productDetail.free')}</span>
               )}
             </div>
           </ProdSection>
         )}
 
         {pointsPrice === 0 && cashPrice === 0 && (
-          <ProdSection title="获取方式">
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#52c41a' }}>免费领取</span>
+          <ProdSection title={t('productDetail.sectionGetMethod')}>
+            <span style={{ fontSize: 20, fontWeight: 700, color: '#52c41a' }}>{t('productDetail.freeClaim')}</span>
           </ProdSection>
         )}
 
         {benefitContent && (
-          <ProdSection title="权益内容">
+          <ProdSection title={t('productDetail.sectionBenefit')}>
             {benefitContent.split(/\n/).filter(Boolean).map((line: string, i: number) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                 <FireOutlined style={{ color: '#fa8c16', flexShrink: 0, marginTop: 3 }} />
@@ -163,19 +162,19 @@ export default function ProductDetailPage() {
         )}
 
         {usageRules && (
-          <ProdSection title="使用规则">
+          <ProdSection title={t('productDetail.sectionRules')}>
             <p style={{ fontSize: 14, color: '#555', lineHeight: 1.8, margin: 0 }}>{usageRules}</p>
           </ProdSection>
         )}
 
         {redeemNotice && (
-          <ProdSection title="兑换须知">
+          <ProdSection title={t('productDetail.sectionRedeemNotice')}>
             <p style={{ fontSize: 13, color: '#999', lineHeight: 1.8, margin: 0 }}>{redeemNotice}</p>
           </ProdSection>
         )}
 
         {linkedActivities.length > 0 && (
-          <ProdSection title="可通过哪些活动获得">
+          <ProdSection title={t('productDetail.sectionLinkedActivities')}>
             {linkedActivities.map((a: any) => (
               <div
                 key={a.id}
@@ -197,7 +196,7 @@ export default function ProductDetailPage() {
           disabled={acting}
           style={{ width: '100%', padding: '14px 0', background: acting ? '#d9d9d9' : actionColor, border: 'none', borderRadius: 50, color: '#fff', fontSize: 17, fontWeight: 700, cursor: acting ? 'default' : 'pointer', boxShadow: acting ? 'none' : '0 4px 16px rgba(0,0,0,0.2)', letterSpacing: 0.5, transition: 'all 0.2s' }}
         >
-          {acting ? '处理中...' : actionText}
+          {acting ? t('productDetail.processing') : actionText}
         </button>
       </div>
     </div>
