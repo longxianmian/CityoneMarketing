@@ -74,4 +74,46 @@ app.use("/api/agent", (req: Request, res: Response) => {
 
 app.use("/api", router);
 
+app.use("/api", (req: Request, res: Response) => {
+  const body =
+    req.body && Object.keys(req.body).length > 0
+      ? JSON.stringify(req.body)
+      : undefined;
+
+  const headers: Record<string, string | string[] | undefined> = {
+    ...req.headers,
+    host: "localhost:3100",
+  };
+  if (body) {
+    headers["content-type"] = "application/json";
+    headers["content-length"] = String(Buffer.byteLength(body));
+  }
+
+  const options: http.RequestOptions = {
+    hostname: "localhost",
+    port: 3100,
+    path: `/api${req.url}`,
+    method: req.method,
+    headers,
+  };
+
+  const proxy = http.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxy.on("error", () => {
+    if (!res.headersSent) {
+      res.status(502).json({ code: 502, msg: "Backend unavailable" });
+    }
+  });
+
+  if (body) {
+    proxy.write(body);
+    proxy.end();
+  } else {
+    req.pipe(proxy);
+  }
+});
+
 export default app;

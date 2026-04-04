@@ -1,0 +1,253 @@
+import React, { useMemo } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Button, Card, Tag, Space } from 'antd'
+import { CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import { pickLocalizedText, useI18n, type AppLanguage } from '../../i18n'
+
+type LocalizedField = Partial<Record<AppLanguage, string>>
+
+type ActivityContent = {
+  id: number
+  title: LocalizedField
+  subTitle: LocalizedField
+  coverImage: string
+  coverVideo: string
+  description: LocalizedField
+  highlights: LocalizedField
+  participationGuide: LocalizedField
+  rewardGuide: LocalizedField
+  noticeText: LocalizedField
+  buttonText: LocalizedField
+}
+
+const mockActivities: Record<string, ActivityContent> = {
+  '1': {
+    id: 1,
+    title: {
+      zh: '扫码抽奖赢免费时长',
+      th: 'สแกนเพื่อลุ้นรับเวลาฟรี',
+      en: 'Scan to win free charging time',
+    },
+    subTitle: {
+      zh: '新用户扫码参与，完成关注即可抽奖',
+      th: 'ผู้ใช้ใหม่สแกนเข้าร่วม ติดตาม OA แล้วลุ้นรับรางวัล',
+      en: 'New users can scan to join and enter the lucky draw after following OA',
+    },
+    coverImage: '',
+    coverVideo: '',
+    description: {
+      zh: '这是活动整体说明，用户进入后能快速理解活动价值与参与方式。',
+      th: 'นี่คือคำอธิบายกิจกรรมโดยรวม เพื่อให้ผู้ใช้เข้าใจคุณค่าและวิธีเข้าร่วมได้อย่างรวดเร็ว',
+      en: 'This is the overall activity description so users can quickly understand the value and how to participate.',
+    },
+    highlights: {
+      zh: '低门槛参与、适合线上传播、可快速拉新关注。',
+      th: 'เข้าร่วมง่าย เหมาะกับการกระจายบนออนไลน์ และช่วยเพิ่มผู้ติดตามใหม่ได้รวดเร็ว',
+      en: 'Low barrier to join, suitable for online promotion, and effective for acquiring new followers.',
+    },
+    participationGuide: {
+      zh: '扫码进入活动页 → 先关注 OA → 点击参与活动 → 获得奖励。',
+      th: 'สแกนเข้าสู่หน้ากิจกรรม → ติดตาม OA ก่อน → กดเข้าร่วมกิจกรรม → รับรางวัล',
+      en: 'Scan to enter the activity page → Follow OA first → Tap to join → Receive rewards.',
+    },
+    rewardGuide: {
+      zh: '奖励包含免费时长券、优惠券等奖励，具体以活动规则为准。',
+      th: 'รางวัลอาจรวมถึงคูปองเวลาฟรีและคูปองส่วนลด โดยยึดตามกติกากิจกรรม',
+      en: 'Rewards may include free-time coupons and discount coupons, subject to the activity rules.',
+    },
+    noticeText: {
+      zh: '每位用户每日限参与一次，活动最终解释权归平台所有。',
+      th: 'ผู้ใช้แต่ละคนเข้าร่วมได้วันละ 1 ครั้ง สิทธิ์การตีความสุดท้ายเป็นของแพลตฟอร์ม',
+      en: 'Each user can participate once per day. Final interpretation belongs to the platform.',
+    },
+    buttonText: {
+      zh: '去参与活动',
+      th: 'เข้าร่วมกิจกรรม',
+      en: 'Join Now',
+    },
+  },
+  '2': {
+    id: 2,
+    title: {
+      zh: '站点首借免单',
+      th: 'ยืมครั้งแรกฟรีที่สถานี',
+      en: 'First borrow free at station',
+    },
+    subTitle: {
+      zh: '现场引导完成首次借电，推动关注转用户',
+      th: 'ช่วยนำผู้ใช้ทำการยืมครั้งแรกที่สถานีและเปลี่ยนผู้ติดตามเป็นผู้ใช้จริง',
+      en: 'Guide users to complete their first borrow on-site and convert followers into real users.',
+    },
+    coverImage: '',
+    coverVideo: '',
+    description: {
+      zh: '适用于站点现场物料承接，引导关注后完成首次借电。',
+      th: 'เหมาะสำหรับสื่อหน้าสถานี เพื่อพาผู้ใช้ติดตามและยืมครั้งแรก',
+      en: 'Suitable for on-site station materials to guide following and completing the first borrow.',
+    },
+    highlights: {
+      zh: '现场转化强、适合门店/设备二维码承接。',
+      th: 'แปลงผลได้ดีในสถานที่จริง เหมาะกับร้านค้าและคิวอาร์ที่อุปกรณ์',
+      en: 'Strong on-site conversion, suitable for stores and device QR entry.',
+    },
+    participationGuide: {
+      zh: '扫码进入活动页 → 先关注 OA → 借电成功 → 免单生效。',
+      th: 'สแกนเข้าหน้ากิจกรรม → ติดตาม OA ก่อน → ยืมสำเร็จ → รับสิทธิ์ฟรี',
+      en: 'Scan to enter → Follow OA first → Borrow successfully → Free benefit takes effect.',
+    },
+    rewardGuide: {
+      zh: '完成首次借电后自动享受免单权益。',
+      th: 'เมื่อยืมครั้งแรกสำเร็จ จะได้รับสิทธิ์ฟรีโดยอัตโนมัติ',
+      en: 'Users automatically enjoy the free-order benefit after completing the first borrow.',
+    },
+    noticeText: {
+      zh: '每位用户仅限首借享受一次。',
+      th: 'สิทธิ์นี้ใช้ได้เฉพาะการยืมครั้งแรกเพียงครั้งเดียวต่อผู้ใช้',
+      en: 'Each user can enjoy this only once on the first borrow.',
+    },
+    buttonText: {
+      zh: '去借电',
+      th: 'ไปยืมพาวเวอร์แบงก์',
+      en: 'Borrow Now',
+    },
+  },
+}
+
+export default function ActivityUserPage() {
+  const { id = '1' } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { language, t } = useI18n()
+
+  const followed = searchParams.get('followed') === '1'
+  const activity = useMemo(() => mockActivities[id] || mockActivities['1'], [id])
+
+  const title = pickLocalizedText({ title: activity.title }, 'title', language)
+  const subTitle = pickLocalizedText({ subTitle: activity.subTitle }, 'subTitle', language)
+  const description = pickLocalizedText({ description: activity.description }, 'description', language)
+  const highlights = pickLocalizedText({ highlights: activity.highlights }, 'highlights', language)
+  const participationGuide = pickLocalizedText({ participationGuide: activity.participationGuide }, 'participationGuide', language)
+  const rewardGuide = pickLocalizedText({ rewardGuide: activity.rewardGuide }, 'rewardGuide', language)
+  const noticeText = pickLocalizedText({ noticeText: activity.noticeText }, 'noticeText', language)
+  const buttonText = pickLocalizedText({ buttonText: activity.buttonText }, 'buttonText', language)
+
+  const handleFollowDone = () => {
+    const next = new URLSearchParams(searchParams)
+    next.set('followed', '1')
+    setSearchParams(next)
+  }
+
+  const handlePrimaryAction = () => {
+    navigate('/mine')
+  }
+
+  if (!followed) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
+        <div style={{ maxWidth: 480, margin: '0 auto' }}>
+          <Card style={{ borderRadius: 16 }}>
+            <div style={{ textAlign: 'center', padding: '12px 0 4px 0' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{title}</div>
+              <div style={{ color: '#666', marginBottom: 18 }}>{subTitle}</div>
+              <Tag color="orange" style={{ fontSize: 13, padding: '4px 10px' }}>
+                {t('detail.followRequiredTag')}
+              </Tag>
+            </div>
+
+            <div
+              style={{
+                marginTop: 18,
+                padding: 18,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, #e6f4ff 0%, #f6ffed 100%)',
+                border: '1px solid #d9f7be',
+              }}
+            >
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{t('detail.followTitle')}</div>
+              <div style={{ color: '#555', lineHeight: 1.8 }}>{t('detail.followDescActivity')}</div>
+            </div>
+
+            <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
+              <Button type="primary" size="large" block onClick={handleFollowDone}>
+                {t('detail.continueAfterFollow')}
+              </Button>
+              <Button size="large" block onClick={() => navigate('/welfare')}>
+                {t('detail.backToWelfare')}
+              </Button>
+            </Space>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
+      <div style={{ maxWidth: 540, margin: '0 auto', padding: '0 0 32px 0' }}>
+        <div
+          style={{
+            height: 280,
+            background: activity.coverImage
+              ? `url(${activity.coverImage}) center/cover no-repeat`
+              : 'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            padding: 20,
+            color: '#fff',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{title}</div>
+            <div style={{ fontSize: 15, opacity: 0.95 }}>{subTitle}</div>
+          </div>
+        </div>
+
+        <div style={{ padding: 16 }}>
+          {activity.coverVideo ? (
+            <Card style={{ marginBottom: 16, borderRadius: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 10 }}>
+                <PlayCircleOutlined style={{ marginRight: 8 }} />
+                {t('detail.video')}
+              </div>
+              <video src={activity.coverVideo} controls style={{ width: '100%', borderRadius: 12 }} />
+            </Card>
+          ) : null}
+
+          <Card style={{ marginBottom: 16, borderRadius: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>{t('detail.description')}</div>
+            <div style={{ color: '#555', lineHeight: 1.9 }}>{description}</div>
+          </Card>
+
+          <Card style={{ marginBottom: 16, borderRadius: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>{t('detail.highlights')}</div>
+            <div style={{ color: '#555', lineHeight: 1.9 }}>{highlights}</div>
+          </Card>
+
+          <Card style={{ marginBottom: 16, borderRadius: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>{t('detail.howToJoin')}</div>
+            <div style={{ color: '#555', lineHeight: 1.9 }}>{participationGuide}</div>
+          </Card>
+
+          <Card style={{ marginBottom: 16, borderRadius: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>{t('detail.rewards')}</div>
+            <div style={{ color: '#555', lineHeight: 1.9 }}>{rewardGuide}</div>
+          </Card>
+
+          <Card style={{ marginBottom: 20, borderRadius: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>{t('detail.notice')}</div>
+            <div style={{ color: '#555', lineHeight: 1.9 }}>{noticeText}</div>
+          </Card>
+
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Button type="primary" size="large" block icon={<CheckCircleOutlined />} onClick={handlePrimaryAction}>
+              {buttonText}
+            </Button>
+            <Button size="large" block onClick={() => navigate('/welfare')}>
+              {t('detail.backToWelfare')}
+            </Button>
+          </Space>
+        </div>
+      </div>
+    </div>
+  )
+}
