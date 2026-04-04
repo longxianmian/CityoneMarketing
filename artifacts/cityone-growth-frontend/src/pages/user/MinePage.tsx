@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Tag, Badge, Avatar, Spin, Empty } from 'antd'
+import { Card, Tag, Badge, Avatar, Spin, Empty, Modal } from 'antd'
 import {
   CreditCardOutlined,
   StarOutlined,
@@ -547,6 +547,16 @@ export default function MinePage() {
                       </div>
                       {couponSub === 'available' && (
                         <button
+                          onClick={() => {
+                            // TODO: 对接共享充电宝系统后，在此处调用借电 API
+                            // e.g. POST /api/borrow/start { couponId: item.id, userId }
+                            Modal.info({
+                              title: t('mine.borrowModalTitle'),
+                              content: t('mine.borrowModalDesc'),
+                              okText: t('mine.borrowModalOk'),
+                              centered: true,
+                            })
+                          }}
                           style={{
                             border: `1.5px solid #2CDBCE`,
                             borderRadius: 20,
