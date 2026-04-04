@@ -1,0 +1,22 @@
+[
+  {
+    "rule_id": "rule_share_follow",
+    "rule_type": "share_follow",
+    "description": "分享带来OA关注奖励",
+    "points_value": 10,
+    "revoke_on_unfollow": true,
+    "revoke_window_days": 3,
+    "enabled": true
+  },
+  {
+    "rule_id": "rule_charge_consumption",
+    "rule_type": "charge_consumption",
+    "description": "充电实付金额积分（1 THB = 1 积分）",
+    "points_per_unit": 1,
+    "unit_currency": "THB",
+    "exclude_deposit": true,
+    "exclude_offset": true,
+    "exclude_refund": true,
+    "enabled": true
+  }
+]

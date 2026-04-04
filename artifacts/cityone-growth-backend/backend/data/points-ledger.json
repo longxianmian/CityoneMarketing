@@ -1,0 +1,46 @@
+[
+  {
+    "id": "ledger_001",
+    "user_id": "u_demo_001",
+    "line_user_id": "Ufake0000000000000000001",
+    "type": "credit",
+    "points": 10,
+    "ref_type": "share_follow",
+    "reason": "分享带来OA关注奖励",
+    "operator_id": "",
+    "created_at": "2026-04-04T03:41:16.040Z"
+  },
+  {
+    "id": "ledger_002",
+    "user_id": "u_demo_002",
+    "line_user_id": "Ufake0000000000000000002",
+    "type": "credit",
+    "points": 50,
+    "ref_type": "charge",
+    "reason": "充电消费 50THB 积分",
+    "operator_id": "",
+    "created_at": "2026-04-04T03:41:16.040Z"
+  },
+  {
+    "id": "ledger_003",
+    "user_id": "u_demo_002",
+    "line_user_id": "Ufake0000000000000000002",
+    "type": "debit",
+    "points": 50,
+    "ref_type": "exchange",
+    "reason": "兑换30分钟充电券",
+    "operator_id": "",
+    "created_at": "2026-04-04T03:41:16.040Z"
+  },
+  {
+    "id": "ledger_1775274196848_06e7c8fd",
+    "user_id": "u_demo_001",
+    "line_user_id": "u_demo_001",
+    "type": "credit",
+    "points": 5,
+    "ref_type": "manual_adjust",
+    "reason": "验收测试手工加分",
+    "operator_id": "admin_001",
+    "created_at": "2026-04-04T03:43:16.848Z"
+  }
+]

@@ -31,9 +31,9 @@
     "share_content_type": "coupon",
     "share_enabled": true,
     "share_title": "免费充电30分钟券，送给好友！",
-    "share_summary": "领取后立即可用，扫码借还",
     "share_cover": "https://cdn.cityone.co/products/coupon_30min_cover.jpg",
-    "campaign_id": "camp_coupon_apr"
+    "campaign_id": "camp_coupon_apr",
+    "share_desc": "领取后立即可用，扫码借还"
   },
   {
     "product_id": "dp_002",
@@ -67,8 +67,44 @@
     "share_content_type": "coupon",
     "share_enabled": false,
     "share_title": "",
-    "share_summary": "",
     "share_cover": "",
-    "campaign_id": ""
+    "campaign_id": "",
+    "share_desc": ""
+  },
+  {
+    "product_id": "dp_003",
+    "product_type": "coupon",
+    "product_name": "验收卡券",
+    "product_subtitle": "",
+    "short_benefit_text": "",
+    "template_id": "",
+    "cover_image": "",
+    "cover_video": "",
+    "source_mode": "activity_reward",
+    "cash_enabled": false,
+    "cash_price": 0,
+    "cash_currency": "THB",
+    "points_enabled": false,
+    "points_price": 0,
+    "stock_enabled": false,
+    "stock_qty": 0,
+    "user_limit": 1,
+    "valid_type": "days",
+    "valid_days": 30,
+    "valid_start_at": "",
+    "valid_end_at": "",
+    "refundable": false,
+    "transferable": false,
+    "stackable": false,
+    "rule_text": "",
+    "status": "enabled",
+    "share_content_type": "coupon",
+    "share_enabled": false,
+    "share_title": "卡券分享",
+    "share_desc": "券更新描述",
+    "share_cover": "https://cdn.test.com/coupon.jpg",
+    "campaign_id": "camp_coupon_test",
+    "created_at": "2026-04-04T03:43:16.320Z",
+    "updated_at": "2026-04-04T03:43:16.490Z"
   }
 ]

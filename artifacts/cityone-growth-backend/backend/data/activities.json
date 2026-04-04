@@ -21,10 +21,10 @@
     "share_content_type": "activity",
     "share_enabled": true,
     "share_title": "四月大转盘，赢取免费充电时间！",
-    "share_summary": "点击链接参与活动，还能赚积分",
     "share_cover": "https://cdn.cityone.co/campaigns/lucky_wheel_cover.jpg",
     "campaign_id": "camp_2026_04",
-    "share_status": "enabled"
+    "share_status": "enabled",
+    "share_desc": "点击链接参与活动，还能赚积分"
   },
   {
     "activity_id": "act_002",
@@ -48,10 +48,10 @@
     "share_content_type": "activity",
     "share_enabled": false,
     "share_title": "",
-    "share_summary": "",
     "share_cover": "",
     "campaign_id": "",
-    "share_status": "disabled"
+    "share_status": "disabled",
+    "share_desc": ""
   },
   {
     "activity_id": "act_003",
@@ -75,10 +75,10 @@
     "share_content_type": "activity",
     "share_enabled": false,
     "share_title": "",
-    "share_summary": "",
     "share_cover": "",
     "campaign_id": "",
-    "share_status": "disabled"
+    "share_status": "disabled",
+    "share_desc": ""
   },
   {
     "activity_id": "act_004",
@@ -102,10 +102,10 @@
     "share_content_type": "activity",
     "share_enabled": false,
     "share_title": "",
-    "share_summary": "",
     "share_cover": "",
     "campaign_id": "",
-    "share_status": "disabled"
+    "share_status": "disabled",
+    "share_desc": ""
   },
   {
     "activity_id": "act_005",
@@ -129,10 +129,10 @@
     "share_content_type": "activity",
     "share_enabled": false,
     "share_title": "",
-    "share_summary": "",
     "share_cover": "",
     "campaign_id": "",
-    "share_status": "disabled"
+    "share_status": "disabled",
+    "share_desc": ""
   },
   {
     "activity_id": "act_006",
@@ -156,10 +156,10 @@
     "share_content_type": "activity",
     "share_enabled": false,
     "share_title": "",
-    "share_summary": "",
     "share_cover": "",
     "campaign_id": "",
-    "share_status": "disabled"
+    "share_status": "disabled",
+    "share_desc": ""
   },
   {
     "activity_id": "act_007",
@@ -183,10 +183,10 @@
     "share_content_type": "activity",
     "share_enabled": false,
     "share_title": "",
-    "share_summary": "",
     "share_cover": "",
     "campaign_id": "",
-    "share_status": "disabled"
+    "share_status": "disabled",
+    "share_desc": ""
   },
   {
     "activity_id": "act_008",
@@ -208,11 +208,38 @@
     "share_content_type": "activity",
     "share_enabled": true,
     "share_title": "我参加了CityOne会员专属抽奖",
-    "share_summary": "点击加入，一起赢取大奖！",
     "share_cover": "https://cdn.cityone.co/may_vip.jpg",
     "campaign_id": "camp_2026_05_vip",
     "share_status": "enabled",
     "created_at": "2026-04-04T02:48:48.967Z",
-    "updated_at": "2026-04-04T02:48:48.967Z"
+    "updated_at": "2026-04-04T02:48:48.967Z",
+    "share_desc": "点击加入，一起赢取大奖！"
+  },
+  {
+    "activity_id": "act_009",
+    "activity_type": "lucky_wheel",
+    "activity_name": "验收测试活动",
+    "activity_title": "",
+    "activity_subtitle": "",
+    "activity_desc": "",
+    "template_id": "",
+    "usage_mode": "public",
+    "start_time": "",
+    "end_time": "",
+    "status": "draft",
+    "require_oa_follow": false,
+    "auto_join_after_follow": false,
+    "entry_scope_json": null,
+    "site_scope_json": null,
+    "channel_scope_json": null,
+    "share_content_type": "activity",
+    "share_enabled": true,
+    "share_title": "测试标题",
+    "share_desc": "更新后的描述",
+    "share_cover": "https://cdn.test.com/cover.jpg",
+    "campaign_id": "camp_test",
+    "share_status": "disabled",
+    "created_at": "2026-04-04T03:43:16.105Z",
+    "updated_at": "2026-04-04T03:43:16.274Z"
   }
 ]

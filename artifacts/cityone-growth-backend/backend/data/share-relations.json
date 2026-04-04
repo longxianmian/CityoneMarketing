@@ -1,0 +1,28 @@
+[
+  {
+    "id": "sr_001",
+    "sharer_user_id": "u_demo_001",
+    "sharer_line_user_id": "Ufake0000000000000000001",
+    "invitee_line_user_id": "Ufake0000000000000000099",
+    "share_content_type": "activity",
+    "share_content_id": "act_001",
+    "campaign_id": "camp_2026_04",
+    "follow_status": "followed",
+    "points_status": "credited",
+    "points_value": 10,
+    "created_at": "2026-04-04T03:41:16.040Z"
+  },
+  {
+    "id": "sr_002",
+    "sharer_user_id": "u_demo_002",
+    "sharer_line_user_id": "Ufake0000000000000000002",
+    "invitee_line_user_id": "Ufake0000000000000000098",
+    "share_content_type": "coupon",
+    "share_content_id": "dp_001",
+    "campaign_id": "",
+    "follow_status": "pending",
+    "points_status": "pending",
+    "points_value": 0,
+    "created_at": "2026-04-04T03:41:16.040Z"
+  }
+]

@@ -171,7 +171,7 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
       share_content_type: "activity",
       share_enabled: !!body.share_enabled,
       share_title: body.share_title || "",
-      share_summary: body.share_summary || "",
+      share_desc: body.share_desc || "",
       share_cover: body.share_cover || "",
       campaign_id: body.campaign_id || "",
       share_status: body.share_status || "disabled",
@@ -199,7 +199,7 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       "activity_name","activity_title","activity_subtitle","activity_desc","template_id",
       "usage_mode","start_time","end_time","status","require_oa_follow","auto_join_after_follow",
       "entry_scope_json","site_scope_json","channel_scope_json",
-      "share_enabled","share_title","share_summary","share_cover","campaign_id","share_status",
+      "share_enabled","share_title","share_desc","share_cover","campaign_id","share_status",
     ];
     const updated = { ...list[idx] };
     for (const f of updatableFields) {

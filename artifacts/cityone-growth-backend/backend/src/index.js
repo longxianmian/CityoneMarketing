@@ -79,6 +79,16 @@ import {
   handleFortuneDraw
 } from "./routes/interactions.js";
 import {
+  handleUserPointsSummary,
+  handleUserPointsLedger,
+  handleUserPointsRedeems,
+  handleAdminPointsAccounts,
+  handleAdminShareRelations,
+  handleAdminConsumeRelations,
+  handlePointsRules,
+  handlePointsAdjust,
+} from "./routes/growth-points.js";
+import {
   handleAgentSessionInit,
   handleAgentGetMessages,
   handleAgentSendMessage,
@@ -604,6 +614,36 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/admin/agent/metrics") {
       return handleAdminAgentMetricsGet(req, res, url, sendJson);
+    }
+
+    // ── 用户端积分接口 ────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/growth/user/points/summary") {
+      return handleUserPointsSummary(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/growth/user/points/ledger") {
+      return handleUserPointsLedger(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/growth/user/points/redeems") {
+      return handleUserPointsRedeems(req, res, url, sendJson);
+    }
+
+    // ── 管理端积分接口 ────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/growth/admin/points/accounts") {
+      return handleAdminPointsAccounts(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/growth/admin/points/share-relations") {
+      return handleAdminShareRelations(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/growth/admin/points/consume-relations") {
+      return handleAdminConsumeRelations(req, res, url, sendJson);
+    }
+
+    // ── 积分规则 & 手工调整 ───────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/growth/points/rules") {
+      return handlePointsRules(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/growth/points/adjust") {
+      return handlePointsAdjust(req, res, url, sendJson, readBody);
     }
 
     return fail(res, 404, "Route not found", { error: "NOT_FOUND" });

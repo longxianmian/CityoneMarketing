@@ -1,0 +1,22 @@
+[
+  {
+    "user_id": "u_demo_001",
+    "line_user_id": "Ufake0000000000000000001",
+    "total_points": 125,
+    "available_points": 105,
+    "pending_points": 20,
+    "consumed_points": 0,
+    "revoked_points": 0,
+    "updated_at": "2026-04-04T03:43:16.848Z"
+  },
+  {
+    "user_id": "u_demo_002",
+    "line_user_id": "Ufake0000000000000000002",
+    "total_points": 350,
+    "available_points": 300,
+    "pending_points": 0,
+    "consumed_points": 50,
+    "revoked_points": 0,
+    "updated_at": "2026-04-04T03:41:16.040Z"
+  }
+]
