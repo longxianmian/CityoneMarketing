@@ -189,7 +189,7 @@ export default function CouponUserPage() {
               onClick={() => setShareVisible(true)}
               style={{ borderColor: '#1677ff', color: '#1677ff' }}
             >
-              {language === 'th' ? 'แชร์ให้เพื่อน รับคะแนน' : language === 'en' ? 'Share & Earn Points' : '分享好友赚积分'}
+              {t('detail.shareEarnPoints')}
             </Button>
             <Button size="large" block onClick={() => navigate('/mine')}>
               {t('detail.goToMine')}

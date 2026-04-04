@@ -106,6 +106,7 @@ import {
   handleAdminAgentMetricsGet,
   handleAgentLLMHealth
 } from "./routes/agent.js";
+import { handleTranslate } from "./routes/translate.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -648,6 +649,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/growth/points/adjust") {
       return handlePointsAdjust(req, res, url, sendJson, readBody);
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/translate") {
+      return handleTranslate(req, res, url, sendJson, readBody);
     }
 
     return fail(res, 404, "Route not found", { error: "NOT_FOUND" });

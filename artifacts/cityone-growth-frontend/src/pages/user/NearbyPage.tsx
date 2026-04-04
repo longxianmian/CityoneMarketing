@@ -142,7 +142,7 @@ export default function NearbyPage() {
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
-      setLocationText(language === 'zh' ? '当前浏览器不支持定位' : language === 'th' ? 'เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง' : 'Geolocation is not supported in this browser')
+      setLocationText(t('common.geoNotSupported'))
       return
     }
 
@@ -155,7 +155,7 @@ export default function NearbyPage() {
       },
       () => {
         setLocating(false)
-        setLocationText(language === 'zh' ? '定位失败，请检查浏览器权限' : language === 'th' ? 'ระบุตำแหน่งไม่สำเร็จ โปรดตรวจสอบสิทธิ์เบราว์เซอร์' : 'Location failed. Please check browser permission.')
+        setLocationText(t('common.geoFailed'))
       }
     )
   }

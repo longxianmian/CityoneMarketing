@@ -105,51 +105,20 @@ const orderRecords = [
   },
 ]
 
-function EarnGuideCard({ language }: { language: AppLanguage }) {
+function EarnGuideCard() {
   const [open, setOpen] = useState(false)
+  const { t } = useI18n()
 
-  const title = language === 'th' ? '💡 วิธีรับและใช้คะแนน' : language === 'en' ? '💡 How to earn & use points' : '💡 如何赚取积分 & 积分用途'
+  const title = t('mine.earnGuideTitle')
 
   const ways = [
-    {
-      icon: '🤝',
-      label: language === 'th'
-        ? 'ชวนเพื่อนติดตาม OA · +10/คน'
-        : language === 'en'
-        ? 'Friend follows OA · +10/person'
-        : '好友关注 OA · +10积分/人',
-    },
-    {
-      icon: '⚡',
-      label: language === 'th'
-        ? 'ชาร์จแบตเตอรี่ · 1THB = 1 คะแนน'
-        : language === 'en'
-        ? 'Charging · 1 THB = 1 pt'
-        : '充电消费 · 1THB = 1积分',
-    },
-    {
-      icon: '⚠️',
-      label: language === 'th'
-        ? 'เลิกติดตามใน 3 วัน → คะแนนถูกหัก'
-        : language === 'en'
-        ? 'Unfollow in 3 days → pts revoked'
-        : '3天内取关 → 积分失效扣回',
-    },
-    {
-      icon: '🚫',
-      label: language === 'th'
-        ? 'มัดจำ/ส่วนลด/คืนเงิน ไม่นับคะแนน'
-        : language === 'en'
-        ? 'Deposit/discount/refund excluded'
-        : '押金·折扣·退款不计分',
-    },
+    { icon: '🤝', label: t('mine.earnWay1') },
+    { icon: '⚡', label: t('mine.earnWay2') },
+    { icon: '⚠️', label: t('mine.earnWay3') },
+    { icon: '🚫', label: t('mine.earnWay4') },
   ]
 
-  const uses = language === 'th'
-    ? 'แลกคูปอง · แลกสิทธิพิเศษ · แลกสินค้าดิจิทัล · แลกเวลาชาร์จฟรี'
-    : language === 'en'
-    ? 'Redeem coupons · Exclusive perks · Digital goods · Free charging time'
-    : '兑换卡券 · 兑换专属权益 · 兑换数字商品 · 换取免费充电时长'
+  const uses = t('mine.earnUses')
 
   return (
     <div
@@ -191,7 +160,7 @@ function EarnGuideCard({ language }: { language: AppLanguage }) {
       {open && (
         <div style={{ padding: '0 14px 14px', background: '#FAFBFF' }}>
           <div style={{ fontSize: 12, color: '#667085', fontWeight: 600, marginBottom: 8 }}>
-            {language === 'th' ? 'วิธีรับคะแนน' : language === 'en' ? 'Ways to earn' : '赚取方式'}
+            {t('mine.earnWaysLabel')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
             {ways.map((w, i) => (
@@ -225,7 +194,7 @@ function EarnGuideCard({ language }: { language: AppLanguage }) {
             <span style={{ fontSize: 16, flexShrink: 0 }}>🎁</span>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#7B61FF', marginBottom: 3 }}>
-                {language === 'th' ? 'ใช้คะแนนได้ที่ไหน?' : language === 'en' ? 'What can points buy?' : '积分可以换什么？'}
+                {t('mine.pointsUsesLabel')}
               </div>
               <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.6 }}>{uses}</div>
             </div>
@@ -324,49 +293,25 @@ export default function MinePage() {
     ? profile.memberLevel
     : pickLocalizedText({ level: mockProfile.memberLevel }, 'level', language)
 
-  const mainTabConfig: { key: MainTab; label: { zh: string; th: string; en: string }; icon: React.ReactNode; color: string; bg: string }[] = [
-    {
-      key: 'coupon',
-      label: { zh: '我的卡券', th: 'คูปองของฉัน', en: '我的卡券' },
-      icon: <CreditCardOutlined />,
-      color: '#2CDBCE',
-      bg: '#E8FBF8',
-    },
-    {
-      key: 'points',
-      label: { zh: '我的积分', th: 'คะแนนของฉัน', en: '我的积分' },
-      icon: <StarOutlined />,
-      color: '#7B61FF',
-      bg: '#F1EDFF',
-    },
-    {
-      key: 'order',
-      label: { zh: '我的订单', th: 'คำสั่งซื้อ', en: '我的订单' },
-      icon: <OrderedListOutlined />,
-      color: '#2F80FF',
-      bg: '#EAF2FF',
-    },
+  const mainTabConfig: { key: MainTab; label: string; icon: React.ReactNode; color: string; bg: string }[] = [
+    { key: 'coupon', label: t('mine.tabCoupon'), icon: <CreditCardOutlined />, color: '#2CDBCE', bg: '#E8FBF8' },
+    { key: 'points', label: t('mine.tabPoints'), icon: <StarOutlined />, color: '#7B61FF', bg: '#F1EDFF' },
+    { key: 'order', label: t('mine.tabOrder'), icon: <OrderedListOutlined />, color: '#2F80FF', bg: '#EAF2FF' },
   ]
 
   const couponSubConfig = [
-    { key: 'available' as CouponSubTab, label: { zh: '领取', th: 'รับแล้ว', en: '领取' } },
-    { key: 'used' as CouponSubTab, label: { zh: '已用', th: 'ใช้แล้ว', en: '已用' } },
-    { key: 'expired' as CouponSubTab, label: { zh: '过期', th: 'หมดอายุ', en: '过期' } },
+    { key: 'available' as CouponSubTab, label: t('mine.couponTabAvailable') },
+    { key: 'used' as CouponSubTab, label: t('mine.couponTabUsed') },
+    { key: 'expired' as CouponSubTab, label: t('mine.couponTabExpired') },
   ]
 
   const pointsSubConfig = [
-    { key: 'balance' as PointsSubTab, label: { zh: '积分', th: 'คะแนน', en: '积分' } },
-    { key: 'exchange' as PointsSubTab, label: { zh: '兑换', th: 'แลก', en: '兑换' } },
-    { key: 'earn' as PointsSubTab, label: { zh: '赚取积分', th: 'รับคะแนน', en: '赚取积分' } },
+    { key: 'balance' as PointsSubTab, label: t('mine.pointsTabBalance') },
+    { key: 'exchange' as PointsSubTab, label: t('mine.pointsTabExchange') },
+    { key: 'earn' as PointsSubTab, label: t('mine.pointsTabEarn') },
   ]
 
-  function getLabel(obj: { zh: string; th: string; en: string }) {
-    if (language === 'th') return obj.th
-    if (language === 'en') return obj.en
-    return obj.zh
-  }
-
-  const activeMain = mainTabConfig.find((t) => t.key === mainTab)!
+  const activeMain = mainTabConfig.find((tab) => tab.key === mainTab)!
 
   const subTabStyle = (active: boolean, color: string): React.CSSProperties => ({
     flex: 1,
@@ -383,13 +328,13 @@ export default function MinePage() {
 
   const filteredCoupons = couponList.filter((c) => c.status === couponSub)
 
-  const couponStatusLabel: Record<CouponSubTab, { color: string; text: { zh: string; th: string; en: string } }> = {
-    available: { color: 'cyan', text: { zh: '可使用', th: 'ใช้ได้', en: 'Available' } },
-    used: { color: 'default', text: { zh: '已使用', th: 'ใช้แล้ว', en: 'Used' } },
-    expired: { color: 'red', text: { zh: '已过期', th: 'หมดอายุ', en: 'Expired' } },
+  const couponStatusLabel: Record<CouponSubTab, { color: string; text: string }> = {
+    available: { color: 'cyan', text: t('mine.couponStatusAvailable') },
+    used: { color: 'default', text: t('mine.couponStatusUsed') },
+    expired: { color: 'red', text: t('mine.couponStatusExpired') },
   }
 
-  const mineTitle = language === 'th' ? 'ฉัน' : language === 'en' ? 'Mine' : '我的'
+  const mineTitle = t('mine.pageTitle')
 
   return (
     <div style={{ minHeight: '100vh', background: '#F7F9FC' }}>
@@ -429,17 +374,17 @@ export default function MinePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             {[
               {
-                label: language === 'th' ? 'คูปอง' : language === 'en' ? 'Coupons' : '卡券',
+                label: t('mine.colCoupons'),
                 value: couponAvailableCount,
                 unit: '',
               },
               {
-                label: language === 'th' ? 'คะแนน' : language === 'en' ? 'Points' : '积分',
+                label: t('mine.colPoints'),
                 value: pointsSummary.availablePoints.toLocaleString(),
                 unit: '',
               },
               {
-                label: language === 'th' ? 'เงินมัดจำ' : language === 'en' ? 'Deposit' : '押金',
+                label: t('mine.colDeposit'),
                 value: depositAmount,
                 unit: '฿',
               },
@@ -498,7 +443,7 @@ export default function MinePage() {
                     {tab.icon}
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 700, color: active ? tab.color : '#374151' }}>
-                    {getLabel(tab.label)}
+                    {tab.label}
                   </span>
                 </button>
               )
@@ -532,7 +477,7 @@ export default function MinePage() {
                   onClick={() => setCouponSub(sub.key)}
                   style={subTabStyle(couponSub === sub.key, activeMain.color)}
                 >
-                  {getLabel(sub.label)}
+                  {sub.label}
                   {sub.key === 'available' && (
                     <Badge
                       count={couponList.filter((c) => c.status === 'available').length}
@@ -549,13 +494,13 @@ export default function MinePage() {
                   onClick={() => setPointsSub(sub.key)}
                   style={subTabStyle(pointsSub === sub.key, activeMain.color)}
                 >
-                  {getLabel(sub.label)}
+                  {sub.label}
                 </button>
               ))}
             {mainTab === 'order' && (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px', color: '#374151', fontWeight: 700, fontSize: 14 }}>
                 <ThunderboltOutlined style={{ color: activeMain.color }} />
-                {language === 'th' ? 'ประวัติการชาร์จ' : language === 'en' ? 'Charging Records' : '充电记录'}
+                {t('mine.chargingRecords')}
               </div>
             )}
           </div>
@@ -568,7 +513,7 @@ export default function MinePage() {
               <>
                 {filteredCoupons.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '32px 0', color: '#A0A7B3', fontSize: 14 }}>
-                    {language === 'th' ? 'ไม่มีคูปอง' : language === 'en' ? 'No coupons' : '暂无卡券'}
+                    {t('mine.noCoupons')}
                   </div>
                 ) : (
                   filteredCoupons.map((item) => (
@@ -587,7 +532,7 @@ export default function MinePage() {
                       <div style={{ flex: 1 }}>
                         <div style={{ marginBottom: 4 }}>
                           <Tag color={couponStatusLabel[couponSub].color}>
-                            {getLabel(couponStatusLabel[couponSub].text)}
+                            {couponStatusLabel[couponSub].text}
                           </Tag>
                         </div>
                         <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
@@ -614,7 +559,7 @@ export default function MinePage() {
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {language === 'th' ? 'ใช้เลย' : language === 'en' ? 'Use Now' : '立即使用'}
+                          {t('mine.useNowCoupon')}
                         </button>
                       )}
                     </div>
@@ -638,20 +583,20 @@ export default function MinePage() {
                       }}
                     >
                       <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>
-                        {language === 'th' ? 'คะแนนคงเหลือ' : language === 'en' ? 'Points Balance' : '当前积分'}
+                        {t('mine.pointsBalance')}
                       </div>
                       <div style={{ fontSize: 34, fontWeight: 800 }}>
                         {pointsSummary.availablePoints.toLocaleString()}
                       </div>
                       {pointsSummary.pendingPoints > 0 && (
                         <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
-                          {language === 'th' ? `รอตัดบัญชี ${pointsSummary.pendingPoints}` : language === 'en' ? `Pending ${pointsSummary.pendingPoints}` : `待结算 ${pointsSummary.pendingPoints}`}
+                          {t('mine.pointsPending')} {pointsSummary.pendingPoints}
                         </div>
                       )}
                     </div>
                     <Spin spinning={ledgerLoading}>
                       {ledgerItems.length === 0 && !ledgerLoading ? (
-                        <Empty description={language === 'th' ? 'ยังไม่มีประวัติ' : language === 'en' ? 'No records yet' : '暂无流水记录'} style={{ padding: '24px 0' }} />
+                        <Empty description={t('mine.noLedger')} style={{ padding: '24px 0' }} />
                       ) : (
                         ledgerItems.map((rec: any, i: number) => (
                           <div
@@ -677,7 +622,7 @@ export default function MinePage() {
                   <>
                     <Spin spinning={redeemLoading}>
                       {redeemItems.length === 0 && !redeemLoading ? (
-                        <Empty description={language === 'th' ? 'ยังไม่มีประวัติ' : language === 'en' ? 'No records yet' : '暂无兑换记录'} style={{ padding: '24px 0' }} />
+                        <Empty description={t('mine.noRedeem')} style={{ padding: '24px 0' }} />
                       ) : (
                         redeemItems.map((rec: any, i: number) => (
                           <div
@@ -701,7 +646,7 @@ export default function MinePage() {
                 )}
                 {pointsSub === 'earn' && (
                   <>
-                    <EarnGuideCard language={language} />
+                    <EarnGuideCard />
                   </>
                 )}
               </>
