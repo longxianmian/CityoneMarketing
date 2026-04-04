@@ -235,6 +235,7 @@ export default function MinePage() {
   const [redeemItems, setRedeemItems] = useState<any[]>([])
   const [redeemLoading, setRedeemLoading] = useState(false)
   const [summaryLoaded, setSummaryLoaded] = useState(false)
+  const [borrowModalOpen, setBorrowModalOpen] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -550,12 +551,7 @@ export default function MinePage() {
                           onClick={() => {
                             // TODO: 对接共享充电宝系统后，在此处调用借电 API
                             // e.g. POST /api/borrow/start { couponId: item.id, userId }
-                            Modal.info({
-                              title: t('mine.borrowModalTitle'),
-                              content: t('mine.borrowModalDesc'),
-                              okText: t('mine.borrowModalOk'),
-                              centered: true,
-                            })
+                            setBorrowModalOpen(true)
                           }}
                           style={{
                             border: `1.5px solid #2CDBCE`,
@@ -695,6 +691,24 @@ export default function MinePage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={borrowModalOpen}
+        onOk={() => setBorrowModalOpen(false)}
+        onCancel={() => setBorrowModalOpen(false)}
+        okText={t('mine.borrowModalOk')}
+        cancelButtonProps={{ style: { display: 'none' } }}
+        centered
+        title={
+          <span style={{ color: '#2CDBCE', fontWeight: 700 }}>
+            {t('mine.borrowModalTitle')}
+          </span>
+        }
+      >
+        <p style={{ color: '#555', lineHeight: 1.7, margin: '12px 0 4px' }}>
+          {t('mine.borrowModalDesc')}
+        </p>
+      </Modal>
 
       <UserBottomNav
         current="mine"
