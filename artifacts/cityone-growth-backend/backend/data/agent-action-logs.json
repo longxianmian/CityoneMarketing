@@ -830,5 +830,53 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-04T09:49:55.830Z"
+  },
+  {
+    "log_id": "al_00053",
+    "session_id": "as_00082",
+    "message_id": "am_00185",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "เชิญเพื่อนอย่างไร?",
+    "intent_code": "invite_help",
+    "intent_confidence": 0.98,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-04T10:59:21.378Z"
+  },
+  {
+    "log_id": "al_00054",
+    "session_id": "as_00082",
+    "message_id": "am_00187",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "不对啊",
+    "intent_code": "unknown",
+    "intent_confidence": 0,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-04T10:59:47.093Z"
+  },
+  {
+    "log_id": "al_00055",
+    "session_id": "as_00082",
+    "message_id": "am_00189",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "帮我看看有哪些券能用",
+    "intent_code": "benefit_claim_query",
+    "intent_confidence": 0.92,
+    "tool_code": "tool-claim-benefits",
+    "tool_result_status": "success",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-04T11:00:04.763Z"
   }
 ]
