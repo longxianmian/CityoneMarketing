@@ -90,6 +90,7 @@ import {
 } from "./routes/growth-points.js";
 import {
   handleAgentSessionInit,
+  handleAgentSessionLatest,
   handleAgentGetMessages,
   handleAgentSendMessage,
   handleAgentConfirm,
@@ -570,6 +571,9 @@ const server = http.createServer(async (req, res) => {
     // ── AI Agent 用户端 ──────────────────────────────────────────────────────
     if (req.method === "POST" && url.pathname === "/api/agent/session/init") {
       return handleAgentSessionInit(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/agent/session/latest") {
+      return handleAgentSessionLatest(req, res, url, sendJson);
     }
     if (req.method === "GET" && /^\/api\/agent\/session\/[^/]+\/messages$/.test(url.pathname)) {
       return handleAgentGetMessages(req, res, url, sendJson);

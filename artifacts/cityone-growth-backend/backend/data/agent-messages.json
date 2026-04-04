@@ -2783,5 +2783,736 @@
       ]
     },
     "created_at": "2026-04-04T09:12:44.778Z"
+  },
+  {
+    "message_id": "am_00148",
+    "session_id": "as_00056",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:13:28.605Z"
+  },
+  {
+    "message_id": "am_00149",
+    "session_id": "as_00056",
+    "role": "user",
+    "text": "最近有什么活动优惠",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-04T09:13:43.418Z"
+  },
+  {
+    "message_id": "am_00150",
+    "session_id": "as_00056",
+    "role": "agent",
+    "text": "你还可以领取 3 个福利：",
+    "intent_code": "benefit_claim_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "你还可以领取 3 个福利：",
+      "cards": [
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_001"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_002"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "验收卡券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_003"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-04T09:13:52.191Z"
+  },
+  {
+    "message_id": "am_00151",
+    "session_id": "as_00057",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:14:09.910Z"
+  },
+  {
+    "message_id": "am_00152",
+    "session_id": "as_00058",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:14:14.248Z"
+  },
+  {
+    "message_id": "am_00153",
+    "session_id": "as_00059",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:14:14.260Z"
+  },
+  {
+    "message_id": "am_00154",
+    "session_id": "as_00060",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:14:16.246Z"
+  },
+  {
+    "message_id": "am_00155",
+    "session_id": "as_00061",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:14:54.744Z"
+  },
+  {
+    "message_id": "am_00156",
+    "session_id": "as_00062",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:14:54.770Z"
+  },
+  {
+    "message_id": "am_00157",
+    "session_id": "as_00063",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:14:56.471Z"
+  },
+  {
+    "message_id": "am_00158",
+    "session_id": "as_00064",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:11.683Z"
+  },
+  {
+    "message_id": "am_00159",
+    "session_id": "as_00065",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:11.719Z"
+  },
+  {
+    "message_id": "am_00160",
+    "session_id": "as_00066",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:13.353Z"
+  },
+  {
+    "message_id": "am_00161",
+    "session_id": "as_00067",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:21.739Z"
+  },
+  {
+    "message_id": "am_00162",
+    "session_id": "as_00068",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:21.762Z"
+  },
+  {
+    "message_id": "am_00163",
+    "session_id": "as_00069",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:23.484Z"
+  },
+  {
+    "message_id": "am_00164",
+    "session_id": "as_00070",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:27.966Z"
+  },
+  {
+    "message_id": "am_00165",
+    "session_id": "as_00071",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:27.987Z"
+  },
+  {
+    "message_id": "am_00166",
+    "session_id": "as_00072",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:29.733Z"
+  },
+  {
+    "message_id": "am_00167",
+    "session_id": "as_00073",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:35.020Z"
+  },
+  {
+    "message_id": "am_00168",
+    "session_id": "as_00074",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:35.038Z"
+  },
+  {
+    "message_id": "am_00169",
+    "session_id": "as_00075",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:36.701Z"
+  },
+  {
+    "message_id": "am_00170",
+    "session_id": "as_00076",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:53.843Z"
+  },
+  {
+    "message_id": "am_00171",
+    "session_id": "as_00077",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:53.894Z"
+  },
+  {
+    "message_id": "am_00172",
+    "session_id": "as_00078",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:15:55.562Z"
+  },
+  {
+    "message_id": "am_00173",
+    "session_id": "as_00079",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T09:16:00.056Z"
+  },
+  {
+    "message_id": "am_00174",
+    "session_id": "as_00079",
+    "role": "user",
+    "text": "今天有什么优惠活动",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-04T09:16:28.295Z"
+  },
+  {
+    "message_id": "am_00175",
+    "session_id": "as_00079",
+    "role": "agent",
+    "text": "小城：今日可领三种优惠：两款30分钟充电券（库存充足），另有验收卡券（可不限量领取）。",
+    "intent_code": "benefit_claim_query",
+    "reply_payload": {
+      "reply_type": "tool_result",
+      "text": "小城：今日可领三种优惠：两款30分钟充电券（库存充足），另有验收卡券（可不限量领取）。",
+      "cards": [
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_001"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_002"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "验收卡券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_003"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-04T09:16:39.398Z"
+  },
+  {
+    "message_id": "am_00176",
+    "session_id": "as_00080",
+    "role": "agent",
+    "type": "welcome",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "intent_code": "session_init",
+    "created_at": "2026-04-04T09:49:24.787Z"
+  },
+  {
+    "message_id": "am_00177",
+    "session_id": "as_00080",
+    "role": "user",
+    "type": "text",
+    "text": "帮我找附近站点",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-04T09:49:24.987Z"
+  },
+  {
+    "message_id": "am_00178",
+    "session_id": "as_00080",
+    "role": "agent",
+    "type": "confirm_required",
+    "text": "请确认是否继续执行该操作？",
+    "payload": {
+      "reply_type": "confirm_required",
+      "text": "请确认是否继续执行该操作？",
+      "confirm_action": "nearby_sites_query",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "nearby_sites_query",
+    "created_at": "2026-04-04T09:49:30.190Z"
+  },
+  {
+    "message_id": "am_00179",
+    "session_id": "as_00080",
+    "role": "user",
+    "type": "text",
+    "text": "有哪些券可以用",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-04T09:49:30.244Z"
+  },
+  {
+    "message_id": "am_00180",
+    "session_id": "as_00080",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "可领取3种券：30分钟充电券两种（库存100、199），验收卡券为不限量。",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "可领取3种券：30分钟充电券两种（库存100、199），验收卡券为不限量。",
+      "cards": [
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_001"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_002"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "验收卡券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_003"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "benefit_claim_query",
+    "created_at": "2026-04-04T09:49:42.664Z"
+  },
+  {
+    "message_id": "am_00181",
+    "session_id": "as_00080",
+    "role": "user",
+    "type": "text",
+    "text": "帮我看看积分怎么用",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-04T09:49:42.731Z"
+  },
+  {
+    "message_id": "am_00182",
+    "session_id": "as_00080",
+    "role": "agent",
+    "type": "info_reply",
+    "text": "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
+    "payload": {
+      "reply_type": "info_reply",
+      "text": "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "points_redeem_help",
+    "created_at": "2026-04-04T09:49:55.827Z"
+  },
+  {
+    "message_id": "am_00183",
+    "session_id": "as_00081",
+    "role": "agent",
+    "type": "welcome",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "intent_code": "session_init",
+    "created_at": "2026-04-04T09:50:30.068Z"
   }
 ]

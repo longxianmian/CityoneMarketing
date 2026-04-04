@@ -6,7 +6,15 @@
  *   管理端：admin/agent/config, intents, tools, logs, metrics
  */
 
-import { createSession, getSession, addMessage, getSessionMessages } from "../services/agent-session-service.js";
+import {
+  createSession,
+  getSession,
+  getOrCreateSession,
+  getLatestActiveSession,
+  touchSession,
+  addMessage,
+  getSessionMessages
+} from "../services/agent-session-service.js";
 import { resolveAgentIdentity } from "../services/agent-identity-service.js";
 import { recognizeIntent } from "../services/agent-intent-service.js";
 import { checkPolicy, POLICY_RESULTS } from "../services/agent-policy-service.js";
@@ -69,43 +77,69 @@ export async function handleAgentSessionInit(req, res, url, sendJson, readBody) 
     const welcomeText = config.welcome_messages?.[language] || config.welcome_messages?.zh;
     const quickPrompts = config.quick_prompts?.[language] || config.quick_prompts?.zh || [];
 
-    // 创建会话
-    const session = createSession({
+    // 优先恢复最近活跃会话，没有则创建新会话
+    const { session, restored } = getOrCreateSession({
       lineUserId,
       userId: body.user_id || "",
       siteId,
       entryType,
       entryCode,
       language,
-      identityTier: identity.identity_tier
+      identityTier: identity.identity_tier,
+      scene: "agent_main"
     });
 
-    // 写入欢迎消息
-    addMessage({
-      sessionId: session.session_id,
-      role: "agent",
-      text: welcomeText,
-      intentCode: "session_init",
-      replyPayload: {
-        reply_type: "welcome",
+    // 只在全新会话时写入欢迎消息
+    if (!restored) {
+      addMessage({
+        sessionId: session.session_id,
+        role: "agent",
+        type: "welcome",
         text: welcomeText,
-        cards: [],
-        suggestions: quickPrompts.slice(0, 4)
-      }
-    });
+        intentCode: "session_init",
+        payload: {
+          reply_type: "welcome",
+          text: welcomeText,
+          cards: [],
+          suggestions: quickPrompts.slice(0, 4)
+        }
+      });
+    }
+
+    // 返回最近 50 条消息（恢复场景）
+    const messages = getSessionMessages(session.session_id, 50);
 
     return sendOk(res, sendJson, "agent session initialized", {
       session_id: session.session_id,
+      restored,
       identity_tier: identity.identity_tier,
       identity_label: identity.identity_label,
       member_level: identity.member_level,
       capabilities: identity.capabilities,
       available_tools: identity.available_tools,
       quick_prompts: quickPrompts.slice(0, 4),
-      welcome_message: welcomeText
+      welcome_message: welcomeText,
+      messages
     });
   } catch (err) {
     return sendError(res, sendJson, 500, "SESSION_INIT_FAILED", err.message || "会话初始化失败");
+  }
+}
+
+/**
+ * GET /api/agent/session/latest?line_user_id=xxx
+ * 获取该用户最近活跃会话（前端无本地 session_id 时用于恢复）
+ */
+export function handleAgentSessionLatest(req, res, url, sendJson) {
+  try {
+    const lineUserId = url.searchParams.get("line_user_id") || "";
+    if (!lineUserId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "line_user_id 必填");
+    const session = getLatestActiveSession(lineUserId, "agent_main");
+    if (!session) return sendOk(res, sendJson, "no active session", { session: null, messages: [] });
+    const messages = getSessionMessages(session.session_id, 50);
+    return sendOk(res, sendJson, "session restored", { session, messages });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "SESSION_LATEST_FAILED", err.message || "查询失败");
   }
 }
 
@@ -221,10 +255,14 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
     const agentMsg = addMessage({
       sessionId,
       role: "agent",
+      type: replyPayload.reply_type || "tool_result",
       text: replyPayload.text,
       intentCode: intentResult.intent_code,
-      replyPayload
+      payload: replyPayload
     });
+
+    // 7b. 更新会话最近活跃时间
+    touchSession(sessionId);
 
     // 7. 记录日志
     writeAgentLog({

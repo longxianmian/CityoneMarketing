@@ -8,6 +8,10 @@ const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const SESSIONS_FILE = path.join(DATA_DIR, "agent-sessions.json");
 const MESSAGES_FILE = path.join(DATA_DIR, "agent-messages.json");
 
+const SESSION_MAX = 5000;
+const MESSAGE_MAX = 20000;
+const SESSION_TTL_DAYS = 7;
+
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
@@ -39,7 +43,27 @@ function nextId(list, prefix, field) {
 
 // ─── 会话管理 ────────────────────────────────────────────────────────────────
 
-export function createSession({ lineUserId, userId, siteId, entryType, entryCode, language, identityTier }) {
+/**
+ * 查找该用户最近的活跃主会话（scene=agent_main, status=active）
+ * 7 天内有活动的会话认为可恢复
+ */
+export function getLatestActiveSession(lineUserId, scene = "agent_main") {
+  if (!lineUserId) return null;
+  const list = loadJsonArray(SESSIONS_FILE);
+  const cutoff = new Date(Date.now() - SESSION_TTL_DAYS * 86400 * 1000).toISOString();
+  const candidates = list.filter(
+    (s) =>
+      s.line_user_id === lineUserId &&
+      s.scene === scene &&
+      s.status === "active" &&
+      s.last_active_at >= cutoff
+  );
+  if (!candidates.length) return null;
+  // 返回 last_active_at 最新的一个
+  return candidates.sort((a, b) => b.last_active_at.localeCompare(a.last_active_at))[0];
+}
+
+export function createSession({ lineUserId, userId, siteId, entryType, entryCode, language, identityTier, scene = "agent_main" }) {
   const list = loadJsonArray(SESSIONS_FILE);
   const now = new Date().toISOString();
   const session = {
@@ -51,16 +75,31 @@ export function createSession({ lineUserId, userId, siteId, entryType, entryCode
     entry_code: entryCode || "",
     language: language || "zh",
     identity_tier: identityTier || "guest_unfollowed",
+    scene,
     status: "active",
     message_count: 0,
     created_at: now,
+    last_active_at: now,
     updated_at: now
   };
   list.push(session);
-  // 保留最近 5000 个会话
-  if (list.length > 5000) list.splice(0, list.length - 5000);
+  if (list.length > SESSION_MAX) list.splice(0, list.length - SESSION_MAX);
   saveJsonArray(SESSIONS_FILE, list);
   return session;
+}
+
+/**
+ * 优先恢复该用户最近活跃会话，没有则创建新会话
+ * 返回 { session, restored: boolean }
+ */
+export function getOrCreateSession({ lineUserId, userId, siteId, entryType, entryCode, language, identityTier, scene = "agent_main" }) {
+  const existing = getLatestActiveSession(lineUserId, scene);
+  if (existing) {
+    touchSession(existing.session_id);
+    return { session: existing, restored: true };
+  }
+  const session = createSession({ lineUserId, userId, siteId, entryType, entryCode, language, identityTier, scene });
+  return { session, restored: false };
 }
 
 export function getSession(sessionId) {
@@ -68,14 +107,29 @@ export function getSession(sessionId) {
   return list.find((s) => s.session_id === sessionId) || null;
 }
 
+/**
+ * 更新会话最近活跃时间
+ */
+export function touchSession(sessionId) {
+  const list = loadJsonArray(SESSIONS_FILE);
+  const idx = list.findIndex((s) => s.session_id === sessionId);
+  if (idx >= 0) {
+    const now = new Date().toISOString();
+    list[idx] = { ...list[idx], last_active_at: now, updated_at: now };
+    saveJsonArray(SESSIONS_FILE, list);
+  }
+}
+
 export function updateSessionCount(sessionId) {
   const list = loadJsonArray(SESSIONS_FILE);
   const idx = list.findIndex((s) => s.session_id === sessionId);
   if (idx >= 0) {
+    const now = new Date().toISOString();
     list[idx] = {
       ...list[idx],
       message_count: (list[idx].message_count || 0) + 1,
-      updated_at: new Date().toISOString()
+      last_active_at: now,
+      updated_at: now
     };
     saveJsonArray(SESSIONS_FILE, list);
   }
@@ -83,20 +137,32 @@ export function updateSessionCount(sessionId) {
 
 // ─── 消息管理 ────────────────────────────────────────────────────────────────
 
-export function addMessage({ sessionId, role, text, intentCode, replyPayload }) {
+/**
+ * 写入消息
+ * role: "user" | "agent"
+ * type: "text" | "tool_card" | "welcome" | "confirm_request" 等
+ * payload: 前端渲染用的结构化数据（cards / suggestions 等）
+ */
+export function addMessage({ sessionId, role, text, type, payload, intentCode, replyPayload }) {
   const list = loadJsonArray(MESSAGES_FILE);
+
+  // 兼容旧调用（replyPayload -> payload）；新调用直接传 payload
+  const resolvedPayload = payload !== undefined ? payload : (replyPayload || null);
+  // type 优先从参数取，若未传则从 replyPayload 推断
+  const resolvedType = type || (resolvedPayload?.reply_type) || "text";
+
   const msg = {
     message_id: nextId(list, "am", "message_id"),
     session_id: sessionId,
-    role, // "user" | "agent"
+    role,
+    type: resolvedType,
     text: text || "",
+    payload: resolvedPayload,
     intent_code: intentCode || "",
-    reply_payload: replyPayload || null,
     created_at: new Date().toISOString()
   };
   list.push(msg);
-  // 保留最近 20000 条消息
-  if (list.length > 20000) list.splice(0, list.length - 20000);
+  if (list.length > MESSAGE_MAX) list.splice(0, list.length - MESSAGE_MAX);
   saveJsonArray(MESSAGES_FILE, list);
   updateSessionCount(sessionId);
   return msg;
