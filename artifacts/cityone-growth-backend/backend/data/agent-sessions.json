@@ -1136,5 +1136,21 @@
     "created_at": "2026-04-04T09:50:30.066Z",
     "last_active_at": "2026-04-04T09:50:30.373Z",
     "updated_at": "2026-04-04T09:50:30.373Z"
+  },
+  {
+    "session_id": "as_00082",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "site_id": "",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "th",
+    "identity_tier": "oa_fan",
+    "scene": "agent_main",
+    "status": "active",
+    "message_count": 2,
+    "created_at": "2026-04-04T10:32:28.003Z",
+    "last_active_at": "2026-04-04T10:59:12.266Z",
+    "updated_at": "2026-04-04T10:59:12.266Z"
   }
 ]

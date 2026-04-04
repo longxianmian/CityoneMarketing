@@ -3514,5 +3514,35 @@
     },
     "intent_code": "session_init",
     "created_at": "2026-04-04T09:50:30.068Z"
+  },
+  {
+    "message_id": "am_00184",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "welcome",
+    "text": "สวัสดี ฉันคือ CityOne AI Assistant มีอะไรให้ช่วยไหม?",
+    "payload": {
+      "reply_type": "welcome",
+      "text": "สวัสดี ฉันคือ CityOne AI Assistant มีอะไรให้ช่วยไหม?",
+      "cards": [],
+      "suggestions": [
+        "ช่วยหาสถานีใกล้เคียง",
+        "ดูคูปองที่ใช้ได้",
+        "แลกคะแนนอย่างไร?",
+        "เชิญเพื่อนอย่างไร?"
+      ]
+    },
+    "intent_code": "session_init",
+    "created_at": "2026-04-04T10:32:28.004Z"
+  },
+  {
+    "message_id": "am_00185",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "เชิญเพื่อนอย่างไร?",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-04T10:59:12.265Z"
   }
 ]
