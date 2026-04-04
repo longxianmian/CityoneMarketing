@@ -2336,5 +2336,78 @@
       ]
     },
     "created_at": "2026-04-03T08:58:28.726Z"
+  },
+  {
+    "message_id": "am_00125",
+    "session_id": "as_00047",
+    "role": "agent",
+    "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+    "intent_code": "session_init",
+    "reply_payload": {
+      "reply_type": "welcome",
+      "text": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "created_at": "2026-04-04T01:21:43.638Z"
+  },
+  {
+    "message_id": "am_00126",
+    "session_id": "as_00047",
+    "role": "user",
+    "text": "在吗",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-04T01:21:48.194Z"
+  },
+  {
+    "message_id": "am_00127",
+    "session_id": "as_00047",
+    "role": "agent",
+    "text": "在的，您好！我是小城，有什么我可以帮您的吗？",
+    "intent_code": "greeting",
+    "reply_payload": {
+      "reply_type": "greeting",
+      "text": "在的，您好！我是小城，有什么我可以帮您的吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-04T01:22:00.928Z"
+  },
+  {
+    "message_id": "am_00128",
+    "session_id": "as_00047",
+    "role": "user",
+    "text": "你帮我看看今天有什么可以积分兑换",
+    "intent_code": "",
+    "reply_payload": null,
+    "created_at": "2026-04-04T01:22:50.832Z"
+  },
+  {
+    "message_id": "am_00129",
+    "session_id": "as_00047",
+    "role": "agent",
+    "text": "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
+    "intent_code": "points_redeem_help",
+    "reply_payload": {
+      "reply_type": "info_reply",
+      "text": "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "created_at": "2026-04-04T01:23:04.642Z"
   }
 ]

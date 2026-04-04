@@ -27,7 +27,13 @@
     "rule_text": "",
     "status": "enabled",
     "created_at": "2026-04-02T17:19:34.409Z",
-    "updated_at": "2026-04-02T17:19:34.409Z"
+    "updated_at": "2026-04-04T02:48:48.851Z",
+    "share_content_type": "coupon",
+    "share_enabled": true,
+    "share_title": "免费充电30分钟券，送给好友！",
+    "share_summary": "领取后立即可用，扫码借还",
+    "share_cover": "https://cdn.cityone.co/products/coupon_30min_cover.jpg",
+    "campaign_id": "camp_coupon_apr"
   },
   {
     "product_id": "dp_002",
@@ -57,6 +63,12 @@
     "rule_text": "",
     "status": "enabled",
     "created_at": "2026-04-02T17:20:32.534Z",
-    "updated_at": "2026-04-02T17:20:32.842Z"
+    "updated_at": "2026-04-02T17:20:32.842Z",
+    "share_content_type": "coupon",
+    "share_enabled": false,
+    "share_title": "",
+    "share_summary": "",
+    "share_cover": "",
+    "campaign_id": ""
   }
 ]

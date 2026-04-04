@@ -642,5 +642,19 @@
     "message_count": 3,
     "created_at": "2026-04-03T08:58:08.912Z",
     "updated_at": "2026-04-03T08:58:28.727Z"
+  },
+  {
+    "session_id": "as_00047",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "site_id": "",
+    "entry_type": "",
+    "entry_code": "",
+    "language": "zh",
+    "identity_tier": "oa_fan",
+    "status": "active",
+    "message_count": 5,
+    "created_at": "2026-04-04T01:21:43.637Z",
+    "updated_at": "2026-04-04T01:23:04.643Z"
   }
 ]

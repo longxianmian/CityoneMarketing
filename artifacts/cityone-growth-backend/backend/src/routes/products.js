@@ -175,6 +175,12 @@ export async function handleDigitalProductCreate(req, res, url, sendJson, readBo
       stackable: !!body.stackable,
       rule_text: body.rule_text || "",
       status: "enabled",
+      share_content_type: productType === "coupon" ? "coupon" : "product",
+      share_enabled: !!body.share_enabled,
+      share_title: body.share_title || "",
+      share_summary: body.share_summary || "",
+      share_cover: body.share_cover || "",
+      campaign_id: body.campaign_id || "",
       created_at: now,
       updated_at: now,
     };
@@ -200,6 +206,7 @@ export async function handleDigitalProductUpdate(req, res, url, sendJson, readBo
       "source_mode","cash_enabled","cash_price","cash_currency","points_enabled","points_price",
       "stock_enabled","stock_qty","user_limit","valid_type","valid_days","valid_start_at","valid_end_at",
       "refundable","transferable","stackable","rule_text","status",
+      "share_enabled","share_title","share_summary","share_cover","campaign_id",
     ];
     const updated = { ...list[idx] };
     for (const f of updatableFields) {
