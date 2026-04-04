@@ -4,21 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, LinkOutline
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
 import MultiLangInput, { AutoTranslateButton } from '../../components/MultiLangInput'
-
-const TEMPLATE_TYPES = [
-  { value: 'video_ad', label: '视频广告落地页' },
-  { value: 'social', label: '社群流量承接页' },
-  { value: 'organic', label: '自然流落地页' },
-  { value: 'event', label: '活动专属落地页' },
-]
-
-const AUTO_ACTIONS = [
-  { value: 'open_welfare', label: '跳转福利中心' },
-  { value: 'open_activity', label: '跳转活动详情' },
-  { value: 'open_product', label: '跳转数字商品' },
-  { value: 'open_nearby', label: '跳转附近站点' },
-  { value: 'none', label: '无动作' },
-]
+import { useI18n } from '../../i18n'
 
 function toMultiLang(v: any): { zh: string; th: string; en: string } {
   if (v && typeof v === 'object' && ('zh' in v || 'th' in v || 'en' in v)) return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
@@ -28,6 +14,23 @@ function toMultiLang(v: any): { zh: string; th: string; en: string } {
 const MULTI_LANG_FIELDS = ['title', 'subTitle', 'benefitText', 'supportText', 'buttonText']
 
 export default function LandingTemplateManage() {
+  const { t } = useI18n()
+
+  const TEMPLATE_TYPES = [
+    { value: 'video_ad', label: t('adminTemplate.landing.typeVideoAd') },
+    { value: 'social', label: t('adminTemplate.landing.typeSocial') },
+    { value: 'organic', label: t('adminTemplate.landing.typeOrganic') },
+    { value: 'event', label: t('adminTemplate.landing.typeEvent') },
+  ]
+
+  const AUTO_ACTIONS = [
+    { value: 'open_welfare', label: t('adminTemplate.landing.actionOpenWelfare') },
+    { value: 'open_activity', label: t('adminTemplate.landing.actionOpenActivity') },
+    { value: 'open_product', label: t('adminTemplate.landing.actionOpenProduct') },
+    { value: 'open_nearby', label: t('adminTemplate.landing.actionOpenNearby') },
+    { value: 'none', label: t('adminTemplate.landing.actionNone') },
+  ]
+
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [total, setTotal] = useState(0)
@@ -68,12 +71,12 @@ export default function LandingTemplateManage() {
 
   const handleDelete = (r: any) => {
     Modal.confirm({
-      title: '确认删除该落地页模板？',
+      title: t('adminTemplate.landing.confirmDelete'),
       onOk: async () => {
         try {
           await request.delete(`/api/landing-templates/${r.id}`)
-          message.success('删除成功'); fetchData()
-        } catch { message.error('删除失败') }
+          message.success(t('adminTemplate.common.deleteSuccess')); fetchData()
+        } catch { message.error(t('adminTemplate.common.deleteFail')) }
       },
     })
   }
@@ -82,7 +85,6 @@ export default function LandingTemplateManage() {
     try {
       const values = await form.validateFields()
 
-      // Auto-translate: detect source lang + fields missing translation
       const langs = ['zh', 'th', 'en']
       const langCount: Record<string, number> = { zh: 0, th: 0, en: 0 }
       MULTI_LANG_FIELDS.forEach((f) => {
@@ -99,7 +101,7 @@ export default function LandingTemplateManage() {
       })
 
       if (Object.keys(textsToTranslate).length > 0) {
-        const hide = message.loading('正在自动翻译成三语…', 0)
+        const hide = message.loading(t('adminTemplate.common.translating'), 0)
         try {
           const res: any = await request.post('/api/translate', { texts: textsToTranslate, sourceLang })
           const result = res.data?.result ?? {}
@@ -111,20 +113,20 @@ export default function LandingTemplateManage() {
           })
           form.setFieldsValue(patch)
           hide()
-          message.success('✅ 翻译完成，正在保存…')
+          message.success(t('adminTemplate.common.translateDone'))
         } catch {
           hide()
-          message.warning('自动翻译失败，将以当前内容保存')
+          message.warning(t('adminTemplate.common.translateFail'))
         }
       }
 
       const payload = { ...values, coverImage }
       if (isEdit) {
         await request.put(`/api/landing-templates/${editingId}`, payload)
-        message.success('更新成功')
+        message.success(t('adminTemplate.common.updateSuccess'))
       } else {
         await request.post('/api/landing-templates', payload)
-        message.success('创建成功')
+        message.success(t('adminTemplate.common.createSuccess'))
       }
       setFormVisible(false); fetchData()
     } catch {}
@@ -152,30 +154,30 @@ export default function LandingTemplateManage() {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-    { title: '模板名称', dataIndex: 'name', key: 'name', width: 200 },
-    { title: '类型', dataIndex: 'templateType', key: 'templateType', width: 140,
-      render: (v: string) => TEMPLATE_TYPES.find(t => t.value === v)?.label || v },
-    { title: '主标题', dataIndex: 'title', key: 'title', width: 200, render: displayTitle },
-    { title: '关注后动作', dataIndex: 'autoAction', key: 'autoAction', width: 140,
+    { title: t('adminTemplate.common.templateName'), dataIndex: 'name', key: 'name', width: 200 },
+    { title: t('adminTemplate.landing.columnType'), dataIndex: 'templateType', key: 'templateType', width: 140,
+      render: (v: string) => TEMPLATE_TYPES.find(tp => tp.value === v)?.label || v },
+    { title: t('adminTemplate.landing.columnMainTitle'), dataIndex: 'title', key: 'title', width: 200, render: displayTitle },
+    { title: t('adminTemplate.landing.columnAutoAction'), dataIndex: 'autoAction', key: 'autoAction', width: 140,
       render: (v: string) => AUTO_ACTIONS.find(a => a.value === v)?.label || v },
-    { title: '状态', dataIndex: 'enabled', key: 'enabled', width: 80,
-      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
-    { title: '操作', key: 'action', width: 140,
+    { title: t('adminTemplate.common.status'), dataIndex: 'enabled', key: 'enabled', width: 80,
+      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? t('adminTemplate.common.enable') : t('adminTemplate.common.disable')}</Tag> },
+    { title: t('adminTemplate.common.action'), key: 'action', width: 140,
       render: (_: any, r: any) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>编辑</Button>
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>删除</Button>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>{t('adminTemplate.common.edit')}</Button>
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>{t('adminTemplate.common.delete')}</Button>
         </Space>
       ) },
   ]
 
   return (
     <Card
-      title={<Space><LinkOutlined />落地页模板管理</Space>}
+      title={<Space><LinkOutlined />{t('adminTemplate.landing.cardTitle')}</Space>}
       extra={
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新建模板</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>{t('adminTemplate.common.refresh')}</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>{t('adminTemplate.common.newTemplate')}</Button>
         </Space>
       }
     >
@@ -185,11 +187,11 @@ export default function LandingTemplateManage() {
         rowKey="id"
         loading={loading}
         size="small"
-        pagination={{ current: page, pageSize, total, showTotal: t => `共 ${t} 条`, onChange: p => { setPage(p); fetchData(p) } }}
+        pagination={{ current: page, pageSize, total, showTotal: (n) => t('adminTemplate.common.totalCount').replace('{n}', String(n)), onChange: p => { setPage(p); fetchData(p) } }}
       />
 
       <Modal
-        title={isEdit ? '编辑落地页模板' : '新建落地页模板'}
+        title={isEdit ? t('adminTemplate.landing.modalEdit') : t('adminTemplate.landing.modalNew')}
         open={formVisible}
         onOk={handleOk}
         onCancel={() => setFormVisible(false)}
@@ -197,59 +199,59 @@ export default function LandingTemplateManage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="模板名称" rules={[{ required: true }]}>
-            <Input placeholder="如：视频广告-拉新落地页-v1" />
+          <Form.Item name="name" label={t('adminTemplate.common.templateName')} rules={[{ required: true }]}>
+            <Input />
           </Form.Item>
-          <Form.Item name="templateType" label="模板类型" rules={[{ required: true }]}>
-            <Select options={TEMPLATE_TYPES} placeholder="选择模板类型" />
+          <Form.Item name="templateType" label={t('adminTemplate.landing.formTemplateType')} rules={[{ required: true }]}>
+            <Select options={TEMPLATE_TYPES} placeholder={t('adminTemplate.landing.placeholderTemplateType')} />
           </Form.Item>
 
-          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>页面内容</Divider>
+          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.landing.sectionContent')}</Divider>
           <AutoTranslateButton
             sourceLang="zh"
             getTexts={handleAutoTranslate}
             onResult={applyTranslation}
           />
-          <Form.Item name="title" label="主标题（三语）" rules={[{ required: true, message: '请填写中文主标题' }]}>
-            <MultiLangInput placeholder="页面大标题，如：限时福利！关注领15分钟免费时长" />
+          <Form.Item name="title" label={t('adminTemplate.landing.formMainTitle')} rules={[{ required: true, message: t('adminTemplate.common.requiredChTitle') }]}>
+            <MultiLangInput />
           </Form.Item>
-          <Form.Item name="subTitle" label="副标题（三语）">
-            <MultiLangInput placeholder="副标题，如：仅限新关注用户" />
+          <Form.Item name="subTitle" label={t('adminTemplate.landing.formSubTitle')}>
+            <MultiLangInput />
           </Form.Item>
-          <Form.Item name="benefitText" label="一句话利益点（三语）">
-            <MultiLangInput placeholder="如：免费试用 · 到站即用 · 无需押金" />
+          <Form.Item name="benefitText" label={t('adminTemplate.landing.formBenefitText')}>
+            <MultiLangInput />
           </Form.Item>
-          <Form.Item name="supportText" label="支撑说明文案（三语）">
-            <MultiLangInput textarea rows={2} placeholder="如：CityOne 是泰国领先的共享充电宝品牌，已覆盖 500+ 站点" />
+          <Form.Item name="supportText" label={t('adminTemplate.landing.formSupportText')}>
+            <MultiLangInput textarea rows={2} />
           </Form.Item>
-          <Form.Item name="buttonText" label="主按钮文案（三语）" rules={[{ required: true, message: '请填写中文按钮文案' }]}>
-            <MultiLangInput placeholder="如：立即关注 LINE OA" />
+          <Form.Item name="buttonText" label={t('adminTemplate.landing.formButtonText')} rules={[{ required: true, message: t('adminTemplate.common.requiredChTitle') }]}>
+            <MultiLangInput />
           </Form.Item>
-          <Form.Item label="封面图">
-            <MediaUploadField type="image" value={coverImage} onChange={setCoverImage} placeholder="上传落地页封面图" />
+          <Form.Item label={t('adminTemplate.landing.formCoverImage')}>
+            <MediaUploadField type="image" value={coverImage} onChange={setCoverImage} placeholder={t('adminTemplate.landing.uploadCoverImage')} />
           </Form.Item>
 
-          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>关注后动作</Divider>
-          <Form.Item name="autoAction" label="关注成功后自动跳转" rules={[{ required: true }]}>
+          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.landing.sectionAutoAction')}</Divider>
+          <Form.Item name="autoAction" label={t('adminTemplate.landing.formAutoAction')} rules={[{ required: true }]}>
             <Select options={AUTO_ACTIONS} />
           </Form.Item>
           <Form.Item noStyle shouldUpdate={(p, c) => p.autoAction !== c.autoAction}>
             {({ getFieldValue }) => {
               const action = getFieldValue('autoAction')
               if (action === 'open_activity') return (
-                <Form.Item name="targetActivityId" label="目标活动ID" rules={[{ required: true }]}>
-                  <Input placeholder="活动 ID" />
+                <Form.Item name="targetActivityId" label={t('adminTemplate.landing.formTargetActivityId')} rules={[{ required: true }]}>
+                  <Input placeholder={t('adminTemplate.landing.placeholderActivityId')} />
                 </Form.Item>
               )
               if (action === 'open_product') return (
-                <Form.Item name="targetProductId" label="目标商品ID" rules={[{ required: true }]}>
-                  <Input placeholder="数字商品 ID" />
+                <Form.Item name="targetProductId" label={t('adminTemplate.landing.formTargetProductId')} rules={[{ required: true }]}>
+                  <Input placeholder={t('adminTemplate.landing.placeholderProductId')} />
                 </Form.Item>
               )
               return null
             }}
           </Form.Item>
-          <Form.Item name="enabled" label="是否启用" valuePropName="checked" initialValue={true}>
+          <Form.Item name="enabled" label={t('adminTemplate.common.isEnabled')} valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
         </Form>

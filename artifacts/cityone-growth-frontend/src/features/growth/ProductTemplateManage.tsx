@@ -4,13 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, ShopOutline
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
 import MultiLangInput, { AutoTranslateButton } from '../../components/MultiLangInput'
-
-const ACTION_TYPES = [
-  { value: 'free_claim', label: '免费领取' },
-  { value: 'points_redeem', label: '积分兑换' },
-  { value: 'cash_buy', label: '现金购买' },
-  { value: 'use_now', label: '去使用' },
-]
+import { useI18n } from '../../i18n'
 
 function toMultiLang(v: any): { zh: string; th: string; en: string } {
   if (v && typeof v === 'object' && ('zh' in v || 'th' in v || 'en' in v)) return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
@@ -20,6 +14,15 @@ function toMultiLang(v: any): { zh: string; th: string; en: string } {
 const MULTI_LANG_FIELDS = ['title', 'subTitle', 'benefitContent', 'usageRules', 'redeemNotice', 'actionText']
 
 export default function ProductTemplateManage() {
+  const { t } = useI18n()
+
+  const ACTION_TYPES = [
+    { value: 'free_claim', label: t('adminTemplate.product.actionFreeClaim') },
+    { value: 'points_redeem', label: t('adminTemplate.product.actionPointsRedeem') },
+    { value: 'cash_buy', label: t('adminTemplate.product.actionCashBuy') },
+    { value: 'use_now', label: t('adminTemplate.product.actionUseNow') },
+  ]
+
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [total, setTotal] = useState(0)
@@ -61,12 +64,12 @@ export default function ProductTemplateManage() {
 
   const handleDelete = (r: any) => {
     Modal.confirm({
-      title: '确认删除该商品模板？',
+      title: t('adminTemplate.product.confirmDelete'),
       onOk: async () => {
         try {
           await request.delete(`/api/product-templates/${r.id}`)
-          message.success('删除成功'); fetchData()
-        } catch { message.error('删除失败') }
+          message.success(t('adminTemplate.common.deleteSuccess')); fetchData()
+        } catch { message.error(t('adminTemplate.common.deleteFail')) }
       },
     })
   }
@@ -75,7 +78,6 @@ export default function ProductTemplateManage() {
     try {
       const values = await form.validateFields()
 
-      // Auto-translate: detect source lang + fields missing translation
       const langs = ['zh', 'th', 'en']
       const langCount: Record<string, number> = { zh: 0, th: 0, en: 0 }
       MULTI_LANG_FIELDS.forEach((f) => {
@@ -92,7 +94,7 @@ export default function ProductTemplateManage() {
       })
 
       if (Object.keys(textsToTranslate).length > 0) {
-        const hide = message.loading('正在自动翻译成三语…', 0)
+        const hide = message.loading(t('adminTemplate.common.translating'), 0)
         try {
           const res: any = await request.post('/api/translate', { texts: textsToTranslate, sourceLang })
           const result = res.data?.result ?? {}
@@ -104,20 +106,20 @@ export default function ProductTemplateManage() {
           })
           form.setFieldsValue(patch)
           hide()
-          message.success('✅ 翻译完成，正在保存…')
+          message.success(t('adminTemplate.common.translateDone'))
         } catch {
           hide()
-          message.warning('自动翻译失败，将以当前内容保存')
+          message.warning(t('adminTemplate.common.translateFail'))
         }
       }
 
       const payload = { ...values, coverImage, coverVideo }
       if (isEdit) {
         await request.put(`/api/product-templates/${editingId}`, payload)
-        message.success('更新成功')
+        message.success(t('adminTemplate.common.updateSuccess'))
       } else {
         await request.post('/api/product-templates', payload)
-        message.success('创建成功')
+        message.success(t('adminTemplate.common.createSuccess'))
       }
       setFormVisible(false); fetchData()
     } catch {}
@@ -145,101 +147,101 @@ export default function ProductTemplateManage() {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-    { title: '模板名称', dataIndex: 'name', key: 'name', width: 200 },
-    { title: '商品标题', dataIndex: 'title', key: 'title', width: 200, render: displayTitle },
-    { title: '积分价', dataIndex: 'pointsPrice', key: 'pointsPrice', width: 100,
+    { title: t('adminTemplate.common.templateName'), dataIndex: 'name', key: 'name', width: 200 },
+    { title: t('adminTemplate.product.columnTitle'), dataIndex: 'title', key: 'title', width: 200, render: displayTitle },
+    { title: t('adminTemplate.product.columnPointsPrice'), dataIndex: 'pointsPrice', key: 'pointsPrice', width: 100,
       render: (v: number) => v ? `${v} pts` : '—' },
-    { title: '现金价', dataIndex: 'cashPrice', key: 'cashPrice', width: 100,
+    { title: t('adminTemplate.product.columnCashPrice'), dataIndex: 'cashPrice', key: 'cashPrice', width: 100,
       render: (v: number) => v ? `฿${v}` : '—' },
-    { title: '底部动作', dataIndex: 'actionType', key: 'actionType', width: 120,
+    { title: t('adminTemplate.product.columnActionType'), dataIndex: 'actionType', key: 'actionType', width: 120,
       render: (v: string) => ACTION_TYPES.find(a => a.value === v)?.label || v },
-    { title: '状态', dataIndex: 'enabled', key: 'enabled', width: 80,
-      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
-    { title: '操作', key: 'action', width: 140,
+    { title: t('adminTemplate.common.status'), dataIndex: 'enabled', key: 'enabled', width: 80,
+      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? t('adminTemplate.common.enable') : t('adminTemplate.common.disable')}</Tag> },
+    { title: t('adminTemplate.common.action'), key: 'action', width: 140,
       render: (_: any, r: any) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>编辑</Button>
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>删除</Button>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>{t('adminTemplate.common.edit')}</Button>
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>{t('adminTemplate.common.delete')}</Button>
         </Space>
       ) },
   ]
 
   return (
     <Card
-      title={<Space><ShopOutlined />数字商品详情模板管理</Space>}
+      title={<Space><ShopOutlined />{t('adminTemplate.product.cardTitle')}</Space>}
       extra={
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新建模板</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>{t('adminTemplate.common.refresh')}</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>{t('adminTemplate.common.newTemplate')}</Button>
         </Space>
       }
     >
       <Table columns={columns} dataSource={data} rowKey="id" loading={loading} size="small"
-        pagination={{ current: page, pageSize, total, showTotal: t => `共 ${t} 条`, onChange: p => { setPage(p); fetchData(p) } }}
+        pagination={{ current: page, pageSize, total, showTotal: (n) => t('adminTemplate.common.totalCount').replace('{n}', String(n)), onChange: p => { setPage(p); fetchData(p) } }}
       />
 
       <Modal
-        title={isEdit ? '编辑数字商品模板' : '新建数字商品模板'}
+        title={isEdit ? t('adminTemplate.product.modalEdit') : t('adminTemplate.product.modalNew')}
         open={formVisible} onOk={handleOk} onCancel={() => setFormVisible(false)}
         width={720} destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="模板名称（管理用）" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="name" label={t('adminTemplate.product.formTemplateName')} rules={[{ required: true }]}><Input /></Form.Item>
 
-          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>商品主信息区</Divider>
+          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.product.sectionMain')}</Divider>
           <AutoTranslateButton
             sourceLang="zh"
             getTexts={handleAutoTranslate}
             onResult={applyTranslation}
           />
-          <Form.Item name="title" label="商品标题（三语）" rules={[{ required: true, message: '请填写中文标题' }]}>
-            <MultiLangInput placeholder="商品标题" />
+          <Form.Item name="title" label={t('adminTemplate.product.formTitle')} rules={[{ required: true, message: t('adminTemplate.common.requiredChTitle') }]}>
+            <MultiLangInput />
           </Form.Item>
-          <Form.Item name="subTitle" label="商品副标题（三语）">
-            <MultiLangInput placeholder="商品副标题" />
+          <Form.Item name="subTitle" label={t('adminTemplate.product.formSubTitle')}>
+            <MultiLangInput />
           </Form.Item>
-          <Form.Item label="商品封面图">
+          <Form.Item label={t('adminTemplate.product.formCoverImage')}>
             <MediaUploadField type="image" value={coverImage} onChange={setCoverImage} />
           </Form.Item>
-          <Form.Item label="商品宣传视频">
+          <Form.Item label={t('adminTemplate.product.formCoverVideo')}>
             <MediaUploadField type="video" value={coverVideo} onChange={setCoverVideo} />
           </Form.Item>
 
-          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>价格区</Divider>
-          <Form.Item name="pointsPrice" label="积分价格（pts）">
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="0 = 免费" />
+          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.product.sectionPrice')}</Divider>
+          <Form.Item name="pointsPrice" label={t('adminTemplate.product.formPointsPrice')}>
+            <InputNumber min={0} style={{ width: '100%' }} placeholder="0 = free" />
           </Form.Item>
-          <Form.Item name="cashPrice" label="现金价格（THB）">
-            <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0 = 免费" />
-          </Form.Item>
-
-          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>权益内容区</Divider>
-          <Form.Item name="benefitContent" label="权益内容（三语）">
-            <MultiLangInput textarea rows={3} placeholder="每行一个权益点" />
+          <Form.Item name="cashPrice" label={t('adminTemplate.product.formCashPrice')}>
+            <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0 = free" />
           </Form.Item>
 
-          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>使用规则区</Divider>
-          <Form.Item name="usageRules" label="使用规则（三语）">
+          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.product.sectionBenefit')}</Divider>
+          <Form.Item name="benefitContent" label={t('adminTemplate.product.formBenefitContent')}>
             <MultiLangInput textarea rows={3} />
           </Form.Item>
 
-          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>兑换须知区</Divider>
-          <Form.Item name="redeemNotice" label="兑换须知（三语）">
+          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.product.sectionRules')}</Divider>
+          <Form.Item name="usageRules" label={t('adminTemplate.product.formUsageRules')}>
+            <MultiLangInput textarea rows={3} />
+          </Form.Item>
+
+          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.product.sectionRedeem')}</Divider>
+          <Form.Item name="redeemNotice" label={t('adminTemplate.product.formRedeemNotice')}>
             <MultiLangInput textarea rows={2} />
           </Form.Item>
 
-          <Form.Item name="linkedActivityIds" label="来源活动ID（逗号分隔，供"反向展示"用）">
-            <Input placeholder="如：1,2,3" />
+          <Form.Item name="linkedActivityIds" label={t('adminTemplate.product.formLinkedActivities')}>
+            <Input placeholder={t('adminTemplate.product.placeholderLinkedIds')} />
           </Form.Item>
 
-          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>底部动作区</Divider>
-          <Form.Item name="actionType" label="底部动作类型" rules={[{ required: true }]}>
+          <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.product.sectionAction')}</Divider>
+          <Form.Item name="actionType" label={t('adminTemplate.product.formActionType')} rules={[{ required: true }]}>
             <Select options={ACTION_TYPES} />
           </Form.Item>
-          <Form.Item name="actionText" label="按钮文案（三语，覆盖默认）">
-            <MultiLangInput placeholder="留空使用动作类型默认文案" />
+          <Form.Item name="actionText" label={t('adminTemplate.product.formActionText')}>
+            <MultiLangInput placeholder={t('adminTemplate.product.placeholderActionText')} />
           </Form.Item>
-          <Form.Item name="enabled" label="是否启用" valuePropName="checked" initialValue={true}>
+          <Form.Item name="enabled" label={t('adminTemplate.common.isEnabled')} valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
         </Form>
