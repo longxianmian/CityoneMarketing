@@ -104,10 +104,10 @@ export default function AdminLayout() {
             label: lt('activityCenter'),
             children: [
               { key: '/admin/growth/activity', label: lt('activityManage') },
-              { key: '/admin/growth/prize-pool', label: '奖池管理' },
-              { key: '/admin/growth/fortune-sign', label: '签池管理' },
-              { key: '/admin/growth/interaction-records', label: '互动记录' },
-              { key: '/admin/growth/user-chances', label: '次数账户' },
+              { key: '/admin/growth/prize-pool', label: lt('prizePool') },
+              { key: '/admin/growth/fortune-sign', label: lt('fortuneSign') },
+              { key: '/admin/growth/interaction-records', label: lt('interactionRecords') },
+              { key: '/admin/growth/user-chances', label: lt('userChances') },
             ],
           },
           {
@@ -124,9 +124,9 @@ export default function AdminLayout() {
                   { key: '/admin/growth/points/rules', label: lt('pointsRules') },
                   { key: '/admin/growth/points/ledger', label: lt('pointsLedger') },
                   { key: '/admin/growth/points/mall', label: lt('pointsMall') },
-                  { key: '/admin/growth/points/accounts', label: '积分账户' },
-                  { key: '/admin/growth/points/share-relations', label: '分享归因' },
-                  { key: '/admin/growth/points/consume-relations', label: '消费归因' },
+                  { key: '/admin/growth/points/accounts', label: lt('pointsAccounts') },
+                  { key: '/admin/growth/points/share-relations', label: lt('shareAttribution') },
+                  { key: '/admin/growth/points/consume-relations', label: lt('consumeAttribution') },
                 ],
               },
             ],
@@ -140,23 +140,23 @@ export default function AdminLayout() {
       {
         key: 'template-manage',
         icon: <FileTextOutlined />,
-        label: '模板管理',
+        label: lt('templateManage'),
         children: [
-          { key: '/admin/growth/landing-templates', icon: <LinkOutlined />, label: '落地页模板' },
-          { key: '/admin/growth/activity-templates', icon: <TrophyOutlined />, label: '活动详情模板' },
-          { key: '/admin/growth/product-templates', icon: <ShopOutlined />, label: '商品详情模板' },
+          { key: '/admin/growth/landing-templates', icon: <LinkOutlined />, label: lt('landingTemplate') },
+          { key: '/admin/growth/activity-templates', icon: <TrophyOutlined />, label: lt('activityTemplate') },
+          { key: '/admin/growth/product-templates', icon: <ShopOutlined />, label: lt('productTemplate') },
         ],
       },
       {
         key: 'ai-agent',
         icon: <RobotOutlined />,
-        label: 'AI Agent',
+        label: lt('aiAgent'),
         children: [
-          { key: '/admin/growth/agent/config', icon: <SettingOutlined />, label: 'Agent 配置' },
-          { key: '/admin/growth/agent/intents', icon: <OrderedListOutlined />, label: '意图管理' },
-          { key: '/admin/growth/agent/tools', icon: <ToolOutlined />, label: '工具管理' },
-          { key: '/admin/growth/agent/logs', icon: <FileSearchOutlined />, label: '会话日志' },
-          { key: '/admin/growth/agent/metrics', icon: <FundOutlined />, label: '指标看板' },
+          { key: '/admin/growth/agent/config', icon: <SettingOutlined />, label: lt('agentConfig') },
+          { key: '/admin/growth/agent/intents', icon: <OrderedListOutlined />, label: lt('intentManage') },
+          { key: '/admin/growth/agent/tools', icon: <ToolOutlined />, label: lt('toolManage') },
+          { key: '/admin/growth/agent/logs', icon: <FileSearchOutlined />, label: lt('sessionLogs') },
+          { key: '/admin/growth/agent/metrics', icon: <FundOutlined />, label: lt('metricsBoard') },
         ],
       },
       {
@@ -219,7 +219,7 @@ export default function AdminLayout() {
             whiteSpace: 'nowrap',
           }}
         >
-          {collapsed && !isMobile ? 'C1+' : 'CityOne 增长系统'}
+          {collapsed && !isMobile ? lt('sidebarCollapsed') : lt('sidebarTitle')}
         </span>
       </div>
 

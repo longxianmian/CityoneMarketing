@@ -4,15 +4,19 @@ import { SearchOutlined, ReloadOutlined, InteractionOutlined } from '@ant-design
 import { useSearchParams } from 'react-router-dom'
 import request from '../../api/request'
 import dayjs from 'dayjs'
+import { useI18n } from '../../i18n'
 
-const RESULT_MAP: Record<string, { label: string; color: string }> = {
-  win: { label: '中奖', color: 'green' },
-  no_win: { label: '未中奖', color: 'default' },
-  scratched: { label: '已刮开', color: 'blue' },
-  drawn: { label: '已抽签', color: 'purple' },
+const RESULT_COLOR: Record<string, string> = {
+  win: 'green',
+  no_win: 'default',
+  scratched: 'blue',
+  drawn: 'purple',
 }
 
 export default function InteractionRecords() {
+  const { t } = useI18n()
+  const ik = (key: string) => t(`admin.interactionRecords.${key}`)
+
   const [searchParams] = useSearchParams()
   const activityId = searchParams.get('activityId')
   const [records, setRecords] = useState<any[]>([])
@@ -23,6 +27,19 @@ export default function InteractionRecords() {
   const [keyword, setKeyword] = useState('')
   const [resultFilter, setResultFilter] = useState<string | undefined>()
   const [dateRange, setDateRange] = useState<any>(null)
+
+  const resultOptions = [
+    { value: 'win', label: ik('resultWin') },
+    { value: 'no_win', label: ik('resultNoWin') },
+    { value: 'scratched', label: ik('resultScratched') },
+    { value: 'drawn', label: ik('resultDrawn') },
+  ]
+
+  const activityTypeMap: Record<string, string> = {
+    lucky_wheel: ik('typeLuckyWheel'),
+    scratch_card: ik('typeScratchCard'),
+    thai_fortune_draw: ik('typeFortuneSign'),
+  }
 
   const fetchData = async (p = page, ps = pageSize) => {
     if (!activityId) return
@@ -45,75 +62,51 @@ export default function InteractionRecords() {
   const handleSearch = () => { setPage(1); fetchData(1, pageSize) }
 
   const columns = [
-    { title: '记录ID', dataIndex: 'id', key: 'id', width: 80 },
-    { title: '用户ID', dataIndex: 'userId', key: 'userId', width: 120 },
-    { title: '用户昵称', dataIndex: 'nickName', key: 'nickName', width: 150 },
-    { title: '活动类型', dataIndex: 'activityType', key: 'activityType', width: 120,
+    { title: ik('colId'), dataIndex: 'id', key: 'id', width: 80 },
+    { title: ik('colUserId'), dataIndex: 'userId', key: 'userId', width: 120 },
+    { title: ik('colNickName'), dataIndex: 'nickName', key: 'nickName', width: 150 },
+    {
+      title: ik('colActivityType'), dataIndex: 'activityType', key: 'activityType', width: 120,
+      render: (v: string) => activityTypeMap[v] || v,
+    },
+    {
+      title: ik('colResult'), dataIndex: 'result', key: 'result', width: 100,
       render: (v: string) => {
-        const m: Record<string, string> = { lucky_wheel: '大转盘', scratch_card: '刮刮卡', thai_fortune_draw: '祈福抽签' }
-        return m[v] || v
-      } },
-    { title: '互动结果', dataIndex: 'result', key: 'result', width: 100,
-      render: (v: string) => {
-        const r = RESULT_MAP[v]
-        return r ? <Tag color={r.color}>{r.label}</Tag> : <Tag>{v}</Tag>
-      } },
-    { title: '奖励内容', dataIndex: 'prizeDesc', key: 'prizeDesc', width: 180,
-      render: (v: string) => v || '—' },
-    { title: '参与时间', dataIndex: 'createdAt', key: 'createdAt', width: 180,
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '—' },
+        const label = resultOptions.find(o => o.value === v)?.label || v
+        return <Tag color={RESULT_COLOR[v] || 'default'}>{label}</Tag>
+      },
+    },
+    { title: ik('colPrize'), dataIndex: 'prizeDesc', key: 'prizeDesc', width: 180, render: (v: string) => v || '—' },
+    { title: ik('colCreatedAt'), dataIndex: 'createdAt', key: 'createdAt', width: 180, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '—' },
   ]
 
   return (
-    <Card
-      title={<Space><InteractionOutlined />互动记录{activityId ? ` — 活动 #${activityId}` : '（请从活动列表进入）'}</Space>}
-    >
+    <Card title={<Space><InteractionOutlined />{ik('pageTitle')}{activityId ? ` — #${activityId}` : ` (${ik('noActivity')})`}</Space>}>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8} md={6}>
-          <Input
-            placeholder="搜索用户ID / 昵称"
-            prefix={<SearchOutlined />}
-            value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-            onPressEnter={handleSearch}
-            allowClear
-          />
+          <Input placeholder={ik('searchPlaceholder')} prefix={<SearchOutlined />} value={keyword} onChange={e => setKeyword(e.target.value)} onPressEnter={handleSearch} allowClear />
         </Col>
         <Col xs={24} sm={6} md={4}>
-          <Select
-            placeholder="互动结果"
-            value={resultFilter}
-            onChange={setResultFilter}
-            allowClear
-            style={{ width: '100%' }}
-            options={Object.entries(RESULT_MAP).map(([k, v]) => ({ value: k, label: v.label }))}
-          />
+          <Select placeholder={ik('filterResult')} value={resultFilter} onChange={setResultFilter} allowClear style={{ width: '100%' }} options={resultOptions} />
         </Col>
         <Col xs={24} sm={8} md={8}>
           <DatePicker.RangePicker value={dateRange} onChange={setDateRange} style={{ width: '100%' }} />
         </Col>
         <Col>
           <Space>
-            <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>查询</Button>
-            <Button icon={<ReloadOutlined />} onClick={() => { setKeyword(''); setResultFilter(undefined); setDateRange(null); fetchData(1, pageSize) }}>重置</Button>
+            <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>{ik('btnSearch')}</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => { setKeyword(''); setResultFilter(undefined); setDateRange(null); fetchData(1, pageSize) }}>{ik('btnReset')}</Button>
           </Space>
         </Col>
       </Row>
-
       <Table
-        columns={columns}
-        dataSource={records}
-        rowKey="id"
-        loading={loading}
-        size="small"
-        scroll={{ x: 900 }}
+        columns={columns} dataSource={records} rowKey="id" loading={loading} size="small" scroll={{ x: 900 }}
         pagination={{
-          current: page, pageSize, total,
-          showSizeChanger: true,
-          showTotal: t => `共 ${t} 条`,
+          current: page, pageSize, total, showSizeChanger: true,
+          showTotal: total => ik('totalRows').replace('{n}', String(total)),
           onChange: (p, ps) => { setPage(p); setPageSize(ps); fetchData(p, ps) },
         }}
-        locale={{ emptyText: activityId ? '暂无互动记录' : '请通过活动列表进入' }}
+        locale={{ emptyText: activityId ? ik('emptyRecords') : ik('noActivity') }}
       />
     </Card>
   )

@@ -3,13 +3,7 @@ import { Card, Table, Input, Button, Space, Select, Row, Col, Tag } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { getAdminConsumeRelations } from '../../api/growth'
 import dayjs from 'dayjs'
-
-const POINTS_STATUS_OPTIONS = [
-  { value: 'pending', label: '待结算' },
-  { value: 'settled', label: '已结算' },
-  { value: 'revoked', label: '已撤销' },
-  { value: 'failed', label: '失败' },
-]
+import { useI18n } from '../../i18n'
 
 const POINTS_STATUS_COLOR: Record<string, string> = {
   pending: 'orange',
@@ -18,14 +12,17 @@ const POINTS_STATUS_COLOR: Record<string, string> = {
   failed: 'red',
 }
 
-const POINTS_STATUS_LABEL: Record<string, string> = {
-  pending: '待结算',
-  settled: '已结算',
-  revoked: '已撤销',
-  failed: '失败',
-}
-
 export default function ConsumeRelations() {
+  const { t } = useI18n()
+  const ck = (key: string) => t(`admin.consumeRelations.${key}`)
+
+  const POINTS_STATUS_OPTIONS = [
+    { value: 'pending', label: ck('statusPending') },
+    { value: 'settled', label: ck('statusSettled') },
+    { value: 'revoked', label: ck('statusRevoked') },
+    { value: 'failed', label: ck('statusFailed') },
+  ]
+
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [total, setTotal] = useState(0)
@@ -37,12 +34,7 @@ export default function ConsumeRelations() {
   const fetchData = useCallback(async (p = page, ps = pageSize) => {
     setLoading(true)
     try {
-      const res: any = await getAdminConsumeRelations({
-        page: p,
-        page_size: ps,
-        user_id: userId || undefined,
-        points_status: pointsStatus,
-      })
+      const res: any = await getAdminConsumeRelations({ page: p, page_size: ps, user_id: userId || undefined, points_status: pointsStatus })
       const payload = res?.data || {}
       setData(payload.items || [])
       setTotal(payload.total || 0)
@@ -59,23 +51,20 @@ export default function ConsumeRelations() {
   }
 
   const columns = [
-    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 160, ellipsis: true },
-    { title: '订单ID', dataIndex: 'order_id', key: 'order_id', width: 160, ellipsis: true, responsive: ['md' as const] },
-    { title: '消费金额(THB)', dataIndex: 'amount', key: 'amount', width: 130, render: (v: number) => v != null ? `฿${v}` : '--' },
-    { title: '获得积分', dataIndex: 'points', key: 'points', width: 100, render: (v: number) => <span style={{ color: '#1677ff', fontWeight: 700 }}>+{v ?? 0}</span> },
+    { title: ck('colUserId'), dataIndex: 'user_id', key: 'user_id', width: 160, ellipsis: true },
+    { title: ck('colOrderId'), dataIndex: 'order_id', key: 'order_id', width: 160, ellipsis: true, responsive: ['md' as const] },
+    { title: ck('colAmount'), dataIndex: 'amount', key: 'amount', width: 130, render: (v: number) => v != null ? `฿${v}` : '--' },
+    { title: ck('colPoints'), dataIndex: 'points', key: 'points', width: 100, render: (v: number) => <span style={{ color: '#1677ff', fontWeight: 700 }}>+{v ?? 0}</span> },
     {
-      title: '积分状态', dataIndex: 'points_status', key: 'points_status', width: 100,
-      render: (v: string) => <Tag color={POINTS_STATUS_COLOR[v] || 'default'}>{POINTS_STATUS_LABEL[v] || v || '--'}</Tag>,
+      title: ck('colPointsStatus'), dataIndex: 'points_status', key: 'points_status', width: 100,
+      render: (v: string) => {
+        const label = POINTS_STATUS_OPTIONS.find(o => o.value === v)?.label || v || '--'
+        return <Tag color={POINTS_STATUS_COLOR[v] || 'default'}>{label}</Tag>
+      },
     },
-    { title: '规则标识', dataIndex: 'rule_key', key: 'rule_key', width: 160, responsive: ['lg' as const], render: (v: string) => <Tag>{v || '--'}</Tag> },
-    {
-      title: '消费时间', dataIndex: 'order_time', key: 'order_time', width: 180, responsive: ['lg' as const],
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '--',
-    },
-    {
-      title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 180, responsive: ['lg' as const],
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '--',
-    },
+    { title: ck('colRuleKey'), dataIndex: 'rule_key', key: 'rule_key', width: 160, responsive: ['lg' as const], render: (v: string) => <Tag>{v || '--'}</Tag> },
+    { title: ck('colOrderTime'), dataIndex: 'order_time', key: 'order_time', width: 180, responsive: ['lg' as const], render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '--' },
+    { title: ck('colCreatedAt'), dataIndex: 'created_at', key: 'created_at', width: 180, responsive: ['lg' as const], render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '--' },
   ]
 
   return (
@@ -83,46 +72,26 @@ export default function ConsumeRelations() {
       <Card styles={{ body: { paddingBottom: 0 } }} style={{ marginBottom: 16 }}>
         <Row gutter={[12, 12]} align="middle">
           <Col xs={24} sm={12} md={6}>
-            <Input
-              placeholder="用户ID"
-              value={userId}
-              onChange={e => setUserId(e.target.value)}
-              onPressEnter={handleSearch}
-              allowClear
-            />
+            <Input placeholder={ck('filterUserId')} value={userId} onChange={e => setUserId(e.target.value)} onPressEnter={handleSearch} allowClear />
           </Col>
           <Col xs={24} sm={12} md={5}>
-            <Select
-              placeholder="积分状态"
-              value={pointsStatus}
-              onChange={v => setPointsStatus(v)}
-              allowClear
-              style={{ width: '100%' }}
-              options={POINTS_STATUS_OPTIONS}
-            />
+            <Select placeholder={ck('filterStatus')} value={pointsStatus} onChange={v => setPointsStatus(v)} allowClear style={{ width: '100%' }} options={POINTS_STATUS_OPTIONS} />
           </Col>
           <Col xs={24} sm={12} md={8}>
             <Space>
-              <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>搜索</Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>{ck('btnSearch')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>{ck('btnReset')}</Button>
             </Space>
           </Col>
         </Row>
       </Card>
-
-      <Card title="消费归因列表">
+      <Card title={ck('tableTitle')}>
         <Table
           rowKey={(r, i) => r.id || `${r.user_id}-${i}`}
-          columns={columns}
-          dataSource={data}
-          loading={loading}
-          scroll={{ x: 1000 }}
+          columns={columns} dataSource={data} loading={loading} scroll={{ x: 1000 }}
           pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
+            current: page, pageSize, total, showSizeChanger: true,
+            showTotal: (total) => ck('totalRows').replace('{n}', String(total)),
             onChange: (p, ps) => { setPage(p); setPageSize(ps); fetchData(p, ps) },
           }}
         />

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Tag, Select, DatePicker, Button, Space, Modal, Descriptions, message } from 'antd'
+import { Table, Tag, Select, DatePicker, Button, Space, Modal, Descriptions } from 'antd'
 import { SearchOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons'
 import { getAgentLogs } from '../../api/agent-admin'
 import dayjs from 'dayjs'
+import { useI18n } from '../../i18n'
 
 const { RangePicker } = DatePicker
 
@@ -19,21 +20,34 @@ const MOCK_LOGS = [
 ]
 
 export default function AgentLogManage() {
+  const { t } = useI18n()
+  const al = (key: string) => t(`admin.agentLog.${key}`)
+
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState<any>(null)
   const [filters, setFilters] = useState<any>({})
+
+  const tierOptions = [
+    { value: 'guest', label: al('tierGuest') },
+    { value: 'fan', label: al('tierFan') },
+    { value: 'user', label: al('tierUser') },
+    { value: 'member', label: al('tierMember') },
+  ]
+
+  const resultOptions = [
+    { value: 'success', label: al('resultSuccess') },
+    { value: 'follow_required', label: al('resultFollowRequired') },
+    { value: 'error', label: al('resultError') },
+  ]
 
   const load = async (params: any = {}) => {
     setLoading(true)
     try {
       const res = await getAgentLogs(params)
       setData(res.data?.data || res.data?.list || MOCK_LOGS)
-    } catch {
-      setData(MOCK_LOGS)
-    } finally {
-      setLoading(false)
-    }
+    } catch { setData(MOCK_LOGS) }
+    finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [])
@@ -41,76 +55,60 @@ export default function AgentLogManage() {
   const onSearch = () => load(filters)
 
   const columns = [
-    { title: '时间', dataIndex: 'createdAt', width: 160, render: (v: string) => dayjs(v).format('MM-DD HH:mm') },
-    { title: '会话 ID', dataIndex: 'sessionId', width: 130, render: (v: string) => <code style={{ fontSize: 11 }}>{v}</code> },
-    { title: '用户 ID', dataIndex: 'userId', width: 110, render: (v: string) => <span style={{ fontSize: 12, color: '#666' }}>{v}</span> },
-    { title: '身份', dataIndex: 'tier', width: 90, render: (v: string) => <Tag color={TIER_COLORS[v] || 'default'}>{v}</Tag> },
-    { title: '用户问题', dataIndex: 'question', ellipsis: true },
-    { title: '识别意图', dataIndex: 'intent', width: 140, render: (v: string) => <code style={{ fontSize: 11 }}>{v}</code> },
-    { title: '调用工具', dataIndex: 'tool', width: 130, render: (v: string) => v && v !== '-' ? <code style={{ fontSize: 11 }}>{v}</code> : <span style={{ color: '#bbb' }}>-</span> },
-    { title: '结果', dataIndex: 'result', width: 110, render: (v: string) => <Tag color={v === 'success' ? 'green' : v === 'follow_required' ? 'orange' : 'red'}>{v}</Tag> },
-    { title: '拦截', dataIndex: 'intercepted', width: 70, render: (v: boolean) => v ? <Tag color="red">是</Tag> : '-' },
-    { title: '转化', dataIndex: 'converted', width: 70, render: (v: boolean) => v ? <Tag color="green">✓</Tag> : '-' },
-    { title: '详情', width: 70, render: (_: any, row: any) => <Button size="small" icon={<EyeOutlined />} onClick={() => setDetail(row)} /> },
+    { title: al('colTime'), dataIndex: 'createdAt', width: 160, render: (v: string) => dayjs(v).format('MM-DD HH:mm') },
+    { title: al('colSessionId'), dataIndex: 'sessionId', width: 130, render: (v: string) => <code style={{ fontSize: 11 }}>{v}</code> },
+    { title: al('colUserId'), dataIndex: 'userId', width: 110, render: (v: string) => <span style={{ fontSize: 12, color: '#666' }}>{v}</span> },
+    { title: al('colTier'), dataIndex: 'tier', width: 90, render: (v: string) => <Tag color={TIER_COLORS[v] || 'default'}>{tierOptions.find(o => o.value === v)?.label || v}</Tag> },
+    { title: al('colQuestion'), dataIndex: 'question', ellipsis: true },
+    { title: al('colIntent'), dataIndex: 'intent', width: 140, render: (v: string) => <code style={{ fontSize: 11 }}>{v}</code> },
+    { title: al('colTool'), dataIndex: 'tool', width: 130, render: (v: string) => v && v !== '-' ? <code style={{ fontSize: 11 }}>{v}</code> : <span style={{ color: '#bbb' }}>-</span> },
+    {
+      title: al('colResult'), dataIndex: 'result', width: 110,
+      render: (v: string) => <Tag color={v === 'success' ? 'green' : v === 'follow_required' ? 'orange' : 'red'}>{resultOptions.find(o => o.value === v)?.label || v}</Tag>,
+    },
+    { title: al('colIntercepted'), dataIndex: 'intercepted', width: 70, render: (v: boolean) => v ? <Tag color="red">{al('yes')}</Tag> : '-' },
+    { title: al('colConverted'), dataIndex: 'converted', width: 70, render: (v: boolean) => v ? <Tag color="green">✓</Tag> : '-' },
+    { title: al('colDetail'), width: 70, render: (_: any, row: any) => <Button size="small" icon={<EyeOutlined />} onClick={() => setDetail(row)} /> },
   ]
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <FileTextOutlined style={{ fontSize: 20, color: '#1677ff' }} />
-        <div style={{ fontSize: 18, fontWeight: 700 }}>会话日志</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{al('pageTitle')}</div>
       </div>
-
       <div style={{ background: '#fff', padding: 16, borderRadius: 12, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
         <div>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>时间范围</div>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{al('filterTimeRange')}</div>
           <RangePicker size="small" onChange={(v) => setFilters((f: any) => ({ ...f, startAt: v?.[0]?.toISOString(), endAt: v?.[1]?.toISOString() }))} />
         </div>
         <div>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>身份等级</div>
-          <Select size="small" allowClear placeholder="全部" style={{ width: 120 }}
-            options={[{ value: 'guest', label: '访客' }, { value: 'fan', label: 'OA 粉丝' }, { value: 'user', label: '认证用户' }, { value: 'member', label: '会员' }]}
-            onChange={(v) => setFilters((f: any) => ({ ...f, tier: v }))}
-          />
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{al('filterTier')}</div>
+          <Select size="small" allowClear placeholder={al('filterAll')} style={{ width: 120 }} options={tierOptions} onChange={(v) => setFilters((f: any) => ({ ...f, tier: v }))} />
         </div>
         <div>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>执行结果</div>
-          <Select size="small" allowClear placeholder="全部" style={{ width: 140 }}
-            options={[{ value: 'success', label: '成功' }, { value: 'follow_required', label: '需关注 OA' }, { value: 'error', label: '错误' }]}
-            onChange={(v) => setFilters((f: any) => ({ ...f, result: v }))}
-          />
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{al('filterResult')}</div>
+          <Select size="small" allowClear placeholder={al('filterAll')} style={{ width: 140 }} options={resultOptions} onChange={(v) => setFilters((f: any) => ({ ...f, result: v }))} />
         </div>
-        <Button type="primary" size="small" icon={<SearchOutlined />} onClick={onSearch}>查询</Button>
+        <Button type="primary" size="small" icon={<SearchOutlined />} onClick={onSearch}>{al('btnSearch')}</Button>
       </div>
-
       <Table
-        rowKey="id"
-        dataSource={data}
-        columns={columns}
-        loading={loading}
-        scroll={{ x: 1100 }}
-        pagination={{ pageSize: 15, showTotal: (total) => `共 ${total} 条` }}
+        rowKey="id" dataSource={data} columns={columns} loading={loading} scroll={{ x: 1100 }}
+        pagination={{ pageSize: 15, showTotal: (total) => al('totalRows').replace('{n}', String(total)) }}
       />
-
-      <Modal
-        open={!!detail}
-        title="会话详情"
-        footer={null}
-        onCancel={() => setDetail(null)}
-        width={560}
-      >
+      <Modal open={!!detail} title={al('modalTitle')} footer={null} onCancel={() => setDetail(null)} width={560}>
         {detail && (
           <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="会话 ID"><code>{detail.sessionId}</code></Descriptions.Item>
-            <Descriptions.Item label="用户 ID">{detail.userId}</Descriptions.Item>
-            <Descriptions.Item label="身份等级"><Tag color={TIER_COLORS[detail.tier]}>{detail.tier}</Tag></Descriptions.Item>
-            <Descriptions.Item label="用户问题">{detail.question}</Descriptions.Item>
-            <Descriptions.Item label="识别意图"><code>{detail.intent}</code></Descriptions.Item>
-            <Descriptions.Item label="调用工具">{detail.tool || '-'}</Descriptions.Item>
-            <Descriptions.Item label="执行结果"><Tag color={detail.result === 'success' ? 'green' : 'red'}>{detail.result}</Tag></Descriptions.Item>
-            <Descriptions.Item label="是否拦截">{detail.intercepted ? '是' : '否'}</Descriptions.Item>
-            <Descriptions.Item label="是否转化">{detail.converted ? '✓ 是' : '否'}</Descriptions.Item>
-            <Descriptions.Item label="时间">{dayjs(detail.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+            <Descriptions.Item label={al('colSessionId')}><code>{detail.sessionId}</code></Descriptions.Item>
+            <Descriptions.Item label={al('colUserId')}>{detail.userId}</Descriptions.Item>
+            <Descriptions.Item label={al('colTier')}><Tag color={TIER_COLORS[detail.tier]}>{tierOptions.find(o => o.value === detail.tier)?.label || detail.tier}</Tag></Descriptions.Item>
+            <Descriptions.Item label={al('colQuestion')}>{detail.question}</Descriptions.Item>
+            <Descriptions.Item label={al('colIntent')}><code>{detail.intent}</code></Descriptions.Item>
+            <Descriptions.Item label={al('colTool')}>{detail.tool || '-'}</Descriptions.Item>
+            <Descriptions.Item label={al('colResult')}><Tag color={detail.result === 'success' ? 'green' : 'red'}>{detail.result}</Tag></Descriptions.Item>
+            <Descriptions.Item label={al('colIntercepted')}>{detail.intercepted ? al('yes') : al('no')}</Descriptions.Item>
+            <Descriptions.Item label={al('colConverted')}>{detail.converted ? `✓ ${al('yes')}` : al('no')}</Descriptions.Item>
+            <Descriptions.Item label={al('colTime')}>{dayjs(detail.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

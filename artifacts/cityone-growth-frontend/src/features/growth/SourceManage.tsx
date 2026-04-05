@@ -2,20 +2,24 @@ import React, { useState, useEffect } from 'react'
 import { Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, message, Card, Space } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, LinkOutlined } from '@ant-design/icons'
 import request from '../../api/request'
-
-const SOURCE_TYPES = [
-  { value: 'device', label: '设备扫码' },
-  { value: 'shop', label: '门店入口' },
-  { value: 'poster', label: '海报二维码' },
-  { value: 'online', label: '线上投放' },
-  { value: 'social', label: '社交媒体' },
-]
+import { useI18n } from '../../i18n'
 
 interface Props {
   embedded?: boolean
 }
 
 export default function SourceManage({ embedded = false }: Props) {
+  const { t } = useI18n()
+  const sm = (key: string) => t(`admin.source.${key}`)
+
+  const SOURCE_TYPES = [
+    { value: 'device', label: sm('typeDevice') },
+    { value: 'shop', label: sm('typeShop') },
+    { value: 'poster', label: sm('typePoster') },
+    { value: 'online', label: sm('typeOnline') },
+    { value: 'social', label: sm('typeSocial') },
+  ]
+
   const [rows, setRows] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [campaigns, setCampaigns] = useState<any[]>([])
@@ -31,24 +35,18 @@ export default function SourceManage({ embedded = false }: Props) {
         request.get('/growth/activity/list'),
       ])
       setRows(src.data.data || [])
-      setCampaigns(
-        (camp.data.data?.rows || camp.data.data || []).filter(
-          (c: any) => c.status === 'active' || c.status === 'draft'
-        )
-      )
+      setCampaigns((camp.data.data?.rows || camp.data.data || []).filter((c: any) => c.status === 'active' || c.status === 'draft'))
     } catch (e) {}
     setLoading(false)
   }
 
-  useEffect(() => {
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
 
   const handleSave = async () => {
     try {
       const vals = await form.validateFields()
       await request.post('/growth/source/bind', { ...vals, id: editing?.id })
-      message.success('保存成功')
+      message.success(sm('saveSuccess'))
       setOpen(false)
       load()
     } catch (e: any) {
@@ -59,55 +57,39 @@ export default function SourceManage({ embedded = false }: Props) {
   const handleDelete = async (id: number) => {
     try {
       await request.post('/growth/source/delete', { id })
-      message.success('删除成功')
+      message.success(sm('deleteSuccess'))
       load()
-    } catch (e) {
-      message.error('删除失败')
-    }
+    } catch (e) { message.error(sm('deleteFail')) }
   }
 
   const openEdit = (row?: any) => {
     setEditing(row || null)
-    form.setFieldsValue(
-      row
-        ? {
-            sourceType: row.source_type,
-            sourceId: row.source_id,
-            campaignId: row.campaign_id,
-          }
-        : {}
-    )
+    form.setFieldsValue(row ? { sourceType: row.source_type, sourceId: row.source_id, campaignId: row.campaign_id } : {})
     setOpen(true)
   }
 
   const cols = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     {
-      title: '来源类型',
-      dataIndex: 'source_type',
+      title: sm('colSourceType'), dataIndex: 'source_type',
       render: (v: string) => {
         const st = SOURCE_TYPES.find((s) => s.value === v)
         return <Tag color="blue">{st?.label || v}</Tag>
       },
     },
-    { title: '来源 ID / 编码', dataIndex: 'source_id' },
-    { title: '绑定活动', dataIndex: 'campaign_name', render: (v: string) => v || '--' },
+    { title: sm('colSourceId'), dataIndex: 'source_id' },
+    { title: sm('colCampaign'), dataIndex: 'campaign_name', render: (v: string) => v || '--' },
     {
-      title: '状态',
-      dataIndex: 'status',
-      render: (v: number) => <Tag color={v === 1 ? 'green' : 'default'}>{v === 1 ? '启用' : '停用'}</Tag>,
+      title: sm('colStatus'), dataIndex: 'status',
+      render: (v: number) => <Tag color={v === 1 ? 'green' : 'default'}>{v === 1 ? sm('statusOn') : sm('statusOff')}</Tag>,
     },
     {
-      title: '操作',
+      title: sm('colAction'),
       render: (_: any, r: any) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除？" onConfirm={() => handleDelete(r.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>{sm('btnEdit')}</Button>
+          <Popconfirm title={sm('confirmDelete')} onConfirm={() => handleDelete(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />}>{sm('btnDelete')}</Button>
           </Popconfirm>
         </Space>
       ),
@@ -117,42 +99,22 @@ export default function SourceManage({ embedded = false }: Props) {
   return (
     <div style={embedded ? {} : { padding: 24 }}>
       <Card
-        title={<span><LinkOutlined /> 来源归因管理</span>}
-        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>新增来源绑定</Button>}
+        title={<span><LinkOutlined /> {sm('pageTitle')}</span>}
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{sm('btnAdd')}</Button>}
       >
-        <div style={{ marginBottom: 12, color: '#888', fontSize: 13 }}>
-          将设备码、门店码、海报码等来源与活动绑定，用于区分流量来源和转化归因统计。
-        </div>
+        <div style={{ marginBottom: 12, color: '#888', fontSize: 13 }}>{sm('description')}</div>
         <Table dataSource={rows} columns={cols} rowKey="id" loading={loading} size="small" pagination={false} />
       </Card>
-
-      <Modal
-        title={editing ? '编辑来源绑定' : '新增来源绑定'}
-        open={open}
-        onOk={handleSave}
-        onCancel={() => setOpen(false)}
-        destroyOnClose
-      >
+      <Modal title={editing ? sm('modalEdit') : sm('modalAdd')} open={open} onOk={handleSave} onCancel={() => setOpen(false)} destroyOnClose>
         <Form form={form} layout="vertical">
-          <Form.Item name="sourceType" label="来源类型" rules={[{ required: true }]}>
+          <Form.Item name="sourceType" label={sm('formSourceType')} rules={[{ required: true }]}>
             <Select options={SOURCE_TYPES} />
           </Form.Item>
-          <Form.Item
-            name="sourceId"
-            label="来源 ID / 编码"
-            rules={[{ required: true }]}
-            help="设备 SN、门店 ID、海报编码等，用于在二维码中唯一识别来源"
-          >
-            <Input placeholder="如：DEV001、SHOP_A、POSTER_2024_03" />
+          <Form.Item name="sourceId" label={sm('formSourceId')} rules={[{ required: true }]} help={sm('formSourceIdHelp')}>
+            <Input placeholder={sm('formSourceIdPlaceholder')} />
           </Form.Item>
-          <Form.Item name="campaignId" label="绑定活动" rules={[{ required: true }]}>
-            <Select
-              options={campaigns.map((c: any) => ({
-                value: c.id,
-                label: `[${c.campaign_type || 'activity'}] ${c.name}`,
-              }))}
-              placeholder="选择要绑定的活动"
-            />
+          <Form.Item name="campaignId" label={sm('formCampaign')} rules={[{ required: true }]}>
+            <Select options={campaigns.map((c: any) => ({ value: c.id, label: `[${c.campaign_type || 'activity'}] ${c.name}` }))} placeholder={sm('formCampaignPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

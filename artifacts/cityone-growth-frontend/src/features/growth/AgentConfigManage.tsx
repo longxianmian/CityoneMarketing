@@ -1,19 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Form, Input, Switch, Button, Tabs, Select, InputNumber, message, Spin, Divider } from 'antd'
+import { Card, Form, Input, Switch, Button, Tabs, Select, InputNumber, message, Spin } from 'antd'
 import { SaveOutlined, RobotOutlined } from '@ant-design/icons'
 import { getAgentConfig, updateAgentConfig } from '../../api/agent-admin'
+import { useI18n } from '../../i18n'
 
 const { TextArea } = Input
-
-const CAPABILITIES = [
-  { value: 'borrow', label: '借还充电宝' },
-  { value: 'coupon', label: '卡券查询与使用' },
-  { value: 'points', label: '积分查询与兑换' },
-  { value: 'invite', label: '邀请好友' },
-  { value: 'order', label: '订单查询' },
-  { value: 'activity', label: '活动参与' },
-  { value: 'site', label: '站点查询' },
-]
 
 const MOCK_CONFIG = {
   enabled: true,
@@ -36,6 +27,19 @@ const MOCK_CONFIG = {
 }
 
 export default function AgentConfigManage() {
+  const { t } = useI18n()
+  const ac = (key: string) => t(`admin.agentConfig.${key}`)
+
+  const CAPABILITIES = [
+    { value: 'borrow', label: ac('capBorrow') },
+    { value: 'coupon', label: ac('capCoupon') },
+    { value: 'points', label: ac('capPoints') },
+    { value: 'invite', label: ac('capInvite') },
+    { value: 'order', label: ac('capOrder') },
+    { value: 'activity', label: ac('capActivity') },
+    { value: 'site', label: ac('capSite') },
+  ]
+
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -47,11 +51,8 @@ export default function AgentConfigManage() {
       try {
         const res = await getAgentConfig()
         setConfig(res.data?.data || res.data || MOCK_CONFIG)
-      } catch {
-        setConfig(MOCK_CONFIG)
-      } finally {
-        setLoading(false)
-      }
+      } catch { setConfig(MOCK_CONFIG) }
+      finally { setLoading(false) }
     }
     load()
   }, [])
@@ -102,77 +103,72 @@ export default function AgentConfigManage() {
         },
       }
       await updateAgentConfig(payload)
-      message.success('配置已保存')
+      message.success(ac('saveSuccess'))
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error('保存失败，后端接口未就绪')
-    } finally {
-      setSaving(false)
-    }
+      message.error(ac('saveFail'))
+    } finally { setSaving(false) }
   }
 
   if (loading) return <Spin style={{ marginTop: 80, display: 'block' }} />
+
+  const tierItems = [
+    { key: 'cap_guest', label: ac('tierGuest') },
+    { key: 'cap_fan', label: ac('tierFan') },
+    { key: 'cap_user', label: ac('tierUser') },
+    { key: 'cap_member', label: ac('tierMember') },
+  ]
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <RobotOutlined style={{ fontSize: 22, color: '#1677ff' }} />
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Agent 配置</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{ac('pageTitle')}</div>
       </div>
-
       <Form form={form} layout="vertical">
-        <Card title="基础配置" style={{ marginBottom: 16 }} extra={
+        <Card title={ac('cardBasic')} style={{ marginBottom: 16 }} extra={
           <Form.Item name="enabled" valuePropName="checked" noStyle>
-            <Switch checkedChildren="启用" unCheckedChildren="关闭" />
+            <Switch checkedChildren={ac('switchOn')} unCheckedChildren={ac('switchOff')} />
           </Form.Item>
         }>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            <Form.Item label="最大历史消息数" name="maxHistoryMessages">
+            <Form.Item label={ac('labelMaxHistory')} name="maxHistoryMessages">
               <InputNumber min={5} max={100} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label="显示建议按钮" name="showSuggestions" valuePropName="checked">
+            <Form.Item label={ac('labelShowSuggestions')} name="showSuggestions" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="允许连续执行动作" name="allowContinuousAction" valuePropName="checked">
+            <Form.Item label={ac('labelContinuousAction')} name="allowContinuousAction" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="启用文件上传" name="fileUploadEnabled" valuePropName="checked">
+            <Form.Item label={ac('labelFileUpload')} name="fileUploadEnabled" valuePropName="checked">
               <Switch />
             </Form.Item>
           </div>
         </Card>
-
-        <Card title="欢迎语配置" style={{ marginBottom: 16 }}>
+        <Card title={ac('cardWelcome')} style={{ marginBottom: 16 }}>
           <Tabs items={[
-            { key: 'zh', label: '中文', children: <Form.Item name="welcome_zh" label="中文欢迎语"><TextArea rows={3} placeholder="你好！我是 CityOne AI 助理..." /></Form.Item> },
-            { key: 'th', label: 'ไทย', children: <Form.Item name="welcome_th" label="泰文欢迎语"><TextArea rows={3} /></Form.Item> },
-            { key: 'en', label: 'English', children: <Form.Item name="welcome_en" label="英文欢迎语"><TextArea rows={3} /></Form.Item> },
+            { key: 'zh', label: '中文', children: <Form.Item name="welcome_zh" label={ac('welcomeZh')}><TextArea rows={3} /></Form.Item> },
+            { key: 'th', label: 'ไทย', children: <Form.Item name="welcome_th" label={ac('welcomeTh')}><TextArea rows={3} /></Form.Item> },
+            { key: 'en', label: 'English', children: <Form.Item name="welcome_en" label={ac('welcomeEn')}><TextArea rows={3} /></Form.Item> },
           ]} />
         </Card>
-
-        <Card title="快捷问题配置（每行一条）" style={{ marginBottom: 16 }}>
+        <Card title={ac('cardPrompts')} style={{ marginBottom: 16 }}>
           <Tabs items={[
-            { key: 'zh', label: '中文', children: <Form.Item name="prompts_zh"><TextArea rows={5} placeholder={'怎么借充电宝？\n卡券怎么使用？'} /></Form.Item> },
+            { key: 'zh', label: '中文', children: <Form.Item name="prompts_zh"><TextArea rows={5} /></Form.Item> },
             { key: 'th', label: 'ไทย', children: <Form.Item name="prompts_th"><TextArea rows={5} /></Form.Item> },
             { key: 'en', label: 'English', children: <Form.Item name="prompts_en"><TextArea rows={5} /></Form.Item> },
           ]} />
         </Card>
-
-        <Card title="身份分层能力配置" style={{ marginBottom: 24 }}>
-          {[
-            { key: 'cap_guest', label: '👤 访客可用能力' },
-            { key: 'cap_fan', label: '⭐ OA 粉丝可用能力' },
-            { key: 'cap_user', label: '🔵 认证用户可用能力' },
-            { key: 'cap_member', label: '💎 会员可用能力' },
-          ].map((tier) => (
+        <Card title={ac('cardTierCap')} style={{ marginBottom: 24 }}>
+          {tierItems.map((tier) => (
             <Form.Item key={tier.key} label={tier.label} name={tier.key}>
-              <Select mode="multiple" options={CAPABILITIES} placeholder="选择可用能力" />
+              <Select mode="multiple" options={CAPABILITIES} placeholder={ac('capSelectPlaceholder')} />
             </Form.Item>
           ))}
         </Card>
-
         <Button type="primary" icon={<SaveOutlined />} onClick={onSave} loading={saving} size="large">
-          保存配置
+          {ac('btnSave')}
         </Button>
       </Form>
     </div>
