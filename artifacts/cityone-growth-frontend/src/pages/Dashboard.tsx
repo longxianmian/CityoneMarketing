@@ -8,8 +8,11 @@ import {
   ShareAltOutlined,
   RiseOutlined,
 } from '@ant-design/icons'
+import { useI18n } from '../i18n'
 
 export default function Dashboard() {
+  const { t } = useI18n()
+
   const stats = {
     visitCount: 28630,
     newUsers: 5218,
@@ -27,19 +30,19 @@ export default function Dashboard() {
   ]
 
   const activityData = [
-    { key: '1', name: '扫码抽奖赢免费时长', status: '进行中', participants: 1328, rewards: '30分钟/2小时券', orders: 322 },
-    { key: '2', name: '新用户首借免单', status: '进行中', participants: 2311, rewards: '首单免单券', orders: 905 },
-    { key: '3', name: '关注 LINE 领券', status: '草稿', participants: 0, rewards: '15分钟券', orders: 0 },
-    { key: '4', name: '周末借电返积分', status: '已结束', participants: 889, rewards: '50积分', orders: 165 },
+    { key: '1', name: '扫码抽奖赢免费时长', status: t('dashboard.statusOngoing'), participants: 1328, rewards: '30分钟/2小时券', orders: 322 },
+    { key: '2', name: '新用户首借免单', status: t('dashboard.statusOngoing'), participants: 2311, rewards: '首单免单券', orders: 905 },
+    { key: '3', name: '关注 LINE 领券', status: t('dashboard.statusDraft'), participants: 0, rewards: '15分钟券', orders: 0 },
+    { key: '4', name: '周末借电返积分', status: t('dashboard.statusEnded'), participants: 889, rewards: '50积分', orders: 165 },
   ]
 
   const channelColumns = [
-    { title: '渠道', dataIndex: 'channel', key: 'channel' },
-    { title: '访问量', dataIndex: 'visits', key: 'visits' },
-    { title: '拉新人数', dataIndex: 'users', key: 'users' },
-    { title: '归因订单', dataIndex: 'orders', key: 'orders' },
+    { title: t('dashboard.colChannel'), dataIndex: 'channel', key: 'channel' },
+    { title: t('dashboard.colVisits'), dataIndex: 'visits', key: 'visits' },
+    { title: t('dashboard.colNewUsers'), dataIndex: 'users', key: 'users' },
+    { title: t('dashboard.colOrders'), dataIndex: 'orders', key: 'orders' },
     {
-      title: '转化率',
+      title: t('dashboard.colRate'),
       dataIndex: 'rate',
       key: 'rate',
       render: (v: number) => <Tag color={v >= 20 ? 'green' : v >= 12 ? 'blue' : 'default'}>{v}%</Tag>,
@@ -47,31 +50,31 @@ export default function Dashboard() {
   ]
 
   const activityColumns = [
-    { title: '活动名称', dataIndex: 'name', key: 'name' },
+    { title: t('dashboard.colActivity'), dataIndex: 'name', key: 'name' },
     {
-      title: '状态',
+      title: t('dashboard.colStatus'),
       dataIndex: 'status',
       key: 'status',
-      render: (v: string) => (
-        <Tag color={v === '进行中' ? 'green' : v === '草稿' ? 'gold' : 'default'}>
-          {v}
-        </Tag>
-      ),
+      render: (v: string) => {
+        const ongoing = t('dashboard.statusOngoing')
+        const draft = t('dashboard.statusDraft')
+        return <Tag color={v === ongoing ? 'green' : v === draft ? 'gold' : 'default'}>{v}</Tag>
+      },
     },
-    { title: '参与人数', dataIndex: 'participants', key: 'participants' },
-    { title: '奖励内容', dataIndex: 'rewards', key: 'rewards' },
-    { title: '带来订单', dataIndex: 'orders', key: 'orders' },
+    { title: t('dashboard.colParticipants'), dataIndex: 'participants', key: 'participants' },
+    { title: t('dashboard.colRewards'), dataIndex: 'rewards', key: 'rewards' },
+    { title: t('dashboard.colDrivenOrders'), dataIndex: 'orders', key: 'orders' },
   ]
 
   return (
     <div>
-      <h2 style={{ marginBottom: 16 }}>增长总览</h2>
+      <h2 style={{ marginBottom: 16 }}>{t('dashboard.pageTitle')}</h2>
 
       <Row gutter={[16, 16]}>
         <Col xs={12} sm={8} md={4}>
           <Card>
             <Statistic
-              title="累计访问量"
+              title={t('dashboard.visitCount')}
               value={stats.visitCount}
               prefix={<FunnelPlotOutlined style={{ color: '#1677ff' }} />}
             />
@@ -81,7 +84,7 @@ export default function Dashboard() {
         <Col xs={12} sm={8} md={4}>
           <Card>
             <Statistic
-              title="新增用户"
+              title={t('dashboard.newUsers')}
               value={stats.newUsers}
               prefix={<UserOutlined style={{ color: '#52c41a' }} />}
             />
@@ -91,7 +94,7 @@ export default function Dashboard() {
         <Col xs={12} sm={8} md={4}>
           <Card>
             <Statistic
-              title="发券总量"
+              title={t('dashboard.couponIssued')}
               value={stats.couponIssued}
               prefix={<GiftOutlined style={{ color: '#faad14' }} />}
             />
@@ -101,7 +104,7 @@ export default function Dashboard() {
         <Col xs={12} sm={8} md={4}>
           <Card>
             <Statistic
-              title="归因订单"
+              title={t('dashboard.attributedOrders')}
               value={stats.attributedOrders}
               prefix={<FileTextOutlined style={{ color: '#eb2f96' }} />}
             />
@@ -111,7 +114,7 @@ export default function Dashboard() {
         <Col xs={12} sm={8} md={4}>
           <Card>
             <Statistic
-              title="邀请裂变用户"
+              title={t('dashboard.inviteUsers')}
               value={stats.inviteUsers}
               prefix={<ShareAltOutlined style={{ color: '#13c2c2' }} />}
             />
@@ -121,7 +124,7 @@ export default function Dashboard() {
         <Col xs={12} sm={8} md={4}>
           <Card>
             <Statistic
-              title="整体转化率"
+              title={t('dashboard.conversionRate')}
               value={stats.conversionRate}
               suffix="%"
               prefix={<RiseOutlined style={{ color: '#722ed1' }} />}
@@ -132,7 +135,7 @@ export default function Dashboard() {
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} md={10}>
-          <Card title="渠道贡献概览">
+          <Card title={t('dashboard.channelOverview')}>
             <div style={{ display: 'grid', gap: 16 }}>
               {channelData.map((item) => (
                 <div key={item.key}>
@@ -148,7 +151,7 @@ export default function Dashboard() {
         </Col>
 
         <Col xs={24} md={14}>
-          <Card title="渠道归因明细">
+          <Card title={t('dashboard.channelDetail')}>
             <Table
               rowKey="key"
               columns={channelColumns}
@@ -162,7 +165,7 @@ export default function Dashboard() {
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24}>
-          <Card title="活动表现概览">
+          <Card title={t('dashboard.activityOverview')}>
             <Table
               rowKey="key"
               columns={activityColumns}
