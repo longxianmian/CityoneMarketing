@@ -107,6 +107,12 @@ import {
   handleAgentLLMHealth
 } from "./routes/agent.js";
 import { handleTranslate } from "./routes/translate.js";
+import {
+  handleUserProfile,
+  handleUserPrizes,
+  handleUserBenefits,
+  handleUserOrders,
+} from "./routes/user-profile.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -653,6 +659,20 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/translate") {
       return handleTranslate(req, res, url, sendJson, readBody);
+    }
+
+    // ── 阶段三：用户端综合资料接口 ───────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/user/profile") {
+      return handleUserProfile(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/user/prizes") {
+      return handleUserPrizes(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/user/benefits") {
+      return handleUserBenefits(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/user/orders") {
+      return handleUserOrders(req, res, url, sendJson);
     }
 
     return fail(res, 404, "Route not found", { error: "NOT_FOUND" });

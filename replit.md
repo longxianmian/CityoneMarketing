@@ -212,6 +212,107 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ---
 
+## 阶段三执行记录（T201–T2xx）
+
+### 验收性质
+
+**关键数据链路真实化 · 阶段三完成**
+
+---
+
+### T201：后端新增四条用户端真实接口
+
+新建文件：`backend/src/routes/user-profile.js`
+
+**接口一：GET /api/user/profile**
+- 数据来源：`points-accounts.json` + `user-products.json`
+- 返回：`identity_tag`（系统规则推断）、`deposit_paid`、`member_level`、`coupon_count`、积分余额
+- identityTag 规则：depositPaid=true → member；account 不存在 → fan；account 存在无押金 → user
+- depositPaid：阶段三本系统内字段，阶段四接 A 系统
+
+**接口二：GET /api/user/prizes**
+- 数据来源：`activity-interactions.json`（filter: result_type = 'prize'）
+- 关联：`activity-prizes.json`（奖品名）、`digital-products.json`（产品名）
+- 返回：interaction_id、prize_name、prize_type、product_name、created_at
+
+**接口三：GET /api/user/benefits**
+- 数据来源：`user-products.json`
+- 状态映射：claimed→available / used→used / expired→expired
+- 支持 status 过滤参数
+
+**接口四：GET /api/user/orders**
+- 当前返回：真实空列表 + data_note（明确说明：借电订单待阶段四 A 系统桥接）
+
+### T202：index.js 注册四条路由
+
+路由前缀统一为 `/api/user/...`，与 api-server 代理链路一致（frontend → /api → port 8080 → port 3100 /api/...）
+
+### T203：前端 API 方法追加
+
+`src/api/growth.ts` 追加：
+- `getUserProfile(params)` → `/user/profile`
+- `getUserPrizes(params)` → `/user/prizes`
+- `getUserBenefits(params)` → `/user/benefits`
+- `getUserOrders(params)` → `/user/orders`
+
+### T204：MinePage 全面真实化
+
+**移除**：`couponList`（4 条 mock 卡券）、`orderRecords`（3 条 mock 订单）、`pointsLedger/exchangeRecords/earnRecords`（mock 流水）
+
+**新增**：
+- `serverProfile` state：加载 `/api/user/profile`
+- `prizeItems/prizeLoading`：加载 `/api/user/prizes`（mainTab=prize 时触发）
+- `benefitItems/benefitLoading`：加载 `/api/user/benefits`（mainTab=benefit 且 couponSub 变化时触发）
+- `orderItems/orderLoading/orderDataNote`：加载 `/api/user/orders`（mainTab=order 时触发）
+
+**字段来源统一**：
+- `lineDisplayName`：serverProfile.line_display_name → profile.lineDisplayName → fallback
+- `identityTag`：serverProfile.identity_tag → profile.identityTag → 'user'
+- `depositPaid`：serverProfile.deposit_paid → profile.depositPaid → false
+- `memberLevel`：serverProfile.member_level 映射三语
+
+---
+
+### 阶段三验证结论
+
+**验证方式**：真实运行 + 截图验证（4 个 tab）
+
+| 验证项 | 结果 | 说明 |
+|-------|------|------|
+| MinePage 顶部身份标签 | ✅ 真实接口推断 | 从 'user'(mock) 变为 'fan'(真实)，规则推断生效 |
+| MinePage 顶部等级 | ✅ 真实字段 | `member_level: 'standard'` → 'Standard Level' |
+| 奖品 tab | ✅ 真实接口空状态 | 来源标注：活动互动记录（真实接口） |
+| 权益 tab | ✅ 真实接口空状态 | 来源标注：用户权益记录（真实接口） |
+| 订单 tab | ✅ 真实接口空列表 | 明确说明待阶段四 A 系统桥接 |
+| 会员 tab 身份状态 | ✅ 真实接口 | Fan + 未缴纳押金，来源标注 |
+| 会员 tab 押金状态 | ✅ 真实结构 | 阶段三 false；标注阶段四接 A 系统 |
+| 四结果域 mock 数据清除 | ✅ 已清除 | couponList/orderRecords 已全部移除 |
+| 页面无白屏 | ✅ 正常 | 四个 tab 均可访问 |
+| 旧路由收口 | ✅ 保持 | /my-coupons /my-points 重定向不受影响 |
+| 阶段一/二成果保护 | ✅ 未破坏 | MinePage 四按钮体系、身份标签分离、深链均保持 |
+
+---
+
+### 阶段三已达到
+
+- ✅ MinePage 顶部身份标签开始来自真实接口规则推断
+- ✅ 奖品结果域接入真实接口（活动互动记录）
+- ✅ 权益结果域接入真实接口（用户产品记录）
+- ✅ 订单结果域明确承接边界（真实空列表 + 说明）
+- ✅ 会员结果域身份/押金状态来自真实接口
+- ✅ 前后端字段口径初步统一（identity_tag / deposit_paid / member_level）
+- ✅ 四结果域 mock 数据全部清除
+- ✅ 项目可运行，无新增白屏或死链
+
+### 阶段三尚未达到（留待阶段四）
+
+- ❌ LINE 真实 LIFF 登录（lineDisplayName/linePictureUrl 仍为 fallback）
+- ❌ A 系统押金状态真实桥接（depositPaid 当前本系统内字段，阶段三内含 mock）
+- ❌ 借电订单真实回流（A 系统数据，阶段四桥接）
+- ❌ 奖励领取后 user-products 自动写入并实时同步（目前权益需人工触发写入才可见）
+
+---
+
 ### `artifacts/cityone-growth-backend` (`@workspace/cityone-growth-backend`)
 
 空白 Node.js Express 后端应用，用于 CityOne Growth 业务逻辑。

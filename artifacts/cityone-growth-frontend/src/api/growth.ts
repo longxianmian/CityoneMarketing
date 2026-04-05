@@ -216,3 +216,37 @@ export function testRouteMatch(data: {
 }) {
   return request.post('/routes/test-match', data)
 }
+
+// ── 阶段三：用户端真实资料接口 ─────────────────────────────────────────────
+
+export function getUserProfile(params?: { user_id?: string; line_user_id?: string }) {
+  return request.get('/user/profile', { params })
+}
+
+export function getUserPrizes(params?: {
+  user_id?: string
+  line_user_id?: string
+  page?: number
+  page_size?: number
+}) {
+  return request.get('/user/prizes', { params })
+}
+
+export function getUserBenefits(params?: {
+  user_id?: string
+  line_user_id?: string
+  status?: 'available' | 'used' | 'expired'
+  page?: number
+  page_size?: number
+}) {
+  return request.get('/user/benefits', { params })
+}
+
+export function getUserOrders(params?: {
+  user_id?: string
+  line_user_id?: string
+  page?: number
+  page_size?: number
+}) {
+  return request.get('/user/orders', { params })
+}

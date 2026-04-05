@@ -14,22 +14,18 @@ import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
 import UserPageHeader from '../../components/user/UserPageHeader'
 import useLineUserStore, { type IdentityTag } from '../../store/lineUser'
-import { getUserPointsSummary, getUserPointsLedger, getUserPointsRedeems } from '../../api/growth'
+import {
+  getUserPointsSummary,
+  getUserPointsLedger,
+  getUserPointsRedeems,
+  getUserProfile,
+  getUserPrizes,
+  getUserBenefits,
+  getUserOrders,
+} from '../../api/growth'
 
 type AppLang = AppLanguage
 type LocalizedField = Partial<Record<AppLang, string>>
-
-const mockProfile = {
-  lineName: 'CityOne LINE User',
-  identityTag: 'user' as IdentityTag,
-  depositPaid: false,
-  memberLevel: {
-    zh: '黄金等级',
-    th: 'ระดับโกลด์',
-    en: 'Gold Level',
-  } as LocalizedField,
-  avatarUrl: '',
-}
 
 const TAB_PARAM_MAP: Record<string, MainTab> = {
   prizes: 'prize',
@@ -40,83 +36,6 @@ const TAB_PARAM_MAP: Record<string, MainTab> = {
   benefit: 'benefit',
   order: 'order',
 }
-
-const couponList = [
-  {
-    id: '1',
-    title: { zh: '关注 LINE 领 15 分钟券', th: 'ติดตาม LINE รับคูปอง 15 นาที', en: 'Follow LINE 15-min coupon' } as LocalizedField,
-    valueText: { zh: '15分钟免费时长', th: 'เวลาฟรี 15 นาที', en: '15 minutes free' } as LocalizedField,
-    expireText: { zh: '2026-04-07 到期', th: 'หมดอายุ 2026-04-07', en: 'Expires 2026-04-07' } as LocalizedField,
-    status: 'available',
-  },
-  {
-    id: '2',
-    title: { zh: '首借免单券', th: 'คูปองยืมครั้งแรกฟรี', en: 'First borrow free coupon' } as LocalizedField,
-    valueText: { zh: '首单免单', th: 'ฟรีออเดอร์แรก', en: 'First order free' } as LocalizedField,
-    expireText: { zh: '2026-04-03 到期', th: 'หมดอายุ 2026-04-03', en: 'Expires 2026-04-03' } as LocalizedField,
-    status: 'available',
-  },
-  {
-    id: '3',
-    title: { zh: '好友邀请奖励券', th: 'คูปองรางวัลชวนเพื่อน', en: 'Referral reward coupon' } as LocalizedField,
-    valueText: { zh: '30分钟免费时长', th: 'เวลาฟรี 30 นาที', en: '30 minutes free' } as LocalizedField,
-    expireText: { zh: '2026-03-20 到期', th: 'หมดอายุ 2026-03-20', en: 'Expires 2026-03-20' } as LocalizedField,
-    status: 'used',
-  },
-  {
-    id: '4',
-    title: { zh: '节日限定优惠券', th: 'คูปองวันหยุดพิเศษ', en: 'Holiday special coupon' } as LocalizedField,
-    valueText: { zh: '50分钟免费时长', th: 'เวลาฟรี 50 นาที', en: '50 minutes free' } as LocalizedField,
-    expireText: { zh: '2026-01-10 到期', th: 'หมดอายุ 2026-01-10', en: 'Expires 2026-01-10' } as LocalizedField,
-    status: 'expired',
-  },
-]
-
-const pointsLedger = [
-  { id: '1', type: 'balance', title: { zh: '参与活动奖励', th: 'รางวัลกิจกรรม', en: 'Activity reward' } as LocalizedField, points: '+100', time: '2026-03-31 10:00' },
-  { id: '2', type: 'balance', title: { zh: '邀请好友奖励', th: 'รางวัลชวนเพื่อน', en: 'Referral reward' } as LocalizedField, points: '+50', time: '2026-03-30 18:20' },
-  { id: '3', type: 'balance', title: { zh: '完成任务奖励', th: 'รางวัลงาน', en: 'Task completion reward' } as LocalizedField, points: '+30', time: '2026-03-28 09:10' },
-]
-
-const exchangeRecords = [
-  { id: '1', title: { zh: '兑换 15 分钟券', th: 'แลกคูปอง 15 นาที', en: 'Exchanged 15-min coupon' } as LocalizedField, points: '-200', time: '2026-03-29 14:15' },
-  { id: '2', title: { zh: '兑换电子书权益', th: 'แลกสิทธิ์อีบุ๊ก', en: 'Exchanged e-book benefit' } as LocalizedField, points: '-500', time: '2026-03-22 11:30' },
-]
-
-const earnRecords = [
-  { id: '1', title: { zh: '关注 LINE OA 奖励', th: 'รางวัลติดตาม LINE OA', en: 'Follow LINE OA reward' } as LocalizedField, points: '+200', time: '2026-03-25 08:00' },
-  { id: '2', title: { zh: '首次借充电宝', th: 'ยืมพาวเวอร์แบงก์ครั้งแรก', en: 'First borrow reward' } as LocalizedField, points: '+150', time: '2026-03-20 15:45' },
-]
-
-const orderRecords = [
-  {
-    id: 'ORD-001',
-    site: { zh: '曼谷中央世界', th: 'เซ็นทรัลเวิลด์', en: 'CentralWorld Bangkok' } as LocalizedField,
-    duration: { zh: '45 分钟', th: '45 นาที', en: '45 minutes' } as LocalizedField,
-    amount: 'THB 15.00',
-    status: { zh: '已完成', th: 'เสร็จสิ้น', en: 'Completed' } as LocalizedField,
-    statusColor: '#2CDBCE',
-    time: '2026-03-30 20:15',
-  },
-  {
-    id: 'ORD-002',
-    site: { zh: '终端 21 商场', th: 'เทอร์มินัล 21', en: 'Terminal 21' } as LocalizedField,
-    duration: { zh: '120 分钟', th: '120 นาที', en: '120 minutes' } as LocalizedField,
-    amount: 'THB 40.00',
-    status: { zh: '已完成', th: 'เสร็จสิ้น', en: 'Completed' } as LocalizedField,
-    statusColor: '#2CDBCE',
-    time: '2026-03-28 14:20',
-  },
-  {
-    id: 'ORD-003',
-    site: { zh: '尚泰百货', th: 'เซ็นทรัล', en: 'Central Dept. Store' } as LocalizedField,
-    duration: { zh: '15 分钟（免单券）', th: '15 นาที (ฟรีคูปอง)', en: '15 min (free coupon)' } as LocalizedField,
-    amount: 'THB 0.00',
-    status: { zh: '卡券抵扣', th: 'หักด้วยคูปอง', en: 'Coupon offset' } as LocalizedField,
-    statusColor: '#FF7A59',
-    time: '2026-03-25 11:05',
-  },
-]
 
 function EarnGuideCard() {
   const [open, setOpen] = useState(false)
@@ -142,7 +61,6 @@ function EarnGuideCard() {
         marginBottom: 2,
       }}
     >
-      {/* 横条标题行（可点击） */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -169,7 +87,6 @@ function EarnGuideCard() {
         />
       </button>
 
-      {/* 展开内容 */}
       {open && (
         <div style={{ padding: '0 14px 14px', background: '#FAFBFF' }}>
           <div style={{ fontSize: 12, color: '#667085', fontWeight: 600, marginBottom: 8 }}>
@@ -228,24 +145,68 @@ export default function MinePage() {
   const { t, language } = useI18n()
   const { profile } = useLineUserStore()
 
-  const lineDisplayName = profile?.lineDisplayName || mockProfile.lineName
-  const linePictureUrl = profile?.linePictureUrl || mockProfile.avatarUrl
-  const couponAvailableCount = profile?.couponCount ?? couponList.filter((c) => c.status === 'available').length
-  const depositAmount = profile?.deposit ?? 0
-  const depositPaid = profile?.depositPaid ?? mockProfile.depositPaid
-  const identityTag: IdentityTag = profile?.identityTag ?? mockProfile.identityTag
+  // ── 顶部用户资料（阶段三：从真实 profile 接口取，缺失则 fallback） ──────────
+  const [serverProfile, setServerProfile] = useState<any>(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
+
+  const lineUserId = profile?.lineUserId || ''
+
+  const lineDisplayName =
+    serverProfile?.line_display_name || profile?.lineDisplayName || 'CityOne LINE User'
+  const linePictureUrl =
+    serverProfile?.line_picture_url || profile?.linePictureUrl || ''
+
+  // identityTag：优先从服务器 profile 接口的 identity_tag 字段取（规则推断）
+  // fallback：本地 store 的 identityTag（LINE 登录后写入）
+  // 最终兜底：'user'
+  const identityTag: IdentityTag =
+    (serverProfile?.identity_tag as IdentityTag) || profile?.identityTag || 'user'
+
+  const depositPaid: boolean =
+    serverProfile?.deposit_paid ?? profile?.depositPaid ?? false
+  const depositAmount: number =
+    serverProfile?.deposit_amount ?? profile?.deposit ?? 0
+
+  // memberLevel 阶段三：按 member_level 字段映射到三语
+  const memberLevelRaw = serverProfile?.member_level || profile?.memberLevel || ''
+  const memberLevel = useMemo(() => {
+    const levelMap: Record<string, Record<string, string>> = {
+      gold: { zh: '黄金等级', th: 'ระดับโกลด์', en: 'Gold Level' },
+      standard: { zh: '标准等级', th: 'ระดับมาตรฐาน', en: 'Standard Level' },
+      platinum: { zh: '铂金等级', th: 'ระดับแพลทินัม', en: 'Platinum Level' },
+    }
+    const mapped = levelMap[memberLevelRaw] || levelMap['standard']
+    return mapped[language] || mapped['en']
+  }, [memberLevelRaw, language])
+
+  // 可用卡券数：优先从 serverProfile 取
+  const couponAvailableCount: number =
+    serverProfile?.coupon_count ?? profile?.couponCount ?? 0
 
   const initialTab: MainTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'benefit'
   const [mainTab, setMainTab] = useState<MainTab>(initialTab)
 
   const handleSetMainTab = (tab: MainTab) => {
     setMainTab(tab)
-    setSearchParams({ tab: tab === 'prize' ? 'prizes' : tab === 'benefit' ? 'benefits' : tab === 'order' ? 'orders' : 'member' }, { replace: true })
+    setSearchParams(
+      {
+        tab:
+          tab === 'prize'
+            ? 'prizes'
+            : tab === 'benefit'
+            ? 'benefits'
+            : tab === 'order'
+            ? 'orders'
+            : 'member',
+      },
+      { replace: true }
+    )
   }
 
   const [couponSub, setCouponSub] = useState<CouponSubTab>('available')
   const [pointsSub, setPointsSub] = useState<PointsSubTab>('balance')
 
+  // ── 积分（已有真实接口） ──────────────────────────────────────────────────
   const [pointsSummary, setPointsSummary] = useState({
     totalPoints: 0,
     availablePoints: 0,
@@ -260,11 +221,42 @@ export default function MinePage() {
   const [summaryLoaded, setSummaryLoaded] = useState(false)
   const [borrowModalOpen, setBorrowModalOpen] = useState(false)
 
+  // ── 阶段三：奖品真实接口 ──────────────────────────────────────────────────
+  const [prizeItems, setPrizeItems] = useState<any[]>([])
+  const [prizeLoading, setPrizeLoading] = useState(false)
+  const [prizeLoaded, setPrizeLoaded] = useState(false)
+
+  // ── 阶段三：权益真实接口 ──────────────────────────────────────────────────
+  const [benefitItems, setBenefitItems] = useState<any[]>([])
+  const [benefitLoading, setBenefitLoading] = useState(false)
+
+  // ── 阶段三：订单真实接口 ──────────────────────────────────────────────────
+  const [orderItems, setOrderItems] = useState<any[]>([])
+  const [orderLoading, setOrderLoading] = useState(false)
+  const [orderDataNote, setOrderDataNote] = useState<string>('')
+
+  // ── 加载用户资料（阶段三：从 /api/user/profile 接口） ────────────────────
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res: any = await getUserProfile(lineUserId ? { line_user_id: lineUserId } : {})
+        if (res?.data) {
+          setServerProfile(res.data)
+        }
+      } catch (e) {
+        // fallback 到 store 数据或 mock
+      }
+      setProfileLoaded(true)
+    }
+    load()
+  }, [lineUserId])
+
+  // ── 加载积分总览 ───────────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
         const res: any = await getUserPointsSummary(
-          profile?.lineUserId ? { line_user_id: profile.lineUserId } : undefined
+          lineUserId ? { line_user_id: lineUserId } : undefined
         )
         const s = res?.data || {}
         setPointsSummary({
@@ -278,33 +270,33 @@ export default function MinePage() {
       setSummaryLoaded(true)
     }
     load()
-  }, [profile?.lineUserId])
+  }, [lineUserId])
 
   const loadLedger = useCallback(async () => {
     setLedgerLoading(true)
     try {
       const res: any = await getUserPointsLedger({
-        line_user_id: profile?.lineUserId,
+        line_user_id: lineUserId,
         page: 1,
         page_size: 20,
       })
       setLedgerItems(res?.data?.items || [])
     } catch (e) {}
     setLedgerLoading(false)
-  }, [profile?.lineUserId])
+  }, [lineUserId])
 
   const loadRedeems = useCallback(async () => {
     setRedeemLoading(true)
     try {
       const res: any = await getUserPointsRedeems({
-        line_user_id: profile?.lineUserId,
+        line_user_id: lineUserId,
         page: 1,
         page_size: 20,
       })
       setRedeemItems(res?.data?.items || [])
     } catch (e) {}
     setRedeemLoading(false)
-  }, [profile?.lineUserId])
+  }, [lineUserId])
 
   useEffect(() => {
     if (mainTab === 'member') {
@@ -313,11 +305,90 @@ export default function MinePage() {
     }
   }, [mainTab, pointsSub])
 
-  const memberLevel = profile?.memberLevel
-    ? profile.memberLevel
-    : pickLocalizedText({ level: mockProfile.memberLevel }, 'level', language)
+  // ── 阶段三：加载奖品记录 ──────────────────────────────────────────────────
+  const loadPrizes = useCallback(async () => {
+    setPrizeLoading(true)
+    try {
+      const res: any = await getUserPrizes({
+        line_user_id: lineUserId,
+        page: 1,
+        page_size: 20,
+      })
+      setPrizeItems(res?.data?.items || [])
+    } catch (e) {
+      setPrizeItems([])
+    }
+    setPrizeLoading(false)
+    setPrizeLoaded(true)
+  }, [lineUserId])
 
-  const mainTabConfig: { key: MainTab; label: string; icon: React.ReactNode; color: string; bg: string }[] = [
+  useEffect(() => {
+    if (mainTab === 'prize' && !prizeLoaded) {
+      loadPrizes()
+    }
+  }, [mainTab])
+
+  // ── 阶段三：加载权益记录（按 tab 状态过滤） ─────────────────────────────
+  const loadBenefits = useCallback(
+    async (status?: 'available' | 'used' | 'expired') => {
+      setBenefitLoading(true)
+      try {
+        const res: any = await getUserBenefits({
+          line_user_id: lineUserId,
+          status,
+          page: 1,
+          page_size: 30,
+        })
+        setBenefitItems(res?.data?.items || [])
+      } catch (e) {
+        setBenefitItems([])
+      }
+      setBenefitLoading(false)
+    },
+    [lineUserId]
+  )
+
+  useEffect(() => {
+    if (mainTab === 'benefit') {
+      const statusMap: Record<CouponSubTab, 'available' | 'used' | 'expired'> = {
+        available: 'available',
+        used: 'used',
+        expired: 'expired',
+      }
+      loadBenefits(statusMap[couponSub])
+    }
+  }, [mainTab, couponSub])
+
+  // ── 阶段三：加载订单记录（当前返回空列表+说明） ──────────────────────────
+  const loadOrders = useCallback(async () => {
+    setOrderLoading(true)
+    try {
+      const res: any = await getUserOrders({
+        line_user_id: lineUserId,
+        page: 1,
+        page_size: 20,
+      })
+      setOrderItems(res?.data?.items || [])
+      setOrderDataNote(res?.data?.data_note || '')
+    } catch (e) {
+      setOrderItems([])
+    }
+    setOrderLoading(false)
+  }, [lineUserId])
+
+  useEffect(() => {
+    if (mainTab === 'order') {
+      loadOrders()
+    }
+  }, [mainTab])
+
+  const mainTabConfig: {
+    key: MainTab
+    label: string
+    icon: React.ReactNode
+    color: string
+    bg: string
+  }[] = [
     { key: 'prize', label: t('mine.tabPrize'), icon: <GiftOutlined />, color: '#FF7A59', bg: '#FFF3EE' },
     { key: 'benefit', label: t('mine.tabBenefit'), icon: <CreditCardOutlined />, color: '#2CDBCE', bg: '#E8FBF8' },
     { key: 'order', label: t('mine.tabOrder'), icon: <OrderedListOutlined />, color: '#2F80FF', bg: '#EAF2FF' },
@@ -351,12 +422,31 @@ export default function MinePage() {
     transition: 'all 0.2s',
   })
 
-  const filteredCoupons = couponList.filter((c) => c.status === couponSub)
+  // 可用卡券数量（来自真实接口 benefitItems 中 status=available 的数量）
+  const availableBenefitCount = benefitItems.filter((b) => b.status === 'available').length
 
   const couponStatusLabel: Record<CouponSubTab, { color: string; text: string }> = {
     available: { color: 'cyan', text: t('mine.couponStatusAvailable') },
     used: { color: 'default', text: t('mine.couponStatusUsed') },
     expired: { color: 'red', text: t('mine.couponStatusExpired') },
+  }
+
+  // 互动类型显示名
+  function interactionTypeName(type: string) {
+    const map: Record<string, string> = {
+      wheel_draw: '幸运转盘',
+      scratch_reveal: '刮刮卡',
+      fortune_draw: '泰式签池',
+    }
+    return map[type] || type
+  }
+
+  // 奖品状态显示
+  function prizeStatusTag(status: string) {
+    if (status === 'granted') return { color: 'green', text: '已到账' }
+    if (status === 'pending') return { color: 'orange', text: '待到账' }
+    if (status === 'expired') return { color: 'red', text: '已失效' }
+    return { color: 'default', text: status }
   }
 
   const mineTitle = t('mine.pageTitle')
@@ -383,7 +473,12 @@ export default function MinePage() {
             <Avatar
               size={68}
               src={linePictureUrl || undefined}
-              style={{ backgroundColor: 'rgba(255,255,255,0.22)', color: '#fff', fontSize: 28, fontWeight: 800 }}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.22)',
+                color: '#fff',
+                fontSize: 28,
+                fontWeight: 800,
+              }}
             >
               {lineDisplayName.slice(0, 1).toUpperCase()}
             </Avatar>
@@ -391,22 +486,48 @@ export default function MinePage() {
               <div style={{ fontSize: 14, opacity: 0.92, marginBottom: 4 }}>LINE</div>
               <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{lineDisplayName}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                {/* 身份标签（粉丝/用户/会员）— 独立显示 */}
-                <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  background: identityTag === 'member' ? 'rgba(255,215,0,0.25)' : identityTag === 'user' ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.14)',
-                  border: identityTag === 'member' ? '1px solid rgba(255,215,0,0.5)' : '1px solid rgba(255,255,255,0.25)',
-                  padding: '4px 10px', borderRadius: 999,
-                }}>
+                {/* 身份标签（粉丝/用户/会员）— 独立显示，来自真实接口规则推断 */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    background:
+                      identityTag === 'member'
+                        ? 'rgba(255,215,0,0.25)'
+                        : identityTag === 'user'
+                        ? 'rgba(255,255,255,0.22)'
+                        : 'rgba(255,255,255,0.14)',
+                    border:
+                      identityTag === 'member'
+                        ? '1px solid rgba(255,215,0,0.5)'
+                        : '1px solid rgba(255,255,255,0.25)',
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                  }}
+                >
                   <span style={{ fontSize: 13 }}>
                     {identityTag === 'fan' ? '⭐' : identityTag === 'user' ? '👤' : '💎'}
                   </span>
                   <span style={{ fontWeight: 700, fontSize: 13 }}>
-                    {identityTag === 'fan' ? t('mine.identityFan') : identityTag === 'user' ? t('mine.identityUser') : t('mine.identityMember')}
+                    {identityTag === 'fan'
+                      ? t('mine.identityFan')
+                      : identityTag === 'user'
+                      ? t('mine.identityUser')
+                      : t('mine.identityMember')}
                   </span>
                 </div>
                 {/* 等级（与身份分开）*/}
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.12)', padding: '4px 10px', borderRadius: 999 }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    background: 'rgba(255,255,255,0.12)',
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                  }}
+                >
                   <CrownOutlined style={{ fontSize: 13 }} />
                   <span style={{ fontWeight: 600, fontSize: 12, opacity: 0.9 }}>{memberLevel}</span>
                 </div>
@@ -417,7 +538,7 @@ export default function MinePage() {
             {[
               {
                 label: t('mine.colCoupons'),
-                value: couponAvailableCount,
+                value: serverProfile?.coupon_count ?? couponAvailableCount,
                 unit: '',
               },
               {
@@ -431,10 +552,23 @@ export default function MinePage() {
                 unit: '฿',
               },
             ].map((item, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.18)', borderRadius: 14, padding: '10px 10px 12px', backdropFilter: 'blur(6px)', textAlign: 'center' }}>
+              <div
+                key={i}
+                style={{
+                  background: 'rgba(255,255,255,0.18)',
+                  borderRadius: 14,
+                  padding: '10px 10px 12px',
+                  backdropFilter: 'blur(6px)',
+                  textAlign: 'center',
+                }}
+              >
                 <div style={{ fontSize: 11, opacity: 0.88, marginBottom: 6 }}>{item.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>
-                  {item.unit && <span style={{ fontSize: 13, fontWeight: 600, marginRight: 1 }}>{item.unit}</span>}
+                  {item.unit && (
+                    <span style={{ fontSize: 13, fontWeight: 600, marginRight: 1 }}>
+                      {item.unit}
+                    </span>
+                  )}
                   {item.value}
                 </div>
               </div>
@@ -442,9 +576,11 @@ export default function MinePage() {
           </div>
         </div>
 
-        {/* 常用功能：3 横置主 tab */}
+        {/* 常用功能：4 个主 tab */}
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: '#111827', marginBottom: 12 }}>{t('mine.menuTitle')}</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
+            {t('mine.menuTitle')}
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
             {mainTabConfig.map((tab) => {
               const active = mainTab === tab.key
@@ -484,7 +620,13 @@ export default function MinePage() {
                   >
                     {tab.icon}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: active ? tab.color : '#374151' }}>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: active ? tab.color : '#374151',
+                    }}
+                  >
                     {tab.label}
                   </span>
                 </button>
@@ -513,7 +655,18 @@ export default function MinePage() {
             }}
           >
             {mainTab === 'prize' && (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px', color: '#374151', fontWeight: 700, fontSize: 14 }}>
+              <div
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '0 4px',
+                  color: '#374151',
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
                 <GiftOutlined style={{ color: activeMain.color }} />
                 {t('mine.tabPrize')}
               </div>
@@ -526,17 +679,34 @@ export default function MinePage() {
                   style={subTabStyle(couponSub === sub.key, activeMain.color)}
                 >
                   {sub.label}
-                  {sub.key === 'available' && (
+                  {sub.key === 'available' && availableBenefitCount > 0 && (
                     <Badge
-                      count={couponList.filter((c) => c.status === 'available').length}
+                      count={availableBenefitCount}
                       size="small"
-                      style={{ marginLeft: 4, backgroundColor: couponSub === 'available' ? 'rgba(255,255,255,0.4)' : activeMain.color }}
+                      style={{
+                        marginLeft: 4,
+                        backgroundColor:
+                          couponSub === 'available'
+                            ? 'rgba(255,255,255,0.4)'
+                            : activeMain.color,
+                      }}
                     />
                   )}
                 </button>
               ))}
             {mainTab === 'order' && (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px', color: '#374151', fontWeight: 700, fontSize: 14 }}>
+              <div
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '0 4px',
+                  color: '#374151',
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
                 <ThunderboltOutlined style={{ color: activeMain.color }} />
                 {t('mine.chargingRecords')}
               </div>
@@ -556,26 +726,86 @@ export default function MinePage() {
           {/* 内容列表 */}
           <div style={{ padding: 12, display: 'grid', gap: 10 }}>
 
-            {/* 奖品内容 */}
+            {/* ─── 奖品 tab（阶段三：真实接口，来自 activity-interactions） ─────── */}
             {mainTab === 'prize' && (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#A0A7B3' }}>
-                <GiftOutlined style={{ fontSize: 40, color: '#FFB49E', marginBottom: 12, display: 'block' }} />
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>{t('mine.noPrize')}</div>
-                <div style={{ fontSize: 12 }}>{t('mine.noPrizeHint')}</div>
-              </div>
-            )}
-
-            {/* 权益内容（原卡券）*/}
-            {mainTab === 'benefit' && (
-              <>
-                {filteredCoupons.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '32px 0', color: '#A0A7B3', fontSize: 14 }}>
-                    {t('mine.noCoupons')}
+              <Spin spinning={prizeLoading}>
+                {prizeItems.length === 0 && !prizeLoading ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#A0A7B3' }}>
+                    <GiftOutlined
+                      style={{ fontSize: 40, color: '#FFB49E', marginBottom: 12, display: 'block' }}
+                    />
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                      {t('mine.noPrize')}
+                    </div>
+                    <div style={{ fontSize: 12 }}>{t('mine.noPrizeHint')}</div>
+                    <div style={{ fontSize: 11, color: '#C0C7D0', marginTop: 8 }}>
+                      数据来源：活动互动记录（真实接口）
+                    </div>
                   </div>
                 ) : (
-                  filteredCoupons.map((item) => (
+                  prizeItems.map((item, i) => {
+                    const statusInfo = prizeStatusTag(item.prize_status || 'granted')
+                    return (
+                      <div
+                        key={item.interaction_id || i}
+                        style={{
+                          border: '1px solid #ECF1F6',
+                          borderRadius: 14,
+                          padding: '12px 14px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 12,
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ marginBottom: 4 }}>
+                            <Tag color="orange">{interactionTypeName(item.interaction_type)}</Tag>
+                            <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+                          </div>
+                          <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
+                            {item.prize_name || '活动奖品'}
+                          </div>
+                          {item.product_name && (
+                            <div style={{ color: '#FF7A59', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+                              {item.product_name}
+                            </div>
+                          )}
+                          <div style={{ color: '#A0A7B3', fontSize: 12 }}>
+                            {item.created_at
+                              ? item.created_at.slice(0, 16).replace('T', ' ')
+                              : '--'}
+                          </div>
+                        </div>
+                        <GiftOutlined style={{ fontSize: 24, color: '#FFB49E' }} />
+                      </div>
+                    )
+                  })
+                )}
+              </Spin>
+            )}
+
+            {/* ─── 权益 tab（阶段三：真实接口，来自 user-products） ────────────── */}
+            {mainTab === 'benefit' && (
+              <Spin spinning={benefitLoading}>
+                {benefitItems.length === 0 && !benefitLoading ? (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: '32px 0',
+                      color: '#A0A7B3',
+                      fontSize: 14,
+                    }}
+                  >
+                    {t('mine.noCoupons')}
+                    <div style={{ fontSize: 11, color: '#C0C7D0', marginTop: 8 }}>
+                      数据来源：用户权益记录（真实接口）
+                    </div>
+                  </div>
+                ) : (
+                  benefitItems.map((item, i) => (
                     <div
-                      key={item.id}
+                      key={item.user_product_id || i}
                       style={{
                         border: '1px solid #ECF1F6',
                         borderRadius: 14,
@@ -593,22 +823,26 @@ export default function MinePage() {
                           </Tag>
                         </div>
                         <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
-                          {pickLocalizedText({ title: item.title }, 'title', language)}
+                          {item.product_name || '权益卡券'}
                         </div>
-                        <div style={{ color: '#FF7A59', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                          {pickLocalizedText({ valueText: item.valueText }, 'valueText', language)}
-                        </div>
+                        {item.short_benefit_text && (
+                          <div
+                            style={{ color: '#FF7A59', fontWeight: 700, fontSize: 13, marginBottom: 4 }}
+                          >
+                            {item.short_benefit_text}
+                          </div>
+                        )}
                         <div style={{ color: '#A0A7B3', fontSize: 12 }}>
-                          {pickLocalizedText({ expireText: item.expireText }, 'expireText', language)}
+                          {item.expire_at
+                            ? `${t('mine.couponStatusExpired').replace('已', '')}：${item.expire_at.slice(0, 10)}`
+                            : item.issued_at
+                            ? `到账：${item.issued_at.slice(0, 10)}`
+                            : ''}
                         </div>
                       </div>
                       {couponSub === 'available' && (
                         <button
-                          onClick={() => {
-                            // TODO: 对接共享充电宝系统后，在此处调用借电 API
-                            // e.g. POST /api/borrow/start { couponId: item.id, userId }
-                            setBorrowModalOpen(true)
-                          }}
+                          onClick={() => setBorrowModalOpen(true)}
                           style={{
                             border: `1.5px solid #2CDBCE`,
                             borderRadius: 20,
@@ -627,36 +861,66 @@ export default function MinePage() {
                     </div>
                   ))
                 )}
-              </>
+              </Spin>
             )}
 
-            {/* 会员内容（身份+押金+积分）*/}
+            {/* ─── 会员 tab（积分真实，身份/押金阶段三真实规则推断） ───────────── */}
             {mainTab === 'member' && (
               <>
-                {/* 身份状态卡 — 独立显示身份层级与押金状态 */}
-                <div style={{ border: '1.5px solid #ECF1F6', borderRadius: 14, padding: '14px 16px', marginBottom: 2 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#7B61FF', marginBottom: 10 }}>{t('mine.identityUser') !== undefined ? '身份状态' : 'Identity'}</div>
+                {/* 身份状态卡 */}
+                <div
+                  style={{
+                    border: '1.5px solid #ECF1F6',
+                    borderRadius: 14,
+                    padding: '14px 16px',
+                    marginBottom: 2,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#7B61FF', marginBottom: 10 }}>
+                    身份状态
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div style={{ background: '#F7F3FF', borderRadius: 10, padding: '10px 12px' }}>
-                      <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>
-                        {t('mine.identityFan') !== undefined ? '身份层级' : 'Identity'}
-                      </div>
+                      <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>身份层级</div>
                       <div style={{ fontWeight: 800, fontSize: 15, color: '#7B61FF' }}>
-                        {identityTag === 'fan' ? `⭐ ${t('mine.identityFan')}` : identityTag === 'user' ? `👤 ${t('mine.identityUser')}` : `💎 ${t('mine.identityMember')}`}
+                        {identityTag === 'fan'
+                          ? `⭐ ${t('mine.identityFan')}`
+                          : identityTag === 'user'
+                          ? `👤 ${t('mine.identityUser')}`
+                          : `💎 ${t('mine.identityMember')}`}
                       </div>
                       <div style={{ fontSize: 11, color: '#667085', marginTop: 4 }}>
-                        {identityTag === 'fan' ? t('mine.identityFanDesc') : identityTag === 'user' ? t('mine.identityUserDesc') : t('mine.identityMemberDesc')}
+                        {identityTag === 'fan'
+                          ? t('mine.identityFanDesc')
+                          : identityTag === 'user'
+                          ? t('mine.identityUserDesc')
+                          : t('mine.identityMemberDesc')}
                       </div>
                     </div>
-                    <div style={{ background: depositPaid ? '#ECFDF5' : '#FFF7ED', borderRadius: 10, padding: '10px 12px' }}>
+                    <div
+                      style={{
+                        background: depositPaid ? '#ECFDF5' : '#FFF7ED',
+                        borderRadius: 10,
+                        padding: '10px 12px',
+                      }}
+                    >
                       <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>押金状态</div>
-                      <div style={{ fontWeight: 800, fontSize: 15, color: depositPaid ? '#2CDBCE' : '#FF7A59' }}>
+                      <div
+                        style={{
+                          fontWeight: 800,
+                          fontSize: 15,
+                          color: depositPaid ? '#2CDBCE' : '#FF7A59',
+                        }}
+                      >
                         {depositPaid ? '✅ 已缴纳' : '⏳ 未缴纳'}
                       </div>
                       <div style={{ fontSize: 11, color: '#667085', marginTop: 4 }}>
                         {depositPaid ? `฿${depositAmount}` : '缴纳押金成为会员'}
                       </div>
                     </div>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#C0C7D0', marginTop: 8 }}>
+                    身份标签由系统规则推断 · 押金状态阶段四接 A 系统
                   </div>
                 </div>
 
@@ -686,21 +950,45 @@ export default function MinePage() {
                     </div>
                     <Spin spinning={ledgerLoading}>
                       {ledgerItems.length === 0 && !ledgerLoading ? (
-                        <Empty description={t('mine.noLedger')} style={{ padding: '24px 0' }} />
+                        <Empty
+                          description={t('mine.noLedger')}
+                          style={{ padding: '24px 0' }}
+                        />
                       ) : (
                         ledgerItems.map((rec: any, i: number) => (
                           <div
                             key={rec.id || i}
-                            style={{ border: '1px solid #ECF1F6', borderRadius: 14, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            style={{
+                              border: '1px solid #ECF1F6',
+                              borderRadius: 14,
+                              padding: '12px 14px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
                           >
                             <div>
                               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
                                 {rec.reason || rec.ref_type || '--'}
                               </div>
-                              <div style={{ color: '#A0A7B3', fontSize: 12 }}>{rec.created_at ? rec.created_at.slice(0, 16).replace('T', ' ') : '--'}</div>
+                              <div style={{ color: '#A0A7B3', fontSize: 12 }}>
+                                {rec.created_at
+                                  ? rec.created_at.slice(0, 16).replace('T', ' ')
+                                  : '--'}
+                              </div>
                             </div>
-                            <div style={{ fontWeight: 800, fontSize: 16, color: (rec.type === 'credit' || rec.type === 'earn') ? '#2CDBCE' : '#FF4D4F' }}>
-                              {(rec.type === 'credit' || rec.type === 'earn') ? '+' : '-'}{Math.abs(rec.points || 0)}
+                            <div
+                              style={{
+                                fontWeight: 800,
+                                fontSize: 16,
+                                color:
+                                  rec.type === 'credit' || rec.type === 'earn'
+                                    ? '#2CDBCE'
+                                    : '#FF4D4F',
+                              }}
+                            >
+                              {rec.type === 'credit' || rec.type === 'earn' ? '+' : '-'}
+                              {Math.abs(rec.points || 0)}
                             </div>
                           </div>
                         ))
@@ -709,68 +997,129 @@ export default function MinePage() {
                   </>
                 )}
                 {pointsSub === 'exchange' && (
-                  <>
-                    <Spin spinning={redeemLoading}>
-                      {redeemItems.length === 0 && !redeemLoading ? (
-                        <Empty description={t('mine.noRedeem')} style={{ padding: '24px 0' }} />
-                      ) : (
-                        redeemItems.map((rec: any, i: number) => (
-                          <div
-                            key={rec.id || i}
-                            style={{ border: '1px solid #ECF1F6', borderRadius: 14, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                          >
-                            <div>
-                              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
-                                {rec.reason || rec.product_name || '--'}
-                              </div>
-                              <div style={{ color: '#A0A7B3', fontSize: 12 }}>{rec.created_at ? rec.created_at.slice(0, 16).replace('T', ' ') : '--'}</div>
+                  <Spin spinning={redeemLoading}>
+                    {redeemItems.length === 0 && !redeemLoading ? (
+                      <Empty description={t('mine.noRedeem')} style={{ padding: '24px 0' }} />
+                    ) : (
+                      redeemItems.map((rec: any, i: number) => (
+                        <div
+                          key={rec.id || i}
+                          style={{
+                            border: '1px solid #ECF1F6',
+                            borderRadius: 14,
+                            padding: '12px 14px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
+                              {rec.reason || rec.product_name || '--'}
                             </div>
-                            <div style={{ fontWeight: 800, fontSize: 16, color: '#7B61FF' }}>
-                              -{Math.abs(rec.points || 0)}
+                            <div style={{ color: '#A0A7B3', fontSize: 12 }}>
+                              {rec.created_at
+                                ? rec.created_at.slice(0, 16).replace('T', ' ')
+                                : '--'}
                             </div>
                           </div>
-                        ))
-                      )}
-                    </Spin>
-                  </>
+                          <div style={{ fontWeight: 800, fontSize: 16, color: '#7B61FF' }}>
+                            -{Math.abs(rec.points || 0)}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </Spin>
                 )}
-                {pointsSub === 'earn' && (
-                  <>
-                    <EarnGuideCard />
-                  </>
-                )}
+                {pointsSub === 'earn' && <EarnGuideCard />}
               </>
             )}
 
-            {/* 订单内容 */}
+            {/* ─── 订单 tab（阶段三：真实接口，当前返回空列表） ───────────────── */}
             {mainTab === 'order' && (
-              <>
-                {orderRecords.map((order) => (
-                  <div
-                    key={order.id}
-                    style={{ border: '1px solid #ECF1F6', borderRadius: 14, padding: '14px' }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>
-                        {pickLocalizedText({ site: order.site }, 'site', language)}
+              <Spin spinning={orderLoading}>
+                {orderItems.length === 0 && !orderLoading ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#A0A7B3' }}>
+                    <ThunderboltOutlined
+                      style={{
+                        fontSize: 40,
+                        color: '#A5C8FF',
+                        marginBottom: 12,
+                        display: 'block',
+                      }}
+                    />
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                      暂无借电订单
+                    </div>
+                    <div style={{ fontSize: 12, marginBottom: 8 }}>
+                      完成借电后订单将在此显示
+                    </div>
+                    {orderDataNote && (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: '#C0C7D0',
+                          background: '#F7F9FC',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          margin: '0 auto',
+                          maxWidth: 260,
+                          textAlign: 'left',
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        🔗 {orderDataNote}
                       </div>
-                      <Tag color={order.statusColor === '#2CDBCE' ? 'cyan' : 'orange'} style={{ marginLeft: 8 }}>
-                        {pickLocalizedText({ status: order.status }, 'status', language)}
-                      </Tag>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: 13, color: '#667085' }}>
-                        <ThunderboltOutlined style={{ color: activeMain.color, marginRight: 4 }} />
-                        {pickLocalizedText({ duration: order.duration }, 'duration', language)}
-                      </div>
-                      <div style={{ fontWeight: 800, fontSize: 15, color: '#111827' }}>{order.amount}</div>
-                    </div>
-                    <div style={{ fontSize: 12, color: '#A0A7B3', marginTop: 6 }}>
-                      {order.id} · {order.time}
-                    </div>
+                    )}
                   </div>
-                ))}
-              </>
+                ) : (
+                  orderItems.map((order: any, i: number) => (
+                    <div
+                      key={order.order_id || i}
+                      style={{ border: '1px solid #ECF1F6', borderRadius: 14, padding: '14px' }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>
+                          {order.site_name || order.site || '--'}
+                        </div>
+                        <Tag
+                          color={order.status === 'completed' ? 'cyan' : 'orange'}
+                          style={{ marginLeft: 8 }}
+                        >
+                          {order.status_display || order.status || '--'}
+                        </Tag>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: 13, color: '#667085' }}>
+                          <ThunderboltOutlined
+                            style={{ color: activeMain.color, marginRight: 4 }}
+                          />
+                          {order.duration || '--'}
+                        </div>
+                        <div style={{ fontWeight: 800, fontSize: 15, color: '#111827' }}>
+                          {order.amount || '--'}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#A0A7B3', marginTop: 6 }}>
+                        {order.order_id || ''} · {order.created_at?.slice(0, 16).replace('T', ' ') || ''}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </Spin>
             )}
           </div>
         </div>
