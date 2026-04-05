@@ -164,7 +164,8 @@ export async function generateReplyText(intentCode, toolResult, identityTier, la
 1. 只输出给用户看的自然语言文本，不超过 80 字
 2. 如果工具数据存在，用简短语言摘要要点，不要照搬原始数据
 3. 不要提到"工具"、"系统"、"接口"等技术词汇
-4. 如果工具失败，给出安抚性提示`;
+4. 如果工具失败，给出安抚性提示
+5. 如果用户问的内容超出服务范围（比如问天气、讲故事、翻译等），温暖地承认"这个不太擅长"，然后自然地引回充电宝/卡券/积分相关话题，不要生硬拒绝`;
 
   const historyMessages = conversationHistory.slice(-4).map((h) => ({
     role: h.startsWith("用户:") || h.startsWith("User:") ? "user" : "assistant",

@@ -41,10 +41,10 @@ export function buildReply({ intentCode, toolResult, identityTier, language = "z
   // 未识别意图
   if (!intentCode || intentCode === "unknown") {
     const fallbackText = {
-      zh: "抱歉，我没有理解你的问题。你可以试试：",
-      th: "ขออภัย ฉันไม่เข้าใจ ลองดูตัวเลือกเหล่านี้:",
-      en: "Sorry, I didn't understand. Here are some things you can try:"
-    }[language] || "抱歉，我没有理解你的问题。";
+      zh: "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+      th: "อืม คำถามนี้อยู่นอกขอบเขตที่ฉันช่วยได้ 😄 แต่เรื่องพาวเวอร์แบงก์ คูปอง และแต้ม ฉันถนัดมากเลย ลองดูสิ:",
+      en: "Hmm, that one's a bit out of my area 😄 But I'm great with power banks, coupons, and points — want to try:"
+    }[language] || "嗯～这个我可能帮不上，不过你可以试试：";
     return buildTextReply(fallbackText, suggestions, "intent_unknown");
   }
 

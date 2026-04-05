@@ -1006,5 +1006,37 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-05T01:25:22.070Z"
+  },
+  {
+    "log_id": "al_00064",
+    "session_id": "as_00082",
+    "message_id": "am_00207",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "在吗？",
+    "intent_code": "greeting",
+    "intent_confidence": 0.98,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-05T01:27:25.896Z"
+  },
+  {
+    "log_id": "al_00065",
+    "session_id": "as_00082",
+    "message_id": "am_00209",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "你的泰文名字叫什么？",
+    "intent_code": "unknown",
+    "intent_confidence": 0,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-05T01:27:53.414Z"
   }
 ]
