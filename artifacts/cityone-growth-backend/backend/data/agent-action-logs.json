@@ -1070,5 +1070,53 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-05T01:32:54.411Z"
+  },
+  {
+    "log_id": "al_00068",
+    "session_id": "as_00082",
+    "message_id": "am_00215",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "你的泰国名字叫什么？",
+    "intent_code": "unknown",
+    "intent_confidence": 0,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-05T01:35:07.653Z"
+  },
+  {
+    "log_id": "al_00069",
+    "session_id": "as_00082",
+    "message_id": "am_00217",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "今天曼谷有什么电影？",
+    "intent_code": "unknown",
+    "intent_confidence": 0,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-05T01:35:32.591Z"
+  },
+  {
+    "log_id": "al_00070",
+    "session_id": "as_00082",
+    "message_id": "am_00219",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "这个附近有没有其它品牌的共享充电宝？",
+    "intent_code": "nearby_sites_query",
+    "intent_confidence": 0.92,
+    "tool_code": "tool-nearby-sites",
+    "tool_result_status": "success",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-05T01:36:01.066Z"
   }
 ]

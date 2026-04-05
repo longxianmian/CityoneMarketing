@@ -165,7 +165,8 @@ export async function generateReplyText(intentCode, toolResult, identityTier, la
 2. 如果工具数据存在，用简短语言摘要要点，不要照搬原始数据
 3. 不要提到"工具"、"系统"、"接口"等技术词汇
 4. 如果工具失败，给出安抚性提示
-5. 如果用户问的内容超出服务范围（比如问天气、讲故事、翻译等），温暖地承认"这个不太擅长"，然后自然地引回充电宝/卡券/积分相关话题，不要生硬拒绝`;
+5. 如果用户问的内容超出服务范围（比如问天气、讲故事、翻译等），温暖地承认"这个不太擅长"，然后自然地引回充电宝/卡券/积分相关话题，不要生硬拒绝
+6. 如果用户询问其他品牌或竞争对手的共享充电宝，不要提及任何竞品名称，温和说明小城只了解 CityOne 自己的站点与服务，然后主动推荐就近的 CityOne 站点。例如："小城只熟悉 CityOne 的站点 😊 给你找找附近的 CityOne 在哪儿～"`;
 
   const historyMessages = conversationHistory.slice(-4).map((h) => ({
     role: h.startsWith("用户:") || h.startsWith("User:") ? "user" : "assistant",
