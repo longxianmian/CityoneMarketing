@@ -26,7 +26,7 @@ const BIZ_AGENTS = [
     icon: <NotificationOutlined />,
     color: 'orange',
     desc: '面向推广团队，聚焦活动效果、渠道流量、粉丝增长、用户转化数据的智能分析与建议。',
-    kpis: ['活动新增粉丝', '渠道转化率', '裂变邀请成功数', '优惠券使用率', '活动 ROI 估算'],
+    kpis: ['活动新增粉丝', '渠道转化率', '裂变邀请成功数', '卡券使用率', '活动 ROI 估算'],
     apis: [
       '/api/admin/agent/business/summary?dept=marketing',
       '/api/admin/agent/business/kpi-details?dept=marketing',
@@ -39,8 +39,8 @@ const BIZ_AGENTS = [
     label: '运营 Agent',
     icon: <TeamOutlined />,
     color: 'green',
-    desc: '面向运营团队，聚焦用户生命周期、积分账户、权益发放、会员成长数据的运营支持。',
-    kpis: ['用户活跃度', '积分发放总量', '权益兑换率', '会员新增数', '用户留存率'],
+    desc: '面向运营团队，聚焦用户生命周期、积分账户、权益发放、会员留存数据的运营支持（会员 = 已缴押金用户）。',
+    kpis: ['用户活跃度', '积分发放总量', '权益兑换率', '新增会员数（缴押金）', '用户留存率'],
     apis: [
       '/api/admin/agent/business/summary?dept=ops',
       '/api/admin/agent/business/kpi-details?dept=ops',

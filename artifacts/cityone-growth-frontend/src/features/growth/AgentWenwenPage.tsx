@@ -10,7 +10,7 @@ export default function AgentWenwenPage() {
 
   const capabilities = [
     { key: 'faq', label: '常见问题解答', desc: '自动回答借充电宝、归还、收费等高频问题' },
-    { key: 'coupon', label: '卡券查询与引导', desc: '查询用户可用卡券，引导核销流程' },
+    { key: 'coupon', label: '权益查询与引导（可用卡券）', desc: '查询用户当前可用权益（含卡券物品），引导核销或使用流程' },
     { key: 'points', label: '积分查询', desc: '查询积分余额、明细、兑换入口' },
     { key: 'site', label: '站点查询', desc: '查找附近站点、设备状态' },
     { key: 'activity', label: '活动说明', desc: '介绍当前进行中的活动规则与参与方式' },
@@ -60,8 +60,8 @@ export default function AgentWenwenPage() {
         <Descriptions column={1} bordered size="small">
           <Descriptions.Item label="用户端入口">LINE OA 聊天窗口 / 问问页面（/agent/chat）</Descriptions.Item>
           <Descriptions.Item label="触发方式">用户主动发消息 / 点击快捷提问</Descriptions.Item>
-          <Descriptions.Item label="身份识别">通过 LINE User ID 识别粉丝/用户/会员身份</Descriptions.Item>
-          <Descriptions.Item label="能力分层">按用户身份层级（粉丝/用户/会员）返回不同能力范围</Descriptions.Item>
+          <Descriptions.Item label="身份识别">通过 LINE User ID 识别三层身份：粉丝（已关注OA）/ 用户（进入业务链路）/ 会员（已缴押金）</Descriptions.Item>
+          <Descriptions.Item label="能力分层">粉丝可查询基础信息；用户可查询权益/订单；会员可查询全部能力含押金状态</Descriptions.Item>
         </Descriptions>
       </Card>
 
