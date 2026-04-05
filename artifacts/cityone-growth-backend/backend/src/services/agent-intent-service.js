@@ -31,20 +31,23 @@ export async function recognizeIntent(text, language = "zh", context = {}) {
 
   const allowedIntents = context.allowed_intents || [];
 
-  // ── 优先走 LLM ───────────────────────────────────────────────────────────
+  // ── 第一步：关键词匹配（零延迟）────────────────────────────────────────
+  const keywordResult = recognizeByKeyword(text, language, allowedIntents);
+  if (keywordResult && keywordResult.confidence >= 0.7) {
+    return { ...keywordResult, recognition_mode: "keyword" };
+  }
+
+  // ── 第二步：仅当关键词不确定时才调 LLM ──────────────────────────────────
   try {
     const llmResult = await recognizeIntentWithLLM(text, language, allowedIntents, context);
     if (llmResult && llmResult.intent_code && llmResult.intent_code !== "unknown" && llmResult.confidence >= 0.5) {
       return { ...llmResult, recognition_mode: "llm" };
     }
-    // LLM 返回 unknown 或低置信，继续尝试关键词
   } catch (err) {
-    // LLM 调用失败，静默降级
     console.error("[intent] LLM 调用失败，降级至关键词:", err.message);
   }
 
-  // ── 降级：关键词词典匹配 ──────────────────────────────────────────────────
-  const keywordResult = recognizeByKeyword(text, language, allowedIntents);
+  // ── 第三步：低置信关键词结果也比 unknown 好 ───────────────────────────────
   if (keywordResult) return { ...keywordResult, recognition_mode: "keyword" };
 
   return { ...FALLBACK_INTENT, recognition_mode: "fallback" };

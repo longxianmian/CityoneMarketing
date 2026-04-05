@@ -13,7 +13,7 @@
 import OpenAI from "openai";
 
 const MODEL = "gpt-5-mini";
-const MAX_TOKENS = 8192;
+const MAX_TOKENS = 150;
 
 let _client = null;
 
@@ -181,7 +181,7 @@ export async function generateReplyText(intentCode, toolResult, identityTier, la
     { role: "user", content: userContent }
   ];
 
-  return chatCompletion(messages, { maxTokens: 512 });
+  return chatCompletion(messages, { maxTokens: 200 });
 }
 
 /**

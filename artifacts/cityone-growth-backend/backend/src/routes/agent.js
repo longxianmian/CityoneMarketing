@@ -233,8 +233,19 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
       policyResult
     });
 
-    // 6. LLM 生成自然语言回复文本（替换 rule-based 文本，仅在允许执行时使用）
-    if (policyResult.result === POLICY_RESULTS.ALLOWED && intentResult.intent_code !== "unknown") {
+    // 简单数据型意图：模板已足够，跳过 LLM 避免延迟
+    const SKIP_LLM_REPLY_INTENTS = new Set([
+      "greeting", "nearby_sites_query", "coupon_list_query", "coupon_recommend",
+      "points_balance_query", "recent_orders_query", "benefit_claim_query",
+      "invite_poster_generate"
+    ]);
+
+    // 6. LLM 生成自然语言回复文本（仅解释类/帮助类意图才调用）
+    if (
+      policyResult.result === POLICY_RESULTS.ALLOWED &&
+      intentResult.intent_code !== "unknown" &&
+      !SKIP_LLM_REPLY_INTENTS.has(intentResult.intent_code)
+    ) {
       try {
         const recentMsgs = getSessionMessages(sessionId, 6);
         const history = recentMsgs.map((m) => `${m.role === "user" ? "用户" : "助理"}: ${m.text}`);
