@@ -3,6 +3,7 @@ import { Card, Table, Input, Button, Space, Tag, Row, Col, Modal, Form, message,
 import { SearchOutlined, ReloadOutlined, PlusOutlined, ExclamationCircleOutlined, SendOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import { useI18n } from '../../i18n'
+import MultiLangInput from '../../components/MultiLangInput'
 
 const channelMap: Record<string, { label: string; color: string }> = {
   line: { label: 'LINE', color: 'green' },
@@ -51,17 +52,38 @@ export default function MessageManage() {
 
   const handleSearch = () => { fetchData() }
   const handleReset = () => { setFilterChannel(undefined); setFilterEvent(undefined) }
-  const handleAdd = () => { setIsEdit(false); form.resetFields(); form.setFieldsValue({ enabled: true }); setFormVisible(true) }
+
+  const handleAdd = () => {
+    setIsEdit(false)
+    form.resetFields()
+    form.setFieldsValue({
+      enabled: true,
+      content: { zh: '', th: '', en: '' },
+    })
+    setFormVisible(true)
+  }
+
   const handleEdit = (record: any) => {
     setIsEdit(true)
-    form.setFieldsValue({ ...record })
+    const content = record.content && typeof record.content === 'object'
+      ? record.content
+      : { zh: record.content_zh || '', th: record.content_th || '', en: record.content_en || '' }
+    form.setFieldsValue({ ...record, content })
     setFormVisible(true)
   }
 
   const handleFormOk = async () => {
     const values = await form.validateFields()
     try {
-      await request.post('/growth/message/save', values)
+      const content = values.content || { zh: '', th: '', en: '' }
+      const payload = {
+        ...values,
+        content,
+        content_zh: content.zh || '',
+        content_th: content.th || '',
+        content_en: content.en || '',
+      }
+      await request.post('/growth/message/save', payload)
       message.success(isEdit ? mk('saveSuccess') : mk('createSuccess'))
       setFormVisible(false)
       fetchData()
@@ -112,7 +134,16 @@ export default function MessageManage() {
         return found ? found.label : v
       },
     },
-    { title: mk('colContent'), dataIndex: 'content_zh', key: 'content_zh', width: 200, ellipsis: true },
+    {
+      title: mk('colContent'), key: 'content', width: 220, ellipsis: true,
+      render: (_: any, record: any) => {
+        const content = record.content
+        if (content && typeof content === 'object') {
+          return content.zh || content.th || content.en || ''
+        }
+        return record.content_zh || ''
+      },
+    },
     {
       title: mk('colEnabled'), dataIndex: 'enabled', key: 'enabled', width: 80,
       render: (v: boolean, record: any) => <Switch checked={v} onChange={(checked) => handleToggleEnabled(record, checked)} />,
@@ -152,10 +183,19 @@ export default function MessageManage() {
       <Card style={{ marginTop: 16 }}>
         <Table rowKey="id" columns={columns} dataSource={data} loading={loading} scroll={{ x: 900 }} pagination={false} />
       </Card>
-      <Modal title={isEdit ? mk('modalEdit') : mk('modalCreate')} open={formVisible} onOk={handleFormOk} onCancel={() => setFormVisible(false)} width={640} destroyOnClose>
+      <Modal
+        title={isEdit ? mk('modalEdit') : mk('modalCreate')}
+        open={formVisible}
+        onOk={handleFormOk}
+        onCancel={() => setFormVisible(false)}
+        width={640}
+        destroyOnClose
+      >
         <Form form={form} layout="vertical">
           {isEdit && <Form.Item name="id" hidden><Input /></Form.Item>}
-          <Form.Item name="name" label={mk('formName')} rules={[{ required: true, message: mk('formNameRequired') }]}><Input /></Form.Item>
+          <Form.Item name="name" label={mk('formName')} rules={[{ required: true, message: mk('formNameRequired') }]}>
+            <Input />
+          </Form.Item>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
               <Form.Item name="channel" label={mk('formChannel')} rules={[{ required: true, message: mk('formChannelRequired') }]}>
@@ -168,14 +208,22 @@ export default function MessageManage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="content_zh" label={mk('formContentZh')} rules={[{ required: true, message: mk('formContentZhRequired') }]}>
-            <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="content_en" label={mk('formContentEn')}>
-            <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="content_th" label={mk('formContentTh')}>
-            <Input.TextArea rows={3} />
+          <Form.Item
+            name="content"
+            label={mk('formContent')}
+            rules={[{
+              validator: (_, val) => {
+                if (!val?.zh?.trim()) return Promise.reject(mk('formContentRequired'))
+                return Promise.resolve()
+              },
+            }]}
+          >
+            <MultiLangInput
+              textarea
+              rows={3}
+              fieldKey="messageContent"
+              placeholder="请输入中文消息内容，点击 AI 自动翻译补齐其他语言"
+            />
           </Form.Item>
           <Row gutter={16}>
             <Col xs={24} sm={12}>

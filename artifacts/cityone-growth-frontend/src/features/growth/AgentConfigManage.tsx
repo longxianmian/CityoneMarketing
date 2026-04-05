@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Form, Input, Switch, Button, Tabs, Select, InputNumber, message, Spin } from 'antd'
-import { SaveOutlined, RobotOutlined } from '@ant-design/icons'
+import { Card, Form, Switch, Button, Select, InputNumber, message, Spin, Typography } from 'antd'
+import { SaveOutlined, RobotOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { getAgentConfig, updateAgentConfig } from '../../api/agent-admin'
 import { useI18n } from '../../i18n'
+import MultiLangInput from '../../components/MultiLangInput'
 
-const { TextArea } = Input
+const { Text } = Typography
 
 const MOCK_CONFIG = {
   enabled: true,
@@ -12,7 +13,7 @@ const MOCK_CONFIG = {
   showSuggestions: true,
   allowContinuousAction: false,
   fileUploadEnabled: true,
-  welcomeMessage: { zh: '你好！我是 CityOne AI 助理 👋', th: 'สวัสดี!', en: 'Hi! I\'m CityOne AI Assistant 👋' },
+  welcomeMessage: { zh: '你好！我是 CityOne AI 助理 👋', th: 'สวัสดี! ฉันคือ CityOne AI 👋', en: "Hi! I'm CityOne AI Assistant 👋" },
   quickPrompts: {
     zh: ['怎么借充电宝？', '卡券怎么使用？', '积分怎么兑换？', '分享福利给好友？'],
     th: ['ยืมพาวเวอร์แบงก์ยังไง?', 'ใช้คูปองยังไง?', 'แลกคะแนนยังไง?', 'ชวนเพื่อนยังไง?'],
@@ -51,8 +52,11 @@ export default function AgentConfigManage() {
       try {
         const res = await getAgentConfig()
         setConfig(res.data?.data || res.data || MOCK_CONFIG)
-      } catch { setConfig(MOCK_CONFIG) }
-      finally { setLoading(false) }
+      } catch {
+        setConfig(MOCK_CONFIG)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
@@ -65,12 +69,12 @@ export default function AgentConfigManage() {
         showSuggestions: config.showSuggestions,
         allowContinuousAction: config.allowContinuousAction,
         fileUploadEnabled: config.fileUploadEnabled,
-        welcome_zh: config.welcomeMessage?.zh,
-        welcome_th: config.welcomeMessage?.th,
-        welcome_en: config.welcomeMessage?.en,
-        prompts_zh: (config.quickPrompts?.zh || []).join('\n'),
-        prompts_th: (config.quickPrompts?.th || []).join('\n'),
-        prompts_en: (config.quickPrompts?.en || []).join('\n'),
+        welcomeMessage: config.welcomeMessage || { zh: '', th: '', en: '' },
+        quickPrompts: {
+          zh: (config.quickPrompts?.zh || []).join('\n'),
+          th: (config.quickPrompts?.th || []).join('\n'),
+          en: (config.quickPrompts?.en || []).join('\n'),
+        },
         cap_guest: config.tierCapabilities?.guest || [],
         cap_fan: config.tierCapabilities?.fan || [],
         cap_user: config.tierCapabilities?.user || [],
@@ -83,17 +87,18 @@ export default function AgentConfigManage() {
     try {
       const values = await form.validateFields()
       setSaving(true)
+      const qp = values.quickPrompts || {}
       const payload = {
         enabled: values.enabled,
         maxHistoryMessages: values.maxHistoryMessages,
         showSuggestions: values.showSuggestions,
         allowContinuousAction: values.allowContinuousAction,
         fileUploadEnabled: values.fileUploadEnabled,
-        welcomeMessage: { zh: values.welcome_zh, th: values.welcome_th, en: values.welcome_en },
+        welcomeMessage: values.welcomeMessage || { zh: '', th: '', en: '' },
         quickPrompts: {
-          zh: (values.prompts_zh || '').split('\n').filter(Boolean),
-          th: (values.prompts_th || '').split('\n').filter(Boolean),
-          en: (values.prompts_en || '').split('\n').filter(Boolean),
+          zh: (qp.zh || '').split('\n').filter(Boolean),
+          th: (qp.th || '').split('\n').filter(Boolean),
+          en: (qp.en || '').split('\n').filter(Boolean),
         },
         tierCapabilities: {
           guest: values.cap_guest || [],
@@ -107,7 +112,9 @@ export default function AgentConfigManage() {
     } catch (e: any) {
       if (e?.errorFields) return
       message.error(ac('saveFail'))
-    } finally { setSaving(false) }
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) return <Spin style={{ marginTop: 80, display: 'block' }} />
@@ -126,11 +133,15 @@ export default function AgentConfigManage() {
         <div style={{ fontSize: 18, fontWeight: 700 }}>{ac('pageTitle')}</div>
       </div>
       <Form form={form} layout="vertical">
-        <Card title={ac('cardBasic')} style={{ marginBottom: 16 }} extra={
-          <Form.Item name="enabled" valuePropName="checked" noStyle>
-            <Switch checkedChildren={ac('switchOn')} unCheckedChildren={ac('switchOff')} />
-          </Form.Item>
-        }>
+        <Card
+          title={ac('cardBasic')}
+          style={{ marginBottom: 16 }}
+          extra={
+            <Form.Item name="enabled" valuePropName="checked" noStyle>
+              <Switch checkedChildren={ac('switchOn')} unCheckedChildren={ac('switchOff')} />
+            </Form.Item>
+          }
+        >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
             <Form.Item label={ac('labelMaxHistory')} name="maxHistoryMessages">
               <InputNumber min={5} max={100} style={{ width: '100%' }} />
@@ -146,20 +157,47 @@ export default function AgentConfigManage() {
             </Form.Item>
           </div>
         </Card>
-        <Card title={ac('cardWelcome')} style={{ marginBottom: 16 }}>
-          <Tabs items={[
-            { key: 'zh', label: '中文', children: <Form.Item name="welcome_zh" label={ac('welcomeZh')}><TextArea rows={3} /></Form.Item> },
-            { key: 'th', label: 'ไทย', children: <Form.Item name="welcome_th" label={ac('welcomeTh')}><TextArea rows={3} /></Form.Item> },
-            { key: 'en', label: 'English', children: <Form.Item name="welcome_en" label={ac('welcomeEn')}><TextArea rows={3} /></Form.Item> },
-          ]} />
+
+        <Card
+          title={ac('cardWelcome')}
+          style={{ marginBottom: 16 }}
+          extra={
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <InfoCircleOutlined style={{ marginRight: 4 }} />
+              输入主语言内容，点击"AI 自动翻译"补齐其他语言
+            </Text>
+          }
+        >
+          <Form.Item name="welcomeMessage" style={{ marginBottom: 0 }}>
+            <MultiLangInput
+              textarea
+              rows={3}
+              fieldKey="welcomeMessage"
+              placeholder="你好！我是 CityOne AI 助理，有什么可以帮你？"
+            />
+          </Form.Item>
         </Card>
-        <Card title={ac('cardPrompts')} style={{ marginBottom: 16 }}>
-          <Tabs items={[
-            { key: 'zh', label: '中文', children: <Form.Item name="prompts_zh"><TextArea rows={5} /></Form.Item> },
-            { key: 'th', label: 'ไทย', children: <Form.Item name="prompts_th"><TextArea rows={5} /></Form.Item> },
-            { key: 'en', label: 'English', children: <Form.Item name="prompts_en"><TextArea rows={5} /></Form.Item> },
-          ]} />
+
+        <Card
+          title={ac('cardPrompts')}
+          style={{ marginBottom: 16 }}
+          extra={
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <InfoCircleOutlined style={{ marginRight: 4 }} />
+              每行一条快捷提示，翻译后将分发到各语言版本
+            </Text>
+          }
+        >
+          <Form.Item name="quickPrompts" style={{ marginBottom: 0 }}>
+            <MultiLangInput
+              textarea
+              rows={5}
+              fieldKey="quickPrompts"
+              placeholder={'怎么借充电宝？\n卡券怎么使用？\n积分怎么兑换？'}
+            />
+          </Form.Item>
         </Card>
+
         <Card title={ac('cardTierCap')} style={{ marginBottom: 24 }}>
           {tierItems.map((tier) => (
             <Form.Item key={tier.key} label={tier.label} name={tier.key}>
@@ -167,6 +205,7 @@ export default function AgentConfigManage() {
             </Form.Item>
           ))}
         </Card>
+
         <Button type="primary" icon={<SaveOutlined />} onClick={onSave} loading={saving} size="large">
           {ac('btnSave')}
         </Button>

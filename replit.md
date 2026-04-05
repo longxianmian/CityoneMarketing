@@ -313,6 +313,49 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ---
 
+## 三语录入方案整改记录（新任务 · 来自文档扫描）
+
+### 整改背景
+
+用户文档明确规定三语录入方式：
+- **正确方案**：单语输入（默认 zh，可切换） + AI 自动翻译按钮 + 其他语言折叠预览区（可手动微调）
+- **禁止方案**：三个等权 tab 并排强制逐项手填
+
+### 扫描发现的问题
+
+1. `MultiLangInput` 组件（根源）：三个 tab（中文/ไทย/EN）等权并排，UI 隐含"三语都要手填"的错误意图
+2. `AgentConfigManage`：欢迎语和提示词用手工三 tab TextArea，未使用 MultiLangInput
+3. `MessageManage`：消息内容用三个独立 Form.Item（content_zh/content_th/content_en）
+4. `Login.tsx`：i18n key 前缀错误，用 `admin.login.xxx`，应为 `login.xxx`
+5. 三个模板页（ActivityTemplate/ProductTemplate/LandingTemplate）：已使用 MultiLangInput，但组件本身设计错误
+
+### 整改结果
+
+| 文件 | 整改内容 | 状态 |
+|------|---------|------|
+| `components/MultiLangInput.tsx` | **完全重写**：单语输入+语言选择器+AI翻译按钮+折叠预览其他语言 | ✅ |
+| `features/growth/AgentConfigManage.tsx` | 欢迎语/提示词改为 MultiLangInput，去除手工三 tab | ✅ |
+| `features/growth/MessageManage.tsx` | content_zh/th/en 三独立字段合并为 content MultiLangInput | ✅ |
+| `pages/Login.tsx` | 修正 i18n key 前缀 `admin.login.` → `login.` | ✅ |
+| `i18n/index.tsx` | 三语 admin.message 节点新增 formContent/formContentRequired key | ✅ |
+| 三个模板页 | 已使用 MultiLangInput，随组件修复自动得到正确 UX | ✅ |
+
+### 新 MultiLangInput 设计
+
+```
+[语言选择器 ▼]  [主语言输入框...]
+[AI 自动翻译 ▶] [查看/编辑其他语言 ▼]
+--- 折叠展开区 ---
+  ไทย: [可编辑预览，翻译后自动填入]
+  EN:  [可编辑预览，翻译后自动填入]
+```
+
+- 不再强制三语都填
+- 翻译后其他语言可手动微调
+- `AutoTranslateButton`（批量翻译所有字段）继续保留在模板页作为一键翻译入口
+
+---
+
 ### `artifacts/cityone-growth-backend` (`@workspace/cityone-growth-backend`)
 
 空白 Node.js Express 后端应用，用于 CityOne Growth 业务逻辑。

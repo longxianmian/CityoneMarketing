@@ -1278,5 +1278,21 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-05T02:40:40.735Z"
+  },
+  {
+    "log_id": "al_00081",
+    "session_id": "as_00082",
+    "message_id": "am_00241",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "在干嘛",
+    "intent_code": "unknown",
+    "intent_confidence": 0,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-05T19:55:52.540Z"
   }
 ]

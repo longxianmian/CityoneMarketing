@@ -11,7 +11,7 @@ export default function Login() {
   const { setToken, setUserInfo } = useAuthStore()
   const { t } = useI18n()
 
-  const lk = (key: string) => t(`admin.login.${key}`)
+  const lk = (key: string) => t(`login.${key}`)
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true)
