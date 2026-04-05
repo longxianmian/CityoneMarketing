@@ -12,3 +12,9 @@ id = "thdx7cLDLz51-HVD9_K7j"
 uri = "file://cityone-agent-frontend-guide.md"
 type = "text"
 title = "CityOne AI Agent 前端改造文档"
+
+[[outputs]]
+id = "XUIDA1h99pEJhCLFVNg5R"
+uri = "file://cityone-growth-20260405.tar.gz"
+type = "unspecified"
+title = "CityOne Growth 完整源码 2026-04-05"
