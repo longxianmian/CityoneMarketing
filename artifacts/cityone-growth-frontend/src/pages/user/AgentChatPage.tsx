@@ -171,8 +171,8 @@ function normalizeMessage(backendMsg: any): AgentMessage {
 
 function detectFrontendIntent(text: string): string {
   const t = text.toLowerCase()
-  if (/划算|便宜|免费|省钱|打折|折扣|优惠|省一点|更便宜|没有更|free|cheaper|discount|save money|any deal|any promo|คุ้ม|ถูกกว่า|ฟรีไหม|ส่วนลด/.test(t)) return 'growth_saving_intent'
-  if (/券|coupon|voucher|คูปอง/.test(t)) return 'coupon_list_query'
+  if (/划算|便宜|免费|省钱|打折|折扣|省一点|更便宜|free|cheaper|discount|save money|any deal|คุ้ม|ถูกกว่า|ฟรีไหม|ส่วนลด/.test(t)) return 'growth_saving_intent'
+  if (/券|优惠|有活动|coupon|voucher|promo|offer|คูปอง|โปรโมชัน/.test(t)) return 'coupon_list_query'
   if (/积分|兑换|point|redeem|คะแนน|แลก/.test(t)) return 'points_redeem_help'
   if (/邀请|好友|推荐|分享.*福利|分享.*活动|分享.*卡券|invite|refer|share.*benefit|ชวน|เชิญ|แชร์/.test(t)) return 'invite_help'
   if (/海报|poster/.test(t)) return 'invite_poster_generate'

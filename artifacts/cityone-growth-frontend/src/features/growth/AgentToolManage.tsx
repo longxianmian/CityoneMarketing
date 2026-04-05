@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Table, Tag, Switch, Button, Modal, message, Descriptions, Badge } from 'antd'
 import { InfoCircleOutlined, ToolOutlined } from '@ant-design/icons'
 import { getAgentTools, updateAgentTool } from '../../api/agent-admin'
+import { useI18n } from '../../i18n'
 
 const DOMAIN_COLORS: Record<string, string> = {
   borrow: 'cyan', coupon: 'orange', points: 'gold', invite: 'green', order: 'blue', site: 'geekblue', general: 'default',
@@ -18,6 +19,7 @@ const MOCK_TOOLS = [
 ]
 
 export default function AgentToolManage() {
+  const { t } = useI18n()
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState<any>(null)
@@ -39,10 +41,10 @@ export default function AgentToolManage() {
   const toggleEnabled = async (row: any) => {
     try {
       await updateAgentTool({ id: row.id, enabled: !row.enabled })
-      setData((prev) => prev.map((t) => t.id === row.id ? { ...t, enabled: !t.enabled } : t))
+      setData((prev) => prev.map((item) => item.id === row.id ? { ...item, enabled: !item.enabled } : item))
     } catch {
-      message.error('切换失败，后端接口未就绪')
-      setData((prev) => prev.map((t) => t.id === row.id ? { ...t, enabled: !t.enabled } : t))
+      message.error(t('agentToolManage.toggleError'))
+      setData((prev) => prev.map((item) => item.id === row.id ? { ...item, enabled: !item.enabled } : item))
     }
   }
 
@@ -50,31 +52,31 @@ export default function AgentToolManage() {
     const next = row.mode === 'live' ? 'mock' : 'live'
     try {
       await updateAgentTool({ id: row.id, mode: next })
-      setData((prev) => prev.map((t) => t.id === row.id ? { ...t, mode: next } : t))
+      setData((prev) => prev.map((item) => item.id === row.id ? { ...item, mode: next } : item))
     } catch {
-      setData((prev) => prev.map((t) => t.id === row.id ? { ...t, mode: next } : t))
+      setData((prev) => prev.map((item) => item.id === row.id ? { ...item, mode: next } : item))
     }
   }
 
   const columns = [
-    { title: '工具编码', dataIndex: 'code', width: 160, render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code> },
-    { title: '工具名称', dataIndex: 'name', width: 140 },
-    { title: '业务域', dataIndex: 'domain', width: 100, render: (v: string) => <Tag color={DOMAIN_COLORS[v] || 'default'}>{v}</Tag> },
-    { title: '依赖服务', dataIndex: 'service', width: 140 },
+    { title: t('agentToolManage.colCode'), dataIndex: 'code', width: 160, render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code> },
+    { title: t('agentToolManage.colName'), dataIndex: 'name', width: 140 },
+    { title: t('agentToolManage.colDomain'), dataIndex: 'domain', width: 100, render: (v: string) => <Tag color={DOMAIN_COLORS[v] || 'default'}>{v}</Tag> },
+    { title: t('agentToolManage.colService'), dataIndex: 'service', width: 140 },
     {
-      title: '模式', dataIndex: 'mode', width: 120,
+      title: t('agentToolManage.colMode'), dataIndex: 'mode', width: 120,
       render: (v: string, row: any) => (
         <Button size="small" type={v === 'live' ? 'primary' : 'default'} onClick={() => toggleMode(row)}>
           {v === 'live' ? '🟢 Live' : '🟡 Mock'}
         </Button>
       ),
     },
-    { title: '错误率', dataIndex: 'errorRate', width: 80, align: 'center' as const },
-    { title: '开关', dataIndex: 'enabled', width: 80, render: (_: any, row: any) => <Switch size="small" checked={row.enabled} onChange={() => toggleEnabled(row)} /> },
+    { title: t('agentToolManage.colErrorRate'), dataIndex: 'errorRate', width: 80, align: 'center' as const },
+    { title: t('agentToolManage.colEnabled'), dataIndex: 'enabled', width: 80, render: (_: any, row: any) => <Switch size="small" checked={row.enabled} onChange={() => toggleEnabled(row)} /> },
     {
-      title: '说明', width: 80,
+      title: t('agentToolManage.colDetail'), width: 80,
       render: (_: any, row: any) => (
-        <Button size="small" icon={<InfoCircleOutlined />} onClick={() => setDetail(row)}>详情</Button>
+        <Button size="small" icon={<InfoCircleOutlined />} onClick={() => setDetail(row)}>{t('agentToolManage.detailBtn')}</Button>
       ),
     },
   ]
@@ -83,9 +85,9 @@ export default function AgentToolManage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <ToolOutlined style={{ fontSize: 20, color: '#1677ff' }} />
-        <div style={{ fontSize: 18, fontWeight: 700 }}>工具管理</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{t('agentToolManage.pageTitle')}</div>
         <Badge count={data.filter((d) => d.mode === 'mock').length} showZero={false}>
-          <Tag color="gold" style={{ marginLeft: 8 }}>Mock 模式工具</Tag>
+          <Tag color="gold" style={{ marginLeft: 8 }}>{t('agentToolManage.mockBadge')}</Tag>
         </Badge>
       </div>
 
@@ -100,18 +102,18 @@ export default function AgentToolManage() {
 
       <Modal
         open={!!detail}
-        title={detail ? `${detail.name} 详情` : ''}
+        title={detail ? `${detail.name}` : ''}
         footer={null}
         onCancel={() => setDetail(null)}
       >
         {detail && (
           <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="工具编码"><code>{detail.code}</code></Descriptions.Item>
-            <Descriptions.Item label="业务域">{detail.domain}</Descriptions.Item>
-            <Descriptions.Item label="依赖服务">{detail.service}</Descriptions.Item>
-            <Descriptions.Item label="当前模式">{detail.mode === 'live' ? '🟢 Live（真实接口）' : '🟡 Mock（模拟数据）'}</Descriptions.Item>
-            <Descriptions.Item label="最近错误率">{detail.errorRate}</Descriptions.Item>
-            <Descriptions.Item label="功能说明">{detail.desc}</Descriptions.Item>
+            <Descriptions.Item label={t('agentToolManage.detailCode')}><code>{detail.code}</code></Descriptions.Item>
+            <Descriptions.Item label={t('agentToolManage.detailDomain')}>{detail.domain}</Descriptions.Item>
+            <Descriptions.Item label={t('agentToolManage.detailService')}>{detail.service}</Descriptions.Item>
+            <Descriptions.Item label={t('agentToolManage.detailMode')}>{detail.mode === 'live' ? t('agentToolManage.modeLive') : t('agentToolManage.modeMock')}</Descriptions.Item>
+            <Descriptions.Item label={t('agentToolManage.detailError')}>{detail.errorRate}</Descriptions.Item>
+            <Descriptions.Item label={t('agentToolManage.detailDesc')}>{detail.desc}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

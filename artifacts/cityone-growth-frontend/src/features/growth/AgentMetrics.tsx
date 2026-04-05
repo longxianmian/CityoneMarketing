@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Row, Col, Statistic, Select, DatePicker, Button, Spin } from 'antd'
+import { Card, Row, Col, Statistic, DatePicker, Button, Spin } from 'antd'
 import { RiseOutlined, TeamOutlined, MessageOutlined, CheckCircleOutlined, GiftOutlined, BarChartOutlined } from '@ant-design/icons'
 import { getAgentMetrics } from '../../api/agent-admin'
+import { useI18n } from '../../i18n'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, FunnelChart, Funnel, LabelList, Legend } from 'recharts'
 
 const { RangePicker } = DatePicker
@@ -27,27 +28,28 @@ const MOCK_TREND = [
   { date: '4/2', sessions: 540, messages: 3534 },
 ]
 
-const MOCK_PIE = [
-  { name: '借还充电宝', value: 35 },
-  { name: '卡券查询', value: 22 },
-  { name: '积分兑换', value: 18 },
-  { name: '订单查询', value: 14 },
-  { name: '站点查询', value: 8 },
-  { name: '其他', value: 3 },
-]
-
-const MOCK_FUNNEL = [
-  { name: '进入对话', value: 3248, fill: '#2CDBCE' },
-  { name: '意图识别', value: 2835, fill: '#2F80FF' },
-  { name: '工具调用', value: 2267, fill: '#7B61FF' },
-  { name: '完成转化', value: 671, fill: '#52c41a' },
-]
-
 const PIE_COLORS = ['#2CDBCE', '#2F80FF', '#7B61FF', '#FF7A59', '#52c41a', '#A0A7B3']
 
 export default function AgentMetrics() {
+  const { t } = useI18n()
   const [metrics, setMetrics] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+
+  const MOCK_PIE = [
+    { name: t('agentMetrics.pieBorrow'), value: 35 },
+    { name: t('agentMetrics.pieCoupon'), value: 22 },
+    { name: t('agentMetrics.piePoints'), value: 18 },
+    { name: t('agentMetrics.pieOrder'), value: 14 },
+    { name: t('agentMetrics.pieSite'), value: 8 },
+    { name: t('agentMetrics.pieOther'), value: 3 },
+  ]
+
+  const MOCK_FUNNEL = [
+    { name: t('agentMetrics.funnelEnter'), value: 3248, fill: '#2CDBCE' },
+    { name: t('agentMetrics.funnelIntent'), value: 2835, fill: '#2F80FF' },
+    { name: t('agentMetrics.funnelTool'), value: 2267, fill: '#7B61FF' },
+    { name: t('agentMetrics.funnelConvert'), value: 671, fill: '#52c41a' },
+  ]
 
   useEffect(() => {
     const load = async () => {
@@ -70,26 +72,26 @@ export default function AgentMetrics() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <BarChartOutlined style={{ fontSize: 20, color: '#1677ff' }} />
-        <div style={{ fontSize: 18, fontWeight: 700 }}>指标看板</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{t('agentMetrics.pageTitle')}</div>
       </div>
 
       <div style={{ background: '#fff', padding: 12, borderRadius: 12, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
         <RangePicker size="small" />
-        <Button type="primary" size="small">查询</Button>
+        <Button type="primary" size="small">{t('agentMetrics.queryBtn')}</Button>
       </div>
 
       {loading ? <Spin style={{ display: 'block', marginTop: 60 }} /> : (
         <>
           <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
             {[
-              { title: 'AI 会话人数', value: m.sessionCount, icon: <TeamOutlined />, color: '#2CDBCE' },
-              { title: '消息总数', value: m.messageCount, icon: <MessageOutlined />, color: '#2F80FF' },
-              { title: '意图识别成功率', value: m.intentSuccessRate, suffix: '%', icon: <CheckCircleOutlined />, color: '#7B61FF' },
-              { title: '工具调用成功率', value: m.toolSuccessRate, suffix: '%', icon: <RiseOutlined />, color: '#52c41a' },
-              { title: '领券转化数', value: m.couponConvert, icon: <GiftOutlined />, color: '#FF7A59' },
-              { title: '首单转化数', value: m.firstOrderConvert, icon: <RiseOutlined />, color: '#fa8c16' },
-              { title: '邀请转化数', value: m.inviteConvert, icon: <TeamOutlined />, color: '#13c2c2' },
-              { title: '售后分流率', value: m.afterSalesRate, suffix: '%', icon: <CheckCircleOutlined />, color: '#A0A7B3' },
+              { title: t('agentMetrics.sessionCount'), value: m.sessionCount, icon: <TeamOutlined />, color: '#2CDBCE' },
+              { title: t('agentMetrics.messageCount'), value: m.messageCount, icon: <MessageOutlined />, color: '#2F80FF' },
+              { title: t('agentMetrics.intentSuccessRate'), value: m.intentSuccessRate, suffix: '%', icon: <CheckCircleOutlined />, color: '#7B61FF' },
+              { title: t('agentMetrics.toolSuccessRate'), value: m.toolSuccessRate, suffix: '%', icon: <RiseOutlined />, color: '#52c41a' },
+              { title: t('agentMetrics.couponConvert'), value: m.couponConvert, icon: <GiftOutlined />, color: '#FF7A59' },
+              { title: t('agentMetrics.firstOrderConvert'), value: m.firstOrderConvert, icon: <RiseOutlined />, color: '#fa8c16' },
+              { title: t('agentMetrics.inviteConvert'), value: m.inviteConvert, icon: <TeamOutlined />, color: '#13c2c2' },
+              { title: t('agentMetrics.afterSalesRate'), value: m.afterSalesRate, suffix: '%', icon: <CheckCircleOutlined />, color: '#A0A7B3' },
             ].map((item) => (
               <Col key={item.title} xs={12} sm={6}>
                 <Card size="small" style={{ borderTop: `3px solid ${item.color}` }}>
@@ -106,7 +108,7 @@ export default function AgentMetrics() {
 
           <Row gutter={[12, 12]}>
             <Col xs={24} lg={14}>
-              <Card title="会话 & 消息趋势（最近 7 天）" size="small">
+              <Card title={t('agentMetrics.trendTitle')} size="small">
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={MOCK_TREND}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -114,15 +116,15 @@ export default function AgentMetrics() {
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="sessions" stroke="#2CDBCE" name="会话人数" dot={false} strokeWidth={2} />
-                    <Line type="monotone" dataKey="messages" stroke="#2F80FF" name="消息数" dot={false} strokeWidth={2} />
+                    <Line type="monotone" dataKey="sessions" stroke="#2CDBCE" name={t('agentMetrics.trendSessions')} dot={false} strokeWidth={2} />
+                    <Line type="monotone" dataKey="messages" stroke="#2F80FF" name={t('agentMetrics.trendMessages')} dot={false} strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
               </Card>
             </Col>
 
             <Col xs={24} lg={10}>
-              <Card title="能力使用占比" size="small">
+              <Card title={t('agentMetrics.pieTitle')} size="small">
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie data={MOCK_PIE} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
@@ -135,7 +137,7 @@ export default function AgentMetrics() {
             </Col>
 
             <Col xs={24}>
-              <Card title="身份层级转化漏斗" size="small">
+              <Card title={t('agentMetrics.funnelTitle')} size="small">
                 <ResponsiveContainer width="100%" height={200}>
                   <FunnelChart>
                     <Tooltip />
