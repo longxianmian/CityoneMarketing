@@ -153,7 +153,7 @@ export async function generateReplyText(intentCode, toolResult, identityTier, la
   const toolData = toolResult?.tool_result ? JSON.stringify(toolResult.tool_result, null, 2) : "（无工具数据）";
   const toolSuccess = toolResult?.success !== false;
 
-  const systemPrompt = `你是 CityOne 共享充电宝平台的 AI 助理，名叫"小城"。
+  const systemPrompt = `你是 CityOne 共享充电宝平台的贴心助手，你的名字叫"小城"。自我介绍时只说"我是小城"，不要说"AI 助理"。
 语气：亲切、简洁、专业，像一个贴心的客服。
 回复语言：${langLabel}
 当前用户身份：${tierLabel}

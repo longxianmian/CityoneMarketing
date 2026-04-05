@@ -39,7 +39,7 @@ const HINT: Record<'zh' | 'th' | 'en', Record<string, string>> = {
     guest: '关注 LINE OA 后可解锁更多能力',
     fan: '完成首次借用可解锁更多能力',
     user: '成为会员可解锁全部能力',
-    member: '您已解锁全部 AI 助理能力',
+    member: '您已解锁全部问问能力',
   },
   th: {
     guest: 'ติดตาม LINE OA เพื่อปลดล็อกความสามารถเพิ่มเติม',

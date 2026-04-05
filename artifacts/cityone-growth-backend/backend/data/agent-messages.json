@@ -3939,5 +3939,63 @@
     },
     "intent_code": "greeting",
     "created_at": "2026-04-05T01:22:36.913Z"
+  },
+  {
+    "message_id": "am_00203",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "你是谁",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-05T01:24:34.292Z"
+  },
+  {
+    "message_id": "am_00204",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "greeting",
+    "text": "我是 CityOne 共享充电宝的 AI 助理小城，随时为您服务，请问需要什么帮助？",
+    "payload": {
+      "reply_type": "greeting",
+      "text": "我是 CityOne 共享充电宝的 AI 助理小城，随时为您服务，请问需要什么帮助？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "greeting",
+    "created_at": "2026-04-05T01:24:44.331Z"
+  },
+  {
+    "message_id": "am_00205",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "你谁谁",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-05T01:25:12.091Z"
+  },
+  {
+    "message_id": "am_00206",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "greeting",
+    "text": "我是 CityOne 共享充电宝的 AI 助理小城，贴心为您服务，有什么需要我帮忙？",
+    "payload": {
+      "reply_type": "greeting",
+      "text": "我是 CityOne 共享充电宝的 AI 助理小城，贴心为您服务，有什么需要我帮忙？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "greeting",
+    "created_at": "2026-04-05T01:25:22.067Z"
   }
 ]
