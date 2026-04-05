@@ -237,7 +237,7 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
     const SKIP_LLM_REPLY_INTENTS = new Set([
       "greeting", "nearby_sites_query", "coupon_list_query", "coupon_recommend",
       "points_balance_query", "recent_orders_query", "benefit_claim_query",
-      "invite_poster_generate"
+      "invite_poster_generate", "growth_saving_intent"
     ]);
 
     // 6. LLM 生成自然语言回复文本（仅解释类/帮助类意图才调用）

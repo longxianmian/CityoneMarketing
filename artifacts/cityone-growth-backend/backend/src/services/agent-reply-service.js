@@ -170,6 +170,26 @@ function buildToolResultReply(intentCode, toolResult, language, suggestions) {
       return buildTextReply(text, suggestions, "tool_result");
     }
 
+    case "growth_saving_intent": {
+      const shareCards = data.share_cards || [];
+      const text = {
+        zh: "想更划算一点的话，你也可以试试通过分享优惠给好友来赚积分。朋友能先看到这些优惠内容，你这边则可以把积分攒起来，之后兑换优惠券、免费体验券等福利。下面我先帮你整理了几个比较适合分享的内容。",
+        th: "ถ้าอยากคุ้มกว่านี้ ลองแชร์โปรโมชันให้เพื่อนเพื่อสะสมคะแนนดูนะ เพื่อนจะได้เห็นโปรโมชันก่อน ส่วนคุณได้คะแนนสะสมไว้แลกคูปองหรือบัตรทดลองใช้ฟรี ด้านล่างนี้ฉันรวบรวมเนื้อหาที่เหมาะสำหรับแชร์ไว้ให้แล้ว",
+        en: "If you want a better deal, try sharing offers with friends to earn points. Your friends get to see the offers first, while you accumulate points to redeem for coupons or free trials. Here are some great content pieces to share.",
+      }[language] || "想更划算一点的话，你也可以试试通过分享优惠给好友来赚积分。朋友能先看到这些优惠内容，你这边则可以把积分攒起来，之后兑换优惠券、免费体验券等福利。下面我先帮你整理了几个比较适合分享的内容。";
+      const cards = shareCards.map((c) => ({
+        card_type: c.card_type || "invite",
+        title: c.title,
+        desc: c.desc,
+        badge: c.badge,
+        meta: c.meta,
+        action_text: c.action_text,
+        action_type: c.action_type || "navigate",
+        action_url: c.action_url || "/welfare",
+      }));
+      return { reply_type: "tool_result", text, cards, suggestions };
+    }
+
     default:
       return buildTextReply(
         toolResult.reply_text || { zh: "操作完成。", en: "Done.", th: "เสร็จสิ้น" }[language],

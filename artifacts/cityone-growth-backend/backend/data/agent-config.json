@@ -10,7 +10,8 @@
       "borrow_help",
       "return_help",
       "invite_help",
-      "points_redeem_help"
+      "points_redeem_help",
+      "growth_saving_intent"
     ],
     "oa_fan": [
       "borrow_help",
@@ -19,7 +20,8 @@
       "points_redeem_help",
       "nearby_sites_query",
       "benefit_claim_query",
-      "invite_poster_generate"
+      "invite_poster_generate",
+      "growth_saving_intent"
     ],
     "identified_user": [
       "borrow_help",
@@ -32,7 +34,8 @@
       "coupon_list_query",
       "coupon_recommend",
       "recent_orders_query",
-      "points_balance_query"
+      "points_balance_query",
+      "growth_saving_intent"
     ],
     "member": [
       "borrow_help",
@@ -47,7 +50,8 @@
       "recent_orders_query",
       "points_balance_query",
       "after_sale_apply",
-      "member_rights_query"
+      "member_rights_query",
+      "growth_saving_intent"
     ]
   },
   "tool_switches": {
@@ -60,7 +64,8 @@
     "tool-points-query": true,
     "tool-member-rights": false,
     "tool-after-sale": true,
-    "tool-activity-query": true
+    "tool-activity-query": true,
+    "tool-growth-saving": true
   },
   "quick_prompts": {
     "zh": [
@@ -82,5 +87,5 @@
       "How to invite friends?"
     ]
   },
-  "updated_at": "2026-04-02T18:30:41.873Z"
+  "updated_at": "2026-04-05T09:00:00.000Z"
 }

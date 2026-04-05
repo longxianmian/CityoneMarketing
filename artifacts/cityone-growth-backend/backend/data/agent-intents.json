@@ -1,5 +1,67 @@
 [
   {
+    "intent_code": "growth_saving_intent",
+    "intent_name": "省钱增长引导",
+    "enabled": true,
+    "need_confirm": false,
+    "phrases": {
+      "zh": [
+        "有没有更便宜",
+        "怎么更划算",
+        "有没有免费",
+        "免费体验",
+        "怎么拿免费券",
+        "省钱",
+        "太贵了",
+        "有没有优惠",
+        "怎么省钱",
+        "想省点",
+        "便宜一点",
+        "划算一点",
+        "省一点",
+        "积分不够怎么办",
+        "还有别的优惠",
+        "有什么省钱方法",
+        "怎么优惠",
+        "有没有折扣",
+        "打折",
+        "减免",
+        "能便宜吗",
+        "有没有活动",
+        "怎么拿积分",
+        "怎么获得更多积分",
+        "想赚更多积分"
+      ],
+      "th": [
+        "ถูกกว่านี้ได้ไหม",
+        "ได้ฟรีไหม",
+        "มีส่วนลดไหม",
+        "ประหยัดกว่านี้",
+        "คุ้มกว่านี้",
+        "มีวิธีอื่นไหม",
+        "ลดได้ไหม",
+        "ฟรีได้ไหม",
+        "มีโปรโมชันไหม",
+        "ได้ส่วนลด"
+      ],
+      "en": [
+        "cheaper",
+        "any discount",
+        "get it free",
+        "free trial",
+        "any promo",
+        "save money",
+        "any deal",
+        "how to save",
+        "any offer",
+        "any coupon",
+        "how to get more points",
+        "earn more points",
+        "get points faster"
+      ]
+    }
+  },
+  {
     "intent_code": "greeting",
     "intent_name": "问候与自我介绍",
     "enabled": true,

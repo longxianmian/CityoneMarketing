@@ -11,6 +11,7 @@ import { execute as claimBenefits } from "./agent-tools/tool-claim-benefits.js";
 import { execute as invitePoster } from "./agent-tools/tool-invite-poster.js";
 import { execute as orderQuery } from "./agent-tools/tool-order-query.js";
 import { execute as pointsQuery } from "./agent-tools/tool-points-query.js";
+import { execute as growthSaving } from "./agent-tools/tool-growth-saving.js";
 
 // 意图 → 工具映射
 const TOOL_MAP = {
@@ -20,7 +21,8 @@ const TOOL_MAP = {
   benefit_claim_query: claimBenefits,
   invite_poster_generate: invitePoster,
   recent_orders_query: orderQuery,
-  points_balance_query: pointsQuery
+  points_balance_query: pointsQuery,
+  growth_saving_intent: growthSaving,
 };
 
 // 纯信息类意图，不需要工具
