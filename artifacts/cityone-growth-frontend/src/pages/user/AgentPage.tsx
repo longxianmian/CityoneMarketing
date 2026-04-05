@@ -8,9 +8,9 @@ import UserPageHeader from '../../components/user/UserPageHeader'
 import { getAgentCapabilities } from '../../api/agent'
 
 const INTRO: Record<string, string> = {
-  zh: '用 AI 助理帮你快速完成充电宝借还、卡券查询、积分兑换等操作。',
-  th: 'ใช้ AI Assistant ช่วยยืมพาวเวอร์แบงก์ ตรวจสอบคูปอง และแลกคะแนนได้เลย',
-  en: 'Use AI Assistant to quickly borrow power banks, check coupons, and redeem points.',
+  zh: '有问题？问问小城，帮你快速完成充电宝借还、卡券查询、积分兑换等操作。',
+  th: 'มีคำถาม? ถาม小城ช่วยยืมพาวเวอร์แบงก์ ตรวจสอบคูปอง และแลกคะแนนได้เลย',
+  en: 'Got questions? Ask 小城 to quickly borrow power banks, check coupons, and redeem points.',
 }
 
 const CAN_HELP: Record<string, string> = {
@@ -44,7 +44,7 @@ const LOCKED_CAP: Record<string, string> = {
 }
 
 const START: Record<string, string> = {
-  zh: '开始咨询 AI 助理', th: 'เริ่มคุยกับ AI Assistant', en: 'Chat with AI Assistant',
+  zh: '开始问问', th: 'เริ่มถามดู', en: 'Start Asking',
 }
 
 const DEFAULT_TAGS: Record<string, string[]> = {

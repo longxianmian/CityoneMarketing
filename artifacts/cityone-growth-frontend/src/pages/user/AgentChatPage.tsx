@@ -15,9 +15,9 @@ function nowISO() { return new Date().toISOString() }
 function uid() { return Date.now().toString() + Math.random().toString(36).slice(2, 7) }
 
 const WELCOME: Record<Lang, string> = {
-  zh: '你好！我是 CityOne AI 助理 👋\n有什么可以帮你的？可以直接提问，或从下方选择常见问题。',
-  th: 'สวัสดี! ฉันคือ CityOne AI Assistant 👋\nมีอะไรให้ช่วยไหม? พิมพ์ถามได้เลย หรือเลือกจากคำถามด้านล่าง',
-  en: "Hi! I'm CityOne AI Assistant 👋\nHow can I help you? Ask me anything, or pick a common question below.",
+  zh: '你好！我是小城 👋\n有什么可以帮你的？可以直接提问，或从下方选择常见问题。',
+  th: 'สวัสดี! ฉันคือ小城 👋\nมีอะไรให้ช่วยไหม? พิมพ์ถามได้เลย หรือเลือกจากคำถามด้านล่าง',
+  en: "Hi! I'm 小城 👋\nHow can I help you? Ask me anything, or pick a common question below.",
 }
 
 const QUICK_PROMPTS: Record<Lang, string[]> = {
@@ -179,7 +179,7 @@ function detectFrontendIntent(text: string): string {
 
 // ─── Page constants ────────────────────────────────────────────────────────────
 
-const TITLE_MAP: Record<Lang, string> = { zh: 'AI 助理', th: 'AI Assistant', en: 'AI Assistant' }
+const TITLE_MAP: Record<Lang, string> = { zh: '问问', th: 'ถามดู', en: 'Ask' }
 const PLACEHOLDER_MAP: Record<Lang, string> = { zh: '输入你的问题…', th: 'พิมพ์คำถาม…', en: 'Type your question…' }
 const EMOJI_LIST = [
   '😊','😂','🤣','❤️','😍','🙏','😭','😘','🥰','😅',
@@ -393,9 +393,9 @@ export default function AgentChatPage() {
         buildAIMessages(data, text.trim()).forEach((m) => addMessage(m))
       } else {
         addMessage(makeText(uid(), {
-          zh: '⚠️ AI 助理服务暂时离线，请稍后再试。',
-          th: '⚠️ บริการ AI Assistant ออฟไลน์ชั่วคราว กรุณาลองใหม่',
-          en: '⚠️ AI Assistant is temporarily offline. Please try again later.',
+          zh: '⚠️ 小城暂时离线，请稍后再试。',
+          th: '⚠️ 小城ออฟไลน์ชั่วคราว กรุณาลองใหม่',
+          en: '⚠️ 小城 is temporarily offline. Please try again later.',
         }[lang]))
       }
     } catch {
