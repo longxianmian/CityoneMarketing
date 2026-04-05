@@ -8,6 +8,7 @@ import {
   CrownOutlined,
   ThunderboltOutlined,
   DownOutlined,
+  GiftOutlined,
 } from '@ant-design/icons'
 import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
@@ -205,7 +206,7 @@ function EarnGuideCard() {
   )
 }
 
-type MainTab = 'coupon' | 'points' | 'order'
+type MainTab = 'prize' | 'benefit' | 'order' | 'member'
 type CouponSubTab = 'available' | 'used' | 'expired'
 type PointsSubTab = 'balance' | 'exchange' | 'earn'
 
@@ -219,7 +220,7 @@ export default function MinePage() {
   const couponAvailableCount = profile?.couponCount ?? couponList.filter((c) => c.status === 'available').length
   const depositAmount = profile?.deposit ?? 0
 
-  const [mainTab, setMainTab] = useState<MainTab>('coupon')
+  const [mainTab, setMainTab] = useState<MainTab>('benefit')
   const [couponSub, setCouponSub] = useState<CouponSubTab>('available')
   const [pointsSub, setPointsSub] = useState<PointsSubTab>('balance')
 
@@ -295,9 +296,10 @@ export default function MinePage() {
     : pickLocalizedText({ level: mockProfile.memberLevel }, 'level', language)
 
   const mainTabConfig: { key: MainTab; label: string; icon: React.ReactNode; color: string; bg: string }[] = [
-    { key: 'coupon', label: t('mine.tabCoupon'), icon: <CreditCardOutlined />, color: '#2CDBCE', bg: '#E8FBF8' },
-    { key: 'points', label: t('mine.tabPoints'), icon: <StarOutlined />, color: '#7B61FF', bg: '#F1EDFF' },
+    { key: 'prize', label: t('mine.tabPrize'), icon: <GiftOutlined />, color: '#FF7A59', bg: '#FFF3EE' },
+    { key: 'benefit', label: t('mine.tabBenefit'), icon: <CreditCardOutlined />, color: '#2CDBCE', bg: '#E8FBF8' },
     { key: 'order', label: t('mine.tabOrder'), icon: <OrderedListOutlined />, color: '#2F80FF', bg: '#EAF2FF' },
+    { key: 'member', label: t('mine.tabMember'), icon: <CrownOutlined />, color: '#7B61FF', bg: '#F1EDFF' },
   ]
 
   const couponSubConfig = [
@@ -404,7 +406,7 @@ export default function MinePage() {
         {/* 常用功能：3 横置主 tab */}
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 17, fontWeight: 800, color: '#111827', marginBottom: 12 }}>{t('mine.menuTitle')}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
             {mainTabConfig.map((tab) => {
               const active = mainTab === tab.key
               return (
@@ -471,7 +473,13 @@ export default function MinePage() {
               borderBottom: '1px solid #ECF1F6',
             }}
           >
-            {mainTab === 'coupon' &&
+            {mainTab === 'prize' && (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px', color: '#374151', fontWeight: 700, fontSize: 14 }}>
+                <GiftOutlined style={{ color: activeMain.color }} />
+                {t('mine.tabPrize')}
+              </div>
+            )}
+            {mainTab === 'benefit' &&
               couponSubConfig.map((sub) => (
                 <button
                   key={sub.key}
@@ -488,7 +496,13 @@ export default function MinePage() {
                   )}
                 </button>
               ))}
-            {mainTab === 'points' &&
+            {mainTab === 'order' && (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px', color: '#374151', fontWeight: 700, fontSize: 14 }}>
+                <ThunderboltOutlined style={{ color: activeMain.color }} />
+                {t('mine.chargingRecords')}
+              </div>
+            )}
+            {mainTab === 'member' &&
               pointsSubConfig.map((sub) => (
                 <button
                   key={sub.key}
@@ -498,19 +512,22 @@ export default function MinePage() {
                   {sub.label}
                 </button>
               ))}
-            {mainTab === 'order' && (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px', color: '#374151', fontWeight: 700, fontSize: 14 }}>
-                <ThunderboltOutlined style={{ color: activeMain.color }} />
-                {t('mine.chargingRecords')}
-              </div>
-            )}
           </div>
 
           {/* 内容列表 */}
           <div style={{ padding: 12, display: 'grid', gap: 10 }}>
 
-            {/* 卡券内容 */}
-            {mainTab === 'coupon' && (
+            {/* 奖品内容 */}
+            {mainTab === 'prize' && (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#A0A7B3' }}>
+                <GiftOutlined style={{ fontSize: 40, color: '#FFB49E', marginBottom: 12, display: 'block' }} />
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>{t('mine.noPrize')}</div>
+                <div style={{ fontSize: 12 }}>{t('mine.noPrizeHint')}</div>
+              </div>
+            )}
+
+            {/* 权益内容（原卡券）*/}
+            {mainTab === 'benefit' && (
               <>
                 {filteredCoupons.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '32px 0', color: '#A0A7B3', fontSize: 14 }}>
@@ -574,8 +591,8 @@ export default function MinePage() {
               </>
             )}
 
-            {/* 积分内容 */}
-            {mainTab === 'points' && (
+            {/* 会员内容（原积分）*/}
+            {mainTab === 'member' && (
               <>
                 {pointsSub === 'balance' && (
                   <>

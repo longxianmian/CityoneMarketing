@@ -56,6 +56,11 @@ const UserChancesManage = lazy(() => import('./features/growth/UserChancesManage
 const LandingTemplateManage = lazy(() => import('./features/growth/LandingTemplateManage'))
 const ActivityTemplateManage = lazy(() => import('./features/growth/ActivityTemplateManage'))
 const ProductTemplateManage = lazy(() => import('./features/growth/ProductTemplateManage'))
+const ComingSoon = lazy(() => import('./features/growth/ComingSoon'))
+
+const AgentWenwenPage = lazy(() => import('./features/growth/AgentWenwenPage'))
+const AgentBizPage = lazy(() => import('./features/growth/AgentBizPage'))
+const AgentSysOpsPage = lazy(() => import('./features/growth/AgentSysOpsPage'))
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -69,11 +74,15 @@ const Loading = () => (
   </div>
 )
 
+function CS({ title, description }: { title: string; description?: string }) {
+  return <ComingSoon title={title} description={description} />
+}
+
 export default function App() {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
-        {/* 用户端真实路由 */}
+        {/* 用户端路由 */}
         <Route path="/welfare" element={<WelfareHomePage />} />
         <Route path="/nearby" element={<NearbyPage />} />
         <Route path="/agent" element={<AgentPage />} />
@@ -107,38 +116,65 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
 
+          {/* 增长总览 */}
           <Route path="growth/attribution" element={<AttributionCenter />} />
           <Route path="growth/traffic" element={<Navigate to="/admin/growth/attribution?tab=traffic" replace />} />
           <Route path="growth/source" element={<Navigate to="/admin/growth/attribution?tab=source" replace />} />
+          <Route path="growth/report" element={<GrowthReport />} />
+          <Route path="overview/funnel" element={<CS title="转化漏斗" description="用户从入口到业务转化的全链路漏斗分析，阶段二实现" />} />
+          <Route path="overview/order-attr" element={<CS title="订单归因" description="当前可先占位，阶段四对接 A 系统订单数据后实现" />} />
 
+          {/* 福利中心 */}
           <Route path="growth/coupon" element={<CouponManage />} />
           <Route path="growth/activity" element={<ActivityManage />} />
-          <Route path="growth/points/rules" element={<PointsRuleConfig />} />
-          <Route path="growth/points/ledger" element={<PointsLedger />} />
+          <Route path="growth/activity-templates" element={<ActivityTemplateManage />} />
+          <Route path="growth/interaction-records" element={<InteractionRecords />} />
+          <Route path="welfare/game" element={<CS title="玩法程序" description="活动玩法程序管理，阶段二实现" />} />
+          <Route path="growth/prize-pool" element={<PrizePoolManage />} />
+          <Route path="welfare/coupon-issue" element={<CS title="券发放记录" description="卡券批次发放记录查询，阶段二实现" />} />
+          <Route path="welfare/coupon-usage" element={<CS title="券使用记录" description="卡券使用与核销记录，阶段二实现" />} />
           <Route path="growth/points/mall" element={<PointsMallManage />} />
+          <Route path="growth/fortune-sign" element={<FortuneSignManage />} />
+          <Route path="growth/user-chances" element={<UserChancesManage />} />
+          <Route path="welfare/benefit-issue" element={<CS title="权益发放记录" description="权益批次发放记录查询，阶段二实现" />} />
+          <Route path="growth/product-templates" element={<ProductTemplateManage />} />
+
+          {/* 入口与分发 */}
+          <Route path="growth/landing-templates" element={<LandingTemplateManage />} />
+          <Route path="growth/entry-center" element={<EntryCenter />} />
+          <Route path="growth/route-center" element={<RouteCenter />} />
+          <Route path="entry/qrcode" element={<CS title="二维码资产" description="QR Code 批次管理与资产库，阶段二实现" />} />
+          <Route path="entry/oa-guide" element={<CS title="OA 引导与入口测试" description="LINE OA 绑定引导配置与入口链路测试，阶段二实现" />} />
+
+          {/* 激励与归因 */}
+          <Route path="growth/points/rules" element={<PointsRuleConfig />} />
           <Route path="growth/points/accounts" element={<PointsAccounts />} />
+          <Route path="growth/points/ledger" element={<PointsLedger />} />
           <Route path="growth/points/share-relations" element={<ShareRelations />} />
           <Route path="growth/points/consume-relations" element={<ConsumeRelations />} />
           <Route path="growth/invite" element={<InviteManage />} />
-          <Route path="growth/message" element={<MessageManage />} />
-          <Route path="growth/risk" element={<RiskRuleManage />} />
-          <Route path="growth/report" element={<GrowthReport />} />
-          <Route path="growth/line-config" element={<LineConfig />} />
+          <Route path="incentive/reward-records" element={<CS title="奖励发放记录" description="积分/卡券/实物奖励发放汇总记录，阶段二实现" />} />
+
+          {/* AI Agent */}
+          <Route path="agent/wenwen" element={<AgentWenwenPage />} />
+          <Route path="agent/biz/commerce" element={<AgentBizPage />} />
+          <Route path="agent/biz/marketing" element={<AgentBizPage />} />
+          <Route path="agent/biz/ops" element={<AgentBizPage />} />
+          <Route path="agent/sysops" element={<AgentSysOpsPage />} />
           <Route path="growth/agent/config" element={<AgentConfigManage />} />
           <Route path="growth/agent/intents" element={<AgentIntentManage />} />
           <Route path="growth/agent/tools" element={<AgentToolManage />} />
           <Route path="growth/agent/logs" element={<AgentLogManage />} />
           <Route path="growth/agent/metrics" element={<AgentMetrics />} />
-          <Route path="growth/prize-pool" element={<PrizePoolManage />} />
-          <Route path="growth/fortune-sign" element={<FortuneSignManage />} />
-          <Route path="growth/interaction-records" element={<InteractionRecords />} />
-          <Route path="growth/user-chances" element={<UserChancesManage />} />
-          <Route path="growth/landing-templates" element={<LandingTemplateManage />} />
-          <Route path="growth/activity-templates" element={<ActivityTemplateManage />} />
-          <Route path="growth/product-templates" element={<ProductTemplateManage />} />
-          <Route path="growth/entry-center" element={<EntryCenter />} />
-          <Route path="growth/route-center" element={<RouteCenter />} />
 
+          {/* 系统配置 */}
+          <Route path="growth/line-config" element={<LineConfig />} />
+          <Route path="system/i18n" element={<CS title="三语配置" description="界面三语文案管理，阶段五实现" />} />
+          <Route path="growth/risk" element={<RiskRuleManage />} />
+          <Route path="growth/message" element={<MessageManage />} />
+          <Route path="system/params" element={<CS title="基础系统参数" description="系统全局参数配置，阶段二实现" />} />
+
+          {/* 旧路由兼容重定向 */}
           <Route path="device" element={<Navigate to="/admin/growth/activity" replace />} />
           <Route path="shop" element={<Navigate to="/admin/growth/activity" replace />} />
           <Route path="order" element={<Navigate to="/admin/growth/activity" replace />} />

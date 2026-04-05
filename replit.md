@@ -50,6 +50,27 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ## Packages
 
+## CityOne Growth 阶段一整改（已完成）
+
+### AdminLayout 6组菜单
+1. **增长总览** — 总览看板/渠道效果/活动效果/转化漏斗(CS)/订单归因(CS)
+2. **福利中心** — 3子组：活动/卡券/权益
+3. **入口与分发** — 承接页模板/入口中心/路由中心/二维码(CS)/OA引导(CS)
+4. **激励与归因** — 积分规则/积分账户/积分流水/分享归因/消费归因/邀请裂变/奖励记录(CS)
+5. **AI Agent** — 问问Agent/业务管理Agent(商务/推广/运营)/系统运维Agent/配置/意图/工具/日志/指标
+6. **系统配置** — LINE配置/三语配置(CS)/风控规则/消息配置/系统参数(CS)
+
+### MinePage 四按钮结构（T005 ✅）
+- **奖品** (prize): 活动获得的抽奖/活动奖品，空状态占位
+- **权益** (benefit): 原卡券tab，可用/已用/过期卡券列表
+- **订单** (order): 借电订单记录
+- **会员** (member): 原积分tab，积分摘要/明细/获取引导
+
+### Agent 骨架页面（T003 ✅）
+- `AgentWenwenPage.tsx` — 用户端问答 Agent 说明 + 接口预留
+- `AgentBizPage.tsx` — 商务/推广/运营 3标签 KPI 监控占位
+- `AgentSysOpsPage.tsx` — 系统运维监测范围 + 告警机制说明
+
 ### `artifacts/cityone-growth-backend` (`@workspace/cityone-growth-backend`)
 
 空白 Node.js Express 后端应用，用于 CityOne Growth 业务逻辑。
