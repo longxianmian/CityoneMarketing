@@ -4341,5 +4341,63 @@
     },
     "intent_code": "nearby_sites_query",
     "created_at": "2026-04-05T01:39:55.099Z"
+  },
+  {
+    "message_id": "am_00223",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "在吗",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-05T01:44:33.749Z"
+  },
+  {
+    "message_id": "am_00224",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "intent_unknown",
+    "text": "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+    "payload": {
+      "reply_type": "intent_unknown",
+      "text": "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "unknown",
+    "created_at": "2026-04-05T01:44:35.826Z"
+  },
+  {
+    "message_id": "am_00225",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "你是谁？",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-05T01:44:52.704Z"
+  },
+  {
+    "message_id": "am_00226",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "intent_unknown",
+    "text": "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+    "payload": {
+      "reply_type": "intent_unknown",
+      "text": "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "unknown",
+    "created_at": "2026-04-05T01:44:55.027Z"
   }
 ]
