@@ -3,7 +3,7 @@ import { Card, Table, Button, Space, Tag, Modal, Form, Input, Select, message, D
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
-import MultiLangInput, { AutoTranslateButton } from '../../components/MultiLangInput'
+import MultiLangInput from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
 
 function toMultiLang(v: any): { zh: string; th: string; en: string } {
@@ -14,7 +14,7 @@ function toMultiLang(v: any): { zh: string; th: string; en: string } {
 const MULTI_LANG_FIELDS = ['title', 'subTitle', 'description', 'highlights', 'participationGuide', 'rewardGuide', 'noticeText', 'buttonText']
 
 export default function ActivityTemplateManage() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
 
   const BUTTON_TYPES = [
     { value: 'join', label: t('adminTemplate.activity.btnJoin') },
@@ -81,12 +81,7 @@ export default function ActivityTemplateManage() {
       const values = await form.validateFields()
 
       const langs = ['zh', 'th', 'en']
-      const langCount: Record<string, number> = { zh: 0, th: 0, en: 0 }
-      MULTI_LANG_FIELDS.forEach((f) => {
-        const v = values[f] || {}
-        langs.forEach((l) => { if (v[l]?.trim()) langCount[l]++ })
-      })
-      const sourceLang = Object.entries(langCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'zh'
+      const sourceLang = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
       const textsToTranslate: Record<string, string> = {}
       MULTI_LANG_FIELDS.forEach((f) => {
         const v = values[f] || {}
@@ -189,11 +184,6 @@ export default function ActivityTemplateManage() {
           </Form.Item>
 
           <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.activity.sectionMain')}</Divider>
-          <AutoTranslateButton
-            sourceLang="zh"
-            getTexts={handleAutoTranslate}
-            onResult={applyTranslation}
-          />
           <Form.Item name="title" label={t('adminTemplate.activity.formTitle')} rules={[{ required: true, message: t('adminTemplate.common.requiredChTitle') }]}>
             <MultiLangInput />
           </Form.Item>
