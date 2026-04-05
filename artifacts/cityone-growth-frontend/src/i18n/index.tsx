@@ -47,7 +47,7 @@ const messages = {
   zh: {
     common: {
       home: '首页',
-      agent: 'AiAgent',
+      agent: '问问',
       mine: '我的',
       activityCenter: '活动中心',
       pointsMall: '积分兑换',
@@ -94,7 +94,7 @@ const messages = {
       physical: '实物商品',
     },
     agent: {
-      title: 'AiAgent',
+      title: '问问',
       intro: '这是 AI 助理入口。用户不懂操作、想直接完成任务、想让系统代办，都从这里进入。',
       sectionTitle: '我可以帮你做什么',
       tag1: '活动参与指引',
@@ -136,7 +136,7 @@ const messages = {
       exchangeTitle: '兑换记录',
       usageTitle: '使用记录',
       earnTitle: '赚取记录',
-      agentTitle: 'AiAgent 助理',
+      agentTitle: '问问',
       languageTitle: '语言设置',
       agreementTitle: '用户协议',
       privacyTitle: '隐私政策',
@@ -765,7 +765,7 @@ const messages = {
   th: {
     common: {
       home: 'หน้าแรก',
-      agent: 'AiAgent',
+      agent: 'ถามดู',
       mine: 'ของฉัน',
       activityCenter: 'ศูนย์กิจกรรม',
       pointsMall: 'ร้านแลกคะแนน',
@@ -812,7 +812,7 @@ const messages = {
       physical: 'สินค้าจริง',
     },
     agent: {
-      title: 'AiAgent',
+      title: 'ถามดู',
       intro: 'นี่คือทางเข้า AI ผู้ช่วย — หากผู้ใช้ไม่เข้าใจการใช้งาน ต้องการให้ทำงานให้เสร็จ หรือให้ระบบจัดการแทน ให้เริ่มจากที่นี่',
       sectionTitle: 'ฉันช่วยคุณทำอะไรได้บ้าง',
       tag1: 'คำแนะนำการเข้าร่วมกิจกรรม',
@@ -854,7 +854,7 @@ const messages = {
       exchangeTitle: 'ประวัติการแลก',
       usageTitle: 'ประวัติการใช้งาน',
       earnTitle: 'ประวัติการรับ',
-      agentTitle: 'ผู้ช่วย AiAgent',
+      agentTitle: 'ถามดู',
       languageTitle: 'การตั้งค่าภาษา',
       agreementTitle: 'ข้อตกลงผู้ใช้',
       privacyTitle: 'นโยบายความเป็นส่วนตัว',
@@ -1457,7 +1457,7 @@ const messages = {
   en: {
     common: {
       home: 'Home',
-      agent: 'AiAgent',
+      agent: 'Ask',
       mine: 'My',
       activityCenter: 'Activity Center',
       pointsMall: 'Points Mall',
@@ -1504,7 +1504,7 @@ const messages = {
       physical: 'Physical Goods',
     },
     agent: {
-      title: 'AiAgent',
+      title: 'Ask',
       intro: 'This is the AI Assistant entry. If you don\'t know how to use something, want a task done for you, or want the system to handle it on your behalf, start here.',
       sectionTitle: 'What I can do for you',
       tag1: 'Activity Participation Guide',
@@ -1546,7 +1546,7 @@ const messages = {
       exchangeTitle: 'Redemption History',
       usageTitle: 'Usage History',
       earnTitle: 'Earnings History',
-      agentTitle: 'AiAgent Assistant',
+      agentTitle: 'Ask',
       languageTitle: 'Language Settings',
       agreementTitle: 'User Agreement',
       privacyTitle: 'Privacy Policy',
