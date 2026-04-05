@@ -71,7 +71,7 @@ export async function handleAgentSessionInit(req, res, url, sendJson, readBody) 
     // 加载配置
     const config = loadAgentConfig();
     if (!config.enabled) {
-      return sendError(res, sendJson, 503, "AGENT_DISABLED", "AI 助理暂时关闭");
+      return sendError(res, sendJson, 503, "AGENT_DISABLED", "小城暂时关闭，请稍后再试。");
     }
 
     const welcomeText = config.welcome_messages?.[language] || config.welcome_messages?.zh;

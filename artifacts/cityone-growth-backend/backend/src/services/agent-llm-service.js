@@ -87,7 +87,7 @@ export async function recognizeIntentWithLLM(text, language = "zh", allowedInten
     desc: intentDescriptions[code] || code
   }));
 
-  const systemPrompt = `你是 CityOne 共享充电宝平台的 AI 助理意图识别系统。
+  const systemPrompt = `你是 CityOne 共享充电宝平台的意图识别系统（助理名叫"小城"）。
 
 用户发送的消息语言：${langLabel}
 可识别的意图列表（含描述）：

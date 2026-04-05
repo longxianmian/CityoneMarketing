@@ -49,7 +49,7 @@ export function checkPolicy(identityTier, intentCode, needConfirm = false) {
     return {
       result: POLICY_RESULTS.BLOCKED,
       reason: "agent_disabled",
-      block_message: "AI 助理暂时关闭，请稍后再试。"
+      block_message: "小城暂时关闭，请稍后再试。"
     };
   }
 

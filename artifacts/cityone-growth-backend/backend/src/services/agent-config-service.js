@@ -15,9 +15,9 @@ function ensureDataDir() {
 const DEFAULT_CONFIG = {
   enabled: true,
   welcome_messages: {
-    zh: "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
-    th: "สวัสดี ฉันคือ CityOne AI Assistant มีอะไรให้ช่วยไหม?",
-    en: "Hi, I'm CityOne AI Assistant. How can I help you today?"
+    zh: "你好，我是小城，有什么我可以帮你的吗？",
+    th: "สวัสดี ฉันคือ小城 มีอะไรให้ช่วยไหม?",
+    en: "Hi, I'm 小城. How can I help you today?"
   },
   identity_rules: {
     guest_unfollowed: ["borrow_help", "return_help", "invite_help", "points_redeem_help"],
