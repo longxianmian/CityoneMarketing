@@ -143,6 +143,75 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ---
 
+## 阶段二执行记录（T101–T106）
+
+### 验收性质
+
+**结构与口径收敛推进 · 阶段二完成**
+
+---
+
+### T101：lineUser store 添加 identityTag + depositPaid 字段
+
+- `store/lineUser.ts` 新增 `IdentityTag = 'fan' | 'user' | 'member'`
+- `LineUserProfile` 新增 `identityTag?` 和 `depositPaid?` 字段
+- mock 默认值：`identityTag: 'user'`，`depositPaid: false`
+
+### T102：MinePage 顶部身份标签独立展示（与等级分离）
+
+- 身份标签（粉丝/用户/会员）独立 badge 显示，图标 ⭐👤💎 对应三层
+- 等级信息（Gold Level）另一个 badge 独立显示
+- 两者不再混用，口径：粉丝=已关注OA / 用户=已进入业务链路 / 会员=已缴押金
+- mockProfile.memberLevel 文案从"黄金会员"改为"黄金等级"（等级不等于身份）
+
+### T103：URL 深链参数 `/mine?tab=...` 支持
+
+- 使用 `useSearchParams` 读取 `tab` 参数，初始化 mainTab
+- 四按钮点击更新 URL 参数（replace 模式）
+- 参数映射：prizes→prize，benefits→benefit，orders→order，member→member
+- 截图验证：`/mine?tab=prizes` → Prizes tab；`/mine?tab=member` → Membership tab
+
+### T104：旧页面入口收口（方式A：重定向）
+
+- `App.tsx` 移除 `MyCouponsPage` / `MyPointsPage` lazy import
+- `/my-coupons` → `<Navigate to="/mine?tab=benefits" replace />`
+- `/my-points` → `<Navigate to="/mine?tab=member" replace />`
+- 截图验证：两个旧 URL 均自动跳转到对应 tab
+
+### T105：会员 tab 整改（身份状态 + 押金状态区）
+
+- Membership tab 顶部新增身份状态卡（双格：身份层级 | 押金状态）
+- 身份层级：显示 identityTag 及其描述（已关注OA/已进入业务链路/已缴押金）
+- 押金状态：depositPaid 控制显示"已缴纳/未缴纳"，颜色区分
+- 积分成长内容保留在下方，标题加"成长积分"说明
+
+### T106：游戏页面"我的奖品"跳转精准落点
+
+- `LuckyWheelPage` / `ScratchCardPage` / `ThaiFortuneDrawPage` 三个游戏页面
+- "我的奖品"按钮从 `nav('/my-coupons')` 改为 `nav('/mine?tab=prizes')`
+- 精准落到 Prizes tab，不再经过旧路由
+
+---
+
+### 阶段二已达到
+
+- ✅ MinePage 顶部身份标签结构达标（身份/等级分离）
+- ✅ 四结果域（奖品/权益/订单/会员）承接关系清晰
+- ✅ 旧入口风险收口（/my-coupons + /my-points 已重定向）
+- ✅ `/mine?tab=...` 深链完整生效（prizes/benefits/orders/member）
+- ✅ 会员页包含身份状态 + 押金状态区域（不只是积分）
+- ✅ 游戏结果跳转精准落到奖品 tab
+
+### 阶段二尚未达到（留待后续阶段）
+
+- ❌ LINE 真实登录链路 profile 数据（identityTag 真实值）
+- ❌ 奖品 tab 真实发放记录（当前空状态占位）
+- ❌ 押金状态真实数据（depositPaid 当前 mock=false）
+- ❌ A 系统真实借电订单桥接
+- ❌ 积分/成长数据真实 API 闭环
+
+---
+
 ### `artifacts/cityone-growth-backend` (`@workspace/cityone-growth-backend`)
 
 空白 Node.js Express 后端应用，用于 CityOne Growth 业务逻辑。

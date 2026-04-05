@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, Tag, Badge, Avatar, Spin, Empty, Modal } from 'antd'
 import {
   CreditCardOutlined,
@@ -13,7 +13,7 @@ import {
 import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
 import UserPageHeader from '../../components/user/UserPageHeader'
-import useLineUserStore from '../../store/lineUser'
+import useLineUserStore, { type IdentityTag } from '../../store/lineUser'
 import { getUserPointsSummary, getUserPointsLedger, getUserPointsRedeems } from '../../api/growth'
 
 type AppLang = AppLanguage
@@ -21,12 +21,24 @@ type LocalizedField = Partial<Record<AppLang, string>>
 
 const mockProfile = {
   lineName: 'CityOne LINE User',
+  identityTag: 'user' as IdentityTag,
+  depositPaid: false,
   memberLevel: {
-    zh: '黄金会员',
-    th: 'สมาชิกระดับโกลด์',
-    en: 'Gold Member',
+    zh: '黄金等级',
+    th: 'ระดับโกลด์',
+    en: 'Gold Level',
   } as LocalizedField,
   avatarUrl: '',
+}
+
+const TAB_PARAM_MAP: Record<string, MainTab> = {
+  prizes: 'prize',
+  benefits: 'benefit',
+  orders: 'order',
+  member: 'member',
+  prize: 'prize',
+  benefit: 'benefit',
+  order: 'order',
 }
 
 const couponList = [
@@ -212,6 +224,7 @@ type PointsSubTab = 'balance' | 'exchange' | 'earn'
 
 export default function MinePage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { t, language } = useI18n()
   const { profile } = useLineUserStore()
 
@@ -219,8 +232,17 @@ export default function MinePage() {
   const linePictureUrl = profile?.linePictureUrl || mockProfile.avatarUrl
   const couponAvailableCount = profile?.couponCount ?? couponList.filter((c) => c.status === 'available').length
   const depositAmount = profile?.deposit ?? 0
+  const depositPaid = profile?.depositPaid ?? mockProfile.depositPaid
+  const identityTag: IdentityTag = profile?.identityTag ?? mockProfile.identityTag
 
-  const [mainTab, setMainTab] = useState<MainTab>('benefit')
+  const initialTab: MainTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'benefit'
+  const [mainTab, setMainTab] = useState<MainTab>(initialTab)
+
+  const handleSetMainTab = (tab: MainTab) => {
+    setMainTab(tab)
+    setSearchParams({ tab: tab === 'prize' ? 'prizes' : tab === 'benefit' ? 'benefits' : tab === 'order' ? 'orders' : 'member' }, { replace: true })
+  }
+
   const [couponSub, setCouponSub] = useState<CouponSubTab>('available')
   const [pointsSub, setPointsSub] = useState<PointsSubTab>('balance')
 
@@ -285,7 +307,7 @@ export default function MinePage() {
   }, [profile?.lineUserId])
 
   useEffect(() => {
-    if (mainTab === 'points') {
+    if (mainTab === 'member') {
       if (pointsSub === 'balance') loadLedger()
       else if (pointsSub === 'exchange') loadRedeems()
     }
@@ -367,10 +389,27 @@ export default function MinePage() {
             </Avatar>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, opacity: 0.92, marginBottom: 4 }}>LINE</div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{lineDisplayName}</div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.18)', padding: '5px 10px', borderRadius: 999 }}>
-                <CrownOutlined />
-                <span style={{ fontWeight: 700 }}>{memberLevel}</span>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{lineDisplayName}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* 身份标签（粉丝/用户/会员）— 独立显示 */}
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: identityTag === 'member' ? 'rgba(255,215,0,0.25)' : identityTag === 'user' ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.14)',
+                  border: identityTag === 'member' ? '1px solid rgba(255,215,0,0.5)' : '1px solid rgba(255,255,255,0.25)',
+                  padding: '4px 10px', borderRadius: 999,
+                }}>
+                  <span style={{ fontSize: 13 }}>
+                    {identityTag === 'fan' ? '⭐' : identityTag === 'user' ? '👤' : '💎'}
+                  </span>
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>
+                    {identityTag === 'fan' ? t('mine.identityFan') : identityTag === 'user' ? t('mine.identityUser') : t('mine.identityMember')}
+                  </span>
+                </div>
+                {/* 等级（与身份分开）*/}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.12)', padding: '4px 10px', borderRadius: 999 }}>
+                  <CrownOutlined style={{ fontSize: 13 }} />
+                  <span style={{ fontWeight: 600, fontSize: 12, opacity: 0.9 }}>{memberLevel}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -412,7 +451,7 @@ export default function MinePage() {
               return (
                 <button
                   key={tab.key}
-                  onClick={() => setMainTab(tab.key)}
+                  onClick={() => handleSetMainTab(tab.key)}
                   style={{
                     border: active ? `2px solid ${tab.color}` : '2px solid transparent',
                     borderRadius: 18,
@@ -591,9 +630,36 @@ export default function MinePage() {
               </>
             )}
 
-            {/* 会员内容（原积分）*/}
+            {/* 会员内容（身份+押金+积分）*/}
             {mainTab === 'member' && (
               <>
+                {/* 身份状态卡 — 独立显示身份层级与押金状态 */}
+                <div style={{ border: '1.5px solid #ECF1F6', borderRadius: 14, padding: '14px 16px', marginBottom: 2 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#7B61FF', marginBottom: 10 }}>{t('mine.identityUser') !== undefined ? '身份状态' : 'Identity'}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div style={{ background: '#F7F3FF', borderRadius: 10, padding: '10px 12px' }}>
+                      <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>
+                        {t('mine.identityFan') !== undefined ? '身份层级' : 'Identity'}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: '#7B61FF' }}>
+                        {identityTag === 'fan' ? `⭐ ${t('mine.identityFan')}` : identityTag === 'user' ? `👤 ${t('mine.identityUser')}` : `💎 ${t('mine.identityMember')}`}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#667085', marginTop: 4 }}>
+                        {identityTag === 'fan' ? t('mine.identityFanDesc') : identityTag === 'user' ? t('mine.identityUserDesc') : t('mine.identityMemberDesc')}
+                      </div>
+                    </div>
+                    <div style={{ background: depositPaid ? '#ECFDF5' : '#FFF7ED', borderRadius: 10, padding: '10px 12px' }}>
+                      <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>押金状态</div>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: depositPaid ? '#2CDBCE' : '#FF7A59' }}>
+                        {depositPaid ? '✅ 已缴纳' : '⏳ 未缴纳'}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#667085', marginTop: 4 }}>
+                        {depositPaid ? `฿${depositAmount}` : '缴纳押金成为会员'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {pointsSub === 'balance' && (
                   <>
                     <div
@@ -605,6 +671,7 @@ export default function MinePage() {
                         marginBottom: 2,
                       }}
                     >
+                      <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 2 }}>成长积分</div>
                       <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>
                         {t('mine.pointsBalance')}
                       </div>

@@ -262,7 +262,7 @@ export default function ThaiFortuneDrawPage() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => { setResultVisible(false); nav('/my-coupons') }} style={{ flex: 1, padding: '12px 0', background: resultFortune.bg, border: 'none', borderRadius: 50, color: resultFortune.text, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={() => { setResultVisible(false); nav('/mine?tab=prizes') }} style={{ flex: 1, padding: '12px 0', background: resultFortune.bg, border: 'none', borderRadius: 50, color: resultFortune.text, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                   <TrophyOutlined style={{ marginRight: 4 }} />{ui.myBenefits}
                 </button>
                 <button onClick={() => { setResultVisible(false); nav('/nearby') }} style={{ flex: 1, padding: '12px 0', background: '#f5f5f5', border: '1px solid #e0e0e0', borderRadius: 50, color: '#333', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>

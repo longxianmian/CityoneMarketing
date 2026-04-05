@@ -1,14 +1,18 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export type IdentityTag = 'fan' | 'user' | 'member'
+
 export interface LineUserProfile {
   lineUserId: string
   lineDisplayName: string
   linePictureUrl: string
+  identityTag?: IdentityTag
   memberLevel: string
   points: number
   couponCount: number
   deposit: number
+  depositPaid?: boolean
 }
 
 interface LineUserState {

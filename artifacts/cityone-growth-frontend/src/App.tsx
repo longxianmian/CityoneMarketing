@@ -15,8 +15,6 @@ const MinePage = lazy(() => import('./pages/user/MinePage'))
 const ActivityUserPage = lazy(() => import('./pages/user/ActivityUserPage'))
 const ActivityDetailPage = lazy(() => import('./pages/user/ActivityDetailPage'))
 const CouponUserPage = lazy(() => import('./pages/user/CouponUserPage'))
-const MyCouponsPage = lazy(() => import('./pages/user/MyCouponsPage'))
-const MyPointsPage = lazy(() => import('./pages/user/MyPointsPage'))
 const RedeemUserPage = lazy(() => import('./pages/user/RedeemUserPage'))
 const ProductDetailPage = lazy(() => import('./pages/user/ProductDetailPage'))
 const SystemDescPage = lazy(() => import('./pages/user/SystemDescPage'))
@@ -93,8 +91,8 @@ export default function App() {
         <Route path="/activity/fortune/:id" element={<ThaiFortuneDrawPage />} />
         <Route path="/activity/:id" element={<ActivityDetailPage />} />
         <Route path="/coupon/:id" element={<CouponUserPage />} />
-        <Route path="/my-coupons" element={<MyCouponsPage />} />
-        <Route path="/my-points" element={<MyPointsPage />} />
+        <Route path="/my-coupons" element={<Navigate to="/mine?tab=benefits" replace />} />
+        <Route path="/my-points" element={<Navigate to="/mine?tab=member" replace />} />
         <Route path="/redeem/:id" element={<ProductDetailPage />} />
         <Route path="/landing/:id" element={<LandingTemplatePage />} />
         <Route path="/system-desc" element={<SystemDescPage />} />

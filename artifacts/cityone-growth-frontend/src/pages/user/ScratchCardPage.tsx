@@ -282,7 +282,7 @@ export default function ScratchCardPage() {
             <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>{result?.isWin ? ui.win : ui.lose}</h2>
             <p style={{ fontSize: 16, color: result?.isWin ? '#1677ff' : '#666', marginBottom: 20, fontWeight: result?.isWin ? 600 : 400 }}>{prizeText}</p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setResultVisible(false); nav('/my-coupons') }} style={{ flex: 1, padding: '12px 0', background: 'linear-gradient(135deg, #1677ff, #4096ff)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={() => { setResultVisible(false); nav('/mine?tab=prizes') }} style={{ flex: 1, padding: '12px 0', background: 'linear-gradient(135deg, #1677ff, #4096ff)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                 <TrophyOutlined style={{ marginRight: 4 }} />{ui.myBenefits}
               </button>
               <button onClick={() => { setResultVisible(false); nav('/nearby') }} style={{ flex: 1, padding: '12px 0', background: '#f5f5f5', border: '1px solid #e0e0e0', borderRadius: 50, color: '#333', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>

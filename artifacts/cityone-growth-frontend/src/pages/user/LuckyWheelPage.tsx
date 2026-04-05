@@ -294,7 +294,7 @@ export default function LuckyWheelPage() {
             {result?.prizeDesc && <p style={{ fontSize: 14, color: '#666', marginBottom: 20 }}>{pick(result.prizeDesc)}</p>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={() => { setResultVisible(false); nav('/my-coupons') }}
+                onClick={() => { setResultVisible(false); nav('/mine?tab=prizes') }}
                 style={{ flex: 1, padding: '12px 0', background: 'linear-gradient(135deg, #1677ff, #4096ff)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
               >
                 <TrophyOutlined style={{ marginRight: 4 }} />{ui.myBenefits}
