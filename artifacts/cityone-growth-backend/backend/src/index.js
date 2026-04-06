@@ -156,6 +156,12 @@ import {
   handleRepairActionsUpdate,
   handleRepairActionsDelete,
 } from "./routes/agent-admin.js";
+import {
+  handleCouponList,
+  handleCouponAdd,
+  handleCouponUpdate,
+  handleCouponDelete,
+} from "./routes/coupons.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -437,6 +443,20 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/routes/test-match") {
       return handleRouteTestMatch(req, res, url, sendJson, readBody);
+    }
+
+    // ── 卡券管理 ──────────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/growth/coupon/list") {
+      return handleCouponList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/coupon/add") {
+      return handleCouponAdd(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/coupon/update") {
+      return handleCouponUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/coupon/delete") {
+      return handleCouponDelete(req, res, url, sendJson, readBody);
     }
 
     if (req.method === "GET" && url.pathname === "/api/growth/line/config") {
