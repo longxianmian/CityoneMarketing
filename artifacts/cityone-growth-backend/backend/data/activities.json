@@ -68,7 +68,7 @@
     "activity_id": "act_002",
     "activity_type": "spin_wheel",
     "activity_name": {
-      "zh": "节日大转盘",
+      "zh": "大转盘抽大奖",
       "th": "วงล้อนำโชคเทศกาล",
       "en": "Festival Lucky Wheel"
     },
@@ -89,7 +89,7 @@
     "end_time": "2026-12-31 23:59:59",
     "status": "active",
     "require_oa_follow": true,
-    "auto_join_after_follow": false,
+    "auto_join_after_follow": true,
     "goal": "促活",
     "department": "运营部",
     "owner_dept": "运营部",
@@ -115,7 +115,7 @@
       "th": "สิทธิ์หมุนรีเซ็ตทุกเที่ยงคืน ห้ามล็อกอินซ้ำเพื่อรับสิทธิ์เพิ่ม",
       "en": "Daily spins reset at midnight. Do not attempt to gain extra spins by re-logging."
     },
-    "cover_image": "",
+    "cover_image": "/uploads/1775489766908_0b477d2f1c6e.png",
     "cover_video": "",
     "entry_scope_json": null,
     "site_scope_json": null,
@@ -127,6 +127,6 @@
     "campaign_id": "",
     "share_status": "",
     "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2025-01-01T00:00:00.000Z"
+    "updated_at": "2026-04-06T15:37:56.742Z"
   }
 ]

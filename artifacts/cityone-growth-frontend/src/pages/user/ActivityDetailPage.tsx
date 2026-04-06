@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Spin, Tag } from 'antd'
-import { ArrowLeftOutlined, ShareAltOutlined } from '@ant-design/icons'
+import { Spin, Tag, Button, Card, Space } from 'antd'
+import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 const TYPE_LABELS: Record<string, { label: string; color: string; btnText: string; route: string }> = {
-  lucky_wheel: { label: '大转盘', color: '#fa8c16', btnText: '立即抽奖', route: '/activity/wheel/' },
-  scratch_card: { label: '刮刮卡', color: '#1677ff', btnText: '立即刮卡', route: '/activity/scratch/' },
-  thai_fortune_draw: { label: '祈福抽签', color: '#722ed1', btnText: '求签祈福', route: '/activity/fortune/' },
-  default: { label: '活动', color: '#52c41a', btnText: '立即参与', route: '' },
+  lucky_wheel:        { label: '大转盘',  color: '#fa8c16', btnText: '立即抽奖', route: '/activity/wheel/'   },
+  spin_wheel:         { label: '大转盘',  color: '#fa8c16', btnText: '立即抽奖', route: '/activity/wheel/'   },
+  scratch_card:       { label: '刮刮卡',  color: '#1677ff', btnText: '立即刮卡', route: '/activity/scratch/' },
+  thai_fortune_draw:  { label: '祈福抽签', color: '#722ed1', btnText: '求签祈福', route: '/activity/fortune/' },
+  default:            { label: '活动',    color: '#52c41a', btnText: '立即参与', route: '' },
 }
+
+type Step = 'detail' | 'follow' | 'success'
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -22,6 +25,7 @@ export default function ActivityDetailPage() {
   const [activity, setActivity] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [shareVisible, setShareVisible] = useState(false)
+  const [step, setStep] = useState<Step>('detail')
 
   useEffect(() => {
     const load = async () => {
@@ -61,16 +65,115 @@ export default function ActivityDetailPage() {
   const coverVideo = activity?.cover_video || activity?.coverVideo || ''
   const linkedProducts: any[] = activity?.linkedProducts || []
   const buttonText = activity?.buttonText ? pick(activity.buttonText) : typeInfo.btnText
-  const isInteractive = ['lucky_wheel', 'scratch_card', 'thai_fortune_draw'].includes(actType)
+  const isInteractive = ['lucky_wheel', 'spin_wheel', 'scratch_card', 'thai_fortune_draw'].includes(actType)
+  const requireOAFollow = activity?.require_oa_follow === true
+
+  // i18n labels
+  const backLabel       = { zh: '返回福利中心', th: 'กลับศูนย์สิทธิพิเศษ', en: 'Back to Benefits' }[language]
+  const followTitle     = { zh: '关注 LINE OA 参与活动', th: 'ติดตาม LINE OA เพื่อเข้าร่วม', en: 'Follow LINE OA to Join' }[language]
+  const followDesc      = {
+    zh: '请先关注 CityOne LINE OA，完成关注后点击「已关注，继续」参与本活动。',
+    th: 'กรุณาติดตาม LINE OA ของ CityOne ก่อน แล้วกด "ติดตามแล้ว ดำเนินการต่อ" เพื่อเข้าร่วมกิจกรรม',
+    en: 'Please follow CityOne LINE OA first, then tap "Already Followed" to join this activity.',
+  }[language]
+  const alreadyLabel    = { zh: '已关注，继续参与', th: 'ติดตามแล้ว ดำเนินการต่อ', en: 'Already Followed, Continue' }[language]
+  const successTitle    = { zh: '参与成功！', th: 'เข้าร่วมสำเร็จ!', en: 'Joined Successfully!' }[language]
+  const successDesc     = {
+    zh: '你已成功参与本活动，奖励将自动发放到你的账户。',
+    th: 'คุณเข้าร่วมกิจกรรมสำเร็จแล้ว รางวัลจะเข้าบัญชีโดยอัตโนมัติ',
+    en: 'You have successfully joined. Rewards will be credited to your account automatically.',
+  }[language]
 
   const handleAction = () => {
     if (isInteractive && typeInfo.route) {
       nav(`${typeInfo.route}${id}`)
+    } else if (requireOAFollow) {
+      setStep('follow')
     } else {
-      nav('/welfare')
+      setStep('success')
     }
   }
 
+  const handleFollowDone = () => {
+    setStep('success')
+  }
+
+  // ── 关注 LINE OA 步骤 ─────────────────────────────────────────────────────
+  if (step === 'follow') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
+        <div style={{ maxWidth: 480, margin: '0 auto' }}>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => setStep('detail')}
+            style={{ marginBottom: 12, paddingLeft: 0 }}
+          >
+            {backLabel}
+          </Button>
+
+          <Card style={{ borderRadius: 16 }}>
+            {coverImage && (
+              <img src={coverImage} alt={title}
+                style={{ width: '100%', borderRadius: 12, marginBottom: 16, objectFit: 'cover', maxHeight: 200 }} />
+            )}
+            <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{title}</div>
+              {subTitle && <div style={{ fontSize: 14, color: '#888', marginBottom: 12 }}>{subTitle}</div>}
+              <Tag color="orange" style={{ fontSize: 13, padding: '4px 10px' }}>
+                {{ zh: '需关注 LINE OA', th: 'ต้องติดตาม LINE OA', en: 'LINE OA Follow Required' }[language]}
+              </Tag>
+            </div>
+
+            <div style={{
+              marginTop: 18, padding: 18, borderRadius: 14,
+              background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)',
+              border: '1px solid #ffd591',
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{followTitle}</div>
+              <div style={{ color: '#555', lineHeight: 1.8 }}>{followDesc}</div>
+            </div>
+
+            <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
+              <Button type="primary" size="large" block onClick={handleFollowDone}>
+                {alreadyLabel}
+              </Button>
+              <Button size="large" block onClick={() => setStep('detail')}>
+                {backLabel}
+              </Button>
+            </Space>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 参与成功步骤 ──────────────────────────────────────────────────────────
+  if (step === 'success') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #52c41a 0%, #95de64 100%)', padding: '24px 16px' }}>
+        <div style={{ maxWidth: 460, margin: '0 auto' }}>
+          <Card style={{ borderRadius: 20, overflow: 'hidden', textAlign: 'center', padding: '24px 16px' }}>
+            <CheckCircleOutlined style={{ fontSize: 64, color: '#52c41a', marginBottom: 16 }} />
+            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{successTitle}</div>
+            <div style={{ fontSize: 14, color: '#555', lineHeight: 1.8, marginBottom: 24 }}>{successDesc}</div>
+            {title && (
+              <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: '#52c41a', fontWeight: 600 }}>{title}</div>
+              </div>
+            )}
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Button type="primary" size="large" block onClick={() => nav('/welfare')}>
+                {backLabel}
+              </Button>
+            </Space>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 活动详情主视图 ─────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 100 }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
