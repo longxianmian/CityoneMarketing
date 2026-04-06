@@ -47,6 +47,13 @@ import {
   handleGameProgramDelete,
 } from "./routes/game-programs.js";
 import {
+  handleGetMallItems,
+  handleCreateMallItem,
+  handleUpdateMallItem,
+  handleDeleteMallItem,
+  handleGetMallOrders,
+} from "./routes/mall-items.js";
+import {
   handleActivityTemplateGet,
   handleActivityTemplateCreate,
   handleActivityTemplateUpdate,
@@ -545,6 +552,25 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/follow/success-dispatch") {
       return handleFollowSuccessDispatch(req, res, url, sendJson, readBody);
+    }
+
+    // ── 商城商品 ─────────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/growth/mall/items") {
+      return handleGetMallItems(req, res, sendJson, url);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/mall/items") {
+      return handleCreateMallItem(req, res, sendJson, await readBody(req));
+    }
+    if (req.method === "PUT" && /^\/api\/growth\/mall\/items\/[^/]+$/.test(url.pathname)) {
+      const itemId = url.pathname.split("/").pop();
+      return handleUpdateMallItem(req, res, sendJson, await readBody(req), itemId);
+    }
+    if (req.method === "DELETE" && /^\/api\/growth\/mall\/items\/[^/]+$/.test(url.pathname)) {
+      const itemId = url.pathname.split("/").pop();
+      return handleDeleteMallItem(req, res, sendJson, itemId);
+    }
+    if (req.method === "GET" && url.pathname === "/api/growth/mall/orders") {
+      return handleGetMallOrders(req, res, sendJson, url);
     }
 
     // ── 玩法程序 ─────────────────────────────────────────────────────────────

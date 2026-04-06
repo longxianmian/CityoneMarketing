@@ -265,6 +265,7 @@ export default function WelfareHomePage() {
 
   const [apiActivities, setApiActivities] = useState<ContentCard[]>([])
   const [apiCoupons, setApiCoupons] = useState<ContentCard[]>([])
+  const [apiMallItems, setApiMallItems] = useState<ContentCard[]>([])
 
   useEffect(() => {
     const DISCOUNT_COVERS: Record<string, string> = {
@@ -330,43 +331,35 @@ export default function WelfareHomePage() {
     }).catch(() => {})
   }, [])
 
-  const staticNonActivityCards: ContentCard[] = useMemo(() => [
-    {
-      id: 'r2', type: 'redeem',
-      title: { zh: '音乐畅听权益', th: 'สิทธิ์ฟังเพลงไม่จำกัด', en: 'Music unlimited access' },
-      badge: { zh: '数字商品', th: 'ดิจิทัล', en: 'Digital' },
-      cover: 'linear-gradient(135deg, #2CDBCE 0%, #7B61FF 100%)',
-      views: 5400, price: 'THB 59', points: 620,
-      route: '/coupon/1?followed=1', footerTone: '#7B61FF',
-    },
-    {
-      id: 'r1', type: 'redeem',
-      title: { zh: '电子书会员包', th: 'แพ็กสมาชิกอีบุ๊ก', en: 'E-book membership pack' },
-      badge: { zh: '可兑换', th: 'แลกได้', en: 'Redeem' },
-      cover: 'linear-gradient(135deg, #7B61FF 0%, #C3B5FF 100%)',
-      views: 3150, price: 'THB 99', points: 990,
-      route: '/redeem/2?followed=1', footerTone: '#7B61FF',
-    },
-    {
-      id: 'n1', type: 'station',
-      title: { zh: '曼谷 Siam 商圈站点', th: 'สถานี Siam กรุงเทพฯ', en: 'Bangkok Siam station' },
-      badge: { zh: '站点', th: 'สถานี', en: 'Station' },
-      cover: 'linear-gradient(135deg, #2CDBCE 0%, #61E6DC 100%)',
-      views: 4200,
-    },
-    {
-      id: 'n4', type: 'redeem',
-      title: { zh: '附近可兑换联名马克杯', th: 'แก้วคอลแลบแลกได้ใกล้คุณ', en: 'Nearby redeemable co-branded mug' },
-      badge: { zh: '附近兑换', th: 'แลกใกล้คุณ', en: 'Nearby Redeem' },
-      cover: 'linear-gradient(135deg, #7B61FF 0%, #2CDBCE 100%)',
-      views: 2980, price: 'THB 149', points: 1490,
-      route: '/redeem/3?followed=1', footerTone: '#7B61FF',
-    },
-  ], [])
+  useEffect(() => {
+    const ITEM_TYPE_COVERS: Record<string, string> = {
+      digital:  'linear-gradient(135deg, #7B61FF 0%, #2CDBCE 100%)',
+      physical: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
+      service:  'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
+    }
+    ;(request.get('/growth/mall/items', { params: { onShelf: 'true', pageSize: 50 } }) as any)
+      .then((res: any) => {
+        const list: any[] = (res.data || res)?.list || []
+        const cards: ContentCard[] = list.map(item => ({
+          id: item.id,
+          type: 'redeem' as const,
+          title: { zh: item.name, th: item.name, en: item.name },
+          badge: { zh: '积分兑换', th: 'แลกพอยต์', en: 'Redeem' },
+          cover: item.cover_image || ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital,
+          views: 0,
+          price: item.price_thb ? `THB ${item.price_thb}` : undefined,
+          points: item.points_required || 0,
+          route: '/welfare',
+          footerTone: '#7B61FF',
+        }))
+        setApiMallItems(cards)
+      })
+      .catch(() => {})
+  }, [])
 
   const allCards: ContentCard[] = useMemo(
-    () => [...apiActivities, ...apiCoupons, ...staticNonActivityCards],
-    [apiActivities, apiCoupons, staticNonActivityCards]
+    () => [...apiActivities, ...apiCoupons, ...apiMallItems],
+    [apiActivities, apiCoupons, apiMallItems]
   )
 
   const filteredCards = useMemo(() => {
