@@ -92,13 +92,15 @@ export default function ActivityManage() {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
+  const loadList = () => {
     setLoading(true)
-    getActivities().then(res => {
+    return getActivities().then(res => {
       const list: any[] = res.data?.data || []
       setData(list.map(toLocal))
     }).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { loadList() }, [])
 
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
@@ -176,8 +178,8 @@ export default function ActivityManage() {
     const nextStatus = record.status === 'active' ? 'draft' : 'active'
     try {
       await updateActivity(record.id, { status: nextStatus })
-      setData((prev) => prev.map((item) => item.id === record.id ? { ...item, status: nextStatus } : item))
       message.success(am('statusUpdated'))
+      loadList()
     } catch {
       message.error('状态更新失败，请重试')
     }
@@ -210,17 +212,14 @@ export default function ActivityManage() {
         status: values.status || 'draft',
       }
       if (isEdit && editingRecord) {
-        const res = await updateActivity(editingRecord.id, backendPayload)
-        const updated = toLocal(res.data?.data || {})
-        setData((prev) => prev.map((item) => item.id === editingRecord.id ? updated : item))
+        await updateActivity(editingRecord.id, backendPayload)
         message.success(am('editSuccess'))
       } else {
-        const res = await createActivity(backendPayload)
-        const newItem = toLocal(res.data?.data || {})
-        setData((prev) => [newItem, ...prev])
+        await createActivity(backendPayload)
         message.success(am('createSuccess'))
       }
       setFormVisible(false)
+      loadList()
     } catch (e: any) {
       if (e?.errorFields) return
       message.error('保存失败，请重试')
