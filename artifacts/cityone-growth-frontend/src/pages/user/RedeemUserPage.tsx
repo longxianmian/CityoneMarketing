@@ -19,6 +19,29 @@ function formatNow() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+// 多语字段 pick 工具
+function pickML(field: any, lang?: string): string {
+  if (!field) return ''
+  if (typeof field === 'string') return field
+  if (typeof field === 'object' && !Array.isArray(field)) {
+    return field[lang || 'zh'] || field.zh || field.th || field.en || ''
+  }
+  return ''
+}
+function pickStrings(field: any, lang?: string): string[] {
+  if (!field) return []
+  if (typeof field === 'object' && !Array.isArray(field)) {
+    const str = field[lang || 'zh'] || field.zh || field.en || field.th || ''
+    return str.split('\n').filter(Boolean)
+  }
+  if (Array.isArray(field)) {
+    return field.map((item: any) =>
+      (item && typeof item === 'object') ? (item[lang || 'zh'] || item.zh || item.en || item.th || '') : String(item || '')
+    ).filter(Boolean)
+  }
+  return []
+}
+
 export default function RedeemUserPage() {
   const { id = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -52,7 +75,7 @@ export default function RedeemUserPage() {
 
   const handleConfirmRedeem = () => {
     const spendPoints = item?.points_required || 0
-    const title = item?.name || ''
+    const title = pickML(item?.name, language) || ''
     const localKey = 'cityone_local_point_records'
     const current = (() => {
       try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] }
@@ -122,8 +145,10 @@ export default function RedeemUserPage() {
     ? ` ${labels.thbLabel}${item.price_thb}`
     : ''
 
-  const highlights: string[] = Array.isArray(item.highlights) ? item.highlights : []
-  const rules: string[] = Array.isArray(item.rules) ? item.rules : []
+  const highlights = pickStrings(item.highlights, language)
+  const rules = pickStrings(item.rules, language)
+  const itemName = pickML(item.name, language) || ''
+  const itemDesc = pickML(item.description, language) || ''
 
   if (!followed) {
     return (
@@ -134,7 +159,7 @@ export default function RedeemUserPage() {
           </Button>
           <Card style={{ borderRadius: 16 }}>
             <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{item.name}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{itemName}</div>
               <Tag color="blue" style={{ fontSize: 13, padding: '4px 10px' }}>
                 {pointsLabel}{priceLabel}
               </Tag>
@@ -166,9 +191,9 @@ export default function RedeemUserPage() {
             {labels.backLabel}
           </Button>
           <div style={{ color: '#fff' }}>
-            <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 6, textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{item.name}</div>
-            {item.description && (
-              <div style={{ fontSize: 14, opacity: 0.92, textShadow: '0 1px 3px rgba(0,0,0,0.25)' }}>{item.description}</div>
+            <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 6, textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{itemName}</div>
+            {itemDesc && (
+              <div style={{ fontSize: 14, opacity: 0.92, textShadow: '0 1px 3px rgba(0,0,0,0.25)' }}>{itemDesc}</div>
             )}
           </div>
         </div>
@@ -204,10 +229,10 @@ export default function RedeemUserPage() {
           )}
 
           {/* 商品说明 */}
-          {item.detailTitle || item.description ? (
+          {item.detailTitle || itemDesc ? (
             <Card style={{ marginBottom: 16, borderRadius: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>{labels.descLabel}</div>
-              <div style={{ color: '#555', lineHeight: 1.9 }}>{item.detailTitle || item.description}</div>
+              <div style={{ color: '#555', lineHeight: 1.9 }}>{item.detailTitle || itemDesc}</div>
             </Card>
           ) : null}
 
@@ -229,7 +254,7 @@ export default function RedeemUserPage() {
               disabled={item.item_type === 'physical'}
               onClick={() => {
                 if (item.item_type === 'physical') {
-                  Modal.info({ title: item.name, content: labels.physicalTip, okText: 'OK' })
+                  Modal.info({ title: itemName, content: labels.physicalTip, okText: 'OK' })
                   return
                 }
                 setConfirmOpen(true)
@@ -252,7 +277,7 @@ export default function RedeemUserPage() {
         cancelText={labels.confirmCancel}
       >
         <div style={{ display: 'grid', gap: 12, lineHeight: 1.8 }}>
-          <div><strong>{language === 'zh' ? '商品名称：' : 'Item: '}</strong>{item.name}</div>
+          <div><strong>{language === 'zh' ? '商品名称：' : 'Item: '}</strong>{itemName}</div>
           <div><strong>{language === 'zh' ? '所需积分：' : 'Points: '}</strong>{pointsLabel}{priceLabel}</div>
           {item.exchange_mode === 'points' && (
             <div><strong>{language === 'zh' ? '说明：' : 'Note: '}</strong>

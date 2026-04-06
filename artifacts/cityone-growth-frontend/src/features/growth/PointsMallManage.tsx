@@ -6,9 +6,8 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, ShareAltOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
+import MultiLangInput, { AutoTranslateButton, type MultiLangValue } from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
-
-const { TextArea } = Input
 
 export default function PointsMallManage() {
   const { t } = useI18n()
@@ -108,12 +107,20 @@ export default function PointsMallManage() {
     setModalOpen(true)
   }
 
+  // 把旧的字符串/数组格式兼容转换为 {zh,th,en} 对象
+  const toML = (v: any, fallbackKey = 'zh'): MultiLangValue => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) return v as MultiLangValue
+    const str = Array.isArray(v) ? v.join('\n') : (typeof v === 'string' ? v : '')
+    return { zh: fallbackKey === 'zh' ? str : '', th: '', en: '' }
+  }
+
   const handleEdit = (record: any) => {
     setEditItem(record)
     form.setFieldsValue({
       ...record,
-      highlights: Array.isArray(record.highlights) ? record.highlights.join('\n') : '',
-      rules: Array.isArray(record.rules) ? record.rules.join('\n') : '',
+      name: toML(record.name),
+      highlights: toML(record.highlights),
+      rules: toML(record.rules),
     })
     setCoverImage(record.cover_image || '')
     setModalOpen(true)
@@ -122,11 +129,14 @@ export default function PointsMallManage() {
   const handleSave = async () => {
     try {
       const values = await form.validateFields()
+      const ensureML = (v: any): MultiLangValue =>
+        (v && typeof v === 'object' && !Array.isArray(v)) ? v : { zh: String(v || ''), th: '', en: '' }
       const payload = {
         ...values,
         cover_image: coverImage,
-        highlights: (values.highlights || '').split('\n').filter(Boolean),
-        rules: (values.rules || '').split('\n').filter(Boolean),
+        name: ensureML(values.name),
+        highlights: ensureML(values.highlights),
+        rules: ensureML(values.rules),
       }
       if (editItem) {
         await request.put(`/growth/mall/items/${editItem.id}`, payload)
@@ -158,12 +168,15 @@ export default function PointsMallManage() {
     },
     {
       title: pm('colTitle'), dataIndex: 'name', key: 'name', width: 180,
-      render: (v: string, r: any) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{v}</div>
-          {r.tag && <Tag style={{ marginTop: 4, fontSize: 11 }}>{r.tag}</Tag>}
-        </div>
-      ),
+      render: (v: any, r: any) => {
+        const displayName = v && typeof v === 'object' ? (v.zh || v.th || v.en || '') : (v || '')
+        return (
+          <div>
+            <div style={{ fontWeight: 600 }}>{displayName}</div>
+            {r.tag && <Tag style={{ marginTop: 4, fontSize: 11 }}>{r.tag}</Tag>}
+          </div>
+        )
+      },
     },
     {
       title: pm('colType'), dataIndex: 'item_type', key: 'item_type', width: 90,
@@ -237,7 +250,6 @@ export default function PointsMallManage() {
                 >
                   <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
                     <div style={{ display: 'flex', gap: 16 }}>
-                      <Form.Item name="name" label={pm('formTitle')} style={{ flex: 2 }} rules={[{ required: true }]}><Input /></Form.Item>
                       <Form.Item name="item_type" label={pm('formType')} style={{ flex: 1 }} rules={[{ required: true }]}>
                         <Select options={typeOptions} />
                       </Form.Item>
@@ -245,6 +257,9 @@ export default function PointsMallManage() {
                         <Select options={modeOptions} />
                       </Form.Item>
                     </div>
+                    <Form.Item name="name" label={pm('formTitle')} rules={[{ required: true }]}>
+                      <MultiLangInput placeholder="商品名称 / ชื่อสินค้า / Product name" />
+                    </Form.Item>
                     <Form.Item label={pm('formCoverImage')}>
                       <MediaUploadField type="image" value={coverImage} onChange={setCoverImage} placeholder={pm('formCoverImageHint')} />
                     </Form.Item>
@@ -282,11 +297,34 @@ export default function PointsMallManage() {
                       </Form.Item>
                     </div>
                     <Form.Item name="detailTitle" label={pm('formDetailTitle')}><Input /></Form.Item>
-                    <Form.Item name="highlights" label={pm('formHighlights')}>
-                      <TextArea rows={3} placeholder={pm('formHighlightsHint')} />
+                    <Form.Item
+                      name="highlights"
+                      label={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span>{pm('formHighlights')}</span>
+                          <AutoTranslateButton
+                            getTexts={() => {
+                              const vals = form.getFieldsValue(['name', 'highlights', 'rules'])
+                              const res: Record<string, string> = {}
+                              const n = vals.name; const h = vals.highlights; const r = vals.rules
+                              if (n?.zh) res.name = n.zh
+                              if (h?.zh) res.highlights = h.zh
+                              if (r?.zh) res.rules = r.zh
+                              return res
+                            }}
+                            onResult={result => {
+                              if (result.name) form.setFieldValue('name', result.name)
+                              if (result.highlights) form.setFieldValue('highlights', result.highlights)
+                              if (result.rules) form.setFieldValue('rules', result.rules)
+                            }}
+                          />
+                        </div>
+                      }
+                    >
+                      <MultiLangInput textarea rows={3} placeholder="每行一条，一键翻译后自动填充" />
                     </Form.Item>
                     <Form.Item name="rules" label={pm('formRules')}>
-                      <TextArea rows={3} placeholder={pm('formRulesHint')} />
+                      <MultiLangInput textarea rows={3} placeholder="每行一条规则" />
                     </Form.Item>
                     <Form.Item name="on_shelf" label={pm('formEnabled')} valuePropName="checked">
                       <Switch checkedChildren={pm('statusOn')} unCheckedChildren={pm('statusOff')} />

@@ -357,7 +357,7 @@ export default function WelfareHomePage() {
         const cards: ContentCard[] = list.map(item => ({
           id: item.id,
           type: 'redeem' as const,
-          title: { zh: item.name, th: item.name, en: item.name },
+          title: item.name,
           badge: { zh: '积分兑换', th: 'แลกพอยต์', en: 'Redeem' },
           cover: item.cover_image || ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital,
           views: 0,

@@ -38,7 +38,7 @@ function PrizePicker({ prizeType, value, onChange, coupons, mallItems }: PrizePi
   const opts =
     prizeType === 'coupon'
       ? coupons.map(c => ({ value: c.id, label: c.name }))
-      : mallItems.map(m => ({ value: m.id, label: m.name }))
+      : mallItems.map(m => ({ value: m.id, label: m.name && typeof m.name === 'object' ? (m.name.zh || m.name.th || m.name.en || m.id) : (m.name || m.id) }))
   return (
     <Select
       size="small"

@@ -44,7 +44,7 @@ export default function ProductDetailPage() {
     if (!product) return
     if (product.item_type === 'physical') {
       Modal.info({
-        title: product.name,
+        title: pick(product.name),
         content: lang === 'zh' ? '实物商品兑换逻辑后续开放，敬请期待。' : lang === 'th' ? 'การแลกสินค้าจริงจะเปิดให้บริการเร็ว ๆ นี้' : 'Physical item redemption will be available soon.',
         okText: 'OK',
       })
@@ -56,7 +56,7 @@ export default function ProductDetailPage() {
       const localKey = 'cityone_local_point_records'
       const current = (() => { try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] } })()
       localStorage.setItem(localKey, JSON.stringify([{
-        id: `redeem_${Date.now()}`, type: 'spend', title: product.name,
+        id: `redeem_${Date.now()}`, type: 'spend', title: pick(product.name),
         points: -spendPoints, createdAt: new Date().toISOString(), source: 'mall_redeem',
       }, ...current]))
       message.success(t('productDetail.actionSuccess'))
@@ -84,11 +84,24 @@ export default function ProductDetailPage() {
     </div>
   )
 
-  // 字段映射：后端 snake_case → 展示
-  const title = product.name || t('productDetail.pageTitle')
-  const subTitle = product.description || ''
-  const highlights: string[] = Array.isArray(product.highlights) ? product.highlights : []
-  const rules: string[] = Array.isArray(product.rules) ? product.rules : []
+  // 字段映射：后端 snake_case → 展示，兼容 {zh,th,en} 对象或字符串数组
+  const pickStrings = (field: any): string[] => {
+    if (!field) return []
+    if (typeof field === 'object' && !Array.isArray(field)) {
+      const str = field[lang] || field.zh || field.en || field.th || ''
+      return str.split('\n').filter(Boolean)
+    }
+    if (Array.isArray(field)) {
+      return field.map((item: any) =>
+        (item && typeof item === 'object') ? (item[lang] || item.zh || item.en || item.th || '') : String(item || '')
+      ).filter(Boolean)
+    }
+    return []
+  }
+  const title = pick(product.name) || t('productDetail.pageTitle')
+  const subTitle = pick(product.description) || ''
+  const highlights = pickStrings(product.highlights)
+  const rules = pickStrings(product.rules)
   const benefitContent = highlights.join('\n')
   const usageRules = rules.join('\n')
   const redeemNotice = ''
