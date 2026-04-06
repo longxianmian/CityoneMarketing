@@ -143,9 +143,12 @@ export function handleActivityGet(req, res, url, sendJson) {
 export async function handleActivityCreate(req, res, url, sendJson, readBody) {
   try {
     const body = await readBody(req);
-    const activityName = String(body.activity_name || "").trim();
+    const rawName = body.activity_name;
+    const activityNameStr = (typeof rawName === 'object' && rawName !== null)
+      ? (rawName.zh || rawName.en || rawName.th || "").trim()
+      : String(rawName || "").trim();
     const activityType = String(body.activity_type || "").trim();
-    if (!activityName) return sendError(res, sendJson, 400, "NAME_REQUIRED", "activity_name 必填");
+    if (!activityNameStr) return sendError(res, sendJson, 400, "NAME_REQUIRED", "activity_name 必填");
     if (!VALID_ACTIVITY_TYPES.includes(activityType))
       return sendError(res, sendJson, 400, "TYPE_INVALID", `activity_type 必须是: ${VALID_ACTIVITY_TYPES.join(" | ")}`);
 
@@ -154,7 +157,7 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
     const item = {
       activity_id: nextId(list, "act", "activity_id"),
       activity_type: activityType,
-      activity_name: activityName,
+      activity_name: rawName,
       activity_title: body.activity_title || "",
       activity_subtitle: body.activity_subtitle || "",
       activity_desc: body.activity_desc || "",

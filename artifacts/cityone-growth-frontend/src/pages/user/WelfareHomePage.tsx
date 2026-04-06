@@ -330,10 +330,12 @@ export default function WelfareHomePage() {
         '联合活动': { zh: '联合', th: 'ร่วมกิจกรรม', en: 'Joint' },
       }
       const list: any[] = (res as any).data || []
+      const toML = (v: any, fb: Record<string, string>) =>
+        (v && typeof v === 'object' && !Array.isArray(v)) ? v : (v ? { zh: v, th: v, en: v } : fb)
       const cards: ContentCard[] = list.map((a, idx) => ({
         id: a.activity_id,
         type: 'activity' as const,
-        title: { zh: a.activity_name || a.activity_title || '活动', th: a.activity_name || a.activity_title || 'กิจกรรม', en: a.activity_name || a.activity_title || 'Activity' },
+        title: toML(a.activity_name || a.activity_title, { zh: '活动', th: 'กิจกรรม', en: 'Activity' }),
         badge: GOAL_BADGE[a.goal] || { zh: '活动', th: 'กิจกรรม', en: 'Activity' },
         cover: a.cover_image || COVER_GRADIENTS[idx % COVER_GRADIENTS.length],
         views: 0,

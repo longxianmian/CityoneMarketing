@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Card, Tag, Space } from 'antd'
+import { Button, Card, Tag, Space, Spin } from 'antd'
 import { CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { pickLocalizedText, useI18n, type AppLanguage } from '../../i18n'
+import request from '../../api/request'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -113,23 +114,69 @@ const mockActivities: Record<string, ActivityContent> = {
   },
 }
 
+function toML(v: any): LocalizedField {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v
+  const s = v ? String(v) : ''
+  return { zh: s, th: s, en: s }
+}
+
+function pick(v: LocalizedField | undefined, lang: AppLanguage): string {
+  if (!v) return ''
+  return v[lang] || v['zh'] || v['en'] || v['th'] || ''
+}
+
 export default function ActivityUserPage() {
-  const { id = '1' } = useParams()
+  const { id = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { language, t } = useI18n()
 
-  const followed = searchParams.get('followed') === '1'
-  const activity = useMemo(() => mockActivities[id] || mockActivities['1'], [id])
+  const [activity, setActivity] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const title = pickLocalizedText({ title: activity.title }, 'title', language)
-  const subTitle = pickLocalizedText({ subTitle: activity.subTitle }, 'subTitle', language)
-  const description = pickLocalizedText({ description: activity.description }, 'description', language)
-  const highlights = pickLocalizedText({ highlights: activity.highlights }, 'highlights', language)
-  const participationGuide = pickLocalizedText({ participationGuide: activity.participationGuide }, 'participationGuide', language)
-  const rewardGuide = pickLocalizedText({ rewardGuide: activity.rewardGuide }, 'rewardGuide', language)
-  const noticeText = pickLocalizedText({ noticeText: activity.noticeText }, 'noticeText', language)
-  const buttonText = pickLocalizedText({ buttonText: activity.buttonText }, 'buttonText', language)
+  useEffect(() => {
+    if (!id) { setLoading(false); return }
+    request.get(`/growth/activities/${id}`)
+      .then((res: any) => {
+        const d = res?.data || res
+        setActivity(d)
+      })
+      .catch(() => setActivity(null))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  const followed = searchParams.get('followed') === '1'
+
+  const title = pick(toML(activity?.activity_name || activity?.activity_title), language)
+  const subTitle = pick(toML(activity?.activity_subtitle), language)
+  const description = pick(toML(activity?.activity_desc), language)
+  const highlights = pick(toML(activity?.highlights), language)
+  const participationGuide = pick(toML(activity?.participation_guide), language)
+  const rewardGuide = pick(toML(activity?.reward_guide), language)
+  const noticeText = pick(toML(activity?.notice_text), language)
+  const coverImage = activity?.cover_image || ''
+  const coverVideo = activity?.cover_video || ''
+  const requireFollow = !!activity?.require_oa_follow
+  const needFollowGate = requireFollow && !followed
+  const buttonText = t('detail.joinActivity') || '参与活动'
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (!activity) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+        <div style={{ fontSize: 48 }}>😕</div>
+        <div style={{ color: '#888' }}>活动不存在或已结束</div>
+        <Button onClick={() => navigate('/welfare')}>返回首页</Button>
+      </div>
+    )
+  }
 
   const handleFollowDone = () => {
     const next = new URLSearchParams(searchParams)
@@ -141,7 +188,7 @@ export default function ActivityUserPage() {
     navigate('/mine')
   }
 
-  if (!followed) {
+  if (needFollowGate) {
     return (
       <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
         <div style={{ maxWidth: 480, margin: '0 auto' }}>
@@ -187,8 +234,8 @@ export default function ActivityUserPage() {
         <div
           style={{
             height: 280,
-            background: activity.coverImage
-              ? `url(${activity.coverImage}) center/cover no-repeat`
+            background: coverImage
+              ? `url(${coverImage}) center/cover no-repeat`
               : 'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
             display: 'flex',
             alignItems: 'flex-end',
@@ -203,13 +250,13 @@ export default function ActivityUserPage() {
         </div>
 
         <div style={{ padding: 16 }}>
-          {activity.coverVideo ? (
+          {coverVideo ? (
             <Card style={{ marginBottom: 16, borderRadius: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>
                 <PlayCircleOutlined style={{ marginRight: 8 }} />
                 {t('detail.video')}
               </div>
-              <video src={activity.coverVideo} controls style={{ width: '100%', borderRadius: 12 }} />
+              <video src={coverVideo} controls style={{ width: '100%', borderRadius: 12 }} />
             </Card>
           ) : null}
 

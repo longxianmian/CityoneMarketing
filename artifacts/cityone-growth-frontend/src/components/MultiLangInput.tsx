@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
-import { Input, Button, message, Tooltip } from 'antd'
+import { Input, Button, Segmented, message, Tooltip } from 'antd'
 import { TranslationOutlined, LoadingOutlined } from '@ant-design/icons'
 import request from '../api/request'
-import { useI18n } from '../i18n'
 
 export interface MultiLangValue {
   zh?: string
@@ -16,9 +15,14 @@ interface MultiLangInputProps {
   placeholder?: string
   textarea?: boolean
   rows?: number
-  fieldKey?: string
   disabled?: boolean
 }
+
+const LANG_OPTIONS = [
+  { label: '中', value: 'zh' },
+  { label: 'ไทย', value: 'th' },
+  { label: 'EN', value: 'en' },
+]
 
 export default function MultiLangInput({
   value = {},
@@ -28,20 +32,52 @@ export default function MultiLangInput({
   rows = 2,
   disabled = false,
 }: MultiLangInputProps) {
-  const { language } = useI18n()
-  const activeLang = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
+  const [activeLang, setActiveLang] = useState<'zh' | 'th' | 'en'>('zh')
   const InputComp = textarea ? Input.TextArea : Input
 
+  const current = value[activeLang] ?? ''
+  const filled = {
+    zh: !!(value.zh?.trim()),
+    th: !!(value.th?.trim()),
+    en: !!(value.en?.trim()),
+  }
+
   return (
-    <InputComp
-      value={((value as any)[activeLang]) ?? ''}
-      onChange={(e) =>
-        onChange?.({ ...value, [activeLang]: (e as any).target.value })
-      }
-      placeholder={placeholder}
-      rows={textarea ? rows : undefined}
-      disabled={disabled}
-    />
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6, gap: 6 }}>
+        {LANG_OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setActiveLang(opt.value as 'zh' | 'th' | 'en')}
+            style={{
+              padding: '2px 10px',
+              borderRadius: 4,
+              border: `1px solid ${activeLang === opt.value ? '#1677ff' : '#d9d9d9'}`,
+              background: activeLang === opt.value ? '#e6f4ff' : '#fff',
+              color: activeLang === opt.value ? '#1677ff' : filled[opt.value as 'zh'|'th'|'en'] ? '#52c41a' : '#999',
+              fontWeight: activeLang === opt.value ? 600 : 400,
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+          >
+            {opt.label}
+            {filled[opt.value as 'zh'|'th'|'en'] && activeLang !== opt.value && (
+              <span style={{ marginLeft: 3, color: '#52c41a' }}>✓</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <InputComp
+        value={current}
+        onChange={(e) =>
+          onChange?.({ ...value, [activeLang]: (e as any).target.value })
+        }
+        placeholder={placeholder || `请输入${activeLang === 'zh' ? '中文' : activeLang === 'th' ? '泰文' : '英文'}内容`}
+        rows={textarea ? rows : undefined}
+        disabled={disabled}
+      />
+    </div>
   )
 }
 

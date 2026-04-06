@@ -13,9 +13,16 @@ import {
 import { useNavigate } from 'react-router-dom'
 import SharePromoModal from '../../components/SharePromoModal'
 import MediaUploadField from '../../components/MediaUploadField'
+import MultiLangInput, { AutoTranslateButton, type MultiLangValue } from '../../components/MultiLangInput'
 import dayjs from 'dayjs'
-import { useI18n } from '../../i18n'
+import { useI18n, pickLocalizedText } from '../../i18n'
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
+
+const toMlObj = (v: any): MultiLangValue => {
+  if (!v) return { zh: '', th: '', en: '' }
+  if (typeof v === 'object') return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
+  return { zh: String(v), th: '', en: '' }
+}
 
 export default function ActivityManage() {
   const { t } = useI18n()
@@ -63,10 +70,10 @@ export default function ActivityManage() {
 
   const toLocal = (a: any) => ({
     id: a.activity_id,
-    name: a.activity_name || '',
-    subTitle: a.activity_subtitle || '',
+    name: toMlObj(a.activity_name || a.activity_title),
+    subTitle: toMlObj(a.activity_subtitle),
     activityType: a.activity_type || 'general',
-    description: a.activity_desc || '',
+    description: toMlObj(a.activity_desc),
     start_at: a.start_time || '',
     end_at: a.end_time || '',
     status: a.status || 'draft',
@@ -75,10 +82,10 @@ export default function ActivityManage() {
     ownerDept: a.owner_dept || '',
     partnerDept: a.partner_dept || '',
     couponName: a.coupon_name || '',
-    highlights: a.highlights || '',
-    participationGuide: a.participation_guide || '',
-    rewardGuide: a.reward_guide || '',
-    noticeText: a.notice_text || '',
+    highlights: toMlObj(a.highlights),
+    participationGuide: toMlObj(a.participation_guide),
+    rewardGuide: toMlObj(a.reward_guide),
+    noticeText: toMlObj(a.notice_text),
     coverImage: a.cover_image || '',
     coverVideo: a.cover_video || '',
     requireFollow: !!a.require_oa_follow,
@@ -230,10 +237,12 @@ export default function ActivityManage() {
   const handleFormOk = async () => {
     try {
       const values = await form.validateFields()
+      const ensureML = (v: any): MultiLangValue =>
+        v && typeof v === 'object' ? v : { zh: v || '', th: '', en: '' }
       const backendPayload: Record<string, unknown> = {
-        activity_name: values.name,
-        activity_subtitle: values.subTitle || '',
-        activity_desc: values.description || '',
+        activity_name: ensureML(values.name),
+        activity_subtitle: ensureML(values.subTitle),
+        activity_desc: ensureML(values.description),
         activity_type: values.activityType || 'general',
         start_time: values.dateRange?.[0]?.format('YYYY-MM-DD HH:mm:ss') || '',
         end_time: values.dateRange?.[1]?.format('YYYY-MM-DD HH:mm:ss') || '',
@@ -244,10 +253,10 @@ export default function ActivityManage() {
         owner_dept: values.ownerDept || '',
         partner_dept: values.partnerDept || '',
         coupon_name: values.couponName || '',
-        highlights: values.highlights || '',
-        participation_guide: values.participationGuide || '',
-        reward_guide: values.rewardGuide || '',
-        notice_text: values.noticeText || '',
+        highlights: ensureML(values.highlights),
+        participation_guide: ensureML(values.participationGuide),
+        reward_guide: ensureML(values.rewardGuide),
+        notice_text: ensureML(values.noticeText),
         cover_image: coverImage,
         cover_video: coverVideo,
         template_id: values.template_id || '',
@@ -271,12 +280,16 @@ export default function ActivityManage() {
   const columns = [
     {
       title: am('colName'), dataIndex: 'name', key: 'name', width: 220,
-      render: (v: string, row: any) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{v}</div>
-          <div style={{ marginTop: 4, color: '#888', fontSize: 12 }}>{row.subTitle || '--'}</div>
-        </div>
-      ),
+      render: (v: any, row: any) => {
+        const displayName = typeof v === 'object' ? (v?.zh || v?.en || v?.th || '—') : (v || '—')
+        const displaySub = typeof row.subTitle === 'object' ? (row.subTitle?.zh || '') : (row.subTitle || '')
+        return (
+          <div>
+            <div style={{ fontWeight: 600 }}>{displayName}</div>
+            <div style={{ marginTop: 4, color: '#888', fontSize: 12 }}>{displaySub || '--'}</div>
+          </div>
+        )
+      },
     },
     {
       title: am('colType'), dataIndex: 'activityType', key: 'activityType', width: 120,
@@ -462,12 +475,15 @@ export default function ActivityManage() {
         <Form form={form} layout="vertical">
           <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>{am('dividerMedia')}</span></Divider>
 
-          <Form.Item name="name" label={am('formName')} rules={[{ required: true, message: am('formNameRequired') }]}>
-            <Input placeholder={am('formNamePlaceholder')} />
+          <Form.Item name="name" label={am('formName')} rules={[{ required: true, validator: (_: any, val: any) => {
+            const zh = typeof val === 'object' ? (val?.zh || '').trim() : (val || '').trim()
+            return zh ? Promise.resolve() : Promise.reject(new Error(am('formNameRequired')))
+          }}]}>
+            <MultiLangInput placeholder={am('formNamePlaceholder')} />
           </Form.Item>
 
           <Form.Item name="subTitle" label={am('formSubTitle')}>
-            <Input placeholder={am('formSubTitlePlaceholder')} />
+            <MultiLangInput placeholder={am('formSubTitlePlaceholder')} />
           </Form.Item>
 
           <Row gutter={16}>
@@ -485,20 +501,42 @@ export default function ActivityManage() {
 
           <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>{am('dividerContent')}</span></Divider>
 
+          <AutoTranslateButton
+            sourceLang="zh"
+            getTexts={() => {
+              const v = form.getFieldsValue()
+              return {
+                name: v.name?.zh || '',
+                subTitle: v.subTitle?.zh || '',
+                description: v.description?.zh || '',
+                highlights: v.highlights?.zh || '',
+                participationGuide: v.participationGuide?.zh || '',
+                rewardGuide: v.rewardGuide?.zh || '',
+                noticeText: v.noticeText?.zh || '',
+              }
+            }}
+            onResult={(result) => {
+              const patch: Record<string, MultiLangValue> = {}
+              const fields = ['name','subTitle','description','highlights','participationGuide','rewardGuide','noticeText']
+              fields.forEach(f => { if (result[f]) patch[f] = result[f] })
+              form.setFieldsValue(patch)
+            }}
+          />
+
           <Form.Item name="description" label={am('formDescription')}>
-            <Input.TextArea rows={3} placeholder={am('formDescriptionHint')} />
+            <MultiLangInput textarea rows={3} placeholder={am('formDescriptionHint')} />
           </Form.Item>
           <Form.Item name="highlights" label={am('formHighlights')}>
-            <Input.TextArea rows={2} placeholder={am('formHighlightsHint')} />
+            <MultiLangInput textarea rows={2} placeholder={am('formHighlightsHint')} />
           </Form.Item>
           <Form.Item name="participationGuide" label={am('formParticipation')}>
-            <Input.TextArea rows={2} placeholder={am('formParticipationHint')} />
+            <MultiLangInput textarea rows={2} placeholder={am('formParticipationHint')} />
           </Form.Item>
           <Form.Item name="rewardGuide" label={am('formReward')}>
-            <Input.TextArea rows={2} placeholder={am('formRewardHint')} />
+            <MultiLangInput textarea rows={2} placeholder={am('formRewardHint')} />
           </Form.Item>
           <Form.Item name="noticeText" label={am('formNotice')}>
-            <Input.TextArea rows={2} placeholder={am('formNoticeHint')} />
+            <MultiLangInput textarea rows={2} placeholder={am('formNoticeHint')} />
           </Form.Item>
 
           <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>{am('dividerBiz')}</span></Divider>

@@ -433,6 +433,22 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### ActivityManage 多语化完整重构（2026-04）
+
+| 改动 | 文件 | 状态 |
+|------|------|------|
+| 表单 `name`/`subTitle` 字段替换为 `MultiLangInput` | ActivityManage.tsx | ✅ |
+| 表单内容区所有 TextArea 替换为 `MultiLangInput textarea` | ActivityManage.tsx | ✅ |
+| 内容区新增 `AutoTranslateButton`（一键翻译所有字段到 th/en） | ActivityManage.tsx | ✅ |
+| `handleFormOk` 用 `ensureML()` 确保所有字段发送 `{zh,th,en}` 对象 | ActivityManage.tsx | ✅ |
+| 表格 name 列安全处理 `activity_name` 为对象的情况 | ActivityManage.tsx | ✅ |
+| 后端 `handleActivityCreate` 支持 `activity_name` 为 `{zh,th,en}` 对象 | activities.js | ✅ |
+| `ActivityUserPage` 从 mock 数据切换为真实 API (`/growth/activities/:id`) | ActivityUserPage.tsx | ✅ |
+| `ActivityUserPage` 新增加载态 + 404 容错 + `requireFollow` 真实字段驱动 | ActivityUserPage.tsx | ✅ |
+| `WelfareHomePage` `toML()` 辅助函数处理多语对象型 activity_name | WelfareHomePage.tsx | ✅ |
+| `detail.joinActivity` 翻译 key 补充三语 | i18n/index.tsx | ✅ |
+| activities.json 恢复 act_001/act_002 示例数据（多语格式） | data/activities.json | ✅ |
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
