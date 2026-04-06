@@ -113,6 +113,47 @@ import {
   handleUserBenefits,
   handleUserOrders,
 } from "./routes/user-profile.js";
+import {
+  handleAgentsList,
+  handleAgentsUpdate,
+  handleAgentToggle,
+  handleKeywordsList,
+  handleKeywordsSave,
+  handleSkillsList,
+  handleSkillsCreate,
+  handleSkillsUpdate,
+  handleSkillsDelete,
+  handleCardTemplatesList,
+  handleCardTemplatesCreate,
+  handleCardTemplatesUpdate,
+  handleCardTemplatesDelete,
+  handlePolicyContentsList,
+  handlePolicyContentsSave,
+  handleKpiMetricsList,
+  handleKpiMetricsCreate,
+  handleKpiMetricsUpdate,
+  handleKpiMetricsDelete,
+  handleReportTemplatesList,
+  handleReportTemplatesCreate,
+  handleReportTemplatesUpdate,
+  handleReportTemplatesDelete,
+  handleAlertRulesList,
+  handleAlertRulesCreate,
+  handleAlertRulesUpdate,
+  handleAlertRulesDelete,
+  handleActionSuggestionsList,
+  handleActionSuggestionsCreate,
+  handleActionSuggestionsUpdate,
+  handleActionSuggestionsDelete,
+  handleIssueTypesList,
+  handleIssueTypesCreate,
+  handleIssueTypesUpdate,
+  handleIssueTypesDelete,
+  handleRepairActionsList,
+  handleRepairActionsCreate,
+  handleRepairActionsUpdate,
+  handleRepairActionsDelete,
+} from "./routes/agent-admin.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -625,6 +666,147 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/admin/agent/metrics") {
       return handleAdminAgentMetricsGet(req, res, url, sendJson);
+    }
+
+    // ── Agent 配置管理（新增数据表 CRUD）────────────────────────────────────
+
+    // Agents 基础信息
+    if (req.method === "GET" && url.pathname === "/api/admin/agents") {
+      return handleAgentsList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/agents\/[^/]+\/update$/.test(url.pathname)) {
+      return handleAgentsUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/agents\/[^/]+\/toggle$/.test(url.pathname)) {
+      return handleAgentToggle(req, res, url, sendJson, readBody);
+    }
+
+    // 角色关键词
+    if (req.method === "GET" && url.pathname === "/api/admin/agent-keywords") {
+      return handleKeywordsList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/agent-keywords/save") {
+      return handleKeywordsSave(req, res, url, sendJson, readBody);
+    }
+
+    // Skills
+    if (req.method === "GET" && url.pathname === "/api/admin/agent-skills") {
+      return handleSkillsList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/agent-skills") {
+      return handleSkillsCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/agent-skills\/\d+\/update$/.test(url.pathname)) {
+      return handleSkillsUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/agent-skills\/\d+\/delete$/.test(url.pathname)) {
+      return handleSkillsDelete(req, res, url, sendJson);
+    }
+
+    // 问问卡片模板
+    if (req.method === "GET" && url.pathname === "/api/admin/wenwen/card-templates") {
+      return handleCardTemplatesList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/wenwen/card-templates") {
+      return handleCardTemplatesCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/wenwen\/card-templates\/\d+\/update$/.test(url.pathname)) {
+      return handleCardTemplatesUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/wenwen\/card-templates\/\d+\/delete$/.test(url.pathname)) {
+      return handleCardTemplatesDelete(req, res, url, sendJson);
+    }
+
+    // 协议内容
+    if (req.method === "GET" && url.pathname === "/api/admin/wenwen/policy-contents") {
+      return handlePolicyContentsList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/wenwen/policy-contents/save") {
+      return handlePolicyContentsSave(req, res, url, sendJson, readBody);
+    }
+
+    // 业务 KPI 指标
+    if (req.method === "GET" && url.pathname === "/api/admin/biz/kpi-metrics") {
+      return handleKpiMetricsList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/biz/kpi-metrics") {
+      return handleKpiMetricsCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/biz\/kpi-metrics\/\d+\/update$/.test(url.pathname)) {
+      return handleKpiMetricsUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/biz\/kpi-metrics\/\d+\/delete$/.test(url.pathname)) {
+      return handleKpiMetricsDelete(req, res, url, sendJson);
+    }
+
+    // 报表模板
+    if (req.method === "GET" && url.pathname === "/api/admin/biz/report-templates") {
+      return handleReportTemplatesList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/biz/report-templates") {
+      return handleReportTemplatesCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/biz\/report-templates\/\d+\/update$/.test(url.pathname)) {
+      return handleReportTemplatesUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/biz\/report-templates\/\d+\/delete$/.test(url.pathname)) {
+      return handleReportTemplatesDelete(req, res, url, sendJson);
+    }
+
+    // 预警规则
+    if (req.method === "GET" && url.pathname === "/api/admin/biz/alert-rules") {
+      return handleAlertRulesList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/biz/alert-rules") {
+      return handleAlertRulesCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/biz\/alert-rules\/\d+\/update$/.test(url.pathname)) {
+      return handleAlertRulesUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/biz\/alert-rules\/\d+\/delete$/.test(url.pathname)) {
+      return handleAlertRulesDelete(req, res, url, sendJson);
+    }
+
+    // 动作建议模板
+    if (req.method === "GET" && url.pathname === "/api/admin/biz/action-suggestions") {
+      return handleActionSuggestionsList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/biz/action-suggestions") {
+      return handleActionSuggestionsCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/biz\/action-suggestions\/\d+\/update$/.test(url.pathname)) {
+      return handleActionSuggestionsUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/biz\/action-suggestions\/\d+\/delete$/.test(url.pathname)) {
+      return handleActionSuggestionsDelete(req, res, url, sendJson);
+    }
+
+    // 运维故障类型字典
+    if (req.method === "GET" && url.pathname === "/api/admin/ops/issue-types") {
+      return handleIssueTypesList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/ops/issue-types") {
+      return handleIssueTypesCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/ops\/issue-types\/\d+\/update$/.test(url.pathname)) {
+      return handleIssueTypesUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/ops\/issue-types\/\d+\/delete$/.test(url.pathname)) {
+      return handleIssueTypesDelete(req, res, url, sendJson);
+    }
+
+    // 运维修复动作字典
+    if (req.method === "GET" && url.pathname === "/api/admin/ops/repair-actions") {
+      return handleRepairActionsList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/ops/repair-actions") {
+      return handleRepairActionsCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/ops\/repair-actions\/\d+\/update$/.test(url.pathname)) {
+      return handleRepairActionsUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/ops\/repair-actions\/\d+\/delete$/.test(url.pathname)) {
+      return handleRepairActionsDelete(req, res, url, sendJson);
     }
 
     // ── 用户端积分接口 ────────────────────────────────────────────────────────

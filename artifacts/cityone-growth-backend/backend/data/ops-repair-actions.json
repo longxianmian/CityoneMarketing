@@ -1,0 +1,10 @@
+[
+  { "id": 1, "action_name": "清理前端 Token", "action_code": "clear_frontend_token", "issue_code": "token_expired", "description": "清除本地存储的过期 token，引导用户重新登录", "rollback_supported": true, "requires_approval": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 2, "action_name": "清理本地缓存", "action_code": "clear_local_cache", "issue_code": "stale_cache", "description": "清除浏览器本地缓存与 session storage", "rollback_supported": true, "requires_approval": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 3, "action_name": "重建权限树", "action_code": "rebuild_permission_tree", "issue_code": "menu_scope_mismatch", "description": "重新拉取并构建当前用户权限树", "rollback_supported": true, "requires_approval": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 4, "action_name": "重载用户资料", "action_code": "reload_user_profile", "issue_code": "permission_tree_outdated", "description": "从服务端重新加载用户资料与菜单配置", "rollback_supported": true, "requires_approval": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 5, "action_name": "重试失败接口", "action_code": "retry_failed_api", "issue_code": "temporary_api_failure", "description": "对失败接口进行最多3次自动重试", "rollback_supported": true, "requires_approval": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 6, "action_name": "重置 Agent 会话", "action_code": "reset_agent_session", "issue_code": "agent_session_reset", "description": "清除当前 Agent 会话上下文，创建新会话", "rollback_supported": false, "requires_approval": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 7, "action_name": "强制刷新页面", "action_code": "force_page_reload", "issue_code": "white_screen", "description": "强制重新加载页面以清除渲染错误", "rollback_supported": false, "requires_approval": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 8, "action_name": "申请服务重启授权", "action_code": "request_service_restart_auth", "issue_code": "api_unreachable", "description": "向超级管理员申请重启后端服务授权", "rollback_supported": true, "requires_approval": true, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" }
+]

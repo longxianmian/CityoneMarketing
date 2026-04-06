@@ -1,0 +1,7 @@
+[
+  { "id": 1, "metric_code": "cpf", "alert_condition": "cpf > 10", "risk_level": "high", "alert_text": "CPF 超过红线 10 元/人，需立即复盘渠道质量并暂停低效投放", "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 2, "metric_code": "valid_follow_rate_7d", "alert_condition": "valid_follow_rate_7d < 0.5", "risk_level": "high", "alert_text": "7天有效关注率低于50%，关注质量异常，需排查渠道来源", "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 3, "metric_code": "total_conversion_rate", "alert_condition": "total_conversion_rate < 0.2", "risk_level": "medium", "alert_text": "总转化率低于20%，承接链路可能存在断点，需检查欢迎语/卡券发放", "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 4, "metric_code": "coupon_redeem_rate", "alert_condition": "coupon_redeem_rate < 0.3", "risk_level": "medium", "alert_text": "券核销率低于30%，需检查发券时机与券面设计", "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 5, "metric_code": "new_site_30d_qualified_rate", "alert_condition": "new_site_30d_qualified_rate < 0.6", "risk_level": "high", "alert_text": "新开站30天达标率低于60%，需复盘站点选址标准与商户培训", "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" }
+]

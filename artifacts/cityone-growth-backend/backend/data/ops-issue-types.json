@@ -1,0 +1,11 @@
+[
+  { "id": 1, "issue_name": "Token 过期", "issue_code": "token_expired", "description": "用户或管理员 token 失效，导致鉴权失败", "risk_level": "low", "auto_repair_supported": true, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 2, "issue_name": "缓存陈旧", "issue_code": "stale_cache", "description": "前端或服务端缓存数据与最新状态不一致", "risk_level": "low", "auto_repair_supported": true, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 3, "issue_name": "菜单权限不匹配", "issue_code": "menu_scope_mismatch", "description": "用户菜单权限与角色配置不符，导致无法访问或看到错误菜单", "risk_level": "low", "auto_repair_supported": true, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 4, "issue_name": "权限树过时", "issue_code": "permission_tree_outdated", "description": "权限树结构未同步最新角色配置", "risk_level": "low", "auto_repair_supported": true, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 5, "issue_name": "接口临时失败", "issue_code": "temporary_api_failure", "description": "后端接口因网络或服务临时异常返回错误", "risk_level": "low", "auto_repair_supported": true, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 6, "issue_name": "Agent 会话重置", "issue_code": "agent_session_reset", "description": "Agent 会话上下文丢失，需要重置重建", "risk_level": "low", "auto_repair_supported": true, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 7, "issue_name": "前端白屏", "issue_code": "white_screen", "description": "H5 或管理后台页面白屏无内容", "risk_level": "medium", "auto_repair_supported": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 8, "issue_name": "接口不可达", "issue_code": "api_unreachable", "description": "后端服务接口完全不可访问", "risk_level": "high", "auto_repair_supported": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 9, "issue_name": "组件异常", "issue_code": "component_broken", "description": "特定 UI 组件功能异常或样式错乱", "risk_level": "medium", "auto_repair_supported": false, "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" }
+]

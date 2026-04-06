@@ -1,0 +1,747 @@
+下面这份你可以直接复制给 Replit AI 执行。
+
+---
+
+# CityOne Agent 模块第一步开发文档
+
+## 目标：先把现有 Agent 管理端从“展示骨架”补成“可配置骨架”
+
+## 一、开发原则
+
+1. **不推翻现有页面骨架重做**
+
+   * 必须基于当前已有的管理端菜单、页面路由、模块结构做增量开发。
+   * 不允许另起一套新的 Agent 管理系统。
+
+2. **第一步只做“可配置骨架”**
+
+   * 先完成后台配置能力、数据表、保存与读取。
+   * 先不做复杂自动执行链路。
+   * 用户端问问先不做完整智能执行，只预留配置和前后端结构。
+
+3. **必须保护当前可运行基线**
+
+   * 不要大范围替换现有代码。
+   * 必须优先在现有页面中定点补充模块。
+   * 每个改动都要尽量可回退。
+
+4. **多语言先保留结构**
+
+   * 本步所有新增字段必须预留中/泰/英三语能力。
+   * 即使当前先只录一套数据，字段结构也不能写死单语言。
+
+---
+
+# 二、第一步总目标
+
+把当前 AI Agent 模块补成可配置后台，至少实现：
+
+* Agent 基础信息可配置
+* 角色关键词可配置
+* Skill 可配置
+* 路由规则可配置
+* 问问卡片模板可配置
+* 经营管理报表模板可配置
+* 系统运维故障/修复动作字典可配置
+* 日志/审计结构建好
+* 页面保存、读取、启停都能跑通
+
+---
+
+# 三、第一步开发范围
+
+## 1. 保留现有页面与菜单，不重做导航
+
+基于现有左侧菜单继续完善：
+
+* 问问 Agent
+* 业务管理 Agent
+* 系统运维 Agent
+* Agent 配置
+* 意图管理
+* 工具管理
+* 会话日志
+* 指标看板
+
+---
+
+## 2. 问问 Agent：第一步要补成“可配置页面”
+
+当前页面不能只展示“核心能力范围”，要补成以下配置模块：
+
+### 2.1 基础信息区
+
+字段建议：
+
+* Agent 名称
+* agentCode
+* Agent 简介
+* 是否启用
+* 默认语言
+* 支持语言列表
+* 排序值
+
+### 2.2 角色关键词配置区
+
+必须支持编辑以下内容：
+
+* 身份关键词
+* 核心职责关键词
+* 服务原则关键词
+* 输出要求关键词
+* 禁止漂移关键词
+
+保存形式建议：
+
+* 富文本或多段文本
+* 支持中/泰/英
+
+### 2.3 Skill 配置区
+
+至少支持：
+
+* Skill 名称
+* Skill code
+* Skill 描述
+* JSON Schema
+* 风险等级
+* 是否需要确认
+* 是否启用
+* 备注
+
+问问第一步先录入这些 Skill：
+
+* match_support_sop
+* check_user_reward_eligibility
+* recommend_nearby_service_action
+* route_customer_case
+* push_benefit_cards
+* push_task_result_card
+* push_growth_invitation_card
+* push_confirmation_card
+* push_payment_confirmation_card
+* fetch_policy_content
+
+### 2.4 意图映射配置区
+
+配置关系：
+
+* 意图名称
+* 意图 code
+* 命中关键词
+* 路由到的 Skill
+* 优先级
+* 是否启用
+
+问问至少先支持这些意图：
+
+* discount
+* activity
+* coupon
+* points
+* membership
+* policy
+* borrow_help
+* payment_help
+* nearby_site
+
+### 2.5 卡片模板配置区
+
+必须支持新增/编辑/预览：
+
+* 优惠推荐卡片
+* 任务结果卡片
+* 裂变引导卡片
+* 规则说明卡片
+* 确认操作卡片
+* 支付确认卡片
+
+每种卡片至少要支持：
+
+* cardType
+* 标题
+* 描述
+* 按钮文案
+* 跳转页面
+* payload schema
+* 是否启用
+* 多语言字段
+
+### 2.6 裂变引导配置区
+
+至少支持：
+
+* 触发场景
+* 引导文案
+* 关联卡片模板
+* 关联积分规则说明
+* 是否启用
+
+### 2.7 协议与规则配置入口
+
+问问页面先放配置入口或关联配置块：
+
+* 会员服务条款
+* 积分规则
+* 用户协议
+* 隐私政策
+* 服务条款
+* 未配置占位文案
+
+---
+
+## 3. 系统运维 Agent：第一步要补成“可配置页面”
+
+当前页面不能只展示“监测范围占位”，要补成以下配置模块：
+
+### 3.1 基础信息区
+
+字段：
+
+* Agent 名称
+* agentCode
+* 简介
+* 是否启用
+* 默认风险策略
+
+### 3.2 角色关键词配置区
+
+必须支持编辑：
+
+* 身份关键词
+* 核心职责关键词
+* 执行原则关键词
+* 输出要求关键词
+* 禁止漂移关键词
+
+### 3.3 故障类型字典配置区
+
+至少支持：
+
+* 故障类型名称
+* code
+* 描述
+* 风险等级
+* 是否支持自动修复
+* 是否启用
+
+建议先预置：
+
+* token_expired
+* stale_cache
+* menu_scope_mismatch
+* permission_tree_outdated
+* temporary_api_failure
+* agent_session_reset
+* white_screen
+* api_unreachable
+* component_broken
+
+### 3.4 自动修复动作字典配置区
+
+至少支持：
+
+* 动作名称
+* code
+* 对应故障类型
+* 动作说明
+* 是否可回滚
+* 是否默认启用
+
+### 3.5 高风险动作配置区
+
+至少支持：
+
+* 动作名称
+* code
+* 风险等级
+* 是否必须超级管理员授权
+* 回滚模板
+* 备注
+
+### 3.6 授权流配置区
+
+先做配置结构，不必做复杂审批流程 UI：
+
+* 授权级别
+* 审批角色
+* 是否双确认
+* 回滚是否必填
+* 是否启用
+
+### 3.7 故障报告模板配置区
+
+至少支持：
+
+* 模板名称
+* 适用场景
+* 模板内容
+* 是否默认模板
+
+---
+
+## 4. 业务管理 Agent：第一步要补成“可配置页面”
+
+当前不能只做静态展示，要补成以下配置模块：
+
+### 4.1 基础信息区
+
+字段：
+
+* Agent 名称
+* agentCode
+* 简介
+* 是否启用
+
+### 4.2 角色关键词配置区
+
+支持编辑：
+
+* 身份关键词
+* 核心职责关键词
+* 工作原则关键词
+* 输出要求关键词
+* 禁止漂移关键词
+
+### 4.3 KPI 指标字典配置区
+
+按三部门分组配置：
+
+#### 商务部
+
+* 新增设备数
+* 新增站点数
+* 站点分级占比
+* 新开站30天达标率
+* 低效点替换率
+* 商户配合度达标率
+
+#### 推广部
+
+* 新增关注数
+* CPF
+* 7天有效关注率
+* 测试矩阵完成率
+* 周复盘沉淀完成率
+
+#### 运营部
+
+* 新增使用用户
+* 总转化率
+* 券核销率
+* 券后7天付费转化
+* 二次使用率
+* 单台日均总使用次数
+* SOP/承接闭环完成率
+
+字段建议：
+
+* 指标名称
+* code
+* 所属部门
+* 指标说明
+* 目标值
+* 单位
+* 统计周期
+* 是否启用
+
+### 4.4 报表模板配置区
+
+至少支持：
+
+* 日报模板
+* 周报模板
+* 月报模板
+* 综合经营分析模板
+* 活动复盘模板
+* 渠道复盘模板
+* 站点复盘模板
+
+字段建议：
+
+* 模板名称
+* 模板类型
+* 所属部门
+* 表头结构
+* 默认指标列表
+* 是否启用
+
+### 4.5 预警规则配置区
+
+至少支持：
+
+* 指标 code
+* 预警条件
+* 风险等级
+* 提示文案
+* 是否启用
+
+### 4.6 动作建议模板配置区
+
+至少支持：
+
+* 适用部门
+* 适用场景
+* 建议模板内容
+* 是否启用
+
+---
+
+# 四、公共模块第一步必须补齐
+
+## 1. Agent 配置页
+
+实现统一配置列表：
+
+* Agent 列表
+* 启用/停用
+* 编辑入口
+* 排序
+* 基础信息编辑
+
+## 2. 意图管理页
+
+实现：
+
+* 意图列表
+* 新增/编辑/删除
+* 绑定 Agent
+* 绑定 Skill
+* 优先级
+* 是否启用
+
+## 3. 工具管理页
+
+实现：
+
+* 工具/Skill 列表
+* 所属 Agent
+* JSON Schema 展示
+* 风险等级
+* 是否需要确认
+* 是否启用
+
+## 4. 会话日志页
+
+第一步只要能展示结构，不要求完整真实执行：
+
+字段建议：
+
+* 会话ID
+* Agent
+* 用户ID
+* 命中意图
+* 调用 Skill
+* 执行状态
+* 风险等级
+* 创建时间
+
+## 5. 指标看板页
+
+第一步先做骨架：
+
+* 问问卡片调用次数占位
+* Skill 调用次数占位
+* Agent 会话数占位
+* 日志数占位
+* 预警数占位
+
+先允许假数据或空态，不要求接真实统计。
+
+---
+
+# 五、第一步数据库设计要求
+
+第一步至少建立这些表：
+
+## 1. agents
+
+字段建议：
+
+* id
+* agent_code
+* agent_name
+* role_summary
+* is_enabled
+* sort_order
+* default_language
+* supported_languages
+* created_at
+* updated_at
+
+## 2. agent_role_keywords
+
+* id
+* agent_code
+* language
+* identity_keywords
+* responsibility_keywords
+* execution_keywords
+* boundary_keywords
+* output_keywords
+* forbidden_keywords
+* updated_at
+
+## 3. agent_skills
+
+* id
+* agent_code
+* skill_name
+* skill_code
+* skill_description
+* json_schema
+* risk_level
+* requires_approval
+* requires_user_confirmation
+* is_enabled
+* updated_at
+
+## 4. agent_intents
+
+* id
+* intent_name
+* intent_code
+* description
+* keywords
+* route_agent_code
+* route_skill_code
+* priority
+* is_enabled
+* updated_at
+
+## 5. wenwen_card_templates
+
+* id
+* card_type
+* language
+* title
+* description
+* button_config
+* payload_schema
+* target_page
+* is_enabled
+* updated_at
+
+## 6. policy_contents
+
+* id
+* policy_type
+* language
+* title
+* content
+* status
+* updated_at
+
+## 7. business_kpi_metrics
+
+* id
+* department
+* metric_name
+* metric_code
+* target_value
+* unit
+* period_type
+* description
+* is_enabled
+* updated_at
+
+## 8. report_templates
+
+* id
+* template_name
+* template_type
+* department
+* table_schema
+* metric_codes
+* is_enabled
+* updated_at
+
+## 9. ops_issue_types
+
+* id
+* issue_name
+* issue_code
+* description
+* risk_level
+* auto_repair_supported
+* is_enabled
+* updated_at
+
+## 10. ops_repair_actions
+
+* id
+* action_name
+* action_code
+* issue_code
+* description
+* rollback_supported
+* requires_approval
+* is_enabled
+* updated_at
+
+## 11. agent_action_logs
+
+第一步先建表，后续第二步再接真实写入：
+
+* id
+* agent_code
+* session_id
+* user_id
+* operator_id
+* skill_code
+* intent_code
+* risk_level
+* execution_status
+* input_payload
+* output_payload
+* approved_by
+* rollback_info
+* created_at
+
+---
+
+# 六、第一步接口要求
+
+第一步必须把“配置型接口”补齐，至少做到新增、编辑、查询、启停。
+
+建议优先补这些 API：
+
+## 通用
+
+* 获取 Agent 列表
+* 获取 Agent 详情
+* 保存 Agent 基础信息
+* 保存角色关键词
+* 获取/保存 Skill 列表
+* 获取/保存意图列表
+* 获取/保存日志列表（先支持空数据）
+
+## 问问
+
+* 获取/保存卡片模板
+* 获取/保存裂变引导配置
+* 获取/保存协议内容
+* 获取/保存问问意图映射
+
+## 业务管理
+
+* 获取/保存 KPI 指标
+* 获取/保存报表模板
+* 获取/保存预警规则
+* 获取/保存动作建议模板
+
+## 系统运维
+
+* 获取/保存故障类型字典
+* 获取/保存自动修复动作
+* 获取/保存高风险动作
+* 获取/保存授权流模板
+* 获取/保存故障报告模板
+
+---
+
+# 七、第一步前端实现要求
+
+## 1. 现有页面增量补模块
+
+不要推翻当前页面，只在现有页面中增加：
+
+* 配置表单区
+* 配置列表区
+* JSON Schema 编辑区
+* 模板预览区
+* 启停开关
+* 保存按钮
+
+## 2. 所有页面统一要求
+
+* 使用当前项目现有 UI 风格
+* 保持当前中后台布局不变
+* 新增模块保持可折叠或分区展示
+* 所有表单支持保存成功提示
+* 所有空数据页要有占位文案
+* 所有高风险配置要有明显标识
+
+## 3. JSON Schema 区域
+
+Skill 的 JSON Schema 建议先做：
+
+* 文本编辑框
+* 格式化展示
+* 基础校验
+* 保存前校验 JSON 合法性
+
+---
+
+# 八、第一步验收标准
+
+第一步完成后，必须达到以下验收结果：
+
+## 通用验收
+
+* 三个 Agent 都能打开独立配置页
+* 都能保存基础信息
+* 都能保存角色关键词
+* 都能保存 Skill
+* 都能启用/停用
+
+## 问问验收
+
+* 能配置卡片模板
+* 能配置意图映射
+* 能配置裂变引导文案
+* 能配置协议内容
+* 能配置支付确认模板
+
+## 系统运维验收
+
+* 能配置故障类型
+* 能配置自动修复动作
+* 能配置高风险动作
+* 能配置授权流模板
+* 能配置故障报告模板
+
+## 业务管理验收
+
+* 能配置 KPI 指标
+* 能配置日报/周报/月报模板
+* 能配置活动/渠道/站点复盘模板
+* 能配置预警规则
+* 能配置动作建议模板
+
+## 技术验收
+
+* 对应数据表已建好
+* 对应 CRUD 接口可用
+* 前端配置页能真实保存和回显
+* 不破坏当前已有页面和菜单
+* 不出现大面积白屏或路由损坏
+
+---
+
+# 九、明确禁止事项
+
+1. 不允许推翻现有 Agent 页面重做
+2. 不允许脱离当前菜单结构另做新导航
+3. 不允许第一步就硬上复杂自动执行链路
+4. 不允许跳过数据表直接写死前端假配置
+5. 不允许只做静态页面不接保存接口
+6. 不允许擅自改动现有可运行主流程
+7. 不允许整文件盲目替换未知代码
+
+---
+
+# 十、交付要求
+
+第一步交付时，请同时给出：
+
+1. 改动文件清单
+2. 新增数据表清单
+3. 新增接口清单
+4. 每个页面新增了哪些配置模块
+5. 当前未完成但已预留的第二步接口点
+6. 本地/预览环境验证方式
+
+---
+
+如果你愿意，我下一条直接继续给你写 **第二步开发文档**，这样你可以分批丢给 Replit AI。

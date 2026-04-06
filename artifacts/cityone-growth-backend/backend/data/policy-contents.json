@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1,
+    "policy_type": "member_terms",
+    "language": "zh",
+    "title": "会员服务条款",
+    "content": "（请在此处填写会员服务条款正文）",
+    "status": "draft",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "policy_type": "points_rules",
+    "language": "zh",
+    "title": "积分规则",
+    "content": "（请在此处填写积分规则正文）",
+    "status": "draft",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "policy_type": "user_agreement",
+    "language": "zh",
+    "title": "用户协议",
+    "content": "（请在此处填写用户协议正文）",
+    "status": "draft",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 4,
+    "policy_type": "privacy_policy",
+    "language": "zh",
+    "title": "隐私政策",
+    "content": "（请在此处填写隐私政策正文）",
+    "status": "draft",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 5,
+    "policy_type": "service_terms",
+    "language": "zh",
+    "title": "服务条款",
+    "content": "（请在此处填写服务条款正文）",
+    "status": "draft",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  }
+]

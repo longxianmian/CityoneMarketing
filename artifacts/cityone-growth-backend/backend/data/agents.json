@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1,
+    "agent_code": "wenwen",
+    "agent_name": { "zh": "问问", "th": "ถามดู", "en": "Ask" },
+    "display_name": { "zh": "问问", "th": "ถามดู", "en": "Wenwen" },
+    "role_summary": { "zh": "用户咨询服务、卡片式任务助手、裂变引导与权益承接", "th": "บริการสอบถาม ผู้ช่วยงานแบบการ์ด นำทางบอกต่อและรับสิทธิ์", "en": "User consultation, card-based task assistant, fission guidance and benefit delivery" },
+    "is_enabled": true,
+    "sort_order": 1,
+    "default_language": "zh",
+    "supported_languages": ["zh", "th", "en"],
+    "color": "#1677ff",
+    "icon": "robot",
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "agent_code": "digital_business_manager",
+    "agent_name": { "zh": "数字经营管理助手", "th": "ผู้ช่วยจัดการธุรกิจดิจิทัล", "en": "Digital Business Manager" },
+    "display_name": { "zh": "经营中枢", "th": "ศูนย์ธุรกิจ", "en": "Biz Hub" },
+    "role_summary": { "zh": "三部门经营报表、KPI 分析、复盘与预警", "th": "รายงานธุรกิจ 3 แผนก วิเคราะห์ KPI สรุปและแจ้งเตือน", "en": "3-department business reports, KPI analysis, review and alerts" },
+    "is_enabled": true,
+    "sort_order": 2,
+    "default_language": "zh",
+    "supported_languages": ["zh", "th", "en"],
+    "color": "#722ed1",
+    "icon": "bar-chart",
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "agent_code": "digital_ops_engineer",
+    "agent_name": { "zh": "数字运维工程师", "th": "วิศวกรดูแลระบบดิจิทัล", "en": "Digital Ops Engineer" },
+    "display_name": { "zh": "数维工程师", "th": "วิศวกรดิจิทัล", "en": "Ops Engineer" },
+    "role_summary": { "zh": "生产级系统运维、诊断、修复、上报", "th": "บำรุงรักษาระบบระดับ production วินิจฉัย แก้ไข รายงาน", "en": "Production-grade system ops, diagnostics, repair, and escalation" },
+    "is_enabled": true,
+    "sort_order": 3,
+    "default_language": "zh",
+    "supported_languages": ["zh", "th", "en"],
+    "color": "#fa8c16",
+    "icon": "tool",
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  }
+]

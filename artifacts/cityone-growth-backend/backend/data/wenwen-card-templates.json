@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "card_type": "benefit_recommend",
+    "language": "zh",
+    "title": "专属权益推荐",
+    "description": "根据您的身份为您推荐可领取的权益",
+    "button_config": [{"label": "立即领取", "action": "claim_benefit"}, {"label": "查看详情", "action": "view_detail"}],
+    "payload_schema": "{\"type\":\"object\",\"properties\":{\"benefit_list\":{\"type\":\"array\"},\"expire_at\":{\"type\":\"string\"}}}",
+    "target_page": "/user/welfare",
+    "is_enabled": true,
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "card_type": "task_result",
+    "language": "zh",
+    "title": "操作结果",
+    "description": "您的操作已完成",
+    "button_config": [{"label": "返回首页", "action": "go_home"}, {"label": "继续", "action": "continue"}],
+    "payload_schema": "{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"},\"message\":{\"type\":\"string\"},\"data\":{\"type\":\"object\"}}}",
+    "target_page": "/user/home",
+    "is_enabled": true,
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "card_type": "growth_invitation",
+    "language": "zh",
+    "title": "邀请好友赚积分",
+    "description": "邀请好友关注公众号，双方均可获得积分奖励",
+    "button_config": [{"label": "立即邀请", "action": "open_invite_poster"}, {"label": "查看规则", "action": "view_rules"}],
+    "payload_schema": "{\"type\":\"object\",\"properties\":{\"invite_code\":{\"type\":\"string\"},\"reward_points\":{\"type\":\"number\"}}}",
+    "target_page": "/user/invite",
+    "is_enabled": true,
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 4,
+    "card_type": "policy_info",
+    "language": "zh",
+    "title": "规则说明",
+    "description": "请阅读相关规则说明",
+    "button_config": [{"label": "已了解", "action": "confirm_read"}],
+    "payload_schema": "{\"type\":\"object\",\"properties\":{\"policy_type\":{\"type\":\"string\"},\"content_url\":{\"type\":\"string\"}}}",
+    "target_page": "/user/policy",
+    "is_enabled": true,
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 5,
+    "card_type": "action_confirm",
+    "language": "zh",
+    "title": "操作确认",
+    "description": "请确认您要执行的操作",
+    "button_config": [{"label": "确认执行", "action": "confirm"}, {"label": "取消", "action": "cancel"}],
+    "payload_schema": "{\"type\":\"object\",\"properties\":{\"action_code\":{\"type\":\"string\"},\"action_desc\":{\"type\":\"string\"},\"risk_level\":{\"type\":\"string\"}}}",
+    "target_page": "",
+    "is_enabled": true,
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 6,
+    "card_type": "payment_confirm",
+    "language": "zh",
+    "title": "支付确认",
+    "description": "请确认支付金额与方式",
+    "button_config": [{"label": "确认支付", "action": "confirm_payment"}, {"label": "取消", "action": "cancel"}],
+    "payload_schema": "{\"type\":\"object\",\"properties\":{\"amount\":{\"type\":\"number\"},\"currency\":{\"type\":\"string\"},\"payment_method\":{\"type\":\"string\"},\"order_id\":{\"type\":\"string\"}}}",
+    "target_page": "/user/payment",
+    "is_enabled": true,
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  }
+]

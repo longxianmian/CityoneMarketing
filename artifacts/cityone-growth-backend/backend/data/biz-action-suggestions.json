@@ -1,0 +1,5 @@
+[
+  { "id": 1, "department": "marketing", "applicable_scene": "cpf_over_limit", "suggestion_content": "1. 立即暂停 CPF > 10 的渠道投放\n2. 分析当周各渠道 CPF 明细，找出低质量来源\n3. 优化落地页文案与 CTA，提升粉丝质量\n4. 下周优先测试 CPF < 5 的高质量渠道", "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 2, "department": "operations", "applicable_scene": "conversion_rate_low", "suggestion_content": "1. 检查欢迎语是否包含免费券引导\n2. 检查附近站点是否正确展示\n3. 检查卡券发放是否正常触发\n4. 复盘上周转化漏斗，找到断点", "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" },
+  { "id": 3, "department": "business", "applicable_scene": "new_site_underperform", "suggestion_content": "1. 与低效站点商户沟通协作方式\n2. 评估是否需要更换站点位置\n3. 加强对商户的设备维护培训\n4. 统计低效站点特征，优化选址标准", "is_enabled": true, "updated_at": "2025-01-01T00:00:00.000Z" }
+]
