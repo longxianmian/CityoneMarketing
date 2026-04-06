@@ -15,5 +15,22 @@
     "cover_video": "",
     "created_at": "2026-04-06T08:22:49.906Z",
     "updated_at": "2026-04-06T08:22:49.906Z"
+  },
+  {
+    "id": "coupon_002",
+    "name": "60分钟充电免费券",
+    "coupon_type": "general",
+    "discount_type": "free_time",
+    "discount_value": 19,
+    "min_amount": 0,
+    "total_count": 1000,
+    "claimed_count": 0,
+    "status": 1,
+    "valid_from": "2026-04-05T17:00:00.000Z",
+    "valid_to": "2026-04-29T17:00:00.000Z",
+    "cover_image": "/uploads/1775475464981_1094f388ced6.png",
+    "cover_video": "",
+    "created_at": "2026-04-06T11:37:48.567Z",
+    "updated_at": "2026-04-06T11:37:48.567Z"
   }
 ]

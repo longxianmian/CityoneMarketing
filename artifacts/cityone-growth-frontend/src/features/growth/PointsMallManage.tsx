@@ -103,7 +103,7 @@ export default function PointsMallManage() {
   const handleAdd = () => {
     setEditItem(null)
     form.resetFields()
-    form.setFieldsValue({ type: 'voucher', mode: 'points', thumbTone: 'slate', enabled: true, stock: 100, pricePoints: 1000, cash: 0, valueBaht: 0, heat: 0, sort_order: 0 })
+    form.setFieldsValue({ item_type: 'voucher', exchange_mode: 'points', thumbTone: 'slate', on_shelf: true, stock: 100, points_required: 1000, price_thb: 0, valueBaht: 0, heat: 0, sort_order: 0 })
     setCoverImage('')
     setModalOpen(true)
   }
@@ -115,7 +115,7 @@ export default function PointsMallManage() {
       highlights: Array.isArray(record.highlights) ? record.highlights.join('\n') : '',
       rules: Array.isArray(record.rules) ? record.rules.join('\n') : '',
     })
-    setCoverImage(record.coverImage || '')
+    setCoverImage(record.cover_image || '')
     setModalOpen(true)
   }
 
@@ -124,7 +124,7 @@ export default function PointsMallManage() {
       const values = await form.validateFields()
       const payload = {
         ...values,
-        coverImage,
+        cover_image: coverImage,
         highlights: (values.highlights || '').split('\n').filter(Boolean),
         rules: (values.rules || '').split('\n').filter(Boolean),
       }
@@ -153,11 +153,11 @@ export default function PointsMallManage() {
 
   const itemColumns = [
     {
-      title: pm('colThumb'), dataIndex: 'coverImage', key: 'thumb', width: 70,
+      title: pm('colThumb'), dataIndex: 'cover_image', key: 'thumb', width: 70,
       render: (v: string) => v ? <img src={v} alt="cover" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} /> : <div style={{ width: 48, height: 48, background: '#f0f0f0', borderRadius: 6 }} />,
     },
     {
-      title: pm('colTitle'), dataIndex: 'title', key: 'title', width: 180,
+      title: pm('colTitle'), dataIndex: 'name', key: 'name', width: 180,
       render: (v: string, r: any) => (
         <div>
           <div style={{ fontWeight: 600 }}>{v}</div>
@@ -166,25 +166,25 @@ export default function PointsMallManage() {
       ),
     },
     {
-      title: pm('colType'), dataIndex: 'type', key: 'type', width: 90,
+      title: pm('colType'), dataIndex: 'item_type', key: 'item_type', width: 90,
       render: (v: string) => <Tag color={typeColor[v] || 'default'}>{typeOptions.find(x => x.value === v)?.label || v}</Tag>,
     },
     {
-      title: pm('colMode'), dataIndex: 'mode', key: 'mode', width: 100,
+      title: pm('colMode'), dataIndex: 'exchange_mode', key: 'exchange_mode', width: 100,
       render: (v: string) => modeOptions.find(x => x.value === v)?.label || '--',
     },
     {
       title: pm('colPrice'), key: 'price', width: 140,
       render: (_: any, r: any) => (
         <div>
-          <span style={{ color: '#1677ff', fontWeight: 600 }}>{r.pricePoints}{pm('unitPoints')}</span>
-          {r.mode === 'mix' && r.cash > 0 && <span style={{ color: '#888', fontSize: 12 }}> + ฿{r.cash}</span>}
+          <span style={{ color: '#1677ff', fontWeight: 600 }}>{r.points_required}{pm('unitPoints')}</span>
+          {r.exchange_mode === 'mix' && r.price_thb > 0 && <span style={{ color: '#888', fontSize: 12 }}> + ฿{r.price_thb}</span>}
         </div>
       ),
     },
     { title: pm('colStock'), dataIndex: 'stock', key: 'stock', width: 80 },
     {
-      title: pm('colEnabled'), dataIndex: 'enabled', key: 'enabled', width: 80,
+      title: pm('colEnabled'), dataIndex: 'on_shelf', key: 'on_shelf', width: 80,
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? pm('statusOn') : pm('statusOff')}</Tag>,
     },
     {
@@ -237,11 +237,11 @@ export default function PointsMallManage() {
                 >
                   <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
                     <div style={{ display: 'flex', gap: 16 }}>
-                      <Form.Item name="title" label={pm('formTitle')} style={{ flex: 2 }} rules={[{ required: true }]}><Input /></Form.Item>
-                      <Form.Item name="type" label={pm('formType')} style={{ flex: 1 }} rules={[{ required: true }]}>
+                      <Form.Item name="name" label={pm('formTitle')} style={{ flex: 2 }} rules={[{ required: true }]}><Input /></Form.Item>
+                      <Form.Item name="item_type" label={pm('formType')} style={{ flex: 1 }} rules={[{ required: true }]}>
                         <Select options={typeOptions} />
                       </Form.Item>
-                      <Form.Item name="mode" label={pm('formMode')} style={{ flex: 1 }}>
+                      <Form.Item name="exchange_mode" label={pm('formMode')} style={{ flex: 1 }}>
                         <Select options={modeOptions} />
                       </Form.Item>
                     </div>
@@ -252,10 +252,10 @@ export default function PointsMallManage() {
                       <Form.Item name="thumbTone" label={pm('formTone')} style={{ flex: 1 }}>
                         <Select options={toneOptions} />
                       </Form.Item>
-                      <Form.Item name="pricePoints" label={pm('formPricePoints')} style={{ flex: 1 }}>
+                      <Form.Item name="points_required" label={pm('formPricePoints')} style={{ flex: 1 }}>
                         <InputNumber min={0} style={{ width: '100%' }} />
                       </Form.Item>
-                      <Form.Item name="cash" label={pm('formCash')} style={{ flex: 1 }}>
+                      <Form.Item name="price_thb" label={pm('formCash')} style={{ flex: 1 }}>
                         <InputNumber min={0} style={{ width: '100%' }} />
                       </Form.Item>
                       <Form.Item name="stock" label={pm('formStock')} style={{ flex: 1 }}>
@@ -288,7 +288,7 @@ export default function PointsMallManage() {
                     <Form.Item name="rules" label={pm('formRules')}>
                       <TextArea rows={3} placeholder={pm('formRulesHint')} />
                     </Form.Item>
-                    <Form.Item name="enabled" label={pm('formEnabled')} valuePropName="checked">
+                    <Form.Item name="on_shelf" label={pm('formEnabled')} valuePropName="checked">
                       <Switch checkedChildren={pm('statusOn')} unCheckedChildren={pm('statusOff')} />
                     </Form.Item>
                   </Form>

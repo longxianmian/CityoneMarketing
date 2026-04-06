@@ -51,17 +51,20 @@ export function handleGetMallItems(req, res, sendJson, url) {
 export function handleCreateMallItem(req, res, sendJson, body) {
   const list = loadJsonArray(MALL_ITEMS_FILE);
   const item = {
+    // 先铺一遍 body，保留 tag/badge/highlights/rules 等前端扩展字段
+    ...body,
+    // 再用明确字段覆盖，确保类型正确
     id: generateId(),
     name: body.name || "",
     item_type: body.item_type || "digital",
     exchange_mode: body.exchange_mode || "points",
-    price_thb: body.price_thb || null,
-    points_required: body.points_required || null,
+    price_thb: body.price_thb != null ? Number(body.price_thb) : null,
+    points_required: body.points_required != null ? Number(body.points_required) : null,
     stock: body.stock == null ? -1 : Number(body.stock),
     on_shelf: body.on_shelf !== false,
     cover_image: body.cover_image || "",
     description: body.description || "",
-    sort_order: body.sort_order || list.length,
+    sort_order: body.sort_order != null ? Number(body.sort_order) : list.length,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

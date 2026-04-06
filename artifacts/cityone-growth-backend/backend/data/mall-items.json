@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "id": "mi_1775476024894_cc9ue",
+    "name": "",
+    "item_type": "digital",
+    "exchange_mode": "points",
+    "price_thb": null,
+    "points_required": null,
+    "stock": 100,
+    "on_shelf": true,
+    "cover_image": "",
+    "description": "",
+    "sort_order": 3,
+    "created_at": "2026-04-06T11:47:04.894Z",
+    "updated_at": "2026-04-06T11:47:04.894Z"
+  }
+]
