@@ -5,7 +5,7 @@ import {
   Statistic, Divider, Switch, InputNumber, Tooltip,
 } from 'antd'
 import {
-  SearchOutlined, ReloadOutlined, PlusOutlined, EditOutlined,
+  SearchOutlined, ReloadOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
   ShareAltOutlined, TrophyOutlined, TeamOutlined, UserOutlined,
   CrownOutlined, PictureOutlined, VideoCameraOutlined,
   FireOutlined, GiftOutlined, StarOutlined,
@@ -15,7 +15,7 @@ import SharePromoModal from '../../components/SharePromoModal'
 import MediaUploadField from '../../components/MediaUploadField'
 import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
-import { getActivities, createActivity, updateActivity } from '../../api/growth'
+import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
 
 export default function ActivityManage() {
   const { t } = useI18n()
@@ -185,6 +185,23 @@ export default function ActivityManage() {
     }
   }
 
+  const handleDelete = (record: any) => {
+    Modal.confirm({
+      title: am('btnDelete'),
+      content: am('deleteConfirm'),
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await deleteActivity(record.id)
+          message.success(am('deleteSuccess'))
+          loadList()
+        } catch {
+          message.error('删除失败，请重试')
+        }
+      },
+    })
+  }
+
   const handleFormOk = async () => {
     try {
       const values = await form.validateFields()
@@ -287,6 +304,7 @@ export default function ActivityManage() {
         return (
           <Space size="small" wrap>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>{am('btnEdit')}</Button>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>{am('btnDelete')}</Button>
             <Button type="link" size="small" onClick={() => handleToggle(record)}>
               {record.status === 'active' ? am('btnOffline') : am('btnOnline')}
             </Button>

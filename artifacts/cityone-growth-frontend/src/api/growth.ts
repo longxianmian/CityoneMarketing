@@ -262,3 +262,7 @@ export function createActivity(data: Record<string, unknown>) {
 export function updateActivity(id: string, data: Record<string, unknown>) {
   return request.put(`/activities/${id}`, data)
 }
+
+export function deleteActivity(id: string) {
+  return request.delete(`/activities/${id}`)
+}

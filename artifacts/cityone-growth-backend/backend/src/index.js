@@ -48,6 +48,7 @@ import {
   handleActivityGet,
   handleActivityCreate,
   handleActivityUpdate,
+  handleActivityDelete,
   handleActivityProductBindingList,
   handleActivityProductBindingCreate
 } from "./routes/activities.js";
@@ -561,6 +562,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "PUT" && /^\/api\/activities\/[^/]+$/.test(url.pathname)) {
       return handleActivityUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "DELETE" && /^\/api\/activities\/[^/]+$/.test(url.pathname)) {
+      return handleActivityDelete(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/activity-product-bindings") {
       return handleActivityProductBindingList(req, res, url, sendJson);

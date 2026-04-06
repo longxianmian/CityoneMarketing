@@ -53,6 +53,16 @@ function getCityLabel(cityCode: string, lang: AppLanguage) {
   return item.en
 }
 
+// ---------- cover 样式辅助 ----------
+// cover 可能是 CSS 渐变字符串，也可能是真实图片 URL
+// 图片 URL 须用 backgroundImage + url() 才能正确显示
+function coverBgStyle(cover: string): React.CSSProperties {
+  if (/^(https?:\/\/|\/)/.test(cover)) {
+    return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  }
+  return { background: cover }
+}
+
 // ---------- 卡片组件 ----------
 // 黄金比例容器：宽:高 = 1:1.618
 // 图片区 = 卡片高度 2/3 ；信息区 = 1/3
@@ -107,7 +117,7 @@ function WaterfallCard({
       <div
         style={{
           flex: '2 0 0',
-          background: cover,
+          ...coverBgStyle(cover),
           position: 'relative',
           display: 'flex',
           alignItems: 'flex-start',
@@ -418,7 +428,7 @@ export default function WelfareHomePage() {
             <Carousel autoplay dots>
               {bannerItems.map((item) => (
                 <div key={item.id}>
-                  <div style={{ height: 172, background: item.cover, color: '#fff', padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  <div style={{ height: 172, ...coverBgStyle(item.cover), color: '#fff', padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                     <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{item.title}</div>
                     <div style={{ fontSize: 14, opacity: 0.96 }}>{item.subTitle}</div>
                   </div>

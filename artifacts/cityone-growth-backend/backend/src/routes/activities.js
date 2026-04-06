@@ -273,3 +273,14 @@ export async function handleActivityProductBindingCreate(req, res, url, sendJson
     return sendError(res, sendJson, 500, "CREATE_FAILED", err.message || "创建失败");
   }
 }
+
+export function handleActivityDelete(req, res, url, sendJson) {
+  const id = idFromPath(url.pathname, /^\/api\/activities\/([^/]+)$/);
+  if (!id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少活动ID");
+  const list = loadJsonArray(ACTIVITIES_FILE);
+  const idx = list.findIndex((a) => a.activity_id === id);
+  if (idx === -1) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到活动");
+  list.splice(idx, 1);
+  saveJsonArray(ACTIVITIES_FILE, list);
+  return sendOk(res, sendJson, "活动已删除", null);
+}
