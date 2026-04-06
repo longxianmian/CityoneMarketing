@@ -18,5 +18,15 @@
     "consumed_points": 50,
     "revoked_points": 0,
     "updated_at": "2026-04-04T03:41:16.040Z"
+  },
+  {
+    "user_id": "test123",
+    "line_user_id": "test123",
+    "total_points": 0,
+    "available_points": 0,
+    "pending_points": 0,
+    "consumed_points": 0,
+    "revoked_points": 0,
+    "updated_at": "2026-04-06T12:36:16.771Z"
   }
 ]

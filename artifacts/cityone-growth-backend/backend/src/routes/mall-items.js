@@ -35,6 +35,14 @@ function generateId() {
   return "mi_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
 }
 
+// GET /growth/mall/items/:id  — single item
+export function handleGetMallItemById(req, res, sendJson, itemId) {
+  const list = loadJsonArray(MALL_ITEMS_FILE);
+  const item = list.find(i => i.id === itemId);
+  if (!item) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
+  return sendOk(res, sendJson, "ok", item);
+}
+
 // GET /growth/mall/items  — list (admin + user)
 export function handleGetMallItems(req, res, sendJson, url) {
   const list = loadJsonArray(MALL_ITEMS_FILE);

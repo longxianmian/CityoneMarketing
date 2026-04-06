@@ -1,166 +1,16 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Card, Space, Tag, Modal } from 'antd'
-import { CheckCircleOutlined, PlayCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons'
-import { pickLocalizedText, useI18n, type AppLanguage } from '../../i18n'
+import { Button, Card, Space, Tag, Spin, Modal } from 'antd'
+import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import { useI18n } from '../../i18n'
+import request from '../../api/request'
 
-type LocalizedField = Partial<Record<AppLanguage, string>>
-
-type RedeemContent = {
-  id: number
-  type: 'digital' | 'physical'
-  title: LocalizedField
-  subTitle: LocalizedField
-  coverImage: string
-  coverVideo: string
-  pointText: LocalizedField
-  pickupText: LocalizedField
-  highlights: LocalizedField
-  description: LocalizedField
-  usageGuide: LocalizedField
-  noticeText: LocalizedField
-  primaryText: LocalizedField
-  secondaryText: LocalizedField
-}
-
-const mockRedeems: Record<string, RedeemContent> = {
-  '1': {
-    id: 1,
-    type: 'digital',
-    title: {
-      zh: '电子书会员包',
-      th: 'แพ็กสมาชิกอีบุ๊ก',
-      en: 'E-book Membership Pack',
-    },
-    subTitle: {
-      zh: '数字商品，当前阶段仅支持积分兑换',
-      th: 'สินค้าดิจิทัล ระยะนี้รองรับเฉพาะการแลกด้วยคะแนน',
-      en: 'Digital item, currently supports points redemption only.',
-    },
-    coverImage: '',
-    coverVideo: '',
-    pointText: { zh: '990 积分', th: '990 คะแนน', en: '990 points' },
-    pickupText: {
-      zh: '兑换成功后自动发放到账号',
-      th: 'แลกสำเร็จแล้วจะมอบเข้าบัญชีอัตโนมัติ',
-      en: 'Automatically granted to the account after successful redemption.',
-    },
-    highlights: {
-      zh: '适合线上权益发放，履约简单，转化效率高。',
-      th: 'เหมาะกับการมอบสิทธิ์ออนไลน์ ส่งมอบง่าย และแปลงผลได้ดี',
-      en: 'Suitable for online benefit delivery, simple fulfillment, and high conversion efficiency.',
-    },
-    description: {
-      zh: '该商品为数字权益商品，可用于会员阅读类权益发放，当前阶段先支持积分兑换。',
-      th: 'สินค้านี้เป็นสิทธิ์ดิจิทัล ใช้สำหรับมอบสิทธิ์สมาชิกประเภทการอ่าน โดยระยะแรกจะรองรับการแลกด้วยคะแนนก่อน',
-      en: 'This is a digital benefit item for membership-style reading benefits. In the current phase, it supports points redemption first.',
-    },
-    usageGuide: {
-      zh: '积分兑换成功后自动发放到用户账户，无需到店。',
-      th: 'เมื่อแลกคะแนนสำเร็จ ระบบจะมอบสิทธิ์ให้บัญชีผู้ใช้โดยอัตโนมัติ ไม่ต้องไปรับที่ร้าน',
-      en: 'After successful points redemption, the item is automatically granted to the user account. No store pickup is needed.',
-    },
-    noticeText: {
-      zh: '数字商品一经兑换成功，不支持退换。',
-      th: 'สินค้าแบบดิจิทัลเมื่อแลกสำเร็จแล้วไม่รองรับการคืนหรือเปลี่ยน',
-      en: 'Digital items are non-refundable after successful redemption.',
-    },
-    primaryText: { zh: '立即积分兑换', th: 'แลกด้วยคะแนนทันที', en: 'Redeem with Points Now' },
-    secondaryText: { zh: '返回福利中心', th: 'กลับสู่ศูนย์สิทธิประโยชน์', en: 'Back to Welfare' },
-  },
-  '2': {
-    id: 2,
-    type: 'digital',
-    title: {
-      zh: '音乐畅听权益',
-      th: 'สิทธิ์ฟังเพลงไม่จำกัด',
-      en: 'Music Unlimited Access',
-    },
-    subTitle: {
-      zh: '数字商品，当前阶段仅支持积分兑换',
-      th: 'สินค้าดิจิทัล ระยะนี้รองรับเฉพาะการแลกด้วยคะแนน',
-      en: 'Digital item, currently supports points redemption only.',
-    },
-    coverImage: '',
-    coverVideo: '',
-    pointText: { zh: '620 积分', th: '620 คะแนน', en: '620 points' },
-    pickupText: {
-      zh: '兑换成功后自动发放到账号',
-      th: 'แลกสำเร็จแล้วจะมอบเข้าบัญชีอัตโนมัติ',
-      en: 'Automatically granted to the account after successful redemption.',
-    },
-    highlights: {
-      zh: '适合做活动奖励、积分商城商品与数字权益承接。',
-      th: 'เหมาะเป็นรางวัลกิจกรรม สินค้าแลกคะแนน และสิทธิ์ดิจิทัล',
-      en: 'Suitable as an activity reward, a points mall item, and a digital benefit.',
-    },
-    description: {
-      zh: '该商品用于数字音乐类权益发放，当前阶段先支持积分兑换。',
-      th: 'สินค้านี้ใช้สำหรับมอบสิทธิ์ด้านดนตรีดิจิทัล โดยระยะแรกจะรองรับการแลกด้วยคะแนนก่อน',
-      en: 'This item is for digital music-related benefits. In the current phase, it supports points redemption first.',
-    },
-    usageGuide: {
-      zh: '积分兑换成功后自动发放到用户账户，无需到店。',
-      th: 'เมื่อแลกคะแนนสำเร็จ ระบบจะมอบสิทธิ์ให้บัญชีผู้ใช้โดยอัตโนมัติ ไม่ต้องไปรับที่ร้าน',
-      en: 'After successful points redemption, the item is automatically granted to the user account. No store pickup is needed.',
-    },
-    noticeText: {
-      zh: '具体权益有效期与发放规则以平台说明为准。',
-      th: 'อายุสิทธิ์และกติกาการมอบสิทธิ์ให้ยึดตามคำอธิบายของแพลตฟอร์ม',
-      en: 'Please refer to the platform description for the validity period and issuance rules.',
-    },
-    primaryText: { zh: '立即积分兑换', th: 'แลกด้วยคะแนนทันที', en: 'Redeem with Points Now' },
-    secondaryText: { zh: '返回福利中心', th: 'กลับสู่ศูนย์สิทธิประโยชน์', en: 'Back to Welfare' },
-  },
-  '3': {
-    id: 3,
-    type: 'physical',
-    title: {
-      zh: '联名马克杯',
-      th: 'แก้วมัคคอลแลบ',
-      en: 'Co-branded Mug',
-    },
-    subTitle: {
-      zh: '实物商品，后续二开',
-      th: 'สินค้าจริง พัฒนาต่อในระยะถัดไป',
-      en: 'Physical item, to be implemented later.',
-    },
-    coverImage: '',
-    coverVideo: '',
-    pointText: { zh: '1200 积分', th: '1200 คะแนน', en: '1200 points' },
-    pickupText: {
-      zh: '实物商品逻辑后续二开',
-      th: 'ตรรกะสินค้าจริงจะพัฒนาภายหลัง',
-      en: 'Physical item logic will be implemented later.',
-    },
-    highlights: {
-      zh: '实物商品暂不在本轮处理范围。',
-      th: 'สินค้าจริงยังไม่อยู่ในขอบเขตรอบนี้',
-      en: 'Physical items are not in scope for this round.',
-    },
-    description: {
-      zh: '当前先不处理实物商品兑换逻辑。',
-      th: 'ขณะนี้ยังไม่จัดการตรรกะการแลกสินค้าจริง',
-      en: 'Physical item redemption is not handled in the current phase.',
-    },
-    usageGuide: {
-      zh: '后续二开处理。',
-      th: 'จะพัฒนาต่อในระยะถัดไป',
-      en: 'To be implemented later.',
-    },
-    noticeText: {
-      zh: '当前仅优先实现数字商品积分兑换。',
-      th: 'ขณะนี้ให้ความสำคัญกับการแลกสินค้าดิจิทัลด้วยคะแนนก่อน',
-      en: 'Currently prioritizing digital-item points redemption only.',
-    },
-    primaryText: { zh: '后续开放', th: 'เปิดใช้งานภายหลัง', en: 'Available Later' },
-    secondaryText: { zh: '返回福利中心', th: 'กลับสู่ศูนย์สิทธิประโยชน์', en: 'Back to Welfare' },
-  },
-}
-
-function parsePointValue(text: string) {
-  const matched = text.match(/-?\d+/)
-  return matched ? Number(matched[0]) : 0
+const ITEM_TYPE_GRADIENT: Record<string, string> = {
+  digital:  'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
+  voucher:  'linear-gradient(135deg, #fa8c16 0%, #ffd666 100%)',
+  ai:       'linear-gradient(135deg, #722ed1 0%, #b37feb 100%)',
+  physical: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
+  flash:    'linear-gradient(135deg, #f5222d 0%, #ff7875 100%)',
 }
 
 function formatNow() {
@@ -170,25 +20,29 @@ function formatNow() {
 }
 
 export default function RedeemUserPage() {
-  const { id = '1' } = useParams()
+  const { id = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { language } = useI18n()
 
-  const followed = searchParams.get('followed') === '1'
+  const [item, setItem] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const redeem = useMemo(() => mockRedeems[id] || mockRedeems['1'], [id])
 
-  const title = pickLocalizedText({ title: redeem.title }, 'title', language)
-  const subTitle = pickLocalizedText({ subTitle: redeem.subTitle }, 'subTitle', language)
-  const pointText = pickLocalizedText({ pointText: redeem.pointText }, 'pointText', language)
-  const pickupText = pickLocalizedText({ pickupText: redeem.pickupText }, 'pickupText', language)
-  const highlights = pickLocalizedText({ highlights: redeem.highlights }, 'highlights', language)
-  const description = pickLocalizedText({ description: redeem.description }, 'description', language)
-  const usageGuide = pickLocalizedText({ usageGuide: redeem.usageGuide }, 'usageGuide', language)
-  const noticeText = pickLocalizedText({ noticeText: redeem.noticeText }, 'noticeText', language)
-  const primaryText = pickLocalizedText({ primaryText: redeem.primaryText }, 'primaryText', language)
-  const secondaryText = pickLocalizedText({ secondaryText: redeem.secondaryText }, 'secondaryText', language)
+  const followed = searchParams.get('followed') === '1'
+
+  useEffect(() => {
+    if (!id) { setNotFound(true); setLoading(false); return }
+    setLoading(true)
+    ;(request.get(`/growth/mall/items/${id}`) as any)
+      .then((res: any) => {
+        const data = res.data || res
+        if (!data || !data.id) { setNotFound(true) } else { setItem(data) }
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false))
+  }, [id])
 
   const handleFollowDone = () => {
     const next = new URLSearchParams(searchParams)
@@ -196,79 +50,102 @@ export default function RedeemUserPage() {
     setSearchParams(next)
   }
 
-  const handlePrimaryAction = () => {
-    if (redeem.type !== 'digital') {
-      Modal.info({
-        title: title,
-        content: '当前阶段先不处理实物商品，请先只测试数字商品积分兑换。',
-        okText: '知道了',
-      })
-      return
-    }
-    setConfirmOpen(true)
-  }
-
   const handleConfirmRedeem = () => {
+    const spendPoints = item?.points_required || 0
+    const title = item?.name || ''
     const localKey = 'cityone_local_point_records'
     const current = (() => {
-      try {
-        return JSON.parse(localStorage.getItem(localKey) || '[]')
-      } catch {
-        return []
-      }
+      try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] }
     })()
-
-    const spendPoints = parsePointValue(pointText)
-
-    const newRecord = {
+    localStorage.setItem(localKey, JSON.stringify([{
       id: `redeem_${Date.now()}`,
       type: 'spend',
-      title: title,
+      title,
       points: -spendPoints,
       createdAt: formatNow(),
       source: 'digital_redeem',
-    }
-
-    localStorage.setItem(localKey, JSON.stringify([newRecord, ...current]))
+    }, ...current]))
     setConfirmOpen(false)
-    setTimeout(() => {
-      navigate('/my-points')
-    }, 120)
+    setTimeout(() => navigate('/my-points'), 120)
   }
+
+  const labels = {
+    backLabel:    language === 'zh' ? '返回' : language === 'th' ? 'กลับ' : 'Back',
+    pointsUnit:   language === 'zh' ? '积分' : language === 'th' ? 'คะแนน' : 'pts',
+    thbLabel:     language === 'zh' ? '+ ฿' : language === 'th' ? '+ ฿' : '+ ฿',
+    redeemBtn:    language === 'zh' ? '立即积分兑换' : language === 'th' ? 'แลกด้วยคะแนน' : 'Redeem with Points',
+    backWelfare:  language === 'zh' ? '返回福利中心' : language === 'th' ? 'กลับศูนย์สิทธิ์' : 'Back to Benefits',
+    descLabel:    language === 'zh' ? '商品说明' : language === 'th' ? 'รายละเอียด' : 'Description',
+    highlightsL:  language === 'zh' ? '权益亮点' : language === 'th' ? 'จุดเด่น' : 'Highlights',
+    rulesLabel:   language === 'zh' ? '兑换须知' : language === 'th' ? 'เงื่อนไข' : 'Terms',
+    notFound:     language === 'zh' ? '商品不存在' : language === 'th' ? 'ไม่พบสินค้า' : 'Item not found',
+    notFoundSub:  language === 'zh' ? '该商品可能已下架或链接有误' : language === 'th' ? 'สินค้าอาจถูกนำออกหรือลิงก์ผิด' : 'This item may be unavailable or the link is invalid',
+    followTitle:  language === 'zh' ? '需先关注 LINE OA' : language === 'th' ? 'ต้องติดตาม LINE OA ก่อน' : 'Follow LINE OA First',
+    followDesc:   language === 'zh' ? '请先关注 CityOne LINE OA，再点击继续兑换。' : language === 'th' ? 'กรุณาติดตาม CityOne LINE OA ก่อน แล้วกด "ติดตามแล้ว" เพื่อดำเนินการต่อ' : 'Please follow CityOne LINE OA first, then tap continue.',
+    followedBtn:  language === 'zh' ? '已关注，继续' : language === 'th' ? 'ติดตามแล้ว ดำเนินการต่อ' : 'Already Followed, Continue',
+    confirmTitle: language === 'zh' ? '确认积分兑换' : language === 'th' ? 'ยืนยันการแลกคะแนน' : 'Confirm Redemption',
+    confirmOk:    language === 'zh' ? '确认兑换' : language === 'th' ? 'ยืนยัน' : 'Confirm',
+    confirmCancel:language === 'zh' ? '取消' : language === 'th' ? 'ยกเลิก' : 'Cancel',
+    physicalTip:  language === 'zh' ? '实物商品兑换逻辑后续开放，敬请期待。' : language === 'th' ? 'การแลกสินค้าจริงจะเปิดให้บริการเร็ว ๆ นี้' : 'Physical item redemption will be available soon.',
+  }
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (notFound || !item) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '32px 16px' }}>
+        <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🔍</div>
+          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{labels.notFound}</div>
+          <div style={{ color: '#888', marginBottom: 24 }}>{labels.notFoundSub}</div>
+          <Button type="primary" onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
+        </div>
+      </div>
+    )
+  }
+
+  const coverBg = item.cover_image
+    ? { backgroundImage: `url(${item.cover_image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: ITEM_TYPE_GRADIENT[item.item_type] || ITEM_TYPE_GRADIENT.digital }
+
+  const pointsLabel = item.points_required != null
+    ? `${item.points_required} ${labels.pointsUnit}`
+    : '—'
+
+  const priceLabel = item.exchange_mode === 'mix' && item.price_thb
+    ? ` ${labels.thbLabel}${item.price_thb}`
+    : ''
+
+  const highlights: string[] = Array.isArray(item.highlights) ? item.highlights : []
+  const rules: string[] = Array.isArray(item.rules) ? item.rules : []
 
   if (!followed) {
     return (
       <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
         <div style={{ maxWidth: 480, margin: '0 auto' }}>
+          <Button icon={<ArrowLeftOutlined />} style={{ marginBottom: 16 }} onClick={() => navigate('/welfare')}>
+            {labels.backLabel}
+          </Button>
           <Card style={{ borderRadius: 16 }}>
-            <div style={{ textAlign: 'center', padding: '12px 0 4px 0' }}>
-              <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{title}</div>
-              <div style={{ color: '#666', marginBottom: 18 }}>{subTitle}</div>
-              <Tag color="orange" style={{ fontSize: 13, padding: '4px 10px' }}>Follow LINE OA First</Tag>
+            <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{item.name}</div>
+              <Tag color="blue" style={{ fontSize: 13, padding: '4px 10px' }}>
+                {pointsLabel}{priceLabel}
+              </Tag>
             </div>
-
-            <div
-              style={{
-                marginTop: 18,
-                padding: 18,
-                borderRadius: 14,
-                background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)',
-                border: '1px solid #ffd591',
-              }}
-            >
-              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>Follow Required</div>
-              <div style={{ color: '#555', lineHeight: 1.8 }}>
-                Complete LINE OA follow first, then continue to redeem this item.
-              </div>
+            <div style={{ marginTop: 20, padding: 18, borderRadius: 14, background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)', border: '1px solid #ffd591' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{labels.followTitle}</div>
+              <div style={{ color: '#555', lineHeight: 1.8 }}>{labels.followDesc}</div>
             </div>
-
             <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
-              <Button type="primary" size="large" block onClick={handleFollowDone}>
-                Continue After Follow
-              </Button>
-              <Button size="large" block onClick={() => navigate('/welfare')}>
-                Back to Welfare
-              </Button>
+              <Button type="primary" size="large" block onClick={handleFollowDone}>{labels.followedBtn}</Button>
+              <Button size="large" block onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
             </Space>
           </Card>
         </div>
@@ -278,93 +155,110 @@ export default function RedeemUserPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-      <div style={{ maxWidth: 540, margin: '0 auto', padding: '0 0 32px 0' }}>
-        <div
-          style={{
-            height: 280,
-            background: redeem.coverImage
-              ? `url(${redeem.coverImage}) center/cover no-repeat`
-              : redeem.type === 'physical'
-                ? 'linear-gradient(135deg, #fa8c16 0%, #ffd666 100%)'
-                : 'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            padding: 20,
-            color: '#fff',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{title}</div>
-            <div style={{ fontSize: 15, opacity: 0.95 }}>{subTitle}</div>
+      <div style={{ maxWidth: 540, margin: '0 auto', paddingBottom: 32 }}>
+        {/* 封面 */}
+        <div style={{ height: 280, ...coverBg, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 20 }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.9)', border: 'none' }}
+            onClick={() => navigate('/welfare')}
+          >
+            {labels.backLabel}
+          </Button>
+          <div style={{ color: '#fff' }}>
+            <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 6, textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{item.name}</div>
+            {item.description && (
+              <div style={{ fontSize: 14, opacity: 0.92, textShadow: '0 1px 3px rgba(0,0,0,0.25)' }}>{item.description}</div>
+            )}
           </div>
         </div>
 
         <div style={{ padding: 16 }}>
-          {redeem.coverVideo ? (
+          {/* 视频 */}
+          {item.coverVideo ? (
             <Card style={{ marginBottom: 16, borderRadius: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>
-                <PlayCircleOutlined style={{ marginRight: 8 }} />
-                Video
+                <PlayCircleOutlined style={{ marginRight: 8 }} />Video
               </div>
-              <video src={redeem.coverVideo} controls style={{ width: '100%', borderRadius: 12 }} />
+              <video src={item.coverVideo} controls style={{ width: '100%', borderRadius: 12 }} />
             </Card>
           ) : null}
 
-          <Card style={{ marginBottom: 16, borderRadius: 16 }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-              <Tag color="blue">{pointText}</Tag>
+          {/* 积分/价格 */}
+          <Card style={{ marginBottom: 16, borderRadius: 16, background: 'linear-gradient(135deg, #f0f5ff 0%, #e6f4ff 100%)', border: '1px solid #adc6ff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 26, fontWeight: 800, color: '#1677ff' }}>{pointsLabel}</span>
+              {priceLabel && <span style={{ fontSize: 16, color: '#fa8c16', fontWeight: 600 }}>{priceLabel}</span>}
+              {item.tag && <Tag color="orange">{item.tag}</Tag>}
             </div>
-            <div style={{ color: '#555', lineHeight: 1.9 }}>{pickupText}</div>
           </Card>
 
-          <Card style={{ marginBottom: 16, borderRadius: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 10 }}>Highlights</div>
-            <div style={{ color: '#555', lineHeight: 1.9 }}>{highlights}</div>
-          </Card>
+          {/* 权益亮点 */}
+          {highlights.length > 0 && (
+            <Card style={{ marginBottom: 16, borderRadius: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 10 }}>{labels.highlightsL}</div>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#555', lineHeight: 2 }}>
+                {highlights.map((h: string, i: number) => <li key={i}>{h}</li>)}
+              </ul>
+            </Card>
+          )}
 
-          <Card style={{ marginBottom: 16, borderRadius: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 10 }}>Description</div>
-            <div style={{ color: '#555', lineHeight: 1.9 }}>{description}</div>
-          </Card>
+          {/* 商品说明 */}
+          {item.detailTitle || item.description ? (
+            <Card style={{ marginBottom: 16, borderRadius: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 10 }}>{labels.descLabel}</div>
+              <div style={{ color: '#555', lineHeight: 1.9 }}>{item.detailTitle || item.description}</div>
+            </Card>
+          ) : null}
 
-          <Card style={{ marginBottom: 16, borderRadius: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 10 }}>Points Redeem Guide</div>
-            <div style={{ color: '#555', lineHeight: 1.9 }}>{usageGuide}</div>
-          </Card>
+          {/* 兑换须知 */}
+          {rules.length > 0 && (
+            <Card style={{ marginBottom: 20, borderRadius: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 10 }}>{labels.rulesLabel}</div>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#555', lineHeight: 2 }}>
+                {rules.map((r: string, i: number) => <li key={i}>{r}</li>)}
+              </ul>
+            </Card>
+          )}
 
-          <Card style={{ marginBottom: 20, borderRadius: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 10 }}>Notice</div>
-            <div style={{ color: '#555', lineHeight: 1.9 }}>{noticeText}</div>
-          </Card>
-
+          {/* 操作按钮 */}
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Button type="primary" size="large" block icon={<ShoppingCartOutlined />} onClick={handlePrimaryAction}>
-              {primaryText}
+            <Button
+              type="primary" size="large" block
+              icon={<ShoppingCartOutlined />}
+              disabled={item.item_type === 'physical'}
+              onClick={() => {
+                if (item.item_type === 'physical') {
+                  Modal.info({ title: item.name, content: labels.physicalTip, okText: 'OK' })
+                  return
+                }
+                setConfirmOpen(true)
+              }}
+            >
+              {item.item_type === 'physical' ? (language === 'zh' ? '实物商品，后续开放' : language === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon') : labels.redeemBtn}
             </Button>
-            <Button size="large" block icon={<CheckCircleOutlined />} onClick={() => navigate('/my-points')}>
-              Go to My Points
-            </Button>
-            <Button size="large" block onClick={() => navigate('/welfare')}>
-              {secondaryText}
-            </Button>
+            <Button size="large" block onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
           </Space>
         </div>
       </div>
 
+      {/* 确认弹窗 */}
       <Modal
-        title="确认积分兑换"
+        title={labels.confirmTitle}
         open={confirmOpen}
         onCancel={() => setConfirmOpen(false)}
         onOk={handleConfirmRedeem}
-        okText="确认兑换"
-        cancelText="取消"
+        okText={labels.confirmOk}
+        cancelText={labels.confirmCancel}
       >
         <div style={{ display: 'grid', gap: 12, lineHeight: 1.8 }}>
-          <div><strong>商品名称：</strong>{title}</div>
-          <div><strong>兑换方式：</strong>积分兑换</div>
-          <div><strong>所需积分：</strong>{pointText}</div>
-          <div><strong>兑换说明：</strong>{pickupText}</div>
-          <div><strong>兑换结果：</strong>数字商品兑换成功后将直接发放到账号。</div>
+          <div><strong>{language === 'zh' ? '商品名称：' : 'Item: '}</strong>{item.name}</div>
+          <div><strong>{language === 'zh' ? '所需积分：' : 'Points: '}</strong>{pointsLabel}{priceLabel}</div>
+          {item.exchange_mode === 'points' && (
+            <div><strong>{language === 'zh' ? '说明：' : 'Note: '}</strong>
+              {language === 'zh' ? '数字商品兑换成功后将直接发放到账号。' : language === 'th' ? 'สินค้าดิจิทัลจะมอบให้บัญชีทันทีหลังแลกสำเร็จ' : 'Digital items will be granted to your account immediately.'}
+            </div>
+          )}
         </div>
       </Modal>
     </div>

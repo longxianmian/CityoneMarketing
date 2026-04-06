@@ -47,7 +47,7 @@ export default function PointsLedger() {
       if (refTypeFilter) params.ref_type = refTypeFilter
       if (dateRange && dateRange[0]) params.start_date = dateRange[0].toISOString()
       if (dateRange && dateRange[1]) params.end_date = dateRange[1].toISOString()
-      const res: any = await request.get('/growth/points/ledger', { params })
+      const res: any = await request.get('/growth/user/points/ledger', { params })
       const payload = res.data || {}
       setData(payload.items || [])
       setTotal(payload.total || 0)

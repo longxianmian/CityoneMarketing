@@ -361,7 +361,7 @@ export default function WelfareHomePage() {
           views: 0,
           price: item.price_thb ? `THB ${item.price_thb}` : undefined,
           points: item.points_required || 0,
-          route: '/welfare',
+          route: `/redeem/${item.id}`,
           footerTone: '#7B61FF',
         }))
         setApiMallItems(cards)

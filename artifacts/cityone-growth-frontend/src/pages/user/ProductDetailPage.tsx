@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { Spin, message } from 'antd'
+import { Spin, message, Modal } from 'antd'
 import { ArrowLeftOutlined, FireOutlined, ShareAltOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+import request from '../../api/request'
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -26,15 +25,12 @@ export default function ProductDetailPage() {
   }
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/digital-products/${id}`)
-        const json = await res.json()
-        setProduct(json.data || json)
-      } catch { setProduct(null) }
-      finally { setLoading(false) }
-    }
-    load()
+    if (!id) { setLoading(false); return }
+    setLoading(true)
+    ;(request.get(`/growth/mall/items/${id}`) as any)
+      .then((res: any) => { setProduct(res.data || res) })
+      .catch(() => setProduct(null))
+      .finally(() => setLoading(false))
   }, [id])
 
   const pick = (field: any): string => {
@@ -46,18 +42,27 @@ export default function ProductDetailPage() {
 
   const handleAction = async () => {
     if (!product) return
+    if (product.item_type === 'physical') {
+      Modal.info({
+        title: product.name,
+        content: lang === 'zh' ? '实物商品兑换逻辑后续开放，敬请期待。' : lang === 'th' ? 'การแลกสินค้าจริงจะเปิดให้บริการเร็ว ๆ นี้' : 'Physical item redemption will be available soon.',
+        okText: 'OK',
+      })
+      return
+    }
     setActing(true)
     try {
-      const res = await fetch(`${API_BASE}/api/digital-products/${id}/claim`, { method: 'POST' })
-      const json = await res.json()
-      if (json.code === 200) {
-        message.success(t('productDetail.actionSuccess'))
-        setTimeout(() => nav('/my-coupons'), 1000)
-      } else {
-        message.error(json.message || t('productDetail.actionFail'))
-      }
+      const spendPoints = product.points_required || 0
+      const localKey = 'cityone_local_point_records'
+      const current = (() => { try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] } })()
+      localStorage.setItem(localKey, JSON.stringify([{
+        id: `redeem_${Date.now()}`, type: 'spend', title: product.name,
+        points: -spendPoints, createdAt: new Date().toISOString(), source: 'mall_redeem',
+      }, ...current]))
+      message.success(t('productDetail.actionSuccess'))
+      setTimeout(() => nav('/my-points'), 1000)
     } catch {
-      message.error(t('productDetail.networkError'))
+      message.error(t('productDetail.actionFail'))
     } finally {
       setActing(false)
     }
@@ -69,19 +74,35 @@ export default function ProductDetailPage() {
     </div>
   )
 
-  const title = pick(product?.title) || product?.name || t('productDetail.pageTitle')
-  const subTitle = pick(product?.subTitle) || ''
-  const benefitContent = pick(product?.benefitContent) || product?.benefitContent || ''
-  const usageRules = pick(product?.usageRules) || product?.usageRules || ''
-  const redeemNotice = pick(product?.redeemNotice) || product?.redeemNotice || ''
-  const coverImage = product?.coverImage || ''
-  const coverVideo = product?.coverVideo || ''
-  const pointsPrice = product?.pointsPrice || 0
-  const cashPrice = product?.cashPrice || 0
-  const actionType = product?.actionType || 'free_claim'
-  const actionText = pick(product?.actionText) || ACTION_MAP[actionType]?.text || t('productDetail.actionFreeClaim')
-  const actionColor = ACTION_MAP[actionType]?.color || ACTION_MAP.free_claim.color
-  const linkedActivities: any[] = product?.linkedActivities || []
+  if (!product) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 16 }}>
+      <div style={{ fontSize: 48 }}>🔍</div>
+      <div style={{ fontSize: 18, fontWeight: 700 }}>{lang === 'zh' ? '商品不存在' : lang === 'th' ? 'ไม่พบสินค้า' : 'Item not found'}</div>
+      <button onClick={() => nav('/welfare')} style={{ padding: '10px 24px', borderRadius: 24, background: '#1677ff', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15 }}>
+        {lang === 'zh' ? '返回福利中心' : lang === 'th' ? 'กลับสู่ศูนย์สิทธิ์' : 'Back to Benefits'}
+      </button>
+    </div>
+  )
+
+  // 字段映射：后端 snake_case → 展示
+  const title = product.name || t('productDetail.pageTitle')
+  const subTitle = product.description || ''
+  const highlights: string[] = Array.isArray(product.highlights) ? product.highlights : []
+  const rules: string[] = Array.isArray(product.rules) ? product.rules : []
+  const benefitContent = highlights.join('\n')
+  const usageRules = rules.join('\n')
+  const redeemNotice = ''
+  const coverImage = product.cover_image || ''
+  const coverVideo = product.coverVideo || ''
+  const pointsPrice = product.points_required || 0
+  const cashPrice = (product.exchange_mode === 'mix' && product.price_thb) ? product.price_thb : 0
+  const isPhysical = product.item_type === 'physical'
+  const actionType = isPhysical ? 'coming_soon' : pointsPrice > 0 ? 'points_redeem' : 'free_claim'
+  const actionText = isPhysical
+    ? (lang === 'zh' ? '实物商品，后续开放' : lang === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon')
+    : ACTION_MAP[actionType]?.text || t('productDetail.actionFreeClaim')
+  const actionColor = isPhysical ? 'linear-gradient(135deg, #bbb, #d9d9d9)' : (ACTION_MAP[actionType]?.color || ACTION_MAP.free_claim.color)
+  const linkedActivities: any[] = product.linkedActivities || []
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 100 }}>

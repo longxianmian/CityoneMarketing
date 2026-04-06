@@ -48,6 +48,7 @@ import {
 } from "./routes/game-programs.js";
 import {
   handleGetMallItems,
+  handleGetMallItemById,
   handleCreateMallItem,
   handleUpdateMallItem,
   handleDeleteMallItem,
@@ -555,6 +556,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── 商城商品 ─────────────────────────────────────────────────────────────
+    if (req.method === "GET" && /^\/api\/growth\/mall\/items\/[^/]+$/.test(url.pathname)) {
+      const itemId = url.pathname.split("/").pop();
+      return handleGetMallItemById(req, res, sendJson, itemId);
+    }
     if (req.method === "GET" && url.pathname === "/api/growth/mall/items") {
       return handleGetMallItems(req, res, sendJson, url);
     }
@@ -894,32 +899,32 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── 用户端积分接口 ────────────────────────────────────────────────────────
-    if (req.method === "GET" && url.pathname === "/growth/user/points/summary") {
+    if (req.method === "GET" && url.pathname === "/api/growth/user/points/summary") {
       return handleUserPointsSummary(req, res, url, sendJson);
     }
-    if (req.method === "GET" && url.pathname === "/growth/user/points/ledger") {
+    if (req.method === "GET" && url.pathname === "/api/growth/user/points/ledger") {
       return handleUserPointsLedger(req, res, url, sendJson);
     }
-    if (req.method === "GET" && url.pathname === "/growth/user/points/redeems") {
+    if (req.method === "GET" && url.pathname === "/api/growth/user/points/redeems") {
       return handleUserPointsRedeems(req, res, url, sendJson);
     }
 
     // ── 管理端积分接口 ────────────────────────────────────────────────────────
-    if (req.method === "GET" && url.pathname === "/growth/admin/points/accounts") {
+    if (req.method === "GET" && url.pathname === "/api/growth/admin/points/accounts") {
       return handleAdminPointsAccounts(req, res, url, sendJson);
     }
-    if (req.method === "GET" && url.pathname === "/growth/admin/points/share-relations") {
+    if (req.method === "GET" && url.pathname === "/api/growth/admin/points/share-relations") {
       return handleAdminShareRelations(req, res, url, sendJson);
     }
-    if (req.method === "GET" && url.pathname === "/growth/admin/points/consume-relations") {
+    if (req.method === "GET" && url.pathname === "/api/growth/admin/points/consume-relations") {
       return handleAdminConsumeRelations(req, res, url, sendJson);
     }
 
     // ── 积分规则 & 手工调整 ───────────────────────────────────────────────────
-    if (req.method === "GET" && url.pathname === "/growth/points/rules") {
+    if (req.method === "GET" && url.pathname === "/api/growth/points/rules") {
       return handlePointsRules(req, res, url, sendJson);
     }
-    if (req.method === "POST" && url.pathname === "/growth/points/adjust") {
+    if (req.method === "POST" && url.pathname === "/api/growth/points/adjust") {
       return handlePointsAdjust(req, res, url, sendJson, readBody);
     }
 
