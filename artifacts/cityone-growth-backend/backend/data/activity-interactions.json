@@ -158,5 +158,37 @@
     "result_type": "thanks",
     "related_product_id": "",
     "created_at": "2026-04-06T06:40:46.522Z"
+  },
+  {
+    "interaction_id": "ia_011",
+    "activity_id": "act_004",
+    "activity_type": "scratch_card",
+    "line_user_id": "final_scratch_test_01",
+    "user_id": "",
+    "station_id": "",
+    "entry_id": "",
+    "utm_source": "",
+    "utm_campaign": "",
+    "action_type": "scratch_open",
+    "action_result_id": "pz_003",
+    "result_type": "prize",
+    "related_product_id": "dp_002",
+    "created_at": "2026-04-06T06:53:08.669Z"
+  },
+  {
+    "interaction_id": "ia_012",
+    "activity_id": "act_005",
+    "activity_type": "thai_fortune_draw",
+    "line_user_id": "final_fortune_test_01",
+    "user_id": "",
+    "station_id": "",
+    "entry_id": "",
+    "utm_source": "",
+    "utm_campaign": "",
+    "action_type": "sign_draw",
+    "action_result_id": "sg_001",
+    "result_type": "sign",
+    "related_product_id": "",
+    "created_at": "2026-04-06T06:53:11.005Z"
   }
 ]

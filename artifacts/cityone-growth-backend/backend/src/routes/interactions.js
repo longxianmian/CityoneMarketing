@@ -412,7 +412,17 @@ export async function handleScratchStart(req, res, url, sendJson, readBody) {
     if (!activityId) return sendError(res, sendJson, 400, "ACTIVITY_ID_REQUIRED", "activity_id 必填");
     if (!lineUserId) return sendError(res, sendJson, 400, "LINE_USER_ID_REQUIRED", "line_user_id 必填");
 
-    const chance = getOrCreateChance(activityId, lineUserId);
+    let chance = getOrCreateChance(activityId, lineUserId);
+    if (chance.granted_count === 0) {
+      const list = loadJsonArray(CHANCES_FILE);
+      const idx = list.findIndex((c) => c.chance_id === chance.chance_id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], granted_count: 1, remaining_count: 1, grant_source: "auto_first", updated_at: new Date().toISOString() };
+        saveJsonArray(CHANCES_FILE, list);
+        chance = list[idx];
+      }
+    }
+
     return sendOk(res, sendJson, "刮刮卡已就绪", {
       activity_id: activityId,
       line_user_id: lineUserId,
@@ -492,7 +502,17 @@ export async function handleFortuneStart(req, res, url, sendJson, readBody) {
     if (!activityId) return sendError(res, sendJson, 400, "ACTIVITY_ID_REQUIRED", "activity_id 必填");
     if (!lineUserId) return sendError(res, sendJson, 400, "LINE_USER_ID_REQUIRED", "line_user_id 必填");
 
-    const chance = getOrCreateChance(activityId, lineUserId);
+    let chance = getOrCreateChance(activityId, lineUserId);
+    if (chance.granted_count === 0) {
+      const list = loadJsonArray(CHANCES_FILE);
+      const idx = list.findIndex((c) => c.chance_id === chance.chance_id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], granted_count: 1, remaining_count: 1, grant_source: "auto_first", updated_at: new Date().toISOString() };
+        saveJsonArray(CHANCES_FILE, list);
+        chance = list[idx];
+      }
+    }
+
     const themes = loadJsonArray(FORTUNE_THEMES_FILE).filter(
       (t) => t.activity_id === activityId && t.status === "enabled"
     );

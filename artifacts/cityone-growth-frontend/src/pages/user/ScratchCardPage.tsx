@@ -92,11 +92,19 @@ export default function ScratchCardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/activities/${id}`)
-        const json = await res.json()
-        const data = json.data || json
-        setActivity(data)
-        setChances(data.userChances ?? null)
+        const actRes = await fetch(`${API_BASE}/api/activities/${id}`)
+        const actJson = await actRes.json()
+        setActivity(actJson.data || actJson)
+
+        const startRes = await fetch(`${API_BASE}/api/activity/scratch/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+        })
+        const startJson = await startRes.json()
+        if (startJson.data?.remaining_chances !== undefined) {
+          setChances(startJson.data.remaining_chances)
+        }
       } catch { setActivity(null) }
       finally { setLoading(false) }
     }
@@ -125,19 +133,9 @@ export default function ScratchCardPage() {
     if (!loading) setTimeout(initCanvas, 100)
   }, [loading, ui.scratchHint])
 
-  const startScratch = async () => {
+  const startScratch = () => {
     if (scratchStarted || revealed || (chances !== null && chances <= 0)) return
     setScratchStarted(true)
-    try {
-      const res = await fetch(`${API_BASE}/api/activity/scratch/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
-      })
-      const json = await res.json()
-      sessionId.current = json.data?.sessionId || ''
-      if (chances !== null) setChances(c => Math.max(0, (c ?? 1) - 1))
-    } catch {}
   }
 
   const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
@@ -190,10 +188,15 @@ export default function ScratchCardPage() {
       const res = await fetch(`${API_BASE}/api/activity/scratch/reveal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId(), sessionId: sessionId.current }),
+        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
       })
       const json = await res.json()
-      setResult(json.data || {})
+      if (json.code === 200) {
+        setResult(json.data || {})
+        if (chances !== null) setChances(c => Math.max(0, (c ?? 1) - 1))
+      } else {
+        setResult({ _error: json.msg })
+      }
       setTimeout(() => setResultVisible(true), 400)
     } catch {
       setResult({})
@@ -208,9 +211,8 @@ export default function ScratchCardPage() {
   )
 
   const isNoChance = chances !== null && chances <= 0
-  const prizeText = result?.prizeName
-    ? pick(result.prizeName)
-    : (result?.isWin ? ui.prizeArrived : ui.noWin)
+  const isWin = result && !result._error && !result.is_thanks
+  const prizeText = result?.prize?.prize_name || (isWin ? ui.prizeArrived : ui.noWin)
 
   const pageTitle = activity?.activity_name || activity?.activity_title || pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
 
@@ -234,8 +236,8 @@ export default function ScratchCardPage() {
 
       <div style={{ position: 'relative', marginTop: 24, width: 300, height: 160, borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #fff9c4, #fff176)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <span style={{ fontSize: 40 }}>{result?.isWin ? '🎁' : '🎫'}</span>
-          <span style={{ fontSize: 18, fontWeight: 700, color: result?.isWin ? '#ff6b00' : '#666' }}>
+          <span style={{ fontSize: 40 }}>{revealed ? (isWin ? '🎁' : '😅') : '🎫'}</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: isWin ? '#ff6b00' : '#666' }}>
             {revealed ? prizeText : '???'}
           </span>
         </div>
@@ -279,9 +281,14 @@ export default function ScratchCardPage() {
       {resultVisible && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div style={{ background: '#fff', borderRadius: 24, padding: 32, maxWidth: 320, width: '100%', textAlign: 'center', animation: 'scaleIn 0.3s ease' }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>{result?.isWin ? '🎉' : '😅'}</div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>{result?.isWin ? ui.win : ui.lose}</h2>
-            <p style={{ fontSize: 16, color: result?.isWin ? '#1677ff' : '#666', marginBottom: 20, fontWeight: result?.isWin ? 600 : 400 }}>{prizeText}</p>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>{isWin ? '🎉' : '😅'}</div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>{isWin ? ui.win : ui.lose}</h2>
+            <p style={{ fontSize: 16, color: isWin ? '#1677ff' : '#666', marginBottom: 8, fontWeight: isWin ? 700 : 400 }}>{prizeText}</p>
+            {isWin && result?.issued_product && (
+              <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '6px 14px', marginBottom: 12, fontSize: 13, color: '#389e0d' }}>
+                奖品已发放到您的账户
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => { setResultVisible(false); nav('/mine?tab=prizes') }} style={{ flex: 1, padding: '12px 0', background: 'linear-gradient(135deg, #1677ff, #4096ff)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                 <TrophyOutlined style={{ marginRight: 4 }} />{ui.myBenefits}

@@ -108,5 +108,75 @@
     "remaining_count": 0,
     "grant_source": "auto_first",
     "updated_at": "2026-04-06T06:40:46.522Z"
+  },
+  {
+    "chance_id": "ch_012",
+    "activity_id": "act_002",
+    "line_user_id": "test_scratch_user_01",
+    "granted_count": 0,
+    "used_count": 0,
+    "remaining_count": 0,
+    "grant_source": "",
+    "updated_at": "2026-04-06T06:49:53.312Z"
+  },
+  {
+    "chance_id": "ch_013",
+    "activity_id": "act_004",
+    "line_user_id": "brand_new_scratch_user",
+    "granted_count": 0,
+    "used_count": 0,
+    "remaining_count": 0,
+    "grant_source": "",
+    "updated_at": "2026-04-06T06:50:05.873Z"
+  },
+  {
+    "chance_id": "ch_014",
+    "activity_id": "act_005",
+    "line_user_id": "brand_new_fortune_user",
+    "granted_count": 0,
+    "used_count": 0,
+    "remaining_count": 0,
+    "grant_source": "",
+    "updated_at": "2026-04-06T06:50:07.252Z"
+  },
+  {
+    "chance_id": "ch_015",
+    "activity_id": "act_004",
+    "line_user_id": "test_scratch_fresh_01",
+    "granted_count": 0,
+    "used_count": 0,
+    "remaining_count": 0,
+    "grant_source": "",
+    "updated_at": "2026-04-06T06:52:48.026Z"
+  },
+  {
+    "chance_id": "ch_016",
+    "activity_id": "act_004",
+    "line_user_id": "final_scratch_test_01",
+    "granted_count": 1,
+    "used_count": 1,
+    "remaining_count": 0,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-06T06:53:08.587Z"
+  },
+  {
+    "chance_id": "ch_017",
+    "activity_id": "act_005",
+    "line_user_id": "final_fortune_test_01",
+    "granted_count": 1,
+    "used_count": 1,
+    "remaining_count": 0,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-06T06:53:11.005Z"
+  },
+  {
+    "chance_id": "ch_018",
+    "activity_id": "act_005",
+    "line_user_id": "theme_check_user",
+    "granted_count": 1,
+    "used_count": 0,
+    "remaining_count": 1,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-06T06:53:19.728Z"
   }
 ]

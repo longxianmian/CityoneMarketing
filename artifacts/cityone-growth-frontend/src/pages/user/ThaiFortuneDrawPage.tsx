@@ -92,14 +92,19 @@ export default function ThaiFortuneDrawPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [aRes, tRes] = await Promise.all([
+        const [actJson, startJson] = await Promise.all([
           fetch(`${API_BASE}/api/activities/${id}`).then(r => r.json()),
-          fetch(`${API_BASE}/api/activities/${id}/fortune-themes`).then(r => r.json()),
+          fetch(`${API_BASE}/api/activity/fortune/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+          }).then(r => r.json()),
         ])
-        const data = aRes.data || aRes
-        setActivity(data)
-        setChances(data.userChances ?? null)
-        const themeList = tRes.data || tRes || []
+        setActivity(actJson.data || actJson)
+        if (startJson.data?.remaining_chances !== undefined) {
+          setChances(startJson.data.remaining_chances)
+        }
+        const themeList: any[] = startJson.data?.themes || []
         setThemes(themeList)
         if (themeList.length > 0) setSelectedTheme(themeList[0])
       } catch { setActivity(null) }
@@ -120,15 +125,18 @@ export default function ThaiFortuneDrawPage() {
       const res = await fetch(`${API_BASE}/api/activity/fortune/draw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId(), themeId: selectedTheme?.id }),
+        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId(), theme_id: selectedTheme?.theme_id }),
       })
       const json = await res.json()
-      const data = json.data || {}
-      setResult(data)
-      if (chances !== null) setChances(c => Math.max(0, (c ?? 1) - 1))
+      if (json.code !== 200) {
+        setResult({ _error: json.msg || ui.errorPoem })
+      } else {
+        setResult(json.data || {})
+        if (chances !== null) setChances(c => Math.max(0, (c ?? 1) - 1))
+      }
       setResultVisible(true)
     } catch {
-      setResult({ fortuneType: 'medium', signNo: '?', poem_zh: ui.errorPoem, name: ui.errorName })
+      setResult({ _error: ui.errorPoem })
       setResultVisible(true)
     } finally {
       setDrawing(false)
@@ -143,23 +151,16 @@ export default function ThaiFortuneDrawPage() {
 
   const bgColor = selectedTheme?.bgColor || '#8b1a1a'
   const isNoChance = chances !== null && chances <= 0
-  const resultFortune = FORTUNE_COLORS[result?.fortuneType] || FORTUNE_COLORS.medium
+  // sign.mood_tag 决定签的吉凶颜色；fallback medium
+  const moodTag = result?.sign?.mood_tag || 'medium'
+  const resultFortune = FORTUNE_COLORS[moodTag] || FORTUNE_COLORS.medium
   const resultLabel = resultFortune.label[lang] || resultFortune.label.en
   const pageTitle = activity?.activity_name || activity?.activity_title || pick(activity?.name) || ui.defaultTitle
 
-  const poemText = (() => {
-    if (!result) return ''
-    if (lang === 'th' && result.poem_th) return result.poem_th
-    if (lang === 'en' && result.poem_en) return result.poem_en
-    return result.poem_zh || ''
-  })()
-
-  const interpretationText = (() => {
-    if (!result) return ''
-    if (lang === 'th' && result.interpretation_th) return result.interpretation_th
-    if (lang === 'en' && result.interpretation_en) return result.interpretation_en
-    return result.interpretation_zh || ''
-  })()
+  // 签文主体：short_text 是签诗/诗句，full_text 是解签/解释
+  const poemText = result?.sign?.short_text || ''
+  const interpretationText = result?.sign?.full_text || ''
+  const signTitle = result?.sign?.sign_title || ''
 
   return (
     <div style={{ minHeight: '100vh', background: `linear-gradient(160deg, ${bgColor} 0%, #1a0000 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: 40 }}>
@@ -177,16 +178,16 @@ export default function ThaiFortuneDrawPage() {
         <div style={{ display: 'flex', gap: 8, padding: '0 16px 16px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {themes.map((t: any) => (
             <button
-              key={t.id}
+              key={t.theme_id}
               onClick={() => setSelectedTheme(t)}
               style={{
                 padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                background: selectedTheme?.id === t.id ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.15)',
-                color: selectedTheme?.id === t.id ? bgColor : '#fff',
+                background: selectedTheme?.theme_id === t.theme_id ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.15)',
+                color: selectedTheme?.theme_id === t.theme_id ? bgColor : '#fff',
                 border: 'none', transition: 'all 0.2s',
               }}
             >
-              {pick(t.name) || t.name}
+              {t.theme_icon && <span style={{ marginRight: 4 }}>{t.theme_icon}</span>}{t.theme_name || t.theme_id}
             </button>
           ))}
         </div>
@@ -238,10 +239,10 @@ export default function ThaiFortuneDrawPage() {
           <div style={{ background: '#fff', borderRadius: 24, maxWidth: 340, width: '100%', overflow: 'hidden', animation: 'scaleIn 0.3s ease' }}>
             <div style={{ background: resultFortune.bg, padding: '28px 20px', textAlign: 'center' }}>
               <div style={{ fontSize: 48, fontWeight: 900, color: resultFortune.text, letterSpacing: 4, textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-                {result.signNo ? ui.resultNo(result.signNo) : ui.resultDefault}
+                {signTitle || ui.resultDefault}
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, color: resultFortune.text, marginTop: 8, opacity: 0.9 }}>
-                {pick(result.name) || resultLabel}
+                {resultLabel}
               </div>
               <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '4px 16px', marginTop: 8 }}>
                 <span style={{ fontSize: 15, fontWeight: 700, color: resultFortune.text }}>{resultLabel}</span>
