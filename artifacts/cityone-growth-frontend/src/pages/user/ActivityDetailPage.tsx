@@ -50,13 +50,13 @@ export default function ActivityDetailPage() {
 
   const actType = activity?.activity_type || activity?.activityType || activity?.type || ''
   const typeInfo = TYPE_LABELS[actType] || TYPE_LABELS.default
-  const title = activity?.activity_name || activity?.activity_title || pick(activity?.title) || activity?.name || ''
-  const subTitle = activity?.activity_subtitle || pick(activity?.subTitle) || ''
-  const description = activity?.activity_desc || pick(activity?.description) || ''
-  const highlights = activity?.highlights || ''
-  const participationGuide = activity?.participation_guide || activity?.participationGuide || ''
-  const rewardGuide = activity?.reward_guide || activity?.rewardGuide || ''
-  const noticeText = activity?.notice_text || activity?.noticeText || ''
+  const title = pick(activity?.activity_name || activity?.activity_title || activity?.title) || activity?.name || ''
+  const subTitle = pick(activity?.activity_subtitle || activity?.subTitle) || ''
+  const description = pick(activity?.activity_desc || activity?.description) || ''
+  const highlights = pick(activity?.highlights) || ''
+  const participationGuide = pick(activity?.participation_guide || activity?.participationGuide) || ''
+  const rewardGuide = pick(activity?.reward_guide || activity?.rewardGuide) || ''
+  const noticeText = pick(activity?.notice_text || activity?.noticeText) || ''
   const coverImage = activity?.cover_image || activity?.coverImage || ''
   const coverVideo = activity?.cover_video || activity?.coverVideo || ''
   const linkedProducts: any[] = activity?.linkedProducts || []
