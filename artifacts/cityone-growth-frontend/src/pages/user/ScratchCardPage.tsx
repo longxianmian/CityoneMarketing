@@ -219,7 +219,7 @@ export default function ScratchCardPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #fff1e6 0%, #ffe0cc 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 0 40px' }}>
       <div style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 12 }}>
-        <button onClick={() => nav(-1)} style={{ background: 'rgba(0,0,0,0.08)', border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333' }}>
+        <button onClick={() => window.history.length > 1 ? nav(-1) : nav('/welfare')} style={{ background: 'rgba(0,0,0,0.08)', border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333' }}>
           <ArrowLeftOutlined />
         </button>
         <span style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>
