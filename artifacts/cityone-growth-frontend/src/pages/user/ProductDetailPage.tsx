@@ -88,12 +88,12 @@ export default function ProductDetailPage() {
   const pickStrings = (field: any): string[] => {
     if (!field) return []
     if (typeof field === 'object' && !Array.isArray(field)) {
-      const str = field[lang] || field.zh || field.en || field.th || ''
+      const str = field[lang] || field.en || field.zh || field.th || ''
       return str.split('\n').filter(Boolean)
     }
     if (Array.isArray(field)) {
       return field.map((item: any) =>
-        (item && typeof item === 'object') ? (item[lang] || item.zh || item.en || item.th || '') : String(item || '')
+        (item && typeof item === 'object') ? (item[lang] || item.en || item.zh || item.th || '') : String(item || '')
       ).filter(Boolean)
     }
     return []

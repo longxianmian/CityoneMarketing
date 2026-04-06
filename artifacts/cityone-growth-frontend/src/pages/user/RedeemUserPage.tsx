@@ -19,24 +19,26 @@ function formatNow() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-// 多语字段 pick 工具
+// 多语字段 pick 工具（降级顺序：当前语言 → en → zh → th，与 pickLocalizedText 一致）
 function pickML(field: any, lang?: string): string {
   if (!field) return ''
   if (typeof field === 'string') return field
   if (typeof field === 'object' && !Array.isArray(field)) {
-    return field[lang || 'zh'] || field.zh || field.th || field.en || ''
+    const l = lang || 'en'
+    return field[l] || field.en || field.zh || field.th || ''
   }
   return ''
 }
 function pickStrings(field: any, lang?: string): string[] {
   if (!field) return []
+  const l = lang || 'en'
   if (typeof field === 'object' && !Array.isArray(field)) {
-    const str = field[lang || 'zh'] || field.zh || field.en || field.th || ''
+    const str = field[l] || field.en || field.zh || field.th || ''
     return str.split('\n').filter(Boolean)
   }
   if (Array.isArray(field)) {
     return field.map((item: any) =>
-      (item && typeof item === 'object') ? (item[lang || 'zh'] || item.zh || item.en || item.th || '') : String(item || '')
+      (item && typeof item === 'object') ? (item[l] || item.en || item.zh || item.th || '') : String(item || '')
     ).filter(Boolean)
   }
   return []
