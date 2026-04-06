@@ -32,6 +32,7 @@ const CAPABILITY_LABELS: Record<string, Record<'zh' | 'th' | 'en', string>> = {
   activity: { zh: '活动参与', th: 'กิจกรรม', en: 'Activities' },
   nearby_sites_query: { zh: '附近站点', th: 'สถานีใกล้เคียง', en: 'Nearby Stations' },
   benefit_claim_query: { zh: '福利领取', th: 'รับสิทธิ์', en: 'Benefits' },
+  growth_saving_intent: { zh: '省钱攻略', th: 'ประหยัดเงิน', en: 'Saving Tips' },
 }
 
 const HINT: Record<'zh' | 'th' | 'en', Record<string, string>> = {
