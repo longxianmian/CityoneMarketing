@@ -173,6 +173,49 @@ export async function handlePrizeCreate(req, res, url, sendJson, readBody) {
   }
 }
 
+export async function handlePrizeUpdate(req, res, url, sendJson, readBody) {
+  try {
+    const prizeId = url.pathname.split("/").pop();
+    if (!prizeId) return sendError(res, sendJson, 400, "PRIZE_ID_REQUIRED", "prize_id 必填");
+    const body = await readBody(req);
+    const list = loadJsonArray(PRIZES_FILE);
+    const idx = list.findIndex((p) => p.prize_id === prizeId);
+    if (idx < 0) return sendError(res, sendJson, 404, "NOT_FOUND", "奖项不存在");
+    list[idx] = {
+      ...list[idx],
+      prize_name: body.prize_name ?? list[idx].prize_name,
+      prize_type: body.prize_type ?? list[idx].prize_type,
+      reward_product_id: body.reward_product_id ?? list[idx].reward_product_id,
+      probability_weight: body.probability_weight !== undefined ? Number(body.probability_weight) : list[idx].probability_weight,
+      stock_qty: body.stock_qty !== undefined ? Number(body.stock_qty) : list[idx].stock_qty,
+      display_text: body.display_text ?? list[idx].display_text,
+      display_color: body.display_color ?? list[idx].display_color,
+      sort_no: body.sort_no !== undefined ? Number(body.sort_no) : list[idx].sort_no,
+      status: body.status ?? list[idx].status,
+      updated_at: new Date().toISOString(),
+    };
+    saveJsonArray(PRIZES_FILE, list);
+    return sendOk(res, sendJson, "prize updated", list[idx]);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "UPDATE_FAILED", err.message || "更新失败");
+  }
+}
+
+export async function handlePrizeDelete(req, res, url, sendJson) {
+  try {
+    const prizeId = url.pathname.split("/").pop();
+    if (!prizeId) return sendError(res, sendJson, 400, "PRIZE_ID_REQUIRED", "prize_id 必填");
+    const list = loadJsonArray(PRIZES_FILE);
+    const idx = list.findIndex((p) => p.prize_id === prizeId);
+    if (idx < 0) return sendError(res, sendJson, 404, "NOT_FOUND", "奖项不存在");
+    list.splice(idx, 1);
+    saveJsonArray(PRIZES_FILE, list);
+    return sendOk(res, sendJson, "prize deleted", { prize_id: prizeId });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DELETE_FAILED", err.message || "删除失败");
+  }
+}
+
 // ─── 签池管理 ────────────────────────────────────────────────────────────────
 
 export function handleFortuneThemeList(req, res, url, sendJson) {

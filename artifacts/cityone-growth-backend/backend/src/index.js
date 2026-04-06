@@ -66,6 +66,8 @@ import {
 import {
   handlePrizeList,
   handlePrizeCreate,
+  handlePrizeUpdate,
+  handlePrizeDelete,
   handleFortuneThemeList,
   handleFortuneThemeCreate,
   handleSignList,
@@ -579,6 +581,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/activity-prizes") {
       return handlePrizeCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "PUT" && /^\/api\/activity-prizes\/[^/]+$/.test(url.pathname)) {
+      return handlePrizeUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "DELETE" && /^\/api\/activity-prizes\/[^/]+$/.test(url.pathname)) {
+      return handlePrizeDelete(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/activity-fortune-themes") {
       return handleFortuneThemeList(req, res, url, sendJson);
