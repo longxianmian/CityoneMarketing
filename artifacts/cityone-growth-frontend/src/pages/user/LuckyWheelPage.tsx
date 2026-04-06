@@ -215,12 +215,18 @@ export default function LuckyWheelPage() {
       }
       const data = json.data || {}
       setResult(data)
-      // 根据 prize_id 找到扇区索引，让转盘停在对应奖品上
+      // 根据 prize_id 找到扇区索引，让指针（顶部）精确对准中奖扇区中心
       const wonPrizeId = data.prize?.prize_id
       const wonIdx = prizeData.findIndex((p: any) => p.prize_id === wonPrizeId)
       if (wonIdx >= 0) {
         const arc = (2 * Math.PI) / segments.length
-        prizeAngle = -(wonIdx * arc)
+        // 目标：finalRot + wonIdx*arc - π/2 + arc/2 ≡ -π/2 (mod 2π)
+        // => finalRot ≡ -(wonIdx*arc + arc/2) (mod 2π)
+        // finalRot = startRot + 2π*N + prizeAngle
+        // => prizeAngle = -(wonIdx*arc + arc/2) - (startRot mod 2π)
+        const TWO_PI = 2 * Math.PI
+        const normalizedStart = ((rotRef.current % TWO_PI) + TWO_PI) % TWO_PI
+        prizeAngle = -(wonIdx * arc + arc / 2) - normalizedStart
       }
       if (chances !== null) setChances(c => Math.max(0, (c ?? 1) - 1))
     } catch {
