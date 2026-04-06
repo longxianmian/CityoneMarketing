@@ -29,6 +29,7 @@ const LANGUAGES = [
   { key: 'en', label: 'English' },
 ]
 
+
 const KEYWORD_FIELDS = [
   { key: 'identity_keywords', label: '身份定位词', placeholder: '你是...（核心角色与定位）' },
   { key: 'responsibility_keywords', label: '职责范围词', placeholder: '负责...（主要职责列表）' },
