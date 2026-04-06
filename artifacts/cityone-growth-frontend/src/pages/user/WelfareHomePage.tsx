@@ -292,7 +292,7 @@ export default function WelfareHomePage() {
         views: c.claimed_count || 0,
         price: fmtPrice(c),
         points: 0,
-        route: '/welfare',
+        route: `/coupon/${c.id}`,
         footerTone: '#2F80FF',
       }))
       setApiCoupons(cards)
