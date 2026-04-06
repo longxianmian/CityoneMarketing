@@ -39,6 +39,17 @@ function nextId(list) {
   return `coupon_${String(max + 1).padStart(3, "0")}`;
 }
 
+// GET /api/user/coupons  —— 用户端：仅返回有效卡券
+export function handleUserCouponList(req, res, url, sendJson) {
+  const now = new Date();
+  const list = loadCoupons().filter(c => {
+    if (Number(c.status) !== 1) return false;
+    if (c.valid_to && new Date(c.valid_to) < now) return false;
+    return true;
+  });
+  return sendOk(res, sendJson, "ok", list);
+}
+
 // GET /api/growth/coupon/list?pageNum=1&pageSize=10&name=xxx
 export function handleCouponList(req, res, url, sendJson) {
   const pageNum  = Math.max(1, Number(url.searchParams.get("pageNum")  || 1));

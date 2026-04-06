@@ -20,6 +20,7 @@ import {
 import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
 import { getActivities } from '../../api/growth'
+import request from '../../api/request'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -253,6 +254,39 @@ export default function WelfareHomePage() {
   )
 
   const [apiActivities, setApiActivities] = useState<ContentCard[]>([])
+  const [apiCoupons, setApiCoupons] = useState<ContentCard[]>([])
+
+  useEffect(() => {
+    const DISCOUNT_COVERS: Record<string, string> = {
+      free_time:  'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
+      free_order: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
+      fixed:      'linear-gradient(135deg, #7B61FF 0%, #C3B5FF 100%)',
+      percent:    'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)',
+    }
+    const fmtPrice = (c: any) => {
+      const val = Number(c.discount_value || 0)
+      if (c.discount_type === 'free_time')  return `FREE ${val} min`
+      if (c.discount_type === 'free_order') return 'FREE'
+      if (c.discount_type === 'percent')    return `${100 - val}% OFF`
+      return `฿${val} OFF`
+    }
+    ;(request.get('/user/coupons') as any).then((res: any) => {
+      const list: any[] = res.data || []
+      const cards: ContentCard[] = list.map(c => ({
+        id: c.id,
+        type: 'coupon' as const,
+        title: { zh: c.name, th: c.name, en: c.name },
+        badge: { zh: '卡券', th: 'คูปอง', en: 'Coupon' },
+        cover: c.cover_image || DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed,
+        views: c.claimed_count || 0,
+        price: fmtPrice(c),
+        points: 0,
+        route: '/welfare',
+        footerTone: '#2F80FF',
+      }))
+      setApiCoupons(cards)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     getActivities({ status: 'active' }).then(res => {
@@ -296,22 +330,6 @@ export default function WelfareHomePage() {
       route: '/coupon/1?followed=1', footerTone: '#7B61FF',
     },
     {
-      id: 'c1', type: 'coupon',
-      title: { zh: '15分钟免费时长券', th: 'คูปองเวลาฟรี 15 นาที', en: '15-min free time coupon' },
-      badge: { zh: '卡券', th: 'คูปอง', en: 'Coupon' },
-      cover: 'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
-      views: 7200, price: 'FREE', points: 0,
-      route: '/redeem/1?followed=1', footerTone: '#2F80FF',
-    },
-    {
-      id: 'c2', type: 'coupon',
-      title: { zh: '首借免单券', th: 'คูปองยืมครั้งแรกฟรี', en: 'First borrow free coupon' },
-      badge: { zh: '高转化', th: 'แปลงผลสูง', en: 'High Conv.' },
-      cover: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
-      views: 8830, price: 'FREE', points: 0,
-      route: '/coupon/2?followed=1', footerTone: '#FF7A59',
-    },
-    {
       id: 'r1', type: 'redeem',
       title: { zh: '电子书会员包', th: 'แพ็กสมาชิกอีบุ๊ก', en: 'E-book membership pack' },
       badge: { zh: '可兑换', th: 'แลกได้', en: 'Redeem' },
@@ -327,14 +345,6 @@ export default function WelfareHomePage() {
       views: 4200,
     },
     {
-      id: 'n3', type: 'coupon',
-      title: { zh: '15分钟券可在附近使用', th: 'คูปอง 15 นาทีใช้ใกล้คุณได้', en: '15-min coupon usable nearby' },
-      badge: { zh: '附近可用', th: 'คูปองใกล้คุณ', en: 'Nearby Coupon' },
-      cover: 'linear-gradient(135deg, #FFB36B 0%, #FF7A59 100%)',
-      views: 5580, price: 'FREE', points: 0,
-      route: '/coupon/1?followed=1', footerTone: '#FF7A59',
-    },
-    {
       id: 'n4', type: 'redeem',
       title: { zh: '附近可兑换联名马克杯', th: 'แก้วคอลแลบแลกได้ใกล้คุณ', en: 'Nearby redeemable co-branded mug' },
       badge: { zh: '附近兑换', th: 'แลกใกล้คุณ', en: 'Nearby Redeem' },
@@ -345,8 +355,8 @@ export default function WelfareHomePage() {
   ], [])
 
   const allCards: ContentCard[] = useMemo(
-    () => [...apiActivities, ...staticNonActivityCards],
-    [apiActivities, staticNonActivityCards]
+    () => [...apiActivities, ...apiCoupons, ...staticNonActivityCards],
+    [apiActivities, apiCoupons, staticNonActivityCards]
   )
 
   const filteredCards = useMemo(() => {

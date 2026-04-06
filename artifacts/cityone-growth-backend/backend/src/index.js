@@ -157,6 +157,7 @@ import {
   handleRepairActionsDelete,
 } from "./routes/agent-admin.js";
 import {
+  handleUserCouponList,
   handleCouponList,
   handleCouponAdd,
   handleCouponUpdate,
@@ -443,6 +444,11 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/routes/test-match") {
       return handleRouteTestMatch(req, res, url, sendJson, readBody);
+    }
+
+    // ── 卡券（用户端公开）────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/user/coupons") {
+      return handleUserCouponList(req, res, url, sendJson);
     }
 
     // ── 卡券管理 ──────────────────────────────────────────────────────────────
