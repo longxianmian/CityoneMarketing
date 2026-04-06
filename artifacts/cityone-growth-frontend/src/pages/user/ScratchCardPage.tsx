@@ -214,7 +214,7 @@ export default function ScratchCardPage() {
   const isWin = result && !result._error && !result.is_thanks
   const prizeText = result?.prize?.prize_name || (isWin ? ui.prizeArrived : ui.noWin)
 
-  const pageTitle = activity?.activity_name || activity?.activity_title || pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
+  const pageTitle = pick(activity?.activity_name) || pick(activity?.activity_title) || pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #fff1e6 0%, #ffe0cc 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 0 40px' }}>

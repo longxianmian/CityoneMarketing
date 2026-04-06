@@ -266,7 +266,7 @@ export default function LuckyWheelPage() {
   )
 
   const isNoChance = chances !== null && chances <= 0
-  const pageTitle = activity?.activity_name || activity?.activity_title || pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
+  const pageTitle = pick(activity?.activity_name) || pick(activity?.activity_title) || pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
 
   return (
     <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at top, #1a0a2e 0%, #0d0628 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 0 40px', position: 'relative' }}>

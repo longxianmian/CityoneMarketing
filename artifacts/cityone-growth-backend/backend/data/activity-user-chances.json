@@ -234,9 +234,19 @@
     "activity_id": "act_002",
     "line_user_id": "dev_1q175hnsmnmtn22u",
     "granted_count": 1,
+    "used_count": 1,
+    "remaining_count": 0,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-06T15:39:53.711Z"
+  },
+  {
+    "chance_id": "ch_025",
+    "activity_id": "act_002",
+    "line_user_id": "dev_guu64j2jmnncwtjy",
+    "granted_count": 1,
     "used_count": 0,
     "remaining_count": 1,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-06T15:38:06.489Z"
+    "updated_at": "2026-04-06T15:40:12.576Z"
   }
 ]

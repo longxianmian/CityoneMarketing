@@ -155,7 +155,7 @@ export default function ThaiFortuneDrawPage() {
   const moodTag = result?.sign?.mood_tag || 'medium'
   const resultFortune = FORTUNE_COLORS[moodTag] || FORTUNE_COLORS.medium
   const resultLabel = resultFortune.label[lang] || resultFortune.label.en
-  const pageTitle = activity?.activity_name || activity?.activity_title || pick(activity?.name) || ui.defaultTitle
+  const pageTitle = pick(activity?.activity_name) || pick(activity?.activity_title) || pick(activity?.name) || ui.defaultTitle
 
   // 签文主体：short_text 是签诗/诗句，full_text 是解签/解释
   const poemText = result?.sign?.short_text || ''
