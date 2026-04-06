@@ -1,17 +1,54 @@
 [
   {
     "id": "mi_1775476024894_cc9ue",
-    "name": "",
+    "name": "是豆豆",
     "item_type": "digital",
     "exchange_mode": "points",
     "price_thb": null,
-    "points_required": null,
+    "points_required": 1990,
     "stock": 100,
     "on_shelf": true,
-    "cover_image": "",
+    "cover_image": "/uploads/1775485439598_1f5093522d26.jpg",
     "description": "",
     "sort_order": 3,
     "created_at": "2026-04-06T11:47:04.894Z",
-    "updated_at": "2026-04-06T11:47:04.894Z"
+    "updated_at": "2026-04-06T14:24:53.493Z",
+    "valueBaht": 199,
+    "tag": "限量",
+    "badge": "纯积分",
+    "detailTitle": "TWS蓝牙耳机",
+    "highlights": [
+      "点点点"
+    ],
+    "rules": [
+      "点点点"
+    ]
+  },
+  {
+    "name": "深海塞尔高端耳机",
+    "item_type": "voucher",
+    "exchange_mode": "points",
+    "thumbTone": "slate",
+    "points_required": 1000,
+    "price_thb": 0,
+    "stock": 100,
+    "valueBaht": 0,
+    "heat": 0,
+    "sort_order": 0,
+    "tag": "限量",
+    "badge": "纯积分",
+    "detailTitle": "TWS蓝牙耳机",
+    "highlights": [
+      "长豆豆"
+    ],
+    "rules": [
+      "多少啊"
+    ],
+    "on_shelf": true,
+    "cover_image": "/uploads/1775485510353_18b0ea50fc7f.jpg",
+    "id": "mi_1775485551092_gdx7s",
+    "description": "",
+    "created_at": "2026-04-06T14:25:51.092Z",
+    "updated_at": "2026-04-06T14:25:51.092Z"
   }
 ]

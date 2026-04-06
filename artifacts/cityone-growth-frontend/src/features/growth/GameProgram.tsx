@@ -381,7 +381,7 @@ export default function GameProgram() {
   // 拉取奖品数据源
   useEffect(() => {
     ;(request.get('/growth/coupon/list', { params: { pageNum: 1, pageSize: 100 } }) as any)
-      .then((res: any) => setCoupons((res.data as any)?.list || []))
+      .then((res: any) => setCoupons((res.data as any)?.rows || (res.data as any)?.list || []))
       .catch(() => {})
     ;(request.get('/growth/mall/items', { params: { pageSize: 100 } }) as any)
       .then((res: any) => setMallItems((res.data as any)?.list || []))
