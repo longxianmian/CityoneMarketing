@@ -132,8 +132,7 @@ export default function AdminLayout() {
             children: [
               { key: '/admin/growth/coupon', label: lt('couponItems') },
               { key: '/admin/growth/prize-pool', label: lt('prizePool') },
-              { key: '/admin/welfare/coupon-issue', label: lt('couponIssueRecords') },
-              { key: '/admin/welfare/coupon-usage', label: lt('couponUsageRecords') },
+              { key: '/admin/welfare/coupon-stats', label: lt('couponStats') },
             ],
           },
           {
@@ -143,8 +142,7 @@ export default function AdminLayout() {
             children: [
               { key: '/admin/growth/points/mall', label: lt('benefitItems') },
               { key: '/admin/growth/fortune-sign', label: lt('fortuneSign') },
-              { key: '/admin/growth/user-chances', label: lt('userBenefitAccounts') },
-              { key: '/admin/welfare/benefit-issue', label: lt('benefitIssueRecords') },
+              { key: '/admin/welfare/redeem-stats', label: lt('redeemStats') },
             ],
           },
         ],
