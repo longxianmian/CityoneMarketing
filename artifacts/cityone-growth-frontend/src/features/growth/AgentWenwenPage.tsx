@@ -68,12 +68,8 @@ export default function AgentWenwenPage() {
       setAgentInfo(agent)
       if (agent) {
         agentForm.setFieldsValue({
-          name_zh: agent.agent_name?.zh || '',
-          name_th: agent.agent_name?.th || '',
-          name_en: agent.agent_name?.en || '',
-          role_summary_zh: agent.role_summary?.zh || '',
-          role_summary_th: agent.role_summary?.th || '',
-          role_summary_en: agent.role_summary?.en || '',
+          display_name: agent.agent_name?.zh || '',
+          role_summary: agent.role_summary?.zh || '',
         })
       }
     } catch { message.error('加载 Agent 基础信息失败') }
@@ -85,8 +81,8 @@ export default function AgentWenwenPage() {
     setAgentSaving(true)
     try {
       await updateAgent(AGENT_CODE, {
-        agent_name: { zh: vals.name_zh, th: vals.name_th, en: vals.name_en },
-        role_summary: { zh: vals.role_summary_zh, th: vals.role_summary_th, en: vals.role_summary_en },
+        agent_name: { zh: vals.display_name, th: agentInfo?.agent_name?.th || '', en: agentInfo?.agent_name?.en || '' },
+        role_summary: { zh: vals.role_summary, th: agentInfo?.role_summary?.th || '', en: agentInfo?.role_summary?.en || '' },
       })
       message.success('基础信息已保存')
       loadAgent()
@@ -340,40 +336,12 @@ export default function AgentWenwenPage() {
       >
         {agentLoading ? <Spin /> : (
           <Form form={agentForm} layout="vertical">
-            <Row gutter={16}>
-              <Col span={8}>
-                <Form.Item label="显示名称（中文）" name="name_zh">
-                  <Input placeholder="问问" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item label="显示名称（泰文）" name="name_th">
-                  <Input placeholder="ถามดู" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item label="显示名称（英文）" name="name_en">
-                  <Input placeholder="Ask" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={8}>
-                <Form.Item label="角色摘要（中文）" name="role_summary_zh">
-                  <TextArea rows={2} placeholder="角色摘要" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item label="角色摘要（泰文）" name="role_summary_th">
-                  <TextArea rows={2} placeholder="คำอธิบาย" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item label="角色摘要（英文）" name="role_summary_en">
-                  <TextArea rows={2} placeholder="Role summary" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <Form.Item label="显示名称" name="display_name">
+              <Input placeholder="问问" style={{ maxWidth: 320 }} />
+            </Form.Item>
+            <Form.Item label="角色摘要" name="role_summary">
+              <TextArea rows={2} placeholder="简要描述该 Agent 的职责范围" style={{ maxWidth: 640 }} />
+            </Form.Item>
           </Form>
         )}
       </Card>
