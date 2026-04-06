@@ -250,3 +250,15 @@ export function getUserOrders(params?: {
 }) {
   return request.get('/user/orders', { params })
 }
+
+export function getActivities(params?: { status?: string; activity_type?: string }) {
+  return request.get('/activities', { params })
+}
+
+export function createActivity(data: Record<string, unknown>) {
+  return request.post('/activities', data)
+}
+
+export function updateActivity(id: string, data: Record<string, unknown>) {
+  return request.put(`/activities/${id}`, data)
+}

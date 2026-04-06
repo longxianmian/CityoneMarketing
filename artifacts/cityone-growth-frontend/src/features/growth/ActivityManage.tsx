@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import {
   Card, Table, Input, Button, Space, Tag, Row, Col,
   Modal, Form, message, Select, DatePicker, Tabs,
@@ -15,6 +15,7 @@ import SharePromoModal from '../../components/SharePromoModal'
 import MediaUploadField from '../../components/MediaUploadField'
 import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
+import { getActivities, createActivity, updateActivity } from '../../api/growth'
 
 export default function ActivityManage() {
   const { t } = useI18n()
@@ -60,50 +61,45 @@ export default function ActivityManage() {
     am('coupon1'), am('coupon2'), am('coupon3'), am('coupon4'), am('coupon5'),
   ]
 
-  const mockActivities = [
-    {
-      id: 1, name: am('mock1Name'), subTitle: am('mock1Sub'), goal: '拉新',
-      department: '互联网推广部', ownerDept: '互联网推广部', partnerDept: '--',
-      couponName: am('coupon1'), status: 'active', followCount: 2110, userCount: 980, memberCount: 456,
-      start_at: '2026-03-01 00:00:00', end_at: '2026-03-31 23:59:59',
-      description: '', highlights: '', participationGuide: '', rewardGuide: '', noticeText: '',
-      coverImage: '', coverVideo: '',
-    },
-    {
-      id: 2, name: am('mock2Name'), subTitle: am('mock2Sub'), goal: '转用户',
-      department: '运营部', ownerDept: '运营部', partnerDept: '--',
-      couponName: am('coupon3'), status: 'active', followCount: 1320, userCount: 860, memberCount: 402,
-      start_at: '2026-03-05 00:00:00', end_at: '2026-03-25 23:59:59',
-      description: '', highlights: '', participationGuide: '', rewardGuide: '', noticeText: '',
-      coverImage: '', coverVideo: '',
-    },
-    {
-      id: 3, name: am('mock3Name'), subTitle: am('mock3Sub'), goal: '召回',
-      department: '运营部', ownerDept: '运营部', partnerDept: '--',
-      couponName: am('coupon4'), status: 'draft', followCount: 760, userCount: 438, memberCount: 186,
-      start_at: '2026-03-10 00:00:00', end_at: '2026-03-20 23:59:59',
-      description: '', highlights: '', participationGuide: '', rewardGuide: '', noticeText: '',
-      coverImage: '', coverVideo: '',
-    },
-    {
-      id: 4, name: am('mock4Name'), subTitle: am('mock4Sub'), goal: '联合活动',
-      department: '联合活动', ownerDept: '互联网推广部', partnerDept: '运营部',
-      couponName: am('coupon5'), status: 'active', followCount: 1120, userCount: 760, memberCount: 356,
-      start_at: '2026-03-03 00:00:00', end_at: '2026-03-30 23:59:59',
-      description: '', highlights: '', participationGuide: '', rewardGuide: '', noticeText: '',
-      coverImage: '', coverVideo: '',
-    },
-    {
-      id: 5, name: am('mock5Name'), subTitle: am('mock5Sub'), goal: '促关注',
-      department: '互联网推广部', ownerDept: '互联网推广部', partnerDept: '--',
-      couponName: am('coupon1'), status: 'ended', followCount: 1620, userCount: 762, memberCount: 318,
-      start_at: '2026-02-10 00:00:00', end_at: '2026-02-28 23:59:59',
-      description: '', highlights: '', participationGuide: '', rewardGuide: '', noticeText: '',
-      coverImage: '', coverVideo: '',
-    },
-  ]
+  const toLocal = (a: any) => ({
+    id: a.activity_id,
+    name: a.activity_name || '',
+    subTitle: a.activity_subtitle || '',
+    activityType: a.activity_type || 'general',
+    description: a.activity_desc || '',
+    start_at: a.start_time || '',
+    end_at: a.end_time || '',
+    status: a.status || 'draft',
+    goal: a.goal || '',
+    department: a.department || '',
+    ownerDept: a.owner_dept || '',
+    partnerDept: a.partner_dept || '',
+    couponName: a.coupon_name || '',
+    highlights: a.highlights || '',
+    participationGuide: a.participation_guide || '',
+    rewardGuide: a.reward_guide || '',
+    noticeText: a.notice_text || '',
+    coverImage: a.cover_image || '',
+    coverVideo: a.cover_video || '',
+    requireFollow: !!a.require_oa_follow,
+    autoJoin: !!a.auto_join_after_follow,
+    template_id: a.template_id || '',
+    followCount: 0,
+    userCount: 0,
+    memberCount: 0,
+  })
 
-  const [data, setData] = useState<any[]>(mockActivities)
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    getActivities().then(res => {
+      const list: any[] = res.data?.data || []
+      setData(list.map(toLocal))
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [goalFilter, setGoalFilter] = useState<string>('all')
@@ -176,31 +172,59 @@ export default function ActivityManage() {
     setFormVisible(true)
   }
 
-  const handleToggle = (record: any) => {
+  const handleToggle = async (record: any) => {
     const nextStatus = record.status === 'active' ? 'draft' : 'active'
-    setData((prev) => prev.map((item) => item.id === record.id ? { ...item, status: nextStatus } : item))
-    message.success(am('statusUpdated'))
+    try {
+      await updateActivity(record.id, { status: nextStatus })
+      setData((prev) => prev.map((item) => item.id === record.id ? { ...item, status: nextStatus } : item))
+      message.success(am('statusUpdated'))
+    } catch {
+      message.error('状态更新失败，请重试')
+    }
   }
 
   const handleFormOk = async () => {
     try {
       const values = await form.validateFields()
-      const payload = {
-        ...values,
-        start_at: values.dateRange?.[0]?.format('YYYY-MM-DD HH:mm:ss'),
-        end_at: values.dateRange?.[1]?.format('YYYY-MM-DD HH:mm:ss'),
-        coverImage, coverVideo,
+      const backendPayload: Record<string, unknown> = {
+        activity_name: values.name,
+        activity_subtitle: values.subTitle || '',
+        activity_desc: values.description || '',
+        activity_type: values.activityType || 'general',
+        start_time: values.dateRange?.[0]?.format('YYYY-MM-DD HH:mm:ss') || '',
+        end_time: values.dateRange?.[1]?.format('YYYY-MM-DD HH:mm:ss') || '',
+        require_oa_follow: !!values.requireFollow,
+        auto_join_after_follow: !!values.autoJoin,
+        goal: values.goal || '',
+        department: values.department || '',
+        owner_dept: values.ownerDept || '',
+        partner_dept: values.partnerDept || '',
+        coupon_name: values.couponName || '',
+        highlights: values.highlights || '',
+        participation_guide: values.participationGuide || '',
+        reward_guide: values.rewardGuide || '',
+        notice_text: values.noticeText || '',
+        cover_image: coverImage,
+        cover_video: coverVideo,
+        template_id: values.template_id || '',
+        status: values.status || 'draft',
       }
-      delete payload.dateRange
       if (isEdit && editingRecord) {
-        setData((prev) => prev.map((item) => item.id === editingRecord.id ? { ...item, ...payload } : item))
+        const res = await updateActivity(editingRecord.id, backendPayload)
+        const updated = toLocal(res.data?.data || {})
+        setData((prev) => prev.map((item) => item.id === editingRecord.id ? updated : item))
         message.success(am('editSuccess'))
       } else {
-        setData((prev) => [{ id: Date.now(), ...payload, followCount: 0, userCount: 0, memberCount: 0, status: payload.status || 'draft' }, ...prev])
+        const res = await createActivity(backendPayload)
+        const newItem = toLocal(res.data?.data || {})
+        setData((prev) => [newItem, ...prev])
         message.success(am('createSuccess'))
       }
       setFormVisible(false)
-    } catch (e) {}
+    } catch (e: any) {
+      if (e?.errorFields) return
+      message.error('保存失败，请重试')
+    }
   }
 
   const columns = [
@@ -298,7 +322,7 @@ export default function ActivityManage() {
     {
       key: 'all',
       label: am('tabAll'),
-      children: <Table rowKey="id" columns={columns} dataSource={filteredData} pagination={false} scroll={{ x: 1500 }} />,
+      children: <Table rowKey="id" columns={columns} dataSource={filteredData} pagination={false} scroll={{ x: 1500 }} loading={loading} />,
     },
     ...goalOptions.map((goal) => ({
       key: goal.value,

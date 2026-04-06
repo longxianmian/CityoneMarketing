@@ -49,7 +49,7 @@ function idFromPath(pathname, pattern) {
 // ─── 活动模板 ────────────────────────────────────────────────────────────────
 
 const VALID_ACTIVITY_TYPES = [
-  "sos", "lightning_coupon", "lucky_wheel", "scratch_card", "thai_fortune_draw", "invite_reward"
+  "general", "sos", "lightning_coupon", "lucky_wheel", "scratch_card", "thai_fortune_draw", "invite_reward"
 ];
 
 export function handleActivityTemplateGet(req, res, url, sendJson) {
@@ -162,7 +162,7 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
       usage_mode: body.usage_mode || "public",
       start_time: body.start_time || "",
       end_time: body.end_time || "",
-      status: "draft",
+      status: ["draft", "active", "ended"].includes(body.status) ? body.status : "draft",
       require_oa_follow: !!body.require_oa_follow,
       auto_join_after_follow: !!body.auto_join_after_follow,
       entry_scope_json: body.entry_scope_json || null,
@@ -175,6 +175,17 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
       share_cover: body.share_cover || "",
       campaign_id: body.campaign_id || "",
       share_status: body.share_status || "disabled",
+      goal: body.goal || "",
+      department: body.department || "",
+      owner_dept: body.owner_dept || "",
+      partner_dept: body.partner_dept || "",
+      coupon_name: body.coupon_name || "",
+      highlights: body.highlights || "",
+      participation_guide: body.participation_guide || "",
+      reward_guide: body.reward_guide || "",
+      notice_text: body.notice_text || "",
+      cover_image: body.cover_image || "",
+      cover_video: body.cover_video || "",
       created_at: now,
       updated_at: now,
     };
@@ -200,6 +211,8 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       "usage_mode","start_time","end_time","status","require_oa_follow","auto_join_after_follow",
       "entry_scope_json","site_scope_json","channel_scope_json",
       "share_enabled","share_title","share_desc","share_cover","campaign_id","share_status",
+      "goal","department","owner_dept","partner_dept","coupon_name",
+      "highlights","participation_guide","reward_guide","notice_text","cover_image","cover_video",
     ];
     const updated = { ...list[idx] };
     for (const f of updatableFields) {

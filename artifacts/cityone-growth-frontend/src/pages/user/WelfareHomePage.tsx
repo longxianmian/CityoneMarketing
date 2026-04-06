@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons'
 import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
+import { getActivities } from '../../api/growth'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -251,86 +252,101 @@ export default function WelfareHomePage() {
     [t]
   )
 
+  const [apiActivities, setApiActivities] = useState<ContentCard[]>([])
+
+  useEffect(() => {
+    getActivities({ status: 'active' }).then(res => {
+      const COVER_GRADIENTS = [
+        'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)',
+        'linear-gradient(135deg, #7B61FF 0%, #2F80FF 100%)',
+        'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
+        'linear-gradient(135deg, #2F80FF 0%, #2CDBCE 100%)',
+        'linear-gradient(135deg, #7B61FF 0%, #C3B5FF 100%)',
+      ]
+      const GOAL_BADGE: Record<string, { zh: string; th: string; en: string }> = {
+        '拉新': { zh: '拉新', th: 'หาผู้ใช้ใหม่', en: 'Acquire' },
+        '促关注': { zh: '促关注', th: 'เพิ่มผู้ติดตาม', en: 'Follow' },
+        '转用户': { zh: '转用户', th: 'แปลงผู้ใช้', en: 'Convert' },
+        '转会员': { zh: '转会员', th: 'สมาชิก', en: 'Member' },
+        '复购': { zh: '复购', th: 'ซื้อซ้ำ', en: 'Repurchase' },
+        '召回': { zh: '召回', th: 'ดึงกลับ', en: 'Recall' },
+        '联合活动': { zh: '联合', th: 'ร่วมกิจกรรม', en: 'Joint' },
+      }
+      const list: any[] = res.data?.data || []
+      const cards: ContentCard[] = list.map((a, idx) => ({
+        id: a.activity_id,
+        type: 'activity' as const,
+        title: { zh: a.activity_name || a.activity_title || '活动', th: a.activity_name || a.activity_title || 'กิจกรรม', en: a.activity_name || a.activity_title || 'Activity' },
+        badge: GOAL_BADGE[a.goal] || { zh: '活动', th: 'กิจกรรม', en: 'Activity' },
+        cover: a.cover_image || COVER_GRADIENTS[idx % COVER_GRADIENTS.length],
+        views: 0,
+        route: `/activity/${a.activity_id}`,
+      }))
+      setApiActivities(cards)
+    }).catch(() => {})
+  }, [])
+
+  const staticNonActivityCards: ContentCard[] = useMemo(() => [
+    {
+      id: 'r2', type: 'redeem',
+      title: { zh: '音乐畅听权益', th: 'สิทธิ์ฟังเพลงไม่จำกัด', en: 'Music unlimited access' },
+      badge: { zh: '数字商品', th: 'ดิจิทัล', en: 'Digital' },
+      cover: 'linear-gradient(135deg, #2CDBCE 0%, #7B61FF 100%)',
+      views: 5400, price: 'THB 59', points: 620,
+      route: '/coupon/1?followed=1', footerTone: '#7B61FF',
+    },
+    {
+      id: 'c1', type: 'coupon',
+      title: { zh: '15分钟免费时长券', th: 'คูปองเวลาฟรี 15 นาที', en: '15-min free time coupon' },
+      badge: { zh: '卡券', th: 'คูปอง', en: 'Coupon' },
+      cover: 'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
+      views: 7200, price: 'FREE', points: 0,
+      route: '/redeem/1?followed=1', footerTone: '#2F80FF',
+    },
+    {
+      id: 'c2', type: 'coupon',
+      title: { zh: '首借免单券', th: 'คูปองยืมครั้งแรกฟรี', en: 'First borrow free coupon' },
+      badge: { zh: '高转化', th: 'แปลงผลสูง', en: 'High Conv.' },
+      cover: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
+      views: 8830, price: 'FREE', points: 0,
+      route: '/coupon/2?followed=1', footerTone: '#FF7A59',
+    },
+    {
+      id: 'r1', type: 'redeem',
+      title: { zh: '电子书会员包', th: 'แพ็กสมาชิกอีบุ๊ก', en: 'E-book membership pack' },
+      badge: { zh: '可兑换', th: 'แลกได้', en: 'Redeem' },
+      cover: 'linear-gradient(135deg, #7B61FF 0%, #C3B5FF 100%)',
+      views: 3150, price: 'THB 99', points: 990,
+      route: '/redeem/2?followed=1', footerTone: '#7B61FF',
+    },
+    {
+      id: 'n1', type: 'station',
+      title: { zh: '曼谷 Siam 商圈站点', th: 'สถานี Siam กรุงเทพฯ', en: 'Bangkok Siam station' },
+      badge: { zh: '站点', th: 'สถานี', en: 'Station' },
+      cover: 'linear-gradient(135deg, #2CDBCE 0%, #61E6DC 100%)',
+      views: 4200,
+    },
+    {
+      id: 'n3', type: 'coupon',
+      title: { zh: '15分钟券可在附近使用', th: 'คูปอง 15 นาทีใช้ใกล้คุณได้', en: '15-min coupon usable nearby' },
+      badge: { zh: '附近可用', th: 'คูปองใกล้คุณ', en: 'Nearby Coupon' },
+      cover: 'linear-gradient(135deg, #FFB36B 0%, #FF7A59 100%)',
+      views: 5580, price: 'FREE', points: 0,
+      route: '/coupon/1?followed=1', footerTone: '#FF7A59',
+    },
+    {
+      id: 'n4', type: 'redeem',
+      title: { zh: '附近可兑换联名马克杯', th: 'แก้วคอลแลบแลกได้ใกล้คุณ', en: 'Nearby redeemable co-branded mug' },
+      badge: { zh: '附近兑换', th: 'แลกใกล้คุณ', en: 'Nearby Redeem' },
+      cover: 'linear-gradient(135deg, #7B61FF 0%, #2CDBCE 100%)',
+      views: 2980, price: 'THB 149', points: 1490,
+      route: '/redeem/3?followed=1', footerTone: '#7B61FF',
+    },
+  ], [])
+
   const allCards: ContentCard[] = useMemo(
-    () => [
-      {
-        id: 'a1', type: 'activity',
-        title: { zh: '扫码抽奖赢免费时长', th: 'สแกนเพื่อลุ้นรับเวลาฟรี', en: 'Scan to win free charging time' },
-        badge: { zh: '热门', th: 'ยอดนิยม', en: 'Hot' },
-        cover: 'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)',
-        views: 12800, route: '/activity/1?followed=1',
-      },
-      {
-        id: 'r2', type: 'redeem',
-        title: { zh: '音乐畅听权益', th: 'สิทธิ์ฟังเพลงไม่จำกัด', en: 'Music unlimited access' },
-        badge: { zh: '数字商品', th: 'ดิจิทัล', en: 'Digital' },
-        cover: 'linear-gradient(135deg, #2CDBCE 0%, #7B61FF 100%)',
-        views: 5400, price: 'THB 59', points: 620,
-        route: '/coupon/1?followed=1', footerTone: '#7B61FF',
-      },
-      {
-        id: 'a2', type: 'activity',
-        title: { zh: '分享好友赚积分', th: 'แชร์เพื่อนเพื่อรับคะแนน', en: 'Share with friends to earn points' },
-        badge: { zh: '裂变', th: 'ชวนเพื่อน', en: 'Referral' },
-        cover: 'linear-gradient(135deg, #7B61FF 0%, #2F80FF 100%)',
-        views: 9360, route: '/activity/1?followed=1',
-      },
-      {
-        id: 'c1', type: 'coupon',
-        title: { zh: '15分钟免费时长券', th: 'คูปองเวลาฟรี 15 นาที', en: '15-min free time coupon' },
-        badge: { zh: '卡券', th: 'คูปอง', en: 'Coupon' },
-        cover: 'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
-        views: 7200, price: 'FREE', points: 0,
-        route: '/redeem/1?followed=1', footerTone: '#2F80FF',
-      },
-      {
-        id: 'c2', type: 'coupon',
-        title: { zh: '首借免单券', th: 'คูปองยืมครั้งแรกฟรี', en: 'First borrow free coupon' },
-        badge: { zh: '高转化', th: 'แปลงผลสูง', en: 'High Conv.' },
-        cover: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
-        views: 8830, price: 'FREE', points: 0,
-        route: '/coupon/2?followed=1', footerTone: '#FF7A59',
-      },
-      {
-        id: 'r1', type: 'redeem',
-        title: { zh: '电子书会员包', th: 'แพ็กสมาชิกอีบุ๊ก', en: 'E-book membership pack' },
-        badge: { zh: '可兑换', th: 'แลกได้', en: 'Redeem' },
-        cover: 'linear-gradient(135deg, #7B61FF 0%, #C3B5FF 100%)',
-        views: 3150, price: 'THB 99', points: 990,
-        route: '/redeem/2?followed=1', footerTone: '#7B61FF',
-      },
-      {
-        id: 'n1', type: 'station',
-        title: { zh: '曼谷 Siam 商圈站点', th: 'สถานี Siam กรุงเทพฯ', en: 'Bangkok Siam station' },
-        badge: { zh: '站点', th: 'สถานี', en: 'Station' },
-        cover: 'linear-gradient(135deg, #2CDBCE 0%, #61E6DC 100%)',
-        views: 4200,
-      },
-      {
-        id: 'n2', type: 'activity',
-        title: { zh: '附近首借免单活动', th: 'กิจกรรมยืมครั้งแรกฟรีใกล้คุณ', en: 'Nearby first-borrow free activity' },
-        badge: { zh: '附近活动', th: 'กิจกรรมใกล้คุณ', en: 'Nearby' },
-        cover: 'linear-gradient(135deg, #2F80FF 0%, #2CDBCE 100%)',
-        views: 6700, route: '/activity/2?followed=1',
-      },
-      {
-        id: 'n3', type: 'coupon',
-        title: { zh: '15分钟券可在附近使用', th: 'คูปอง 15 นาทีใช้ใกล้คุณได้', en: '15-min coupon usable nearby' },
-        badge: { zh: '附近可用', th: 'คูปองใกล้คุณ', en: 'Nearby Coupon' },
-        cover: 'linear-gradient(135deg, #FFB36B 0%, #FF7A59 100%)',
-        views: 5580, price: 'FREE', points: 0,
-        route: '/coupon/1?followed=1', footerTone: '#FF7A59',
-      },
-      {
-        id: 'n4', type: 'redeem',
-        title: { zh: '附近可兑换联名马克杯', th: 'แก้วคอลแลบแลกได้ใกล้คุณ', en: 'Nearby redeemable co-branded mug' },
-        badge: { zh: '附近兑换', th: 'แลกใกล้คุณ', en: 'Nearby Redeem' },
-        cover: 'linear-gradient(135deg, #7B61FF 0%, #2CDBCE 100%)',
-        views: 2980, price: 'THB 149', points: 1490,
-        route: '/redeem/3?followed=1', footerTone: '#7B61FF',
-      },
-    ],
-    []
+    () => [...apiActivities, ...staticNonActivityCards],
+    [apiActivities, staticNonActivityCards]
   )
 
   const filteredCards = useMemo(() => {
