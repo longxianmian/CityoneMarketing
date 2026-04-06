@@ -18,7 +18,7 @@ const PRIZE_TYPES = [
 
 export default function PrizePoolManage() {
   const { t } = useI18n()
-  const pp = (key: string) => t(`admin.prizePool.${key}`)
+  const pp = (key: string) => t(`prizePool.${key}`)
 
   const prizeTypeOptions = PRIZE_TYPES.map(p => ({ value: p.value, label: `${p.value} · ${pp(p.labelKey)}` }))
 
