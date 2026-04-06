@@ -78,5 +78,37 @@
     "result_type": "sign",
     "related_product_id": "",
     "created_at": "2026-04-02T17:21:16.852Z"
+  },
+  {
+    "interaction_id": "ia_006",
+    "activity_id": "act_003",
+    "activity_type": "lucky_wheel",
+    "line_user_id": "dev_test123",
+    "user_id": "",
+    "station_id": "",
+    "entry_id": "",
+    "utm_source": "",
+    "utm_campaign": "",
+    "action_type": "wheel_spin",
+    "action_result_id": "pz_002",
+    "result_type": "thanks",
+    "related_product_id": "",
+    "created_at": "2026-04-06T06:35:46.428Z"
+  },
+  {
+    "interaction_id": "ia_007",
+    "activity_id": "act_003",
+    "activity_type": "lucky_wheel",
+    "line_user_id": "dev_7s1zpwbtmnmtgcb8",
+    "user_id": "",
+    "station_id": "",
+    "entry_id": "",
+    "utm_source": "",
+    "utm_campaign": "",
+    "action_type": "wheel_spin",
+    "action_result_id": "pz_002",
+    "result_type": "thanks",
+    "related_product_id": "",
+    "created_at": "2026-04-06T06:37:31.562Z"
   }
 ]

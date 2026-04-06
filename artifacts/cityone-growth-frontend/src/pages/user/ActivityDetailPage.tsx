@@ -48,19 +48,20 @@ export default function ActivityDetailPage() {
     </div>
   )
 
-  const typeInfo = activity ? (TYPE_LABELS[activity.activityType] || TYPE_LABELS[activity.type] || TYPE_LABELS.default) : TYPE_LABELS.default
-  const title = pick(activity?.title) || activity?.name || ''
-  const subTitle = pick(activity?.subTitle) || ''
-  const description = pick(activity?.description) || ''
-  const highlights = pick(activity?.highlights) || ''
-  const participationGuide = pick(activity?.participationGuide) || ''
-  const rewardGuide = pick(activity?.rewardGuide) || ''
-  const noticeText = pick(activity?.noticeText) || ''
-  const coverImage = activity?.coverImage || ''
-  const coverVideo = activity?.coverVideo || ''
+  const actType = activity?.activity_type || activity?.activityType || activity?.type || ''
+  const typeInfo = TYPE_LABELS[actType] || TYPE_LABELS.default
+  const title = activity?.activity_name || activity?.activity_title || pick(activity?.title) || activity?.name || ''
+  const subTitle = activity?.activity_subtitle || pick(activity?.subTitle) || ''
+  const description = activity?.activity_desc || pick(activity?.description) || ''
+  const highlights = activity?.highlights || ''
+  const participationGuide = activity?.participation_guide || activity?.participationGuide || ''
+  const rewardGuide = activity?.reward_guide || activity?.rewardGuide || ''
+  const noticeText = activity?.notice_text || activity?.noticeText || ''
+  const coverImage = activity?.cover_image || activity?.coverImage || ''
+  const coverVideo = activity?.cover_video || activity?.coverVideo || ''
   const linkedProducts: any[] = activity?.linkedProducts || []
   const buttonText = activity?.buttonText ? pick(activity.buttonText) : typeInfo.btnText
-  const isInteractive = ['lucky_wheel', 'scratch_card', 'thai_fortune_draw'].includes(activity?.activityType || activity?.type || '')
+  const isInteractive = ['lucky_wheel', 'scratch_card', 'thai_fortune_draw'].includes(actType)
 
   const handleAction = () => {
     if (isInteractive && typeInfo.route) {

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { ArrowLeftOutlined, TrophyOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
+import { getDeviceUserId } from '../../utils/deviceUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -119,7 +120,7 @@ export default function ThaiFortuneDrawPage() {
       const res = await fetch(`${API_BASE}/api/activity/fortune/draw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activityId: id, themeId: selectedTheme?.id }),
+        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId(), themeId: selectedTheme?.id }),
       })
       const json = await res.json()
       const data = json.data || {}
@@ -144,7 +145,7 @@ export default function ThaiFortuneDrawPage() {
   const isNoChance = chances !== null && chances <= 0
   const resultFortune = FORTUNE_COLORS[result?.fortuneType] || FORTUNE_COLORS.medium
   const resultLabel = resultFortune.label[lang] || resultFortune.label.en
-  const pageTitle = pick(activity?.name) || ui.defaultTitle
+  const pageTitle = activity?.activity_name || activity?.activity_title || pick(activity?.name) || ui.defaultTitle
 
   const poemText = (() => {
     if (!result) return ''

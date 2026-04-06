@@ -48,5 +48,35 @@
     "remaining_count": 0,
     "grant_source": "system",
     "updated_at": "2026-04-02T17:21:16.851Z"
+  },
+  {
+    "chance_id": "ch_006",
+    "activity_id": "act_003",
+    "line_user_id": "dev_test123",
+    "granted_count": 3,
+    "used_count": 1,
+    "remaining_count": 2,
+    "grant_source": "system",
+    "updated_at": "2026-04-06T06:35:46.427Z"
+  },
+  {
+    "chance_id": "ch_007",
+    "activity_id": "act_003",
+    "line_user_id": "brand_new_user_xyz",
+    "granted_count": 1,
+    "used_count": 0,
+    "remaining_count": 1,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-06T06:37:22.432Z"
+  },
+  {
+    "chance_id": "ch_008",
+    "activity_id": "act_003",
+    "line_user_id": "dev_7s1zpwbtmnmtgcb8",
+    "granted_count": 1,
+    "used_count": 1,
+    "remaining_count": 0,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-06T06:37:31.561Z"
   }
 ]

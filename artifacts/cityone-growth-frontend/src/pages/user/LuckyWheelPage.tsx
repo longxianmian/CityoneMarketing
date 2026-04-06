@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Spin, message } from 'antd'
 import { ArrowLeftOutlined, TrophyOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
+import { getDeviceUserId } from '../../utils/deviceUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -149,16 +150,39 @@ export default function LuckyWheelPage() {
     return ''
   }
 
-  const segments = activity?.prizes?.length ? activity.prizes : ui.defaultPrizes
+  const [prizes, setPrizes] = useState<{ label: string; color: string }[]>([])
+  const segments = prizes.length ? prizes : ui.defaultPrizes
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/activities/${id}`)
-        const json = await res.json()
-        const data = json.data || json
+        const [actRes, prizeRes] = await Promise.all([
+          fetch(`${API_BASE}/api/activities/${id}`),
+          fetch(`${API_BASE}/api/activity-prizes?activityId=${id}`),
+        ])
+        const actJson = await actRes.json()
+        const prizeJson = await prizeRes.json()
+        const data = actJson.data || actJson
         setActivity(data)
-        setChances(data.userChances ?? null)
+
+        const startRes = await fetch(`${API_BASE}/api/activity/wheel/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+        })
+        const startJson = await startRes.json()
+        if (startJson.data?.remaining_chances !== undefined) {
+          setChances(startJson.data.remaining_chances)
+        }
+
+        const prizeList: any[] = prizeJson.data || []
+        if (prizeList.length) {
+          const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#cc5de8','#20c997','#f06595']
+          setPrizes(prizeList.map((p: any, i: number) => ({
+            label: p.display_text || p.prize_name || `奖品${i + 1}`,
+            color: p.display_color && p.display_color !== '#FF6B35' ? p.display_color : COLORS[i % COLORS.length],
+          })))
+        }
       } catch { setActivity(null) }
       finally { setLoading(false) }
     }
@@ -181,7 +205,7 @@ export default function LuckyWheelPage() {
       const res = await fetch(`${API_BASE}/api/activity/wheel/draw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activityId: id }),
+        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
       })
       const json = await res.json()
       const data = json.data || {}
@@ -228,7 +252,7 @@ export default function LuckyWheelPage() {
   )
 
   const isNoChance = chances !== null && chances <= 0
-  const pageTitle = pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
+  const pageTitle = activity?.activity_name || activity?.activity_title || pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
 
   return (
     <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at top, #1a0a2e 0%, #0d0628 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 0 40px', position: 'relative' }}>

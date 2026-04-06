@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { ArrowLeftOutlined, TrophyOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
+import { getDeviceUserId } from '../../utils/deviceUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -131,7 +132,7 @@ export default function ScratchCardPage() {
       const res = await fetch(`${API_BASE}/api/activity/scratch/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activityId: id }),
+        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
       })
       const json = await res.json()
       sessionId.current = json.data?.sessionId || ''
@@ -189,7 +190,7 @@ export default function ScratchCardPage() {
       const res = await fetch(`${API_BASE}/api/activity/scratch/reveal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activityId: id, sessionId: sessionId.current }),
+        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId(), sessionId: sessionId.current }),
       })
       const json = await res.json()
       setResult(json.data || {})
@@ -211,7 +212,7 @@ export default function ScratchCardPage() {
     ? pick(result.prizeName)
     : (result?.isWin ? ui.prizeArrived : ui.noWin)
 
-  const pageTitle = pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
+  const pageTitle = activity?.activity_name || activity?.activity_title || pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #fff1e6 0%, #ffe0cc 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 0 40px' }}>
