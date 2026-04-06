@@ -4,8 +4,26 @@ import { SearchOutlined, ReloadOutlined, PlusOutlined, ExclamationCircleOutlined
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
 import SharePromoModal from '../../components/SharePromoModal'
+import MultiLangInput, { AutoTranslateButton, type MultiLangValue } from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
 import dayjs from 'dayjs'
+
+// 多语字段 pick（降级：当前语言 → en → zh → th）
+function pickML(field: any, lang = 'zh'): string {
+  if (!field) return ''
+  if (typeof field === 'string') return field
+  if (typeof field === 'object' && !Array.isArray(field))
+    return field[lang] || field.en || field.zh || field.th || ''
+  return ''
+}
+// 旧字符串兼容转换为 {zh,th,en}
+function toML(v: any): MultiLangValue {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v as MultiLangValue
+  return { zh: typeof v === 'string' ? v : '', th: '', en: '' }
+}
+function ensureML(v: any): MultiLangValue {
+  return toML(v)
+}
 
 const discountTypeColors: Record<string, string> = {
   fixed: 'blue', percent: 'purple', free_time: 'green', free_order: 'orange',
@@ -76,7 +94,7 @@ export default function CouponManage() {
     setIsEdit(true)
     form.setFieldsValue({
       id: record.id,
-      name: record.name,
+      name: toML(record.name),
       couponType: record.coupon_type,
       discountType: record.discount_type,
       discountValue: Number(record.discount_value),
@@ -96,6 +114,7 @@ export default function CouponManage() {
       const values = await form.validateFields()
       const payload = {
         ...values,
+        name: ensureML(values.name),
         validFrom: values.validFrom?.toISOString(),
         validTo: values.validTo?.toISOString(),
         coverImage: coverImage || undefined,
@@ -119,7 +138,7 @@ export default function CouponManage() {
     Modal.confirm({
       title: t('couponManage.deleteTitle'),
       icon: <ExclamationCircleOutlined />,
-      content: `确定要删除券「${record.name}」吗？`,
+      content: `确定要删除券「${pickML(record.name)}」吗？`,
       onOk: async () => {
         await request.post('/growth/coupon/delete', { id: record.id })
         message.success(t('couponManage.msgDeleteOk'))
@@ -135,7 +154,10 @@ export default function CouponManage() {
         ? <img src={r.cover_image} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
         : <span style={{ color: '#ddd', fontSize: 18 }}>—</span>,
     },
-    { title: t('couponManage.colName'), dataIndex: 'name', key: 'name', width: 180, ellipsis: true },
+    {
+      title: t('couponManage.colName'), dataIndex: 'name', key: 'name', width: 180, ellipsis: true,
+      render: (v: any) => pickML(v),
+    },
     {
       title: t('couponManage.colType'), dataIndex: 'coupon_type', key: 'coupon_type', width: 100,
       render: (v: string) => <Tag color="blue">{couponTypeMap[v] || v}</Tag>,
@@ -221,7 +243,7 @@ export default function CouponManage() {
         onClose={() => setShareRecord(null)}
         type="coupon"
         id={shareRecord?.id}
-        name={shareRecord?.name || ''}
+        name={pickML(shareRecord?.name)}
       />
 
       <Modal
@@ -231,8 +253,17 @@ export default function CouponManage() {
       >
         <Form form={form} layout="vertical">
           {isEdit && <Form.Item name="id" hidden><Input /></Form.Item>}
-          <Form.Item name="name" label={t('couponManage.formName')} rules={[{ required: true }]}>
-            <Input />
+          <Form.Item label={t('couponManage.formName')} required>
+            <Form.Item name="name" noStyle rules={[{ required: true, message: t('couponManage.formName') + ' 必填' }]}>
+              <MultiLangInput />
+            </Form.Item>
+            <div style={{ marginTop: 6 }}>
+              <AutoTranslateButton
+                getValue={() => form.getFieldValue('name') || {}}
+                setValue={v => form.setFieldValue('name', v)}
+                sourceField="zh"
+              />
+            </div>
           </Form.Item>
           <Row gutter={16}>
             <Col xs={24} sm={12}>

@@ -7,6 +7,15 @@ import { useI18n } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 
+// 多语字段 pick（降级：当前语言 → en → zh → th）
+function pickML(field: any, lang: string): string {
+  if (!field) return ''
+  if (typeof field === 'string') return field
+  if (typeof field === 'object' && !Array.isArray(field))
+    return field[lang] || field.en || field.zh || field.th || ''
+  return ''
+}
+
 // ── 折扣描述格式化 ──────────────────────────────────────────────────────────
 
 function formatDiscount(c: any, language: string): string {
@@ -98,7 +107,7 @@ export default function CouponUserPage() {
   }
 
   const discountText = formatDiscount(coupon, language)
-  const name = coupon.name || ''
+  const name = pickML(coupon.name, language) || ''
 
   const validFromText = coupon.valid_from ? formatDate(coupon.valid_from, language) : '—'
   const validToText = coupon.valid_to ? formatDate(coupon.valid_to, language) : '—'

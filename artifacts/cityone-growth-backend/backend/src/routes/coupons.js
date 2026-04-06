@@ -57,7 +57,12 @@ export function handleCouponList(req, res, url, sendJson) {
   const name     = (url.searchParams.get("name") || "").toLowerCase();
 
   let list = loadCoupons();
-  if (name) list = list.filter(c => (c.name || "").toLowerCase().includes(name));
+  if (name) list = list.filter(c => {
+    const n = c.name
+    if (!n) return false
+    if (typeof n === 'object') return Object.values(n).some(v => (v || '').toLowerCase().includes(name))
+    return n.toLowerCase().includes(name)
+  });
 
   const total = list.length;
   const rows  = list

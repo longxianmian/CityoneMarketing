@@ -1,7 +1,11 @@
 [
   {
     "id": "coupon_001",
-    "name": "30分钟免费充电体验券",
+    "name": {
+      "zh": "30分钟免费充电体验券",
+      "th": "คูปองชาร์จฟรี 30 นาที",
+      "en": "30-Min Free Charging Coupon"
+    },
     "coupon_type": "newbie",
     "discount_type": "free_time",
     "discount_value": 45,
@@ -18,7 +22,11 @@
   },
   {
     "id": "coupon_002",
-    "name": "60分钟充电免费券",
+    "name": {
+      "zh": "60分钟充电免费券",
+      "th": "คูปองชาร์จฟรี 60 นาที",
+      "en": "60-Min Free Charging Coupon"
+    },
     "coupon_type": "general",
     "discount_type": "free_time",
     "discount_value": 19,
