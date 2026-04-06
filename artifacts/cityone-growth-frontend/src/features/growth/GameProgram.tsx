@@ -64,6 +64,14 @@ function WheelForm({ form, coupons, mallItems }: WheelFormProps) {
   const [slotCount, setSlotCount] = useState<number>(form.getFieldValue('slot_count') || 8)
   const [slotTypes, setSlotTypes] = useState<Record<number, string>>({})
 
+  // 实时监听所有格位值，用于计算概率
+  const watchedSlots: any[] = Form.useWatch('slots', form) || []
+  const totalWeight = watchedSlots.reduce((sum: number, s: any) => sum + (Number(s?.weight) || 10), 0)
+  const slotProb = (idx: number) => {
+    const w = Number(watchedSlots[idx]?.weight) || 10
+    return totalWeight > 0 ? `${((w / totalWeight) * 100).toFixed(1)}%` : '—'
+  }
+
   useEffect(() => {
     const sc = form.getFieldValue('slot_count') || 8
     setSlotCount(sc)
@@ -77,7 +85,7 @@ function WheelForm({ form, coupons, mallItems }: WheelFormProps) {
     if (!v) return
     setSlotCount(v)
     const current: any[] = form.getFieldValue('slots') || []
-    const next = Array.from({ length: v }, (_, i) => current[i] || { prize_type: 'none', prize_id: undefined, qty: 1 })
+    const next = Array.from({ length: v }, (_, i) => current[i] || { prize_type: 'none', prize_id: undefined, qty: 1, weight: 10 })
     form.setFieldValue('slots', next)
     const types: Record<number, string> = {}
     next.forEach((s: any, i: number) => { types[i] = s.prize_type || 'none' })
@@ -116,17 +124,22 @@ function WheelForm({ form, coupons, mallItems }: WheelFormProps) {
         />
       </Form.Item>
 
-      <Divider style={{ margin: '8px 0 12px' }}>奖品格位配置</Divider>
-      <div style={{ maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
+      <Divider style={{ margin: '8px 0 4px' }}>奖品格位配置</Divider>
+      <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 8 }}>
+        权重越大中奖概率越高，概率 = 该格权重 ÷ 所有格权重之和
+      </div>
+      <div style={{ maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
         <Form.List name="slots">
           {(fields) => (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#fafafa' }}>
-                  <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0', width: 50 }}>格位</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0', width: 100 }}>品类</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0', width: 44 }}>格位</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0', width: 96 }}>品类</th>
                   <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0' }}>奖品</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0', width: 60 }}>数量</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 52 }}>数量</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 56 }}>权重</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 60, color: '#389e0d' }}>概率</th>
                 </tr>
               </thead>
               <tbody>
@@ -163,6 +176,14 @@ function WheelForm({ form, coupons, mallItems }: WheelFormProps) {
                         <InputNumber size="small" min={0} max={9999} style={{ width: '100%' }} />
                       </Form.Item>
                     </td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #f0f0f0' }}>
+                      <Form.Item name={[i, 'weight']} noStyle initialValue={10}>
+                        <InputNumber size="small" min={1} max={9999} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #f0f0f0', textAlign: 'center', fontWeight: 600, color: '#389e0d', fontSize: 12 }}>
+                      {slotProb(i)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -187,6 +208,14 @@ interface ScratchFormProps {
 }
 function ScratchForm({ form, coupons, mallItems }: ScratchFormProps) {
   const [prizeTypes, setPrizeTypes] = useState<Record<number, string>>({})
+
+  // 实时监听奖项列表，用于计算概率
+  const watchedPrizes: any[] = Form.useWatch('prizes', form) || []
+  const totalWeight = watchedPrizes.reduce((sum: number, p: any) => sum + (Number(p?.weight) || 10), 0)
+  const prizeProb = (idx: number) => {
+    const w = Number(watchedPrizes[idx]?.weight) || 10
+    return totalWeight > 0 ? `${((w / totalWeight) * 100).toFixed(1)}%` : '—'
+  }
 
   useEffect(() => {
     const prizes: any[] = form.getFieldValue('prizes') || []
@@ -220,18 +249,23 @@ function ScratchForm({ form, coupons, mallItems }: ScratchFormProps) {
         <RangePicker showTime style={{ width: '100%' }} />
       </Form.Item>
 
-      <Divider style={{ margin: '8px 0 12px' }}>奖项设置</Divider>
-      <Form.List name="prizes" initialValue={[{ prize_type: 'none', qty: 1, probability: 50 }]}>
+      <Divider style={{ margin: '8px 0 4px' }}>奖项设置</Divider>
+      <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 8 }}>
+        权重越大中奖概率越高，概率 = 该奖权重 ÷ 所有奖权重之和
+      </div>
+      <Form.List name="prizes" initialValue={[{ prize_type: 'none', qty: 1, weight: 10 }]}>
         {(fields, { add, remove }) => (
           <>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#fafafa' }}>
                   <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0' }}>奖项名称</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0', width: 90 }}>品类</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0', width: 88 }}>品类</th>
                   <th style={{ padding: '6px 8px', textAlign: 'left', border: '1px solid #f0f0f0' }}>奖品</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 56 }}>数量</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 40 }}></th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 52 }}>数量</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 56 }}>权重</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 60, color: '#389e0d' }}>概率</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #f0f0f0', width: 36 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -270,6 +304,14 @@ function ScratchForm({ form, coupons, mallItems }: ScratchFormProps) {
                         <InputNumber size="small" min={0} max={9999} style={{ width: '100%' }} />
                       </Form.Item>
                     </td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #f0f0f0' }}>
+                      <Form.Item name={[name, 'weight']} noStyle initialValue={10}>
+                        <InputNumber size="small" min={1} max={9999} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #f0f0f0', textAlign: 'center', fontWeight: 600, color: '#389e0d', fontSize: 12 }}>
+                      {prizeProb(name)}
+                    </td>
                     <td style={{ padding: '5px 8px', border: '1px solid #f0f0f0', textAlign: 'center' }}>
                       {fields.length > 1 && (
                         <MinusCircleOutlined
@@ -285,7 +327,7 @@ function ScratchForm({ form, coupons, mallItems }: ScratchFormProps) {
             <Button
               type="dashed"
               icon={<PlusOutlined />}
-              onClick={() => add({ prize_type: 'none', qty: 1 })}
+              onClick={() => add({ prize_type: 'none', qty: 1, weight: 10 })}
               size="small"
               style={{ marginTop: 8, width: '100%' }}
             >
@@ -365,9 +407,9 @@ export default function GameProgram() {
     setIsEdit(false); setEditingId(null)
     form.resetFields()
     if (selectedType === 'lucky_wheel') {
-      form.setFieldsValue({ slot_count: 8, slots: Array.from({ length: 8 }, () => ({ prize_type: 'none', prize_id: undefined, qty: 1 })) })
+      form.setFieldsValue({ slot_count: 8, slots: Array.from({ length: 8 }, () => ({ prize_type: 'none', prize_id: undefined, qty: 1, weight: 10 })) })
     } else if (selectedType === 'scratch_card') {
-      form.setFieldsValue({ prizes: [{ label: '', prize_type: 'none', prize_id: undefined, qty: 1 }] })
+      form.setFieldsValue({ prizes: [{ label: '', prize_type: 'none', prize_id: undefined, qty: 1, weight: 10 }] })
     }
     setFormVisible(true)
   }
@@ -384,9 +426,11 @@ export default function GameProgram() {
     }
     if (selectedType === 'lucky_wheel') {
       base.slot_count = record.slot_count || 8
-      base.slots = record.slots || Array.from({ length: base.slot_count }, () => ({ prize_type: 'none', qty: 1 }))
+      const rawSlots = record.slots || Array.from({ length: base.slot_count }, () => ({ prize_type: 'none', qty: 1, weight: 10 }))
+      base.slots = rawSlots.map((s: any) => ({ weight: 10, ...s }))
     } else if (selectedType === 'scratch_card') {
-      base.prizes = record.prizes || [{ label: '', prize_type: 'none', qty: 1 }]
+      const rawPrizes = record.prizes || [{ label: '', prize_type: 'none', qty: 1, weight: 10 }]
+      base.prizes = rawPrizes.map((p: any) => ({ weight: 10, ...p }))
     }
     form.setFieldsValue(base)
     setFormVisible(true)
