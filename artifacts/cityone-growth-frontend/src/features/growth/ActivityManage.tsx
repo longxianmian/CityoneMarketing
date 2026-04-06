@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import {
   Card, Table, Input, Button, Space, Tag, Row, Col,
   Modal, Form, message, Select, DatePicker, Tabs,
-  Statistic, Divider, Switch, InputNumber, Tooltip,
+  Statistic, Divider, Switch, InputNumber, Tooltip, Popconfirm,
 } from 'antd'
 import {
   SearchOutlined, ReloadOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
@@ -329,7 +329,24 @@ export default function ActivityManage() {
         return (
           <Space size="small" wrap>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>{am('btnEdit')}</Button>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>{am('btnDelete')}</Button>
+            <Popconfirm
+              title={am('btnDelete')}
+              description={am('deleteConfirm')}
+              okText={am('btnDelete')}
+              cancelText={am('btnCancel') || '取消'}
+              okButtonProps={{ danger: true }}
+              onConfirm={async () => {
+                try {
+                  await deleteActivity(record.id)
+                  message.success(am('deleteSuccess'))
+                  loadList()
+                } catch {
+                  message.error('删除失败，请重试')
+                }
+              }}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>{am('btnDelete')}</Button>
+            </Popconfirm>
             <Button type="link" size="small" onClick={() => handleToggle(record)}>
               {record.status === 'active' ? am('btnOffline') : am('btnOnline')}
             </Button>
@@ -564,12 +581,14 @@ export default function ActivityManage() {
           </Row>
 
           <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item name="couponName" label={am('formCoupon')}>
-                <Select allowClear showSearch options={mockCoupons.map(item => ({ value: item, label: item }))} placeholder={am('formCouponPlaceholder')} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
+            {(!activityTypeInForm || activityTypeInForm === 'general') && (
+              <Col xs={24} sm={12}>
+                <Form.Item name="couponName" label={am('formCoupon')}>
+                  <Select allowClear showSearch options={mockCoupons.map(item => ({ value: item, label: item }))} placeholder={am('formCouponPlaceholder')} />
+                </Form.Item>
+              </Col>
+            )}
+            <Col xs={24} sm={activityTypeInForm && activityTypeInForm !== 'general' ? 24 : 12}>
               <Form.Item name="dateRange" label={am('formDateRange')}>
                 <DatePicker.RangePicker showTime style={{ width: '100%' }} />
               </Form.Item>
