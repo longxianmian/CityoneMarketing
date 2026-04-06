@@ -8,7 +8,7 @@ import { useI18n } from '../../i18n'
 
 export default function PointsLedger() {
   const { t } = useI18n()
-  const pl = (key: string) => t(`admin.pointsLedger.${key}`)
+  const pl = (key: string) => t(`pointsLedger.${key}`)
 
   const refTypeMap: Record<string, string> = {
     activity: pl('refActivity'),

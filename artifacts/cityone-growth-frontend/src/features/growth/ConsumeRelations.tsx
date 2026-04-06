@@ -14,7 +14,7 @@ const POINTS_STATUS_COLOR: Record<string, string> = {
 
 export default function ConsumeRelations() {
   const { t } = useI18n()
-  const ck = (key: string) => t(`admin.consumeRelations.${key}`)
+  const ck = (key: string) => t(`consumeRelations.${key}`)
 
   const POINTS_STATUS_OPTIONS = [
     { value: 'pending', label: ck('statusPending') },

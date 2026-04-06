@@ -7,7 +7,7 @@ import { useI18n } from '../../i18n'
 
 export default function FortuneSignManage() {
   const { t } = useI18n()
-  const fs = (key: string) => t(`admin.fortuneSign.${key}`)
+  const fs = (key: string) => t(`fortuneSign.${key}`)
 
   const FORTUNE_TYPES = [
     { value: 'great', label: fs('typeGreat'), color: '#f5222d' },

@@ -7,7 +7,7 @@ import { useI18n } from '../../i18n'
 
 export default function InviteManage() {
   const { t } = useI18n()
-  const iv = (key: string) => t(`admin.invite.${key}`)
+  const iv = (key: string) => t(`invite.${key}`)
 
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)

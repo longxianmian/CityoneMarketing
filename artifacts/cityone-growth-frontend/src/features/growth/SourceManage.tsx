@@ -10,7 +10,7 @@ interface Props {
 
 export default function SourceManage({ embedded = false }: Props) {
   const { t } = useI18n()
-  const sm = (key: string) => t(`admin.source.${key}`)
+  const sm = (key: string) => t(`source.${key}`)
 
   const SOURCE_TYPES = [
     { value: 'device', label: sm('typeDevice') },

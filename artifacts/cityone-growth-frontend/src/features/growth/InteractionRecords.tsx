@@ -15,7 +15,7 @@ const RESULT_COLOR: Record<string, string> = {
 
 export default function InteractionRecords() {
   const { t } = useI18n()
-  const ik = (key: string) => t(`admin.interactionRecords.${key}`)
+  const ik = (key: string) => t(`interactionRecords.${key}`)
 
   const [searchParams] = useSearchParams()
   const activityId = searchParams.get('activityId')

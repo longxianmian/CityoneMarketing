@@ -12,7 +12,7 @@ const { TextArea } = Input
 
 export default function PointsMallManage() {
   const { t } = useI18n()
-  const pm = (key: string) => t(`admin.pointsMall.${key}`)
+  const pm = (key: string) => t(`pointsMall.${key}`)
 
   const typeOptions = [
     { label: pm('typeCoupon'), value: 'voucher' },

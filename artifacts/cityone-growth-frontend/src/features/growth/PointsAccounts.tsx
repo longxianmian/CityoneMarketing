@@ -7,7 +7,7 @@ import { useI18n } from '../../i18n'
 
 export default function PointsAccounts() {
   const { t } = useI18n()
-  const pa = (key: string) => t(`admin.pointsAccounts.${key}`)
+  const pa = (key: string) => t(`pointsAccounts.${key}`)
 
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)

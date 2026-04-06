@@ -14,7 +14,7 @@ const POINTS_STATUS_COLOR: Record<string, string> = {
 
 export default function ShareRelations() {
   const { t } = useI18n()
-  const sk = (key: string) => t(`admin.shareRelations.${key}`)
+  const sk = (key: string) => t(`shareRelations.${key}`)
 
   const POINTS_STATUS_OPTIONS = [
     { value: 'pending', label: sk('statusPending') },

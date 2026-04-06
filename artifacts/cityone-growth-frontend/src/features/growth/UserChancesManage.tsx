@@ -7,7 +7,7 @@ import { useI18n } from '../../i18n'
 
 export default function UserChancesManage() {
   const { t } = useI18n()
-  const uc = (key: string) => t(`admin.userChances.${key}`)
+  const uc = (key: string) => t(`userChances.${key}`)
 
   const [searchParams] = useSearchParams()
   const activityId = searchParams.get('activityId')

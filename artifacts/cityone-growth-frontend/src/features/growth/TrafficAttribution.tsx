@@ -7,7 +7,7 @@ import { useI18n } from '../../i18n'
 
 export default function TrafficAttribution() {
   const { t } = useI18n()
-  const ta = (key: string) => t(`admin.trafficAttribution.${key}`)
+  const ta = (key: string) => t(`trafficAttribution.${key}`)
 
   const [visits, setVisits] = useState<any[]>([])
   const [summary, setSummary] = useState({ totalVisits: 0, uniqueVisitors: 0, registrations: 0, orders: 0, conversionRate: 0 })

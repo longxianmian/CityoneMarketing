@@ -29,7 +29,7 @@ const MOCK_CONFIG = {
 
 export default function AgentConfigManage() {
   const { t } = useI18n()
-  const ac = (key: string) => t(`admin.agentConfig.${key}`)
+  const ac = (key: string) => t(`agentConfig.${key}`)
 
   const CAPABILITIES = [
     { value: 'borrow', label: ac('capBorrow') },

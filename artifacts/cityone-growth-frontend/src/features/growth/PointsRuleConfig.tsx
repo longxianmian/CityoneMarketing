@@ -6,7 +6,7 @@ import { useI18n } from '../../i18n'
 
 export default function PointsRuleConfig() {
   const { t } = useI18n()
-  const pr = (key: string) => t(`admin.pointsRuleConfig.${key}`)
+  const pr = (key: string) => t(`pointsRuleConfig.${key}`)
 
   const ruleTypeMap: Record<string, { label: string; color: string }> = {
     EARN_ORDER_COMPLETE: { label: pr('ruleOrder'), color: 'green' },

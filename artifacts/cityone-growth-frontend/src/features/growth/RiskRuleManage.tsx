@@ -22,7 +22,7 @@ function ConfigSummary({ config, ruleType, labels }: { config: any; ruleType: st
 
 export default function RiskRuleManage() {
   const { t } = useI18n()
-  const rr = (key: string) => t(`admin.riskRule.${key}`)
+  const rr = (key: string) => t(`riskRule.${key}`)
 
   const ruleTypeMap: Record<string, { label: string; color: string }> = {
     frequency: { label: rr('typeFrequency'), color: 'blue' },

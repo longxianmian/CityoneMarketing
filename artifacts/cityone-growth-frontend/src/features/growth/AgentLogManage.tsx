@@ -21,7 +21,7 @@ const MOCK_LOGS = [
 
 export default function AgentLogManage() {
   const { t } = useI18n()
-  const al = (key: string) => t(`admin.agentLog.${key}`)
+  const al = (key: string) => t(`agentLog.${key}`)
 
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
