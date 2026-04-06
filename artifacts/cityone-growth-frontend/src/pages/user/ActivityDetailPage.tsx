@@ -4,6 +4,7 @@ import { Spin, Tag, Button, Card, Space } from 'antd'
 import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
+import { getDeviceUserId } from '../../utils/deviceUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -26,6 +27,9 @@ export default function ActivityDetailPage() {
   const [loading, setLoading] = useState(true)
   const [shareVisible, setShareVisible] = useState(false)
   const [step, setStep] = useState<Step>('detail')
+  const [pointsAwarded, setPointsAwarded] = useState<number>(0)
+  const [alreadyJoined, setAlreadyJoined] = useState(false)
+  const [participating, setParticipating] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -90,12 +94,32 @@ export default function ActivityDetailPage() {
     } else if (requireOAFollow) {
       setStep('follow')
     } else {
+      doParticipate()
+    }
+  }
+
+  const doParticipate = async () => {
+    setParticipating(true)
+    try {
+      const userId = getDeviceUserId()
+      const res = await fetch(`${API_BASE}/api/activities/${id}/participate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      })
+      const json = await res.json()
+      setPointsAwarded(json.data?.points_awarded ?? 0)
+      setAlreadyJoined(json.data?.already_joined ?? false)
+    } catch {
+      setPointsAwarded(0)
+    } finally {
+      setParticipating(false)
       setStep('success')
     }
   }
 
   const handleFollowDone = () => {
-    setStep('success')
+    doParticipate()
   }
 
   // ── 关注 LINE OA 步骤 ─────────────────────────────────────────────────────
@@ -148,15 +172,55 @@ export default function ActivityDetailPage() {
     )
   }
 
+  // ── 参与中 loading ────────────────────────────────────────────────────────
+  if (participating) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(180deg, #52c41a 0%, #95de64 100%)' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
+
   // ── 参与成功步骤 ──────────────────────────────────────────────────────────
   if (step === 'success') {
+    const pointsLabel = {
+      zh: alreadyJoined ? '您已参与过此活动' : (pointsAwarded > 0 ? `已获得 ${pointsAwarded} 积分` : '参与成功'),
+      th: alreadyJoined ? 'คุณเคยเข้าร่วมกิจกรรมนี้แล้ว' : (pointsAwarded > 0 ? `ได้รับ ${pointsAwarded} คะแนน` : 'เข้าร่วมสำเร็จ'),
+      en: alreadyJoined ? 'You have already joined this activity.' : (pointsAwarded > 0 ? `You earned ${pointsAwarded} points` : 'Joined successfully'),
+    }[language]
+
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #52c41a 0%, #95de64 100%)', padding: '24px 16px' }}>
         <div style={{ maxWidth: 460, margin: '0 auto' }}>
           <Card style={{ borderRadius: 20, overflow: 'hidden', textAlign: 'center', padding: '24px 16px' }}>
             <CheckCircleOutlined style={{ fontSize: 64, color: '#52c41a', marginBottom: 16 }} />
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{successTitle}</div>
-            <div style={{ fontSize: 14, color: '#555', lineHeight: 1.8, marginBottom: 24 }}>{successDesc}</div>
+            <div style={{ fontSize: 14, color: '#555', lineHeight: 1.8, marginBottom: 16 }}>{successDesc}</div>
+            {/* 积分发放提示 */}
+            {!alreadyJoined && pointsAwarded > 0 && (
+              <div style={{
+                background: 'linear-gradient(135deg, #fffbe6 0%, #fff7e0 100%)',
+                border: '1px solid #ffd666',
+                borderRadius: 14,
+                padding: '14px 16px',
+                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}>
+                <span style={{ fontSize: 28 }}>🎁</span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: '#d48806' }}>+{pointsAwarded}</span>
+                <span style={{ fontSize: 14, color: '#ad6800', fontWeight: 600 }}>
+                  {{ zh: '积分', th: 'คะแนน', en: 'pts' }[language]}
+                </span>
+              </div>
+            )}
+            {alreadyJoined && (
+              <div style={{ background: '#f5f5f5', border: '1px solid #d9d9d9', borderRadius: 12, padding: '10px 16px', marginBottom: 16, color: '#888', fontSize: 13 }}>
+                {pointsLabel}
+              </div>
+            )}
             {title && (
               <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
                 <div style={{ fontSize: 13, color: '#52c41a', fontWeight: 600 }}>{title}</div>

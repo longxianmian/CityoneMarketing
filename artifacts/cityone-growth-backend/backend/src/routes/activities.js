@@ -1,13 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
-const ACTIVITY_TEMPLATES_FILE = path.join(DATA_DIR, "activity-templates.json");
-const ACTIVITIES_FILE = path.join(DATA_DIR, "activities.json");
+const ACTIVITY_TEMPLATES_FILE    = path.join(DATA_DIR, "activity-templates.json");
+const ACTIVITIES_FILE             = path.join(DATA_DIR, "activities.json");
 const ACTIVITY_PRODUCT_BINDINGS_FILE = path.join(DATA_DIR, "activity-product-bindings.json");
+const PARTICIPATIONS_FILE         = path.join(DATA_DIR, "activity-participations.json");
+const POINTS_ACCOUNTS_FILE        = path.join(DATA_DIR, "points-accounts.json");
+const POINTS_LEDGER_FILE          = path.join(DATA_DIR, "points-ledger.json");
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -286,4 +290,90 @@ export function handleActivityDelete(req, res, url, sendJson) {
   list.splice(idx, 1);
   saveJsonArray(ACTIVITIES_FILE, list);
   return sendOk(res, sendJson, "活动已删除", null);
+}
+
+// POST /api/activities/:id/participate
+// body: { user_id, line_user_id? }
+export async function handleActivityParticipate(req, res, url, sendJson, readBody) {
+  try {
+    const id = idFromPath(url.pathname, /^\/api\/activities\/([^/]+)\/participate$/);
+    if (!id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少活动ID");
+
+    const body   = await readBody(req);
+    const userId = body.user_id || body.line_user_id || "";
+    if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "缺少 user_id");
+
+    // 查找活动
+    const activities = loadJsonArray(ACTIVITIES_FILE);
+    const activity   = activities.find((a) => a.activity_id === id);
+    if (!activity) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到活动");
+    if (activity.status !== "active") return sendError(res, sendJson, 400, "INACTIVE", "活动未开启");
+
+    const rewardPoints = Number(activity.reward_points) || 0;
+
+    // 防重复参与
+    const participations = loadJsonArray(PARTICIPATIONS_FILE);
+    const alreadyJoined  = participations.find(
+      (p) => p.activity_id === id && p.user_id === userId
+    );
+    if (alreadyJoined) {
+      return sendOk(res, sendJson, "already_joined", {
+        already_joined: true,
+        points_awarded: 0,
+        participation: alreadyJoined,
+      });
+    }
+
+    const now = new Date().toISOString();
+
+    // 记录参与
+    const participation = {
+      id:           `part_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
+      activity_id:  id,
+      user_id:      userId,
+      line_user_id: body.line_user_id || userId,
+      points_awarded: rewardPoints,
+      joined_at:    now,
+    };
+    participations.push(participation);
+    saveJsonArray(PARTICIPATIONS_FILE, participations);
+
+    // 发放积分（仅 reward_points > 0 时）
+    if (rewardPoints > 0) {
+      const ledger  = loadJsonArray(POINTS_LEDGER_FILE);
+      const entry   = {
+        id:            `ledger_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
+        user_id:       userId,
+        line_user_id:  body.line_user_id || userId,
+        type:          "credit",
+        points:        rewardPoints,
+        ref_type:      "activity_reward",
+        ref_id:        id,
+        reason:        `活动奖励：${typeof activity.activity_name === "object" ? (activity.activity_name.zh || activity.activity_name.en || id) : (activity.activity_name || id)}`,
+        operator_id:   `activity_system`,
+        created_at:    now,
+      };
+      ledger.push(entry);
+      saveJsonArray(POINTS_LEDGER_FILE, ledger);
+
+      const accounts = loadJsonArray(POINTS_ACCOUNTS_FILE);
+      let account    = accounts.find((a) => a.user_id === userId || a.line_user_id === userId);
+      if (!account) {
+        account = { user_id: userId, line_user_id: body.line_user_id || userId, total_points: 0, available_points: 0, pending_points: 0, consumed_points: 0, revoked_points: 0, updated_at: now };
+        accounts.push(account);
+      }
+      account.total_points     = (account.total_points     || 0) + rewardPoints;
+      account.available_points = (account.available_points || 0) + rewardPoints;
+      account.updated_at       = now;
+      saveJsonArray(POINTS_ACCOUNTS_FILE, accounts);
+    }
+
+    return sendOk(res, sendJson, "参与成功", {
+      already_joined:  false,
+      points_awarded:  rewardPoints,
+      participation,
+    });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "SERVER_ERROR", err.message || "参与失败");
+  }
 }

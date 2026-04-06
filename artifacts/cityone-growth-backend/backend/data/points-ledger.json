@@ -42,5 +42,17 @@
     "reason": "验收测试手工加分",
     "operator_id": "admin_001",
     "created_at": "2026-04-04T03:43:16.848Z"
+  },
+  {
+    "id": "ledger_1775490473391_51b0dffc",
+    "user_id": "test_user_999",
+    "line_user_id": "test_user_999",
+    "type": "credit",
+    "points": 50,
+    "ref_type": "activity_reward",
+    "ref_id": "act_001",
+    "reason": "活动奖励：新用户注册礼",
+    "operator_id": "activity_system",
+    "created_at": "2026-04-06T15:47:53.390Z"
   }
 ]

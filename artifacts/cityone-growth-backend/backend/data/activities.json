@@ -62,7 +62,8 @@
     "campaign_id": "",
     "share_status": "",
     "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2026-04-06T14:54:29.788Z"
+    "updated_at": "2026-04-06T14:54:29.788Z",
+    "reward_points": 50
   },
   {
     "activity_id": "act_002",

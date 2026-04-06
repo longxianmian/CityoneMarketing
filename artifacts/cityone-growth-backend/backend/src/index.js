@@ -64,7 +64,8 @@ import {
   handleActivityUpdate,
   handleActivityDelete,
   handleActivityProductBindingList,
-  handleActivityProductBindingCreate
+  handleActivityProductBindingCreate,
+  handleActivityParticipate,
 } from "./routes/activities.js";
 import {
   handleProductTemplateGet,
@@ -616,6 +617,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "DELETE" && /^\/api\/activities\/[^/]+$/.test(url.pathname)) {
       return handleActivityDelete(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/activities\/[^/]+\/participate$/.test(url.pathname)) {
+      return handleActivityParticipate(req, res, url, sendJson, readBody);
     }
     if (req.method === "GET" && url.pathname === "/api/activity-product-bindings") {
       return handleActivityProductBindingList(req, res, url, sendJson);
