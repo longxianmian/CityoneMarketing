@@ -6,5 +6,13 @@
     "line_user_id": "test_user_999",
     "points_awarded": 50,
     "joined_at": "2026-04-06T15:47:53.390Z"
+  },
+  {
+    "id": "part_1775490817779_e6a92100",
+    "activity_id": "act_001",
+    "user_id": "dev_1q175hnsmnmtn22u",
+    "line_user_id": "dev_1q175hnsmnmtn22u",
+    "points_awarded": 50,
+    "joined_at": "2026-04-06T15:53:37.779Z"
   }
 ]

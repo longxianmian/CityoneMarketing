@@ -23,6 +23,7 @@ import {
   getUserBenefits,
   getUserOrders,
 } from '../../api/growth'
+import { getDeviceUserId } from '../../utils/deviceUserId'
 
 type AppLang = AppLanguage
 type LocalizedField = Partial<Record<AppLang, string>>
@@ -150,6 +151,7 @@ export default function MinePage() {
   const [profileLoaded, setProfileLoaded] = useState(false)
 
   const lineUserId = profile?.lineUserId || ''
+  const effectiveUserId = lineUserId || getDeviceUserId()
 
   const lineDisplayName =
     serverProfile?.line_display_name || profile?.lineDisplayName || 'CityOne LINE User'
@@ -256,7 +258,7 @@ export default function MinePage() {
     const load = async () => {
       try {
         const res: any = await getUserPointsSummary(
-          lineUserId ? { line_user_id: lineUserId } : undefined
+          { user_id: effectiveUserId }
         )
         const s = res?.data || {}
         setPointsSummary({
@@ -276,7 +278,7 @@ export default function MinePage() {
     setLedgerLoading(true)
     try {
       const res: any = await getUserPointsLedger({
-        line_user_id: lineUserId,
+        user_id: effectiveUserId,
         page: 1,
         page_size: 20,
       })
@@ -289,7 +291,7 @@ export default function MinePage() {
     setRedeemLoading(true)
     try {
       const res: any = await getUserPointsRedeems({
-        line_user_id: lineUserId,
+        user_id: effectiveUserId,
         page: 1,
         page_size: 20,
       })
@@ -310,7 +312,7 @@ export default function MinePage() {
     setPrizeLoading(true)
     try {
       const res: any = await getUserPrizes({
-        line_user_id: lineUserId,
+        user_id: effectiveUserId,
         page: 1,
         page_size: 20,
       })
@@ -334,7 +336,7 @@ export default function MinePage() {
       setBenefitLoading(true)
       try {
         const res: any = await getUserBenefits({
-          line_user_id: lineUserId,
+          user_id: effectiveUserId,
           status,
           page: 1,
           page_size: 30,
@@ -364,7 +366,7 @@ export default function MinePage() {
     setOrderLoading(true)
     try {
       const res: any = await getUserOrders({
-        line_user_id: lineUserId,
+        user_id: effectiveUserId,
         page: 1,
         page_size: 20,
       })

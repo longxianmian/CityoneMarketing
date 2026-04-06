@@ -54,5 +54,17 @@
     "reason": "活动奖励：新用户注册礼",
     "operator_id": "activity_system",
     "created_at": "2026-04-06T15:47:53.390Z"
+  },
+  {
+    "id": "ledger_1775490817779_aeb170ca",
+    "user_id": "dev_1q175hnsmnmtn22u",
+    "line_user_id": "dev_1q175hnsmnmtn22u",
+    "type": "credit",
+    "points": 50,
+    "ref_type": "activity_reward",
+    "ref_id": "act_001",
+    "reason": "活动奖励：新用户注册礼",
+    "operator_id": "activity_system",
+    "created_at": "2026-04-06T15:53:37.779Z"
   }
 ]

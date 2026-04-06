@@ -38,5 +38,25 @@
     "consumed_points": 0,
     "revoked_points": 0,
     "updated_at": "2026-04-06T15:47:53.390Z"
+  },
+  {
+    "user_id": "dev_1q175hnsmnmtn22u",
+    "line_user_id": "dev_1q175hnsmnmtn22u",
+    "total_points": 50,
+    "available_points": 50,
+    "pending_points": 0,
+    "consumed_points": 0,
+    "revoked_points": 0,
+    "updated_at": "2026-04-06T15:53:37.779Z"
+  },
+  {
+    "user_id": "dev_yx9u0of7mnndjwp6",
+    "line_user_id": "dev_yx9u0of7mnndjwp6",
+    "total_points": 0,
+    "available_points": 0,
+    "pending_points": 0,
+    "consumed_points": 0,
+    "revoked_points": 0,
+    "updated_at": "2026-04-06T15:58:10.102Z"
   }
 ]
