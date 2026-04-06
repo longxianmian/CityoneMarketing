@@ -1,11 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
-const COUPONS_FILE = path.join(DATA_DIR, "coupons.json");
+const COUPONS_FILE       = path.join(DATA_DIR, "coupons.json");
+const USER_PRODUCTS_FILE = path.join(DATA_DIR, "user-products.json");
+
+function loadJsonArray(file) {
+  if (!fs.existsSync(file)) { fs.writeFileSync(file, "[]", "utf-8"); return []; }
+  try { const p = JSON.parse(fs.readFileSync(file, "utf-8")); return Array.isArray(p) ? p : []; } catch { return []; }
+}
+function saveJsonArray(file, data) { fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf-8"); }
 
 function sendOk(res, sendJson, msg, data) {
   return sendJson(res, 200, { code: 200, msg, data });
@@ -154,4 +162,83 @@ export async function handleCouponDelete(req, res, url, sendJson, readBody) {
   list.splice(idx, 1);
   saveCoupons(list);
   return sendOk(res, sendJson, "删除成功", null);
+}
+
+// POST /api/user/coupons/claim
+// body: { user_id, coupon_id }
+export async function handleCouponClaim(req, res, url, sendJson, readBody) {
+  try {
+    const body     = await readBody(req);
+    const userId   = String(body.user_id || body.line_user_id || "").trim();
+    const couponId = String(body.coupon_id || "").trim();
+    if (!userId)   return sendError(res, sendJson, 400, "MISSING_USER_ID",   "缺少 user_id");
+    if (!couponId) return sendError(res, sendJson, 400, "MISSING_COUPON_ID", "缺少 coupon_id");
+
+    const coupons = loadCoupons();
+    const coupon  = coupons.find(c => c.id === couponId);
+    if (!coupon) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到该卡券");
+    if (Number(coupon.status) !== 1) return sendError(res, sendJson, 400, "INACTIVE", "该卡券已停用");
+
+    // 防重复领取
+    const userProducts = loadJsonArray(USER_PRODUCTS_FILE);
+    const alreadyClaimed = userProducts.find(
+      up => (up.user_id === userId || up.line_user_id === userId)
+         && up.source_id === couponId
+         && up.source_type === "coupon_claim"
+    );
+    if (alreadyClaimed) {
+      return sendOk(res, sendJson, "already_claimed", {
+        already_claimed: true,
+        user_product: alreadyClaimed,
+      });
+    }
+
+    // 检查库存
+    const claimedCount = userProducts.filter(
+      up => up.source_id === couponId && up.source_type === "coupon_claim"
+    ).length;
+    if (coupon.total_count > 0 && claimedCount >= coupon.total_count) {
+      return sendError(res, sendJson, 400, "OUT_OF_STOCK", "该卡券已被领完");
+    }
+
+    const now = new Date().toISOString();
+    const couponName = typeof coupon.name === "object"
+      ? (coupon.name.zh || coupon.name.en || coupon.name.th || couponId)
+      : (coupon.name || couponId);
+
+    const record = {
+      user_product_id: `up_coupon_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
+      user_id:        userId,
+      line_user_id:   body.line_user_id || userId,
+      product_id:     couponId,
+      product_name:   coupon.name,
+      product_type:   "coupon",
+      source_type:    "coupon_claim",
+      source_id:      couponId,
+      product_status: "claimed",
+      coupon_data:    coupon,
+      claimed_at:     now,
+      issued_at:      now,
+      created_at:     now,
+      updated_at:     now,
+    };
+
+    userProducts.push(record);
+    saveJsonArray(USER_PRODUCTS_FILE, userProducts);
+
+    // 更新已领取数量
+    const idx = coupons.findIndex(c => c.id === couponId);
+    if (idx !== -1) {
+      coupons[idx].claimed_count = (Number(coupons[idx].claimed_count) || 0) + 1;
+      saveCoupons(coupons);
+    }
+
+    return sendOk(res, sendJson, "领取成功", {
+      already_claimed: false,
+      user_product: record,
+      coupon_name: couponName,
+    });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "SERVER_ERROR", err.message || "领取失败");
+  }
 }

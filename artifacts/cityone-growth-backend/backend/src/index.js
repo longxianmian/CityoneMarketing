@@ -174,6 +174,7 @@ import {
 } from "./routes/agent-admin.js";
 import {
   handleUserCouponList,
+  handleCouponClaim,
   handleCouponList,
   handleCouponAdd,
   handleCouponUpdate,
@@ -465,6 +466,9 @@ const server = http.createServer(async (req, res) => {
     // ── 卡券（用户端公开）────────────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/user/coupons") {
       return handleUserCouponList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/user/coupons/claim") {
+      return handleCouponClaim(req, res, url, sendJson, readBody);
     }
 
     // ── 卡券管理 ──────────────────────────────────────────────────────────────

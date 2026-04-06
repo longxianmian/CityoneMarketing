@@ -819,7 +819,9 @@ export default function MinePage() {
                           </Tag>
                         </div>
                         <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
-                          {item.product_name || t('mine.defaultProductName')}
+                          {typeof item.product_name === 'object' && item.product_name
+                            ? (item.product_name[language] || item.product_name.en || item.product_name.zh || item.product_name.th || t('mine.defaultProductName'))
+                            : (item.product_name || t('mine.defaultProductName'))}
                         </div>
                         {item.short_benefit_text && (
                           <div

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Card, Tag, Space, Spin } from 'antd'
-import { ShareAltOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { Button, Card, Tag, Space, Spin, message } from 'antd'
+import { ShareAltOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
+import { getDeviceUserId } from '../../utils/deviceUserId'
 
 // 多语字段 pick（降级：当前语言 → en → zh → th）
 function pickML(field: any, lang: string): string {
@@ -59,6 +60,8 @@ export default function CouponUserPage() {
   const [coupon, setCoupon] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [claiming, setClaiming] = useState(false)
+  const [claimed, setClaimed] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -78,10 +81,33 @@ export default function CouponUserPage() {
 
   const followed = searchParams.get('followed') === '1'
 
-  const handleFollowDone = () => {
+  const doClaim = async () => {
+    if (!coupon || claiming) return
+    setClaiming(true)
+    try {
+      const res: any = await (request.post('/user/coupons/claim', {
+        user_id: getDeviceUserId(),
+        coupon_id: coupon.id,
+      }) as any)
+      const data = res?.data || {}
+      if (data.already_claimed) {
+        message.info({ zh: '您已领取过该卡券', th: 'คุณรับคูปองนี้แล้ว', en: 'Already claimed' }[language] || 'Already claimed')
+      } else {
+        message.success({ zh: '领取成功！', th: 'รับสำเร็จ！', en: 'Claimed!' }[language] || 'Claimed!')
+      }
+      setClaimed(true)
+    } catch {
+      message.error({ zh: '领取失败，请稍后重试', th: 'รับล้มเหลว', en: 'Claim failed, try again' }[language] || 'Claim failed')
+    } finally {
+      setClaiming(false)
+    }
+  }
+
+  const handleFollowDone = async () => {
     const next = new URLSearchParams(searchParams)
     next.set('followed', '1')
     setSearchParams(next)
+    await doClaim()
   }
 
   if (loading) {
@@ -241,9 +267,28 @@ export default function CouponUserPage() {
           )}
 
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Button type="primary" size="large" block onClick={() => navigate('/mine?tab=benefits')}>
-              {claimLabel}
-            </Button>
+            {claimed ? (
+              <Button
+                type="primary"
+                size="large"
+                block
+                icon={<CheckCircleOutlined />}
+                onClick={() => navigate('/mine?tab=benefit')}
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                {mineLabel}
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                size="large"
+                block
+                loading={claiming}
+                onClick={async () => { await doClaim(); navigate('/mine?tab=benefit') }}
+              >
+                {claimLabel}
+              </Button>
+            )}
             <Button
               size="large"
               block
@@ -252,9 +297,6 @@ export default function CouponUserPage() {
               style={{ borderColor: '#1677ff', color: '#1677ff' }}
             >
               {shareLabel}
-            </Button>
-            <Button size="large" block onClick={() => navigate('/mine?tab=benefits')}>
-              {mineLabel}
             </Button>
             <Button size="large" block onClick={() => navigate('/welfare')}>
               {backLabel}
