@@ -272,7 +272,7 @@ export default function WelfareHomePage() {
         '召回': { zh: '召回', th: 'ดึงกลับ', en: 'Recall' },
         '联合活动': { zh: '联合', th: 'ร่วมกิจกรรม', en: 'Joint' },
       }
-      const list: any[] = res.data?.data || []
+      const list: any[] = (res as any).data || []
       const cards: ContentCard[] = list.map((a, idx) => ({
         id: a.activity_id,
         type: 'activity' as const,

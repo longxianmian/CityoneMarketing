@@ -4840,5 +4840,65 @@
     },
     "intent_code": "greeting",
     "created_at": "2026-04-06T06:05:02.201Z"
+  },
+  {
+    "message_id": "am_00251",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "积分",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-06T06:28:06.292Z"
+  },
+  {
+    "message_id": "am_00252",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "想更划算一点的话，你也可以试试通过分享优惠给好友来赚积分。朋友能先看到这些优惠内容，你这边则可以把积分攒起来，之后兑换优惠券、免费体验券等福利。下面我先帮你整理了几个比较适合分享的内容。",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "想更划算一点的话，你也可以试试通过分享优惠给好友来赚积分。朋友能先看到这些优惠内容，你这边则可以把积分攒起来，之后兑换优惠券、免费体验券等福利。下面我先帮你整理了几个比较适合分享的内容。",
+      "cards": [
+        {
+          "card_type": "invite",
+          "title": "四月大转盘，赢取免费充电时间！",
+          "desc": "点击链接参与活动，还能赚积分",
+          "badge": "分享得积分",
+          "meta": "📢 四月大转盘",
+          "action_text": "立即分享 →",
+          "action_type": "navigate",
+          "action_url": "/welfare"
+        },
+        {
+          "card_type": "invite",
+          "title": "我参加了CityOne会员专属抽奖",
+          "desc": "点击加入，一起赢取大奖！",
+          "badge": "分享得积分",
+          "meta": "📢 五月会员专属活动",
+          "action_text": "立即分享 →",
+          "action_type": "navigate",
+          "action_url": "/welfare"
+        },
+        {
+          "card_type": "coupon",
+          "title": "30分钟充电券",
+          "desc": "分享给好友，好友领取后你获得积分",
+          "badge": "分享得积分",
+          "meta": "🎟️ 优惠券",
+          "action_text": "立即分享 →",
+          "action_type": "navigate",
+          "action_url": "/my-coupons"
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "growth_saving_intent",
+    "created_at": "2026-04-06T06:28:09.700Z"
   }
 ]

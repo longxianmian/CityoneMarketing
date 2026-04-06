@@ -95,7 +95,7 @@ export default function ActivityManage() {
   const loadList = () => {
     setLoading(true)
     return getActivities().then(res => {
-      const list: any[] = res.data?.data || []
+      const list: any[] = (res as any).data || []
       setData(list.map(toLocal))
     }).catch(() => {}).finally(() => setLoading(false))
   }

@@ -1358,5 +1358,21 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-06T06:05:02.214Z"
+  },
+  {
+    "log_id": "al_00086",
+    "session_id": "as_00082",
+    "message_id": "am_00251",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "积分",
+    "intent_code": "growth_saving_intent",
+    "intent_confidence": 0.6,
+    "tool_code": "tool-growth-saving",
+    "tool_result_status": "success",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-06T06:28:09.703Z"
   }
 ]
