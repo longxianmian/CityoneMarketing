@@ -165,7 +165,7 @@ export default function ThaiFortuneDrawPage() {
   return (
     <div style={{ minHeight: '100vh', background: `linear-gradient(160deg, ${bgColor} 0%, #1a0000 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: 40 }}>
       <div style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 12 }}>
-        <button onClick={() => window.history.length > 1 ? nav(-1) : nav('/welfare')} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+        <button onClick={() => nav(`/activity/${id}`)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
           <ArrowLeftOutlined />
         </button>
         <span style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 700, color: '#fff' }}>
