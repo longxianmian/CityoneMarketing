@@ -4,6 +4,14 @@ import { SearchOutlined, ReloadOutlined, FileTextOutlined, CheckCircleOutlined }
 import request from '../../api/request'
 import dayjs from 'dayjs'
 
+function pickML(field: any): string {
+  if (!field) return '-'
+  if (typeof field === 'string') return field
+  if (typeof field === 'object' && !Array.isArray(field))
+    return field.zh || field.en || field.th || '-'
+  return '-'
+}
+
 const { RangePicker } = DatePicker
 
 type ViewMode = 'issue' | 'usage'
@@ -31,7 +39,7 @@ export default function CouponStatsPage() {
         issueRows.push({
           key: `issue_${item.id}`,
           couponId: item.id,
-          couponName: item.name || item.title || '-',
+          couponName: pickML(item.name || item.title),
           couponType: item.type || item.coupon_type || '-',
           batchCount: item.total_quantity || item.stock || 0,
           issuedCount: item.issued_count || 0,
@@ -45,7 +53,7 @@ export default function CouponStatsPage() {
         usageRows.push({
           key: `usage_${item.id}`,
           couponId: item.id,
-          couponName: item.name || item.title || '-',
+          couponName: pickML(item.name || item.title),
           couponType: item.type || item.coupon_type || '-',
           issuedCount: issued,
           usedCount: used,

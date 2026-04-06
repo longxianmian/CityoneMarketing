@@ -3,6 +3,14 @@ import { Table, Card, Row, Col, Statistic, Input, Space, Button, Tag, Progress, 
 import { SearchOutlined, ReloadOutlined, ShoppingOutlined, PercentageOutlined, TrophyOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 
+function pickML(field: any): string {
+  if (!field) return '-'
+  if (typeof field === 'string') return field
+  if (typeof field === 'object' && !Array.isArray(field))
+    return field.zh || field.en || field.th || '-'
+  return '-'
+}
+
 const ITEM_TYPE_LABEL: Record<string, string> = {
   digital: '数字商品',
   voucher: '兑换券',
@@ -67,7 +75,7 @@ export default function RedeemStatsPage() {
     ? Object.values(itemStatsMap).map(({ item, count, points }) => ({
         key: item.id,
         id: item.id,
-        name: item.name || '-',
+        name: pickML(item.name),
         itemType: item.item_type || 'digital',
         redeemCount: count,
         pointsSpent: points,
@@ -76,7 +84,7 @@ export default function RedeemStatsPage() {
     : items.map(item => ({
         key: item.id,
         id: item.id,
-        name: item.name || '-',
+        name: pickML(item.name),
         itemType: item.item_type || 'digital',
         redeemCount: 0,
         pointsSpent: 0,

@@ -298,7 +298,7 @@ export default function WelfareHomePage() {
       const cards: ContentCard[] = list.map(c => ({
         id: c.id,
         type: 'coupon' as const,
-        title: { zh: c.name, th: c.name, en: c.name },
+        title: (c.name && typeof c.name === 'object' && !Array.isArray(c.name)) ? c.name : { zh: c.name, th: c.name, en: c.name },
         badge: { zh: '卡券', th: 'คูปอง', en: 'Coupon' },
         cover: c.cover_image || DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed,
         views: c.claimed_count || 0,
