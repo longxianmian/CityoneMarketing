@@ -140,7 +140,7 @@ export default function ActivityTemplateManage() {
     form.setFieldsValue(patch)
   }
 
-  const displayTitle = (v: any) => typeof v === 'string' ? v : (v?.zh || v?.th || v?.en || '')
+  const displayTitle = (v: any) => typeof v === 'string' ? v : (v?.[language] || v?.zh || v?.th || v?.en || '')
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },

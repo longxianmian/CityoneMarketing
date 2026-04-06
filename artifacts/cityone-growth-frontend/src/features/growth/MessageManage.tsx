@@ -18,7 +18,7 @@ const channelOptions = [
 ]
 
 export default function MessageManage() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const mk = (key: string) => t(`admin.message.${key}`)
 
   const eventTypeOptions = [
@@ -139,7 +139,7 @@ export default function MessageManage() {
       render: (_: any, record: any) => {
         const content = record.content
         if (content && typeof content === 'object') {
-          return content.zh || content.th || content.en || ''
+          return content[language] || content.zh || content.th || content.en || ''
         }
         return record.content_zh || ''
       },

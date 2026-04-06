@@ -354,6 +354,32 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - 翻译后其他语言可手动微调
 - `AutoTranslateButton`（批量翻译所有字段）继续保留在模板页作为一键翻译入口
 
+### `admin.activity.*` i18n 节点修复（90+ key，三语言）
+
+**问题背景**：误将 zh/th/en 三语言 `activity:` 块插入到错误父节点内（zh:growthReport、th/en:adminTemplate），导致路径为 `growthReport.activity` / `adminTemplate.activity` 而非 `admin.activity`。
+
+**修复方案**：用 Node.js 脚本精准删除三处误放块（按行号从下到上操作），再正确插入到各语言 `admin:` 节点内部（位于 `productDetail:` 之前）：
+
+| 语言 | `activity:` 起始行 | `activity:` 结束行 | `admin:` 关闭行 | 后续节点 |
+|------|-----------------|-------------------|----------------|---------|
+| zh | 649 | 792 | 793 | productDetail (794) |
+| th | 2635 | 2778 | 2779 | productDetail (2780) |
+| en | 4607 | 4750 | 4751 | productDetail (4752) |
+
+**验收结果**：Vite 编译无 `activity` 重复 key 警告；`admin.activity.cardOverview` 三语言均可正确查找。
+
+### 动态内容 pickLocalizedText 统一（三个模板页 + MessageManage）
+
+**问题**：三个模板页 `displayTitle` 函数和 MessageManage 内容列固定取 `v.zh`，不随 UI 语言切换。
+
+**修复**：`v?.[language] || v?.zh || v?.th || v?.en || ''`，优先取当前语言。
+
+涉及文件：
+- `features/growth/ActivityTemplateManage.tsx`
+- `features/growth/LandingTemplateManage.tsx`
+- `features/growth/ProductTemplateManage.tsx`
+- `features/growth/MessageManage.tsx`（同时补充 `language` 解构）
+
 ---
 
 ### `artifacts/cityone-growth-backend` (`@workspace/cityone-growth-backend`)
