@@ -41,6 +41,12 @@ import {
   handleFollowSuccessDispatch
 } from "./routes/landing.js";
 import {
+  handleGameProgramList,
+  handleGameProgramCreate,
+  handleGameProgramUpdate,
+  handleGameProgramDelete,
+} from "./routes/game-programs.js";
+import {
   handleActivityTemplateGet,
   handleActivityTemplateCreate,
   handleActivityTemplateUpdate,
@@ -539,6 +545,20 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/follow/success-dispatch") {
       return handleFollowSuccessDispatch(req, res, url, sendJson, readBody);
+    }
+
+    // ── 玩法程序 ─────────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/game-programs") {
+      return handleGameProgramList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/game-programs") {
+      return handleGameProgramCreate(req, res, url, sendJson, await readBody(req));
+    }
+    if (req.method === "PUT" && /^\/api\/game-programs\/[^/]+$/.test(url.pathname)) {
+      return handleGameProgramUpdate(req, res, url, sendJson, await readBody(req));
+    }
+    if (req.method === "DELETE" && /^\/api\/game-programs\/[^/]+$/.test(url.pathname)) {
+      return handleGameProgramDelete(req, res, url, sendJson);
     }
 
     // ── 活动模板层 ───────────────────────────────────────────────────────────

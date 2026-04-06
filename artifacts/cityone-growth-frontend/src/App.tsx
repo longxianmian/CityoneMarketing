@@ -52,8 +52,8 @@ const FortuneSignManage = lazy(() => import('./features/growth/FortuneSignManage
 const InteractionRecords = lazy(() => import('./features/growth/InteractionRecords'))
 const UserChancesManage = lazy(() => import('./features/growth/UserChancesManage'))
 const LandingTemplateManage = lazy(() => import('./features/growth/LandingTemplateManage'))
-const ActivityTemplateManage = lazy(() => import('./features/growth/ActivityTemplateManage'))
 const ProductTemplateManage = lazy(() => import('./features/growth/ProductTemplateManage'))
+const GameProgram = lazy(() => import('./features/growth/GameProgram'))
 const ComingSoon = lazy(() => import('./features/growth/ComingSoon'))
 
 const AgentWenwenPage = lazy(() => import('./features/growth/AgentWenwenPage'))
@@ -125,9 +125,9 @@ export default function App() {
           {/* 福利中心 */}
           <Route path="growth/coupon" element={<CouponManage />} />
           <Route path="growth/activity" element={<ActivityManage />} />
-          <Route path="growth/activity-templates" element={<ActivityTemplateManage />} />
+
           <Route path="growth/interaction-records" element={<InteractionRecords />} />
-          <Route path="welfare/game" element={<CS title="玩法程序" description="活动玩法程序管理，阶段二实现" />} />
+          <Route path="welfare/game" element={<GameProgram />} />
           <Route path="growth/prize-pool" element={<PrizePoolManage />} />
           <Route path="welfare/coupon-issue" element={<CS title="券发放记录" description="卡券批次发放记录查询，阶段二实现" />} />
           <Route path="welfare/coupon-usage" element={<CS title="券使用记录" description="卡券使用与核销记录，阶段二实现" />} />

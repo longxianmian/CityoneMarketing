@@ -116,6 +116,31 @@ export default function ActivityManage() {
   const [shareRecord, setShareRecord] = useState<any | null>(null)
   const [coverImage, setCoverImage] = useState('')
   const [coverVideo, setCoverVideo] = useState('')
+  const [gameProgramOptions, setGameProgramOptions] = useState<any[]>([])
+  const [gameProgramLoading, setGameProgramLoading] = useState(false)
+  const activityTypeInForm = Form.useWatch('activityType', form)
+
+  const GAME_TYPES_SET = new Set(['lucky_wheel', 'scratch_card', 'thai_fortune_draw'])
+
+  useEffect(() => {
+    if (activityTypeInForm && GAME_TYPES_SET.has(activityTypeInForm)) {
+      setGameProgramLoading(true)
+      import('../../api/request').then(({ default: request }) => {
+        request.get('/game-programs', { params: { type: activityTypeInForm } })
+          .then((res: any) => {
+            const list: any[] = (res.data as any[]) || []
+            setGameProgramOptions(list.filter((p: any) => p.status === 'active').map((p: any) => ({
+              value: p.id,
+              label: p.name,
+            })))
+          })
+          .catch(() => setGameProgramOptions([]))
+          .finally(() => setGameProgramLoading(false))
+      })
+    } else {
+      setGameProgramOptions([])
+    }
+  }, [activityTypeInForm])
 
   const filteredData = useMemo(() => {
     return data.filter((item) => {
@@ -508,6 +533,22 @@ export default function ActivityManage() {
               </Form.Item>
             </Col>
           </Row>
+
+          {activityTypeInForm && GAME_TYPES_SET.has(activityTypeInForm) && (
+            <Row gutter={16}>
+              <Col xs={24} sm={16}>
+                <Form.Item name="gameProgramId" label={am('formGameProgram')}>
+                  <Select
+                    allowClear
+                    loading={gameProgramLoading}
+                    options={gameProgramOptions}
+                    placeholder={am('formGameProgramPlaceholder')}
+                    notFoundContent={am('formGameProgramPlaceholder')}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
 
           <Row gutter={16}>
             <Col xs={24} sm={12}>

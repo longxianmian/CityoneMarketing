@@ -121,7 +121,6 @@ export default function AdminLayout() {
             label: lt('activityGroup'),
             children: [
               { key: '/admin/growth/activity', label: lt('activityInstances') },
-              { key: '/admin/growth/activity-templates', label: lt('activityTemplate') },
               { key: '/admin/welfare/game', label: lt('gamePrograms') },
               { key: '/admin/growth/interaction-records', label: lt('interactiveResources') },
             ],
