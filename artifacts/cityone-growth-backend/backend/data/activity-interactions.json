@@ -110,5 +110,53 @@
     "result_type": "thanks",
     "related_product_id": "",
     "created_at": "2026-04-06T06:37:31.562Z"
+  },
+  {
+    "interaction_id": "ia_008",
+    "activity_id": "act_003",
+    "activity_type": "lucky_wheel",
+    "line_user_id": "brand_new_user_xyz2",
+    "user_id": "",
+    "station_id": "",
+    "entry_id": "",
+    "utm_source": "",
+    "utm_campaign": "",
+    "action_type": "wheel_spin",
+    "action_result_id": "pz_002",
+    "result_type": "thanks",
+    "related_product_id": "",
+    "created_at": "2026-04-06T06:39:34.016Z"
+  },
+  {
+    "interaction_id": "ia_009",
+    "activity_id": "act_003",
+    "activity_type": "lucky_wheel",
+    "line_user_id": "final_test_user",
+    "user_id": "",
+    "station_id": "",
+    "entry_id": "",
+    "utm_source": "",
+    "utm_campaign": "",
+    "action_type": "wheel_spin",
+    "action_result_id": "pz_002",
+    "result_type": "thanks",
+    "related_product_id": "",
+    "created_at": "2026-04-06T06:40:43.040Z"
+  },
+  {
+    "interaction_id": "ia_010",
+    "activity_id": "act_003",
+    "activity_type": "lucky_wheel",
+    "line_user_id": "dev_1q175hnsmnmtn22u",
+    "user_id": "",
+    "station_id": "",
+    "entry_id": "",
+    "utm_source": "",
+    "utm_campaign": "",
+    "action_type": "wheel_spin",
+    "action_result_id": "pz_002",
+    "result_type": "thanks",
+    "related_product_id": "",
+    "created_at": "2026-04-06T06:40:46.522Z"
   }
 ]

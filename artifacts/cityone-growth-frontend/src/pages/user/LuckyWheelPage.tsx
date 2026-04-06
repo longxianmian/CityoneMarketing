@@ -150,8 +150,14 @@ export default function LuckyWheelPage() {
     return ''
   }
 
-  const [prizes, setPrizes] = useState<{ label: string; color: string }[]>([])
-  const segments = prizes.length ? prizes : ui.defaultPrizes
+  const [prizeData, setPrizeData] = useState<any[]>([])
+  const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#cc5de8','#20c997','#f06595']
+  const segments = prizeData.length
+    ? prizeData.map((p: any, i: number) => ({
+        label: p.display_text || p.prize_name || `奖品${i + 1}`,
+        color: p.display_color && p.display_color !== '#FF6B35' ? p.display_color : COLORS[i % COLORS.length],
+      }))
+    : ui.defaultPrizes
 
   useEffect(() => {
     const load = async () => {
@@ -175,14 +181,8 @@ export default function LuckyWheelPage() {
           setChances(startJson.data.remaining_chances)
         }
 
-        const prizeList: any[] = prizeJson.data || []
-        if (prizeList.length) {
-          const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#cc5de8','#20c997','#f06595']
-          setPrizes(prizeList.map((p: any, i: number) => ({
-            label: p.display_text || p.prize_name || `奖品${i + 1}`,
-            color: p.display_color && p.display_color !== '#FF6B35' ? p.display_color : COLORS[i % COLORS.length],
-          })))
-        }
+        const list: any[] = prizeJson.data || []
+        setPrizeData(list)
       } catch { setActivity(null) }
       finally { setLoading(false) }
     }
@@ -208,11 +208,19 @@ export default function LuckyWheelPage() {
         body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
       })
       const json = await res.json()
+      if (json.code !== 200) {
+        message.error(json.msg || ui.networkError)
+        setSpinning(false)
+        return
+      }
       const data = json.data || {}
       setResult(data)
-      if (data.prizeIndex !== undefined) {
+      // 根据 prize_id 找到扇区索引，让转盘停在对应奖品上
+      const wonPrizeId = data.prize?.prize_id
+      const wonIdx = prizeData.findIndex((p: any) => p.prize_id === wonPrizeId)
+      if (wonIdx >= 0) {
         const arc = (2 * Math.PI) / segments.length
-        prizeAngle = -(data.prizeIndex * arc)
+        prizeAngle = -(wonIdx * arc)
       }
       if (chances !== null) setChances(c => Math.max(0, (c ?? 1) - 1))
     } catch {
@@ -309,13 +317,26 @@ export default function LuckyWheelPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div style={{ background: '#fff', borderRadius: 24, padding: 32, maxWidth: 320, width: '100%', textAlign: 'center', animation: 'scaleIn 0.3s ease' }}>
             <div style={{ fontSize: 56, marginBottom: 16 }}>
-              {result?.isWin ? '🎉' : '😅'}
+              {!result?.is_thanks ? '🎉' : '😅'}
             </div>
             <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>
-              {result?.isWin ? ui.win : ui.lose}
+              {!result?.is_thanks ? ui.win : ui.lose}
             </h2>
-            {result?.prizeName && <p style={{ fontSize: 16, color: '#1677ff', fontWeight: 600, marginBottom: 4 }}>{pick(result.prizeName)}</p>}
-            {result?.prizeDesc && <p style={{ fontSize: 14, color: '#666', marginBottom: 20 }}>{pick(result.prizeDesc)}</p>}
+            {result?.prize?.prize_name && (
+              <p style={{ fontSize: 18, color: '#1677ff', fontWeight: 700, marginBottom: 4 }}>
+                {result.prize.prize_name}
+              </p>
+            )}
+            {result?.issued_product?.product_name && (
+              <p style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
+                {result.issued_product.product_name}
+              </p>
+            )}
+            {!result?.is_thanks && result?.issued_product && (
+              <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '8px 16px', marginBottom: 8, fontSize: 13, color: '#389e0d' }}>
+                奖品已发放到您的账户
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => { setResultVisible(false); nav('/mine?tab=prizes') }}
