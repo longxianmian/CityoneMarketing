@@ -434,18 +434,18 @@ export default function MinePage() {
   // 互动类型显示名
   function interactionTypeName(type: string) {
     const map: Record<string, string> = {
-      wheel_draw: '幸运转盘',
-      scratch_reveal: '刮刮卡',
-      fortune_draw: '泰式签池',
+      wheel_draw: t('mine.wheelDraw'),
+      scratch_reveal: t('mine.scratchReveal'),
+      fortune_draw: t('mine.fortuneDraw'),
     }
     return map[type] || type
   }
 
   // 奖品状态显示
   function prizeStatusTag(status: string) {
-    if (status === 'granted') return { color: 'green', text: '已到账' }
-    if (status === 'pending') return { color: 'orange', text: '待到账' }
-    if (status === 'expired') return { color: 'red', text: '已失效' }
+    if (status === 'granted') return { color: 'green', text: t('mine.prizeStatusGranted') }
+    if (status === 'pending') return { color: 'orange', text: t('mine.prizeStatusPending') }
+    if (status === 'expired') return { color: 'red', text: t('mine.prizeStatusExpired') }
     return { color: 'default', text: status }
   }
 
@@ -738,9 +738,6 @@ export default function MinePage() {
                       {t('mine.noPrize')}
                     </div>
                     <div style={{ fontSize: 12 }}>{t('mine.noPrizeHint')}</div>
-                    <div style={{ fontSize: 11, color: '#C0C7D0', marginTop: 8 }}>
-                      数据来源：活动互动记录（真实接口）
-                    </div>
                   </div>
                 ) : (
                   prizeItems.map((item, i) => {
@@ -764,7 +761,7 @@ export default function MinePage() {
                             <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
                           </div>
                           <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
-                            {item.prize_name || '活动奖品'}
+                            {item.prize_name || t('mine.defaultPrizeName')}
                           </div>
                           {item.product_name && (
                             <div style={{ color: '#FF7A59', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
@@ -798,9 +795,6 @@ export default function MinePage() {
                     }}
                   >
                     {t('mine.noCoupons')}
-                    <div style={{ fontSize: 11, color: '#C0C7D0', marginTop: 8 }}>
-                      数据来源：用户权益记录（真实接口）
-                    </div>
                   </div>
                 ) : (
                   benefitItems.map((item, i) => (
@@ -823,7 +817,7 @@ export default function MinePage() {
                           </Tag>
                         </div>
                         <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
-                          {item.product_name || '权益卡券'}
+                          {item.product_name || t('mine.defaultProductName')}
                         </div>
                         {item.short_benefit_text && (
                           <div
@@ -834,9 +828,9 @@ export default function MinePage() {
                         )}
                         <div style={{ color: '#A0A7B3', fontSize: 12 }}>
                           {item.expire_at
-                            ? `${t('mine.couponStatusExpired').replace('已', '')}：${item.expire_at.slice(0, 10)}`
+                            ? `${t('mine.expireAtPrefix')}${item.expire_at.slice(0, 10)}`
                             : item.issued_at
-                            ? `到账：${item.issued_at.slice(0, 10)}`
+                            ? `${t('mine.issuedAtPrefix')}${item.issued_at.slice(0, 10)}`
                             : ''}
                         </div>
                       </div>
@@ -877,11 +871,11 @@ export default function MinePage() {
                   }}
                 >
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#7B61FF', marginBottom: 10 }}>
-                    身份状态
+                    {t('mine.identityStatus')}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div style={{ background: '#F7F3FF', borderRadius: 10, padding: '10px 12px' }}>
-                      <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>身份层级</div>
+                      <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>{t('mine.identityLevel')}</div>
                       <div style={{ fontWeight: 800, fontSize: 15, color: '#7B61FF' }}>
                         {identityTag === 'fan'
                           ? `⭐ ${t('mine.identityFan')}`
@@ -904,7 +898,7 @@ export default function MinePage() {
                         padding: '10px 12px',
                       }}
                     >
-                      <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>押金状态</div>
+                      <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>{t('mine.memberDepositLabel')}</div>
                       <div
                         style={{
                           fontWeight: 800,
@@ -912,15 +906,15 @@ export default function MinePage() {
                           color: depositPaid ? '#2CDBCE' : '#FF7A59',
                         }}
                       >
-                        {depositPaid ? '✅ 已缴纳' : '⏳ 未缴纳'}
+                        {depositPaid ? t('mine.depositPaidFull') : t('mine.depositUnpaidFull')}
                       </div>
                       <div style={{ fontSize: 11, color: '#667085', marginTop: 4 }}>
-                        {depositPaid ? `฿${depositAmount}` : '缴纳押金成为会员'}
+                        {depositPaid ? `฿${depositAmount}` : t('mine.depositPayHint')}
                       </div>
                     </div>
                   </div>
                   <div style={{ fontSize: 10, color: '#C0C7D0', marginTop: 8 }}>
-                    身份标签由系统规则推断 · 押金状态阶段四接 A 系统
+                    {t('mine.identitySystemHint')}
                   </div>
                 </div>
 
@@ -935,7 +929,7 @@ export default function MinePage() {
                         marginBottom: 2,
                       }}
                     >
-                      <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 2 }}>成长积分</div>
+                      <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 2 }}>{t('mine.growthPoints')}</div>
                       <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>
                         {t('mine.pointsBalance')}
                       </div>
@@ -1049,10 +1043,10 @@ export default function MinePage() {
                       }}
                     />
                     <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
-                      暂无借电订单
+                      {t('mine.noOrderTitle')}
                     </div>
                     <div style={{ fontSize: 12, marginBottom: 8 }}>
-                      完成借电后订单将在此显示
+                      {t('mine.noOrderHint')}
                     </div>
                     {orderDataNote && (
                       <div
