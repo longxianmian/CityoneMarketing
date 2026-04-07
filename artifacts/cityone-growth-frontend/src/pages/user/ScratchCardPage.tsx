@@ -268,10 +268,10 @@ export default function ScratchCardPage() {
         )}
       </div>
 
-      {/* 刮中提示 */}
-      {!revealed && !revealing && (
-        <p style={{ color: '#bbb', fontSize: 13, marginTop: 14, textAlign: 'center' }}>
-          {noChance ? ui.noChanceBadge : scratchPct > 0 ? `${scratchPct}%` : ui.scratchHint}
+      {/* 刮卡进度提示 */}
+      {!revealed && !revealing && scratchPct > 0 && (
+        <p style={{ color: '#fa8c16', fontSize: 13, fontWeight: 600, marginTop: 14, textAlign: 'center' }}>
+          {scratchPct}%
         </p>
       )}
 
