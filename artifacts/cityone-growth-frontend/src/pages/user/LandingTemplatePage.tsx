@@ -84,11 +84,11 @@ export default function LandingTemplatePage() {
     </div>
   )
 
-  const title = tpl ? pick(tpl.title) || tpl.title || '' : ''
-  const subTitle = tpl ? pick(tpl.subTitle) || tpl.subTitle || '' : ''
-  const benefitText = tpl ? pick(tpl.benefitText) || tpl.benefitText || '' : ''
-  const supportText = tpl ? pick(tpl.supportText) || tpl.supportText || '' : ''
-  const buttonText = tpl ? (pick(tpl.buttonText) || tpl.buttonText || ui.defaultButton) : ui.defaultButton
+  const title = tpl ? pick(tpl.title) : ''
+  const subTitle = tpl ? pick(tpl.subTitle) : ''
+  const benefitText = tpl ? pick(tpl.benefitText) : ''
+  const supportText = tpl ? pick(tpl.supportText) : ''
+  const buttonText = tpl ? (pick(tpl.buttonText) || ui.defaultButton) : ui.defaultButton
   const coverImage = tpl?.coverImage || ''
 
   return (
