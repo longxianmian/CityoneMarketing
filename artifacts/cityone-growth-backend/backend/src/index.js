@@ -287,6 +287,12 @@ function serveStaticUpload(req, res, pathname) {
   if (!fs.existsSync(filePath)) {
     return fail(res, 404, "文件不存在");
   }
+  const stat = fs.statSync(filePath);
+  const etag = `"${stat.size}-${stat.mtimeMs.toString(36)}"`;
+  if (req.headers["if-none-match"] === etag) {
+    res.writeHead(304, { ...CORS_HEADERS });
+    return res.end();
+  }
   const ext = path.extname(filename).toLowerCase();
   const mimeMap = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
@@ -294,7 +300,14 @@ function serveStaticUpload(req, res, pathname) {
     ".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"
   };
   const mime = mimeMap[ext] || "application/octet-stream";
-  res.writeHead(200, { "Content-Type": mime, ...CORS_HEADERS });
+  res.writeHead(200, {
+    "Content-Type": mime,
+    "Content-Length": stat.size,
+    "Cache-Control": "public, max-age=2592000, immutable",
+    "ETag": etag,
+    "Last-Modified": new Date(stat.mtimeMs).toUTCString(),
+    ...CORS_HEADERS
+  });
   fs.createReadStream(filePath).pipe(res);
 }
 
@@ -330,9 +343,25 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload, null, 2));
 }
 
+function makeCachedSendJson(maxAge = 30) {
+  return function sendJsonCached(res, statusCode, payload) {
+    const headers = {
+      "Content-Type": "application/json; charset=utf-8",
+      ...CORS_HEADERS
+    };
+    if (statusCode === 200) {
+      headers["Cache-Control"] = `public, max-age=${maxAge}, stale-while-revalidate=60`;
+    }
+    res.writeHead(statusCode, headers);
+    res.end(JSON.stringify(payload, null, 2));
+  };
+}
+const sendJsonCached30 = makeCachedSendJson(30);
+
 function ok(res, data = {}, msg = "success") {
   return sendJson(res, 200, { code: 200, msg, data });
 }
+
 
 function fail(res, statusCode, msg, extra = {}) {
   return sendJson(res, statusCode, { code: statusCode, msg, ...extra });
@@ -471,7 +500,7 @@ const server = http.createServer(async (req, res) => {
 
     // ── 卡券（用户端公开）────────────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/user/coupons") {
-      return handleUserCouponList(req, res, url, sendJson);
+      return handleUserCouponList(req, res, url, sendJsonCached30);
     }
     if (req.method === "POST" && url.pathname === "/api/user/coupons/claim") {
       return handleCouponClaim(req, res, url, sendJson, readBody);
@@ -575,10 +604,10 @@ const server = http.createServer(async (req, res) => {
     // ── 商城商品 ─────────────────────────────────────────────────────────────
     if (req.method === "GET" && /^\/api\/growth\/mall\/items\/[^/]+$/.test(url.pathname)) {
       const itemId = url.pathname.split("/").pop();
-      return handleGetMallItemById(req, res, sendJson, itemId);
+      return handleGetMallItemById(req, res, sendJsonCached30, itemId);
     }
     if (req.method === "GET" && url.pathname === "/api/growth/mall/items") {
-      return handleGetMallItems(req, res, sendJson, url);
+      return handleGetMallItems(req, res, sendJsonCached30, url);
     }
     if (req.method === "POST" && url.pathname === "/api/growth/mall/items") {
       return handleCreateMallItem(req, res, sendJson, await readBody(req));
@@ -626,7 +655,7 @@ const server = http.createServer(async (req, res) => {
       return handleActivityTemplateUpdate(req, res, url, sendJson, readBody);
     }
     if (req.method === "GET" && url.pathname === "/api/activities") {
-      return handleActivityList(req, res, url, sendJson);
+      return handleActivityList(req, res, url, sendJsonCached30);
     }
     if (req.method === "POST" && url.pathname === "/api/activities") {
       return handleActivityCreate(req, res, url, sendJson, readBody);
