@@ -104,10 +104,10 @@
     "activity_id": "act_003",
     "line_user_id": "dev_1q175hnsmnmtn22u",
     "granted_count": 4,
-    "used_count": 2,
-    "remaining_count": 2,
+    "used_count": 3,
+    "remaining_count": 1,
     "grant_source": "admin test reset",
-    "updated_at": "2026-04-07T10:27:04.329Z"
+    "updated_at": "2026-04-07T10:34:12.504Z"
   },
   {
     "chance_id": "ch_012",
@@ -298,5 +298,15 @@
     "remaining_count": 1,
     "grant_source": "auto_first",
     "updated_at": "2026-04-07T10:18:14.141Z"
+  },
+  {
+    "chance_id": "ch_031",
+    "activity_id": "act_003",
+    "line_user_id": "dev_chztrekcmnohluzf",
+    "granted_count": 1,
+    "used_count": 0,
+    "remaining_count": 1,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-07T10:39:25.473Z"
   }
 ]
