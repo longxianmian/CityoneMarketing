@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Spin, Tag, Button, Card, Space } from 'antd'
 import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
@@ -16,11 +16,22 @@ const TYPE_LABELS: Record<string, { label: string; color: string; btnText: strin
   default:            { label: '活动',    color: '#52c41a', btnText: '立即参与', route: '' },
 }
 
-type Step = 'detail' | 'follow' | 'success'
+type Step = 'detail' | 'success'
+
+async function checkFanStatus(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
+    const json = await res.json()
+    return json?.data?.is_fan === true
+  } catch {
+    return false
+  }
+}
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
   const { language } = useI18n()
   const lang = language as AppLanguage
   const [activity, setActivity] = useState<any>(null)
@@ -30,6 +41,7 @@ export default function ActivityDetailPage() {
   const [pointsAwarded, setPointsAwarded] = useState<number>(0)
   const [alreadyJoined, setAlreadyJoined] = useState(false)
   const [participating, setParticipating] = useState(false)
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -42,6 +54,13 @@ export default function ActivityDetailPage() {
     }
     load()
   }, [id])
+
+  // 来自 FollowOAPage 回跳：auto=participate → 自动参与
+  useEffect(() => {
+    if (searchParams.get('auto') === 'participate' && activity && !participating) {
+      doParticipate()
+    }
+  }, [activity, searchParams.get('auto')])
 
   const pick = (field: any): string => {
     if (!field) return ''
@@ -70,27 +89,14 @@ export default function ActivityDetailPage() {
   const linkedProducts: any[] = activity?.linkedProducts || []
   const buttonText = activity?.buttonText ? pick(activity.buttonText) : typeInfo.btnText
   const isInteractive = ['lucky_wheel', 'spin_wheel', 'scratch_card', 'thai_fortune_draw'].includes(actType)
-  const requireOAFollow = activity?.require_oa_follow === true
 
-  // i18n labels
-  const backLabel       = { zh: '返回福利中心', th: 'กลับศูนย์สิทธิพิเศษ', en: 'Back to Benefits' }[language]
-  const followTitle     = { zh: '关注 LINE OA 参与活动', th: 'ติดตาม LINE OA เพื่อเข้าร่วม', en: 'Follow LINE OA to Join' }[language]
-  const followDesc      = {
-    zh: '请先关注 CityOne LINE OA，完成关注后点击「已关注，继续」参与本活动。',
-    th: 'กรุณาติดตาม LINE OA ของ CityOne ก่อน แล้วกด "ติดตามแล้ว ดำเนินการต่อ" เพื่อเข้าร่วมกิจกรรม',
-    en: 'Please follow CityOne LINE OA first, then tap "Already Followed" to join this activity.',
-  }[language]
-  const alreadyLabel    = { zh: '已关注，继续参与', th: 'ติดตามแล้ว ดำเนินการต่อ', en: 'Already Followed, Continue' }[language]
-  const successTitle    = { zh: '参与成功！', th: 'เข้าร่วมสำเร็จ!', en: 'Joined Successfully!' }[language]
-  const successDesc     = {
+  const backLabel = { zh: '返回福利中心', th: 'กลับศูนย์สิทธิพิเศษ', en: 'Back to Benefits' }[language]!
+  const successTitle = { zh: '参与成功！', th: 'เข้าร่วมสำเร็จ!', en: 'Joined Successfully!' }[language]!
+  const successDesc = {
     zh: '你已成功参与本活动，奖励将自动发放到你的账户。',
     th: 'คุณเข้าร่วมกิจกรรมสำเร็จแล้ว รางวัลจะเข้าบัญชีโดยอัตโนมัติ',
     en: 'You have successfully joined. Rewards will be credited to your account automatically.',
-  }[language]
-
-  const handleAction = () => {
-    setStep('follow')
-  }
+  }[language]!
 
   const doParticipate = async () => {
     setParticipating(true)
@@ -112,62 +118,30 @@ export default function ActivityDetailPage() {
     }
   }
 
-  const handleFollowDone = () => {
-    if (isInteractive && typeInfo.route) {
-      nav(`${typeInfo.route}${id}`)
-    } else {
-      doParticipate()
+  // 核心：点击操作按钮 → 先检查粉丝身份，再决定路径
+  const handleAction = async () => {
+    setChecking(true)
+    try {
+      const userId = getDeviceUserId()
+      const isFan = await checkFanStatus(userId)
+
+      if (isFan) {
+        // 已关注：直接执行
+        if (isInteractive && typeInfo.route) {
+          nav(`${typeInfo.route}${id}`)
+        } else {
+          await doParticipate()
+        }
+      } else {
+        // 未关注：跳到关注页，回跳目标根据类型决定
+        const redirectTo = isInteractive && typeInfo.route
+          ? `${typeInfo.route}${id}`
+          : `/activity/${id}?auto=participate`
+        nav(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(title)}&back=${encodeURIComponent(`/activity/${id}`)}`)
+      }
+    } finally {
+      setChecking(false)
     }
-  }
-
-  // ── 关注 LINE OA 步骤 ─────────────────────────────────────────────────────
-  if (step === 'follow') {
-    return (
-      <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
-        <div style={{ maxWidth: 480, margin: '0 auto' }}>
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => setStep('detail')}
-            style={{ marginBottom: 12, paddingLeft: 0 }}
-          >
-            {backLabel}
-          </Button>
-
-          <Card style={{ borderRadius: 16 }}>
-            {coverImage && (
-              <img src={coverImage} alt={title}
-                style={{ width: '100%', borderRadius: 12, marginBottom: 16, objectFit: 'cover', maxHeight: 200 }} />
-            )}
-            <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{title}</div>
-              {subTitle && <div style={{ fontSize: 14, color: '#888', marginBottom: 12 }}>{subTitle}</div>}
-              <Tag color="orange" style={{ fontSize: 13, padding: '4px 10px' }}>
-                {{ zh: '需关注 LINE OA', th: 'ต้องติดตาม LINE OA', en: 'LINE OA Follow Required' }[language]}
-              </Tag>
-            </div>
-
-            <div style={{
-              marginTop: 18, padding: 18, borderRadius: 14,
-              background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)',
-              border: '1px solid #ffd591',
-            }}>
-              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{followTitle}</div>
-              <div style={{ color: '#555', lineHeight: 1.8 }}>{followDesc}</div>
-            </div>
-
-            <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
-              <Button type="primary" size="large" block onClick={handleFollowDone}>
-                {alreadyLabel}
-              </Button>
-              <Button size="large" block onClick={() => setStep('detail')}>
-                {backLabel}
-              </Button>
-            </Space>
-          </Card>
-        </div>
-      </div>
-    )
   }
 
   // ── 参与中 loading ────────────────────────────────────────────────────────
@@ -185,7 +159,7 @@ export default function ActivityDetailPage() {
       zh: alreadyJoined ? '您已参与过此活动' : (pointsAwarded > 0 ? `已获得 ${pointsAwarded} 积分` : '参与成功'),
       th: alreadyJoined ? 'คุณเคยเข้าร่วมกิจกรรมนี้แล้ว' : (pointsAwarded > 0 ? `ได้รับ ${pointsAwarded} คะแนน` : 'เข้าร่วมสำเร็จ'),
       en: alreadyJoined ? 'You have already joined this activity.' : (pointsAwarded > 0 ? `You earned ${pointsAwarded} points` : 'Joined successfully'),
-    }[language]
+    }[language]!
 
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #52c41a 0%, #95de64 100%)', padding: '24px 16px' }}>
@@ -194,18 +168,11 @@ export default function ActivityDetailPage() {
             <CheckCircleOutlined style={{ fontSize: 64, color: '#52c41a', marginBottom: 16 }} />
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{successTitle}</div>
             <div style={{ fontSize: 14, color: '#555', lineHeight: 1.8, marginBottom: 16 }}>{successDesc}</div>
-            {/* 积分发放提示 */}
             {!alreadyJoined && pointsAwarded > 0 && (
               <div style={{
                 background: 'linear-gradient(135deg, #fffbe6 0%, #fff7e0 100%)',
-                border: '1px solid #ffd666',
-                borderRadius: 14,
-                padding: '14px 16px',
-                marginBottom: 20,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
+                border: '1px solid #ffd666', borderRadius: 14, padding: '14px 16px', marginBottom: 20,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}>
                 <span style={{ fontSize: 28 }}>🎁</span>
                 <span style={{ fontSize: 20, fontWeight: 800, color: '#d48806' }}>+{pointsAwarded}</span>
@@ -225,9 +192,7 @@ export default function ActivityDetailPage() {
               </div>
             )}
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Button type="primary" size="large" block onClick={() => nav('/welfare')}>
-                {backLabel}
-              </Button>
+              <Button type="primary" size="large" block onClick={() => nav('/welfare')}>{backLabel}</Button>
             </Space>
           </Card>
         </div>
@@ -295,10 +260,10 @@ export default function ActivityDetailPage() {
 
         {participationGuide && (
           <Section title="参与步骤">
-            {participationGuide.split(/\n|→/).filter(Boolean).map((step: string, i: number) => (
+            {participationGuide.split(/\n|→/).filter(Boolean).map((s: string, i: number) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
                 <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#1677ff', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
-                <span style={{ fontSize: 14, color: '#444', lineHeight: 1.7, paddingTop: 2 }}>{step.trim()}</span>
+                <span style={{ fontSize: 14, color: '#444', lineHeight: 1.7, paddingTop: 2 }}>{s.trim()}</span>
               </div>
             ))}
           </Section>
@@ -335,9 +300,12 @@ export default function ActivityDetailPage() {
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 16px 24px', background: '#fff', borderTop: '1px solid #f0f0f0', zIndex: 20 }}>
         <button
           onClick={handleAction}
-          style={{ width: '100%', padding: '14px 0', background: 'linear-gradient(135deg, #1677ff, #4096ff)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(22,119,255,0.35)', letterSpacing: 0.5 }}
+          disabled={checking}
+          style={{ width: '100%', padding: '14px 0', background: checking ? '#ccc' : 'linear-gradient(135deg, #1677ff, #4096ff)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 17, fontWeight: 700, cursor: checking ? 'not-allowed' : 'pointer', boxShadow: checking ? 'none' : '0 4px 16px rgba(22,119,255,0.35)', letterSpacing: 0.5, transition: 'background 0.2s' }}
         >
-          {buttonText}
+          {checking
+            ? ({ zh: '验证中...', th: 'กำลังตรวจสอบ...', en: 'Checking...' }[language])
+            : buttonText}
         </button>
       </div>
     </div>

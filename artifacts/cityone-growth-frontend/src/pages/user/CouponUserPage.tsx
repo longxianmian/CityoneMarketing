@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Card, Tag, Space, Spin, message } from 'antd'
-import { ShareAltOutlined, ArrowLeftOutlined, CheckCircleOutlined, UserAddOutlined } from '@ant-design/icons'
+import { ShareAltOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 import { getDeviceUserId } from '../../utils/deviceUserId'
 
-type Step = 'detail' | 'follow' | 'success'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+type Step = 'detail' | 'success'
 
 function pickML(field: any, lang: string): string {
   if (!field) return ''
@@ -48,9 +50,20 @@ function formatDate(iso: string, language: string) {
   return d.format('YYYY-MM-DD HH:mm')
 }
 
+async function checkFanStatus(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
+    const json = await res.json()
+    return json?.data?.is_fan === true
+  } catch {
+    return false
+  }
+}
+
 export default function CouponUserPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { language, t } = useI18n()
   const [shareVisible, setShareVisible] = useState(false)
   const [coupon, setCoupon] = useState<any>(null)
@@ -59,6 +72,7 @@ export default function CouponUserPage() {
   const [claiming, setClaiming] = useState(false)
   const [step, setStep] = useState<Step>('detail')
   const [alreadyClaimed, setAlreadyClaimed] = useState(false)
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -75,6 +89,13 @@ export default function CouponUserPage() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
   }, [id])
+
+  // 来自 FollowOAPage 回跳：auto=claim → 自动领取
+  useEffect(() => {
+    if (searchParams.get('auto') === 'claim' && coupon && !claiming) {
+      doClaim()
+    }
+  }, [coupon, searchParams.get('auto')])
 
   const doClaim = async () => {
     if (!coupon || claiming) return
@@ -94,27 +115,39 @@ export default function CouponUserPage() {
     }
   }
 
+  // 核心：检查粉丝身份 → 已关注直接领，未关注跳关注页
+  const handleClaim = async () => {
+    setChecking(true)
+    try {
+      const userId = getDeviceUserId()
+      const isFan = await checkFanStatus(userId)
+      if (isFan) {
+        await doClaim()
+      } else {
+        const redirectTo = `/coupon/${id}?auto=claim`
+        navigate(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(name)}&back=${encodeURIComponent(`/coupon/${id}`)}`)
+      }
+    } finally {
+      setChecking(false)
+    }
+  }
+
   // ── i18n ────────────────────────────────────────────────────────────────────
   const L = {
     back:             { zh: '返回福利中心', th: 'กลับศูนย์สิทธิพิเศษ', en: 'Back to Benefits' }[language]!,
-    backDetail:       { zh: '返回券详情', th: 'กลับรายละเอียด', en: 'Back to Coupon' }[language]!,
     claimBtn:         { zh: '立即领取', th: 'รับสิทธิ์ทันที', en: 'Claim Now' }[language]!,
     shareBtn:         { zh: '分享给好友', th: 'แชร์ให้เพื่อน', en: 'Share' }[language]!,
     mineBtn:          { zh: '查看我的卡券', th: 'ดูคูปองของฉัน', en: 'My Coupons' }[language]!,
     validity:         { zh: '使用有效期', th: 'ระยะเวลาใช้งาน', en: 'Validity' }[language]!,
     minSpend:         { zh: '使用条件', th: 'เงื่อนไขการใช้', en: 'Min. Spend' }[language]!,
     benefit:          { zh: 'CityOne 专属权益', th: 'สิทธิพิเศษ CityOne', en: 'CityOne Exclusive Benefit' }[language]!,
-    followTitle:      { zh: '关注 LINE OA 即可领取', th: 'ติดตาม LINE OA เพื่อรับคูปอง', en: 'Follow LINE OA to Claim' }[language]!,
-    followDesc:       { zh: '请先关注 CityOne LINE OA，完成关注后点击「已关注，继续领取」。', th: 'กรุณาติดตาม LINE OA ของ CityOne ก่อน แล้วกด "ติดตามแล้ว รับสิทธิ์" เพื่อรับคูปอง', en: 'Please follow CityOne LINE OA first, then tap "Already Followed" to claim this coupon.' }[language]!,
-    followTag:        { zh: '需关注 LINE OA', th: 'ต้องติดตาม LINE OA', en: 'LINE OA Follow Required' }[language]!,
-    alreadyFollowed:  { zh: '已关注，继续领取', th: 'ติดตามแล้ว รับสิทธิ์', en: 'Already Followed, Continue' }[language]!,
+    checkingLabel:    { zh: '验证中...', th: 'กำลังตรวจสอบ...', en: 'Checking...' }[language]!,
     successTitle:     { zh: '领取成功！', th: 'รับสำเร็จ!', en: 'Claimed!' }[language]!,
     alreadyTitle:     { zh: '您已领取过此券', th: 'คุณรับคูปองนี้แล้ว', en: 'Already Claimed' }[language]!,
     successDesc:      { zh: '卡券已存入您的账户，可在「我的 → 卡券」中查看使用。', th: 'คูปองถูกเพิ่มในบัญชีของคุณแล้ว ดูได้ที่ "ของฉัน → คูปอง"', en: 'Coupon added to your account. Find it under "Mine → Coupons".' }[language]!,
     alreadyDesc:      { zh: '您之前已领取过该卡券，请前往「我的 → 卡券」查看。', th: 'คุณเคยรับคูปองนี้แล้ว ดูได้ที่ "ของฉัน → คูปอง"', en: 'You have already claimed this coupon. Check "Mine → Coupons".' }[language]!,
   }
 
-  // ── Loading / Not Found ──────────────────────────────────────────────────────
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -141,63 +174,6 @@ export default function CouponUserPage() {
   const validToText   = formatDate(coupon.valid_to, language)
   const validityLabel = `${validFromText} ~ ${validToText}`
   const coverUrl      = coupon.cover_image || null
-
-  // ── Step: LINE OA Follow ─────────────────────────────────────────────────────
-  if (step === 'follow') {
-    return (
-      <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
-        <div style={{ maxWidth: 480, margin: '0 auto' }}>
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => setStep('detail')}
-            style={{ marginBottom: 12, paddingLeft: 0 }}
-          >
-            {L.backDetail}
-          </Button>
-
-          <Card style={{ borderRadius: 16 }}>
-            {coverUrl && (
-              <img src={coverUrl} alt={name}
-                style={{ width: '100%', borderRadius: 12, marginBottom: 16, objectFit: 'cover', maxHeight: 200 }} />
-            )}
-            <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{name}</div>
-              <div style={{ fontSize: 18, color: '#fa8c16', fontWeight: 700, marginBottom: 12 }}>{discountText}</div>
-              <Tag color="orange" style={{ fontSize: 13, padding: '4px 10px' }}>{L.followTag}</Tag>
-            </div>
-
-            <div style={{
-              marginTop: 18, padding: 18, borderRadius: 14,
-              background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)',
-              border: '1px solid #ffd591',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <UserAddOutlined style={{ fontSize: 20, color: '#fa8c16' }} />
-                <span style={{ fontSize: 16, fontWeight: 700 }}>{L.followTitle}</span>
-              </div>
-              <div style={{ color: '#555', lineHeight: 1.8, fontSize: 14 }}>{L.followDesc}</div>
-            </div>
-
-            <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
-              <Button
-                type="primary"
-                size="large"
-                block
-                loading={claiming}
-                onClick={doClaim}
-              >
-                {L.alreadyFollowed}
-              </Button>
-              <Button size="large" block onClick={() => setStep('detail')}>
-                {L.backDetail}
-              </Button>
-            </Space>
-          </Card>
-        </div>
-      </div>
-    )
-  }
 
   // ── Step: Success ────────────────────────────────────────────────────────────
   if (step === 'success') {
@@ -240,10 +216,9 @@ export default function CouponUserPage() {
     )
   }
 
-  // ── Step: Detail（默认，浏览自由，无需任何条件）─────────────────────────────
+  // ── Step: Detail（默认，浏览自由）─────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 100 }}>
-      {/* 顶部导航 */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 20,
         background: '#fff', display: 'flex', alignItems: 'center',
@@ -274,7 +249,6 @@ export default function CouponUserPage() {
         name={name}
       />
 
-      {/* 封面图 */}
       {coverUrl ? (
         <img src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
       ) : (
@@ -284,28 +258,23 @@ export default function CouponUserPage() {
       )}
 
       <div style={{ padding: '20px 16px 0' }}>
-        {/* 券名 & 优惠 */}
         <div style={{ background: '#fff', borderRadius: 16, padding: '20px 16px', marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: '#1677ff', fontWeight: 700, marginBottom: 6 }}>{L.benefit}</div>
           <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{name}</div>
           <div style={{ fontSize: 26, color: '#fa8c16', fontWeight: 800, marginBottom: 12 }}>{discountText}</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {coupon.coupon_type && (
-              <Tag color="blue">{coupon.coupon_type}</Tag>
-            )}
+            {coupon.coupon_type && <Tag color="blue">{coupon.coupon_type}</Tag>}
             <Tag color="green">
               { language === 'th' ? 'พร้อมใช้งาน' : language === 'en' ? 'Available' : '可领取' }
             </Tag>
           </div>
         </div>
 
-        {/* 有效期 */}
         <div style={{ background: '#fff', borderRadius: 16, padding: '16px', marginBottom: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#888', marginBottom: 6 }}>{L.validity}</div>
           <div style={{ fontSize: 14, color: '#333' }}>{validityLabel}</div>
         </div>
 
-        {/* 使用条件 */}
         {coupon.min_amount > 0 && (
           <div style={{ background: '#fff', borderRadius: 16, padding: '16px', marginBottom: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#888', marginBottom: 6 }}>{L.minSpend}</div>
@@ -315,7 +284,6 @@ export default function CouponUserPage() {
           </div>
         )}
 
-        {/* 库存提示 */}
         {coupon.total_count > 0 && (
           <div style={{ background: '#fff7e6', borderRadius: 12, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 16 }}>📦</span>
@@ -330,7 +298,6 @@ export default function CouponUserPage() {
         )}
       </div>
 
-      {/* 底部固定按钮 */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         padding: '12px 16px 24px',
@@ -338,20 +305,22 @@ export default function CouponUserPage() {
       }}>
         <Space direction="vertical" style={{ width: '100%' }}>
           <button
-            onClick={() => setStep('follow')}
+            onClick={handleClaim}
+            disabled={checking || claiming}
             style={{
               width: '100%', padding: '14px 0',
-              background: 'linear-gradient(135deg, #1677ff, #4096ff)',
+              background: (checking || claiming) ? '#ccc' : 'linear-gradient(135deg, #1677ff, #4096ff)',
               border: 'none', borderRadius: 50,
               color: '#fff', fontSize: 17, fontWeight: 700,
-              cursor: 'pointer', boxShadow: '0 4px 16px rgba(22,119,255,0.35)',
-              letterSpacing: 0.5,
+              cursor: (checking || claiming) ? 'not-allowed' : 'pointer',
+              boxShadow: (checking || claiming) ? 'none' : '0 4px 16px rgba(22,119,255,0.35)',
+              letterSpacing: 0.5, transition: 'background 0.2s',
             }}
           >
-            {L.claimBtn}
+            {checking ? L.checkingLabel : L.claimBtn}
           </button>
           <Button block onClick={() => setShareVisible(true)} icon={<ShareAltOutlined />} style={{ borderRadius: 50 }}>
-            {L.shareBtn}
+            { language === 'th' ? 'แชร์ให้เพื่อน' : language === 'en' ? 'Share' : '分享给好友' }
           </Button>
         </Space>
       </div>

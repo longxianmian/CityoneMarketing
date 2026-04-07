@@ -23,6 +23,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/user/PrivacyPolicyPage'))
 const AboutUsPage = lazy(() => import('./pages/user/AboutUsPage'))
 const LandingTemplatePage = lazy(() => import('./pages/user/LandingTemplatePage'))
 const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
+const FollowOAPage = lazy(() => import('./pages/user/FollowOAPage'))
 const ScratchCardPage = lazy(() => import('./pages/user/ScratchCardPage'))
 const ThaiFortuneDrawPage = lazy(() => import('./pages/user/ThaiFortuneDrawPage'))
 
@@ -96,6 +97,7 @@ export default function App() {
         <Route path="/my-coupons" element={<Navigate to="/mine?tab=benefits" replace />} />
         <Route path="/my-points" element={<Navigate to="/mine?tab=member" replace />} />
         <Route path="/redeem/:id" element={<ProductDetailPage />} />
+        <Route path="/follow-oa" element={<FollowOAPage />} />
         <Route path="/landing/:id" element={<LandingTemplatePage />} />
         <Route path="/system-desc" element={<SystemDescPage />} />
         <Route path="/user-agreement" element={<UserAgreementPage />} />

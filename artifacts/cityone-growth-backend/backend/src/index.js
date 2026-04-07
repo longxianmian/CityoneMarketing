@@ -127,6 +127,7 @@ import {
 import { handleTranslate } from "./routes/translate.js";
 import {
   handleUserProfile,
+  handleCheckFollow,
   handleUserPrizes,
   handleUserBenefits,
   handleUserOrders,
@@ -949,6 +950,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/user/benefits") {
       return handleUserBenefits(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/user/check-follow") {
+      return handleCheckFollow(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/user/orders") {
       return handleUserOrders(req, res, url, sendJson);

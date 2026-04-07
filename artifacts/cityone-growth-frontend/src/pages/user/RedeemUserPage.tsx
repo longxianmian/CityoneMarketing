@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Card, Space, Tag, Spin, Modal } from 'antd'
-import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined, UserAddOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import request from '../../api/request'
+import { getDeviceUserId } from '../../utils/deviceUserId'
 
-type RedeemStep = 'detail' | 'follow'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 const ITEM_TYPE_GRADIENT: Record<string, string> = {
   digital:  'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
@@ -46,16 +47,27 @@ function pickStrings(field: any, lang?: string): string[] {
   return []
 }
 
+async function checkFanStatus(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
+    const json = await res.json()
+    return json?.data?.is_fan === true
+  } catch {
+    return false
+  }
+}
+
 export default function RedeemUserPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { language } = useI18n()
 
   const [item, setItem] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [step, setStep] = useState<RedeemStep>('detail')
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -68,6 +80,13 @@ export default function RedeemUserPage() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
   }, [id])
+
+  // 来自 FollowOAPage 回跳：auto=redeem → 自动打开确认弹窗
+  useEffect(() => {
+    if (searchParams.get('auto') === 'redeem' && item) {
+      setConfirmOpen(true)
+    }
+  }, [item, searchParams.get('auto')])
 
   const handleConfirmRedeem = () => {
     const spendPoints = item?.points_required || 0
@@ -88,11 +107,31 @@ export default function RedeemUserPage() {
     setTimeout(() => navigate('/my-points'), 120)
   }
 
+  // 核心：检查粉丝身份 → 已关注直接打开确认框，未关注跳关注页
+  const handleRedeem = async () => {
+    if (item?.item_type === 'physical') {
+      Modal.info({ title: itemName, content: labels.physicalTip, okText: 'OK' })
+      return
+    }
+    setChecking(true)
+    try {
+      const userId = getDeviceUserId()
+      const isFan = await checkFanStatus(userId)
+      if (isFan) {
+        setConfirmOpen(true)
+      } else {
+        const redirectTo = `/redeem/${id}?auto=redeem`
+        navigate(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(itemName)}&back=${encodeURIComponent(`/redeem/${id}`)}`)
+      }
+    } finally {
+      setChecking(false)
+    }
+  }
+
   const labels = {
     backLabel:    language === 'zh' ? '返回' : language === 'th' ? 'กลับ' : 'Back',
-    backDetail:   language === 'zh' ? '返回商品详情' : language === 'th' ? 'กลับรายละเอียด' : 'Back to Item',
     pointsUnit:   language === 'zh' ? '积分' : language === 'th' ? 'คะแนน' : 'pts',
-    thbLabel:     language === 'zh' ? '+ ฿' : language === 'th' ? '+ ฿' : '+ ฿',
+    thbLabel:     '+ ฿',
     redeemBtn:    language === 'zh' ? '立即积分兑换' : language === 'th' ? 'แลกด้วยคะแนน' : 'Redeem with Points',
     backWelfare:  language === 'zh' ? '返回福利中心' : language === 'th' ? 'กลับศูนย์สิทธิ์' : 'Back to Benefits',
     descLabel:    language === 'zh' ? '商品说明' : language === 'th' ? 'รายละเอียด' : 'Description',
@@ -100,10 +139,7 @@ export default function RedeemUserPage() {
     rulesLabel:   language === 'zh' ? '兑换须知' : language === 'th' ? 'เงื่อนไข' : 'Terms',
     notFound:     language === 'zh' ? '商品不存在' : language === 'th' ? 'ไม่พบสินค้า' : 'Item not found',
     notFoundSub:  language === 'zh' ? '该商品可能已下架或链接有误' : language === 'th' ? 'สินค้าอาจถูกนำออกหรือลิงก์ผิด' : 'This item may be unavailable or the link is invalid',
-    followTitle:  language === 'zh' ? '关注 LINE OA 即可兑换' : language === 'th' ? 'ติดตาม LINE OA เพื่อแลก' : 'Follow LINE OA to Redeem',
-    followDesc:   language === 'zh' ? '请先关注 CityOne LINE OA，完成关注后点击「已关注，继续兑换」即可继续。' : language === 'th' ? 'กรุณาติดตาม CityOne LINE OA ก่อน แล้วกด "ติดตามแล้ว ดำเนินการต่อ" เพื่อดำเนินการต่อ' : 'Please follow CityOne LINE OA first, then tap "Already Followed" to continue.',
-    followTag:    language === 'zh' ? '需关注 LINE OA' : language === 'th' ? 'ต้องติดตาม LINE OA' : 'LINE OA Follow Required',
-    followedBtn:  language === 'zh' ? '已关注，继续兑换' : language === 'th' ? 'ติดตามแล้ว ดำเนินการต่อ' : 'Already Followed, Continue',
+    checkingLabel:language === 'zh' ? '验证中...' : language === 'th' ? 'กำลังตรวจสอบ...' : 'Checking...',
     confirmTitle: language === 'zh' ? '确认积分兑换' : language === 'th' ? 'ยืนยันการแลกคะแนน' : 'Confirm Redemption',
     confirmOk:    language === 'zh' ? '确认兑换' : language === 'th' ? 'ยืนยัน' : 'Confirm',
     confirmCancel:language === 'zh' ? '取消' : language === 'th' ? 'ยกเลิก' : 'Cancel',
@@ -148,50 +184,6 @@ export default function RedeemUserPage() {
   const itemName = pickML(item.name, language) || ''
   const itemDesc = pickML(item.description, language) || ''
 
-  // ── Step: LINE OA Follow（兑换前验证粉丝身份）───────────────────────────────
-  if (step === 'follow') {
-    return (
-      <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
-        <div style={{ maxWidth: 480, margin: '0 auto' }}>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            style={{ marginBottom: 16, paddingLeft: 0 }}
-            type="text"
-            onClick={() => setStep('detail')}
-          >
-            {labels.backDetail}
-          </Button>
-          <Card style={{ borderRadius: 16 }}>
-            <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{itemName}</div>
-              <Tag color="blue" style={{ fontSize: 13, padding: '4px 10px', marginBottom: 8 }}>
-                {pointsLabel}{priceLabel}
-              </Tag>
-              <br />
-              <Tag color="orange" style={{ fontSize: 13, padding: '4px 10px', marginTop: 4 }}>
-                {labels.followTag}
-              </Tag>
-            </div>
-            <div style={{ marginTop: 20, padding: 18, borderRadius: 14, background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)', border: '1px solid #ffd591' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <UserAddOutlined style={{ fontSize: 20, color: '#fa8c16' }} />
-                <span style={{ fontSize: 15, fontWeight: 700 }}>{labels.followTitle}</span>
-              </div>
-              <div style={{ color: '#555', lineHeight: 1.8, fontSize: 14 }}>{labels.followDesc}</div>
-            </div>
-            <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
-              <Button type="primary" size="large" block onClick={() => { setStep('detail'); setConfirmOpen(true) }}>
-                {labels.followedBtn}
-              </Button>
-              <Button size="large" block onClick={() => setStep('detail')}>{labels.backDetail}</Button>
-            </Space>
-          </Card>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Step: Detail（默认，浏览自由，无需任何条件）─────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
       <div style={{ maxWidth: 540, margin: '0 auto', paddingBottom: 32 }}>
@@ -258,18 +250,15 @@ export default function RedeemUserPage() {
             <Button
               type="primary" size="large" block
               icon={<ShoppingCartOutlined />}
-              disabled={item.item_type === 'physical'}
-              onClick={() => {
-                if (item.item_type === 'physical') {
-                  Modal.info({ title: itemName, content: labels.physicalTip, okText: 'OK' })
-                  return
-                }
-                setStep('follow')
-              }}
+              disabled={item.item_type === 'physical' || checking}
+              loading={checking}
+              onClick={handleRedeem}
             >
-              {item.item_type === 'physical'
-                ? (language === 'zh' ? '实物商品，后续开放' : language === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon')
-                : labels.redeemBtn}
+              {checking
+                ? labels.checkingLabel
+                : item.item_type === 'physical'
+                  ? (language === 'zh' ? '实物商品，后续开放' : language === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon')
+                  : labels.redeemBtn}
             </Button>
             <Button size="large" block onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
           </Space>

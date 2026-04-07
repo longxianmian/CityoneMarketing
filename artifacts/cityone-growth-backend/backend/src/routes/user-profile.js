@@ -230,6 +230,26 @@ export function handleUserBenefits(req, res, url, sendJson) {
   });
 }
 
+// ─── GET /api/user/check-follow ───────────────────────────────────────────────
+// 判断用户是否已关注 LINE OA（是否为粉丝）
+// Mock 逻辑：points-accounts.json 中有记录 = 已关注；无记录 = 尚未关注
+// 生产阶段将对接 LINE Messaging API checkFollowStatus
+export function handleCheckFollow(req, res, url, sendJson) {
+  const userId = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
+  if (!userId) {
+    return sendJson(res, 200, { code: 200, data: { is_fan: false, reason: "no_user_id" } });
+  }
+  const accounts = loadJsonArray(dataFile("points-accounts.json"));
+  const account = accounts.find(
+    (a) => a.user_id === userId || a.line_user_id === userId
+  ) || null;
+  const isFan = !!account;
+  return sendJson(res, 200, {
+    code: 200,
+    data: { is_fan: isFan, identity_tag: isFan ? (account?.identity_tag || "fan") : "visitor" },
+  });
+}
+
 // ─── GET /api/user/orders ─────────────────────────────────────────────────────
 // 本系统内订单记录（当前阶段三：借电订单待阶段四 A 系统桥接）
 // 返回真实空列表 + 明确说明
