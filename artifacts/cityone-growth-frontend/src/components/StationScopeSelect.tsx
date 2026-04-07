@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react'
-import { Select, Space, Tag, Radio } from 'antd'
+import { Select, Space, Button } from 'antd'
 import { EnvironmentOutlined } from '@ant-design/icons'
 import request from '../api/request'
 
 interface District { code: string; zh: string; th: string; en: string }
 interface CityItem { code: string; zh: string; th: string; en: string; districts: District[] }
-interface Station { id: string; name: { zh: string; th: string; en: string }; city: string; district: string; address?: string; status?: string }
+interface Station { id: string; name: { zh: string; th: string; en: string }; city: string; district: string; status?: string }
 
 export interface StationScope {
-  type: 'all' | 'cities' | 'districts' | 'stations'
-  city_codes?: string[]
-  district_codes?: string[]
+  type: 'all' | 'selected'
+  city?: string
+  district?: string
   station_ids?: string[]
 }
 
@@ -19,18 +19,10 @@ interface Props {
   onChange?: (v: StationScope) => void
 }
 
-const TYPE_OPTIONS = [
-  { value: 'all', label: '全部站点' },
-  { value: 'cities', label: '按城市' },
-  { value: 'districts', label: '按区域' },
-  { value: 'stations', label: '指定站点' },
-]
-
 export default function StationScopeSelect({ value, onChange }: Props) {
   const [cityDistricts, setCityDistricts] = useState<CityItem[]>([])
   const [stations, setStations] = useState<Station[]>([])
   const [loadingStations, setLoadingStations] = useState(false)
-  const [selectedCity, setSelectedCity] = useState<string>('')
 
   const scope: StationScope = value || { type: 'all' }
 
@@ -41,45 +33,32 @@ export default function StationScopeSelect({ value, onChange }: Props) {
     }).catch(() => {})
   }, [])
 
-  const loadStations = (city?: string) => {
+  const loadStations = (city: string, district: string) => {
+    if (!city) { setStations([]); return }
     setLoadingStations(true)
-    const params: Record<string, string> = { status: 'active' }
-    if (city) params.city = city
+    const params: Record<string, string> = { status: 'active', city }
+    if (district) params.district = district
     request.get('/stations', { params }).then((res: any) => {
       const d = res?.data || res
       if (d?.list) setStations(d.list)
     }).catch(() => {}).finally(() => setLoadingStations(false))
   }
 
-  const handleTypeChange = (type: StationScope['type']) => {
-    onChange?.({ type })
-    if (type === 'stations' || type === 'districts') {
-      loadStations()
-    }
-  }
-
   const cityOptions = cityDistricts.map(c => ({ value: c.code, label: `${c.zh} / ${c.en}` }))
 
-  const getDistrictOptions = () => {
-    const cities = scope.type === 'districts' ? (scope.city_codes || []) : [selectedCity]
-    const result: { value: string; label: string; cityZh: string }[] = []
-    for (const cityCode of cities) {
-      const city = cityDistricts.find(c => c.code === cityCode)
-      if (city) {
-        city.districts.forEach(d => result.push({ value: `${cityCode}::${d.code}`, label: `${city.zh} · ${d.zh}`, cityZh: city.zh }))
-      }
-    }
-    return result
+  const districtOptions = (cityDistricts.find(c => c.code === scope.city)?.districts || [])
+    .map(d => ({ value: d.code, label: `${d.zh} / ${d.en}` }))
+
+  const stationOptions = stations.map(s => ({ value: s.id, label: s.name.zh }))
+
+  const handleCityChange = (city: string) => {
+    onChange?.({ type: 'selected', city, district: '', station_ids: [] })
+    loadStations(city, '')
   }
 
-  const getStationOptions = () => {
-    let list = stations
-    if (selectedCity) list = list.filter(s => s.city === selectedCity)
-    return list.map(s => ({
-      value: s.id,
-      label: `${s.name.zh}`,
-      desc: s.address || '',
-    }))
+  const handleDistrictChange = (district: string) => {
+    onChange?.({ ...scope, district, station_ids: [] })
+    loadStations(scope.city || '', district)
   }
 
   return (
@@ -89,97 +68,77 @@ export default function StationScopeSelect({ value, onChange }: Props) {
         适用站点范围
       </div>
 
-      <Radio.Group
-        value={scope.type}
-        onChange={e => handleTypeChange(e.target.value)}
-        optionType="button"
-        buttonStyle="solid"
-        size="small"
-        options={TYPE_OPTIONS}
-        style={{ marginBottom: 12 }}
-      />
+      <Space style={{ marginBottom: 12 }}>
+        <Button
+          type={scope.type === 'all' ? 'primary' : 'default'}
+          size="small"
+          onClick={() => onChange?.({ type: 'all' })}
+          style={scope.type === 'all' ? { background: '#2CDBCE', borderColor: '#2CDBCE' } : {}}
+        >
+          全部站点
+        </Button>
+        <Button
+          type={scope.type === 'selected' ? 'primary' : 'default'}
+          size="small"
+          onClick={() => {
+            onChange?.({ type: 'selected', city: '', district: '', station_ids: [] })
+          }}
+          style={scope.type === 'selected' ? { background: '#2CDBCE', borderColor: '#2CDBCE' } : {}}
+        >
+          站点选择
+        </Button>
+      </Space>
 
-      {scope.type === 'all' && (
-        <div style={{ color: '#6b7280', fontSize: 13 }}>
-          <Tag color="blue">全部站点</Tag> 所有城市、所有区域的站点均适用此活动/卡券
-        </div>
-      )}
-
-      {scope.type === 'cities' && (
-        <div>
-          <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280' }}>选择适用城市（可多选）</div>
-          <Select
-            mode="multiple"
-            style={{ width: '100%' }}
-            placeholder="选择城市"
-            options={cityOptions}
-            value={scope.city_codes || []}
-            onChange={v => onChange?.({ ...scope, city_codes: v })}
-          />
-        </div>
-      )}
-
-      {scope.type === 'districts' && (
-        <Space direction="vertical" style={{ width: '100%' }}>
+      {scope.type === 'selected' && (
+        <Space direction="vertical" style={{ width: '100%' }} size={10}>
           <div>
-            <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280' }}>先选城市</div>
+            <div style={{ marginBottom: 5, fontSize: 13, color: '#6b7280' }}>选择城市</div>
             <Select
-              mode="multiple"
               style={{ width: '100%' }}
-              placeholder="选择城市"
+              placeholder="请选择城市"
               options={cityOptions}
-              value={scope.city_codes || []}
-              onChange={v => onChange?.({ ...scope, city_codes: v, district_codes: [] })}
+              value={scope.city || undefined}
+              onChange={handleCityChange}
+              allowClear
+              onClear={() => onChange?.({ type: 'selected', city: '', district: '', station_ids: [] })}
             />
           </div>
-          {(scope.city_codes || []).length > 0 && (
+
+          {scope.city && (
             <div>
-              <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280' }}>再选区域（可多选）</div>
+              <div style={{ marginBottom: 5, fontSize: 13, color: '#6b7280' }}>选择区域（可选）</div>
               <Select
-                mode="multiple"
                 style={{ width: '100%' }}
-                placeholder="选择区域"
-                options={getDistrictOptions()}
-                value={scope.district_codes || []}
-                onChange={v => onChange?.({ ...scope, district_codes: v })}
+                placeholder="请选择区域（不选则包含该城市所有区域）"
+                options={districtOptions}
+                value={scope.district || undefined}
+                onChange={handleDistrictChange}
+                allowClear
+                onClear={() => { onChange?.({ ...scope, district: '', station_ids: [] }); loadStations(scope.city || '', '') }}
               />
             </div>
           )}
-        </Space>
-      )}
 
-      {scope.type === 'stations' && (
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <div>
-            <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280' }}>按城市筛选站点</div>
-            <Select
-              allowClear
-              style={{ width: '100%' }}
-              placeholder="选择城市（可选）"
-              options={cityOptions}
-              value={selectedCity || undefined}
-              onChange={v => {
-                setSelectedCity(v || '')
-                loadStations(v || '')
-              }}
-            />
-          </div>
-          <div>
-            <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280' }}>指定站点（可多选，已选 {(scope.station_ids || []).length} 个）</div>
-            <Select
-              mode="multiple"
-              style={{ width: '100%' }}
-              placeholder="搜索并选择站点"
-              showSearch
-              filterOption={(input, opt) =>
-                String(opt?.label || '').toLowerCase().includes(input.toLowerCase())
-              }
-              loading={loadingStations}
-              options={getStationOptions()}
-              value={scope.station_ids || []}
-              onChange={v => onChange?.({ ...scope, station_ids: v })}
-            />
-          </div>
+          {scope.city && (
+            <div>
+              <div style={{ marginBottom: 5, fontSize: 13, color: '#6b7280' }}>
+                指定站点（可多选，不选则包含上方城市/区域所有站点）
+              </div>
+              <Select
+                mode="multiple"
+                style={{ width: '100%' }}
+                placeholder="搜索并选择站点（可留空）"
+                showSearch
+                filterOption={(input, opt) =>
+                  String(opt?.label || '').toLowerCase().includes(input.toLowerCase())
+                }
+                loading={loadingStations}
+                options={stationOptions}
+                value={scope.station_ids || []}
+                onChange={v => onChange?.({ ...scope, station_ids: v })}
+              />
+            </div>
+          )}
         </Space>
       )}
     </div>
