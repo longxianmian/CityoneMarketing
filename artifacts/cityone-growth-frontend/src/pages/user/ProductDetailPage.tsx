@@ -1,21 +1,38 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { Spin, message, Modal } from 'antd'
-import { ArrowLeftOutlined, FireOutlined, ShareAltOutlined } from '@ant-design/icons'
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
+import { Spin, message, Modal, Button, Space } from 'antd'
+import { ArrowLeftOutlined, FireOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
+import { getDeviceUserId } from '../../utils/deviceUserId'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+async function checkFanStatus(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
+    const json = await res.json()
+    return json?.data?.is_fan === true
+  } catch {
+    return false
+  }
+}
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { language, t } = useI18n()
   const lang = language as AppLanguage
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [shareVisible, setShareVisible] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [redeemSuccess, setRedeemSuccess] = useState(false)
 
   const ACTION_MAP: Record<string, { text: string; color: string }> = {
     free_claim: { text: t('productDetail.actionFreeClaim'), color: 'linear-gradient(135deg, #52c41a, #73d13d)' },
@@ -40,6 +57,34 @@ export default function ProductDetailPage() {
     return ''
   }
 
+  // 来自 FollowOAPage 回跳：auto=redeem → 自动打开确认弹窗
+  useEffect(() => {
+    if (searchParams.get('auto') === 'redeem' && product) {
+      setConfirmOpen(true)
+    }
+  }, [product, searchParams.get('auto')])
+
+  // 实际执行兑换（确认后调用）
+  const doRedeem = () => {
+    setActing(true)
+    try {
+      const spendPoints = product.points_required || 0
+      const localKey = 'cityone_local_point_records'
+      const current = (() => { try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] } })()
+      localStorage.setItem(localKey, JSON.stringify([{
+        id: `redeem_${Date.now()}`, type: 'spend', title: pick(product.name),
+        points: -spendPoints, createdAt: new Date().toISOString(), source: 'mall_redeem',
+      }, ...current]))
+      setConfirmOpen(false)
+      setRedeemSuccess(true)
+    } catch {
+      message.error(t('productDetail.actionFail'))
+    } finally {
+      setActing(false)
+    }
+  }
+
+  // 点击按钮：先检查粉丝身份，再决定路径
   const handleAction = async () => {
     if (!product) return
     if (product.item_type === 'physical') {
@@ -50,22 +95,55 @@ export default function ProductDetailPage() {
       })
       return
     }
-    setActing(true)
+    setChecking(true)
     try {
-      const spendPoints = product.points_required || 0
-      const localKey = 'cityone_local_point_records'
-      const current = (() => { try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] } })()
-      localStorage.setItem(localKey, JSON.stringify([{
-        id: `redeem_${Date.now()}`, type: 'spend', title: pick(product.name),
-        points: -spendPoints, createdAt: new Date().toISOString(), source: 'mall_redeem',
-      }, ...current]))
-      message.success(t('productDetail.actionSuccess'))
-      setTimeout(() => nav('/my-points'), 1000)
-    } catch {
-      message.error(t('productDetail.actionFail'))
+      const userId = getDeviceUserId()
+      const isFan = await checkFanStatus(userId)
+      if (isFan) {
+        setConfirmOpen(true)
+      } else {
+        const redirectTo = `/redeem/${id}?auto=redeem`
+        const name = pick(product.name)
+        nav(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(name)}&back=${encodeURIComponent(`/redeem/${id}`)}`)
+      }
     } finally {
-      setActing(false)
+      setChecking(false)
     }
+  }
+
+  // ── 兑换成功页 ──────────────────────────────────────────────────────────────
+  if (redeemSuccess && product) {
+    const title = pick(product.name)
+    const pointsSpent = product.points_required || 0
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #1677ff 0%, #69b1ff 100%)', padding: '24px 16px' }}>
+        <div style={{ maxWidth: 460, margin: '0 auto' }}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 20px', textAlign: 'center' }}>
+            <CheckCircleOutlined style={{ fontSize: 64, color: '#52c41a', marginBottom: 16 }} />
+            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
+              { lang === 'zh' ? '兑换成功！' : lang === 'th' ? 'แลกสำเร็จ!' : 'Redeemed!' }
+            </div>
+            <div style={{ fontSize: 14, color: '#888', lineHeight: 1.8, marginBottom: 20 }}>
+              { lang === 'zh' ? '数字商品将在 24 小时内发放到您的账户。' : lang === 'th' ? 'สินค้าดิจิทัลจะถูกส่งไปยังบัญชีของคุณภายใน 24 ชั่วโมง' : 'Your digital item will be delivered to your account within 24 hours.' }
+            </div>
+            <div style={{ background: 'linear-gradient(135deg, #f0f5ff 0%, #e6f4ff 100%)', border: '1px solid #adc6ff', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#333', marginBottom: 8 }}>{title}</div>
+              <div style={{ fontSize: 13, color: '#1677ff' }}>
+                { lang === 'zh' ? `消耗 ${pointsSpent} 积分` : lang === 'th' ? `ใช้ ${pointsSpent} คะแนน` : `${pointsSpent} pts spent` }
+              </div>
+            </div>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Button type="primary" size="large" block onClick={() => nav('/welfare')}>
+                { lang === 'zh' ? '返回福利中心' : lang === 'th' ? 'กลับศูนย์สิทธิ์' : 'Back to Benefits' }
+              </Button>
+              <Button size="large" block onClick={() => nav('/mine?tab=member')}>
+                { lang === 'zh' ? '查看我的积分' : lang === 'th' ? 'ดูคะแนนของฉัน' : 'My Points' }
+              </Button>
+            </Space>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (loading) return (
@@ -228,12 +306,41 @@ export default function ProductDetailPage() {
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 16px 24px', background: '#fff', borderTop: '1px solid #f0f0f0', zIndex: 20 }}>
         <button
           onClick={handleAction}
-          disabled={acting}
-          style={{ width: '100%', padding: '14px 0', background: acting ? '#d9d9d9' : actionColor, border: 'none', borderRadius: 50, color: '#fff', fontSize: 17, fontWeight: 700, cursor: acting ? 'default' : 'pointer', boxShadow: acting ? 'none' : '0 4px 16px rgba(0,0,0,0.2)', letterSpacing: 0.5, transition: 'all 0.2s' }}
+          disabled={acting || checking}
+          style={{ width: '100%', padding: '14px 0', background: (acting || checking) ? '#d9d9d9' : actionColor, border: 'none', borderRadius: 50, color: '#fff', fontSize: 17, fontWeight: 700, cursor: (acting || checking) ? 'default' : 'pointer', boxShadow: (acting || checking) ? 'none' : '0 4px 16px rgba(0,0,0,0.2)', letterSpacing: 0.5, transition: 'all 0.2s' }}
         >
-          {acting ? t('productDetail.processing') : actionText}
+          {checking
+            ? (lang === 'zh' ? '验证中...' : lang === 'th' ? 'กำลังตรวจสอบ...' : 'Checking...')
+            : acting ? t('productDetail.processing') : actionText}
         </button>
       </div>
+
+      {/* 确认兑换弹窗 */}
+      <Modal
+        title={lang === 'zh' ? '确认积分兑换' : lang === 'th' ? 'ยืนยันการแลกคะแนน' : 'Confirm Redemption'}
+        open={confirmOpen}
+        onCancel={() => setConfirmOpen(false)}
+        onOk={doRedeem}
+        okText={lang === 'zh' ? '确认兑换' : lang === 'th' ? 'ยืนยัน' : 'Confirm'}
+        cancelText={lang === 'zh' ? '取消' : lang === 'th' ? 'ยกเลิก' : 'Cancel'}
+        confirmLoading={acting}
+      >
+        <div style={{ display: 'grid', gap: 12, lineHeight: 1.8, padding: '8px 0' }}>
+          <div>
+            <strong>{lang === 'zh' ? '商品名称：' : lang === 'th' ? 'สินค้า: ' : 'Item: '}</strong>
+            {pick(product?.name)}
+          </div>
+          {(product?.points_required || 0) > 0 && (
+            <div>
+              <strong>{lang === 'zh' ? '所需积分：' : lang === 'th' ? 'คะแนนที่ใช้: ' : 'Points: '}</strong>
+              {product.points_required} {lang === 'zh' ? '积分' : lang === 'th' ? 'คะแนน' : 'pts'}
+            </div>
+          )}
+          <div style={{ fontSize: 13, color: '#888', background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+            {lang === 'zh' ? '数字商品兑换成功后将在 24 小时内发放到账户。' : lang === 'th' ? 'สินค้าดิจิทัลจะถูกส่งไปยังบัญชีภายใน 24 ชั่วโมง' : 'Digital items will be delivered to your account within 24 hours.'}
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
