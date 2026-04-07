@@ -99,11 +99,7 @@ export default function ProductDetailPage() {
   const handleAction = async () => {
     if (!product) return
     if (product.item_type === 'physical') {
-      Modal.info({
-        title: pick(product.name),
-        content: lang === 'zh' ? '实物商品兑换逻辑后续开放，敬请期待。' : lang === 'th' ? 'การแลกสินค้าจริงจะเปิดให้บริการเร็ว ๆ นี้' : 'Physical item redemption will be available soon.',
-        okText: 'OK',
-      })
+      message.info(lang === 'zh' ? '实物商品兑换逻辑后续开放，敬请期待。' : lang === 'th' ? 'การแลกสินค้าจริงจะเปิดให้บริการเร็ว ๆ นี้' : 'Physical item redemption will be available soon.')
       return
     }
     setChecking(true)
@@ -124,15 +120,14 @@ export default function ProductDetailPage() {
           const summaryData = summaryRes?.data || summaryRes
           const available = Number(summaryData?.available_points) || 0
           if (available < pointsRequired) {
-            Modal.warning({
-              title: lang === 'zh' ? '积分不足' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
-              content: lang === 'zh'
-                ? `当前可用积分 ${available}，兑换需要 ${pointsRequired} 积分，积分不足无法兑换。`
+            message.warning(
+              lang === 'zh'
+                ? `积分不足：当前 ${available} 积分，兑换需要 ${pointsRequired} 积分`
                 : lang === 'th'
-                  ? `คะแนนที่มี ${available} คะแนน ต้องการ ${pointsRequired} คะแนน`
-                  : `You have ${available} pts, but need ${pointsRequired} pts to redeem.`,
-              okText: 'OK',
-            })
+                  ? `คะแนนไม่เพียงพอ: มี ${available} ต้องการ ${pointsRequired}`
+                  : `Insufficient points: you have ${available} pts, need ${pointsRequired} pts`,
+              4
+            )
             return
           }
         } catch {

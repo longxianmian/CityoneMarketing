@@ -6128,5 +6128,34 @@
     },
     "intent_code": "unknown",
     "created_at": "2026-04-07T15:28:17.314Z"
+  },
+  {
+    "message_id": "am_00309",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "现在充电宝吐不出来",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:32:36.340Z"
+  },
+  {
+    "message_id": "am_00310",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "info_reply",
+    "text": "借电步骤：1. 扫描设备二维码 2. 关注公众号（首次）3. 支付押金（首次）4. 点击借出即可。有问题随时问我！",
+    "payload": {
+      "reply_type": "info_reply",
+      "text": "借电步骤：1. 扫描设备二维码 2. 关注公众号（首次）3. 支付押金（首次）4. 点击借出即可。有问题随时问我！",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "borrow_help",
+    "created_at": "2026-04-07T15:32:51.403Z"
   }
 ]

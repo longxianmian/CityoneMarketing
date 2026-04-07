@@ -111,7 +111,7 @@ export default function RedeemUserPage() {
   // 核心：检查粉丝身份 + 积分余额 → 已关注且积分充足才打开确认框
   const handleRedeem = async () => {
     if (item?.item_type === 'physical') {
-      Modal.info({ title: itemName, content: labels.physicalTip, okText: 'OK' })
+      message.info(labels.physicalTip)
       return
     }
     setChecking(true)
@@ -131,15 +131,14 @@ export default function RedeemUserPage() {
           const summaryData = summaryRes?.data || summaryRes
           const available = Number(summaryData?.available_points) || 0
           if (available < pointsRequired) {
-            Modal.warning({
-              title: language === 'zh' ? '积分不足' : language === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
-              content: language === 'zh'
-                ? `当前可用积分 ${available}，兑换需要 ${pointsRequired} 积分。`
+            message.warning(
+              language === 'zh'
+                ? `积分不足：当前 ${available} 积分，兑换需要 ${pointsRequired} 积分`
                 : language === 'th'
-                  ? `คะแนนที่มี ${available} คะแนน ต้องการ ${pointsRequired} คะแนน`
-                  : `You have ${available} pts, but need ${pointsRequired} pts.`,
-              okText: 'OK',
-            })
+                  ? `คะแนนไม่เพียงพอ: มี ${available} ต้องการ ${pointsRequired}`
+                  : `Insufficient points: you have ${available} pts, need ${pointsRequired} pts`,
+              4
+            )
             return
           }
         } catch {
