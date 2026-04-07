@@ -55,5 +55,85 @@
     "issued_at": "2026-04-06T16:11:01.641Z",
     "created_at": "2026-04-06T16:11:01.641Z",
     "updated_at": "2026-04-06T16:11:01.641Z"
+  },
+  {
+    "user_product_id": "up_coupon_1775526976971_8eefb891",
+    "user_id": "dev_1q175hnsmnmtn22u",
+    "line_user_id": "dev_1q175hnsmnmtn22u",
+    "product_id": "coupon_001",
+    "product_name": {
+      "zh": "30分钟免费充电体验券",
+      "th": "คูปองชาร์จฟรี 30 นาที",
+      "en": "30-Min Free Charging Coupon"
+    },
+    "product_type": "coupon",
+    "source_type": "coupon_claim",
+    "source_id": "coupon_001",
+    "product_status": "claimed",
+    "coupon_data": {
+      "id": "coupon_001",
+      "name": {
+        "zh": "30分钟免费充电体验券",
+        "th": "คูปองชาร์จฟรี 30 นาที",
+        "en": "30-Min Free Charging Coupon"
+      },
+      "coupon_type": "newbie",
+      "discount_type": "free_time",
+      "discount_value": 45,
+      "min_amount": 0,
+      "total_count": 100,
+      "claimed_count": 1,
+      "status": 1,
+      "valid_from": "2026-04-05T17:00:00.000Z",
+      "valid_to": "2026-04-28T17:00:00.000Z",
+      "cover_image": "/uploads/1775463725597_a46889e9469a.png",
+      "cover_video": "",
+      "created_at": "2026-04-06T08:22:49.906Z",
+      "updated_at": "2026-04-06T08:22:49.906Z"
+    },
+    "claimed_at": "2026-04-07T01:56:16.971Z",
+    "issued_at": "2026-04-07T01:56:16.971Z",
+    "created_at": "2026-04-07T01:56:16.971Z",
+    "updated_at": "2026-04-07T01:56:16.971Z"
+  },
+  {
+    "user_product_id": "up_coupon_1775527194733_757ca929",
+    "user_id": "dev_test_frontend",
+    "line_user_id": "dev_test_frontend",
+    "product_id": "coupon_002",
+    "product_name": {
+      "zh": "60分钟充电免费券",
+      "th": "คูปองชาร์จฟรี 60 นาที",
+      "en": "60-Min Free Charging Coupon"
+    },
+    "product_type": "coupon",
+    "source_type": "coupon_claim",
+    "source_id": "coupon_002",
+    "product_status": "claimed",
+    "coupon_data": {
+      "id": "coupon_002",
+      "name": {
+        "zh": "60分钟充电免费券",
+        "th": "คูปองชาร์จฟรี 60 นาที",
+        "en": "60-Min Free Charging Coupon"
+      },
+      "coupon_type": "general",
+      "discount_type": "free_time",
+      "discount_value": 19,
+      "min_amount": 0,
+      "total_count": 1000,
+      "claimed_count": 0,
+      "status": 1,
+      "valid_from": "2026-04-05T17:00:00.000Z",
+      "valid_to": "2026-04-29T17:00:00.000Z",
+      "cover_image": "/uploads/1775475464981_1094f388ced6.png",
+      "cover_video": "",
+      "created_at": "2026-04-06T11:37:48.567Z",
+      "updated_at": "2026-04-06T11:37:48.567Z"
+    },
+    "claimed_at": "2026-04-07T01:59:54.733Z",
+    "issued_at": "2026-04-07T01:59:54.733Z",
+    "created_at": "2026-04-07T01:59:54.733Z",
+    "updated_at": "2026-04-07T01:59:54.733Z"
   }
 ]

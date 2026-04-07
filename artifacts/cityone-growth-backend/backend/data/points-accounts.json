@@ -58,5 +58,15 @@
     "consumed_points": 0,
     "revoked_points": 0,
     "updated_at": "2026-04-06T15:58:10.102Z"
+  },
+  {
+    "user_id": "dev_12cbi2f4mnne23zp",
+    "line_user_id": "dev_12cbi2f4mnne23zp",
+    "total_points": 0,
+    "available_points": 0,
+    "pending_points": 0,
+    "consumed_points": 0,
+    "revoked_points": 0,
+    "updated_at": "2026-04-06T16:12:19.293Z"
   }
 ]
