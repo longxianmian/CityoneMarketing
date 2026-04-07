@@ -13,7 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import SharePromoModal from '../../components/SharePromoModal'
 import MediaUploadField from '../../components/MediaUploadField'
-import MultiLangInput, { AutoTranslateButton, type MultiLangValue } from '../../components/MultiLangInput'
+import MultiLangInput, { type MultiLangValue } from '../../components/MultiLangInput'
 import dayjs from 'dayjs'
 import { useI18n, pickLocalizedText } from '../../i18n'
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
@@ -120,6 +120,7 @@ export default function ActivityManage() {
   const [formVisible, setFormVisible] = useState(false)
   const [isEdit, setIsEdit] = useState(false)
   const [editingRecord, setEditingRecord] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
   const [shareRecord, setShareRecord] = useState<any | null>(null)
   const [coverImage, setCoverImage] = useState('')
@@ -236,8 +237,14 @@ export default function ActivityManage() {
   }
 
   const handleFormOk = async () => {
+    let values: any
     try {
-      const values = await form.validateFields()
+      values = await form.validateFields()
+    } catch {
+      return
+    }
+    setSaving(true)
+    try {
       const ensureML = (v: any): MultiLangValue =>
         v && typeof v === 'object' ? v : { zh: v || '', th: '', en: '' }
 
@@ -246,27 +253,22 @@ export default function ActivityManage() {
       const mlValues: Record<MlKey, MultiLangValue> = {} as any
       ML_FIELDS.forEach(f => { mlValues[f] = ensureML(values[f]) })
 
-      const needsTranslation = ML_FIELDS.filter(
-        f => mlValues[f].zh?.trim() && (!mlValues[f].th?.trim() || !mlValues[f].en?.trim())
-      )
+      const sourceLang = ['zh','th','en'].includes(values._sourceLang) ? values._sourceLang : 'zh'
+      const needsTranslation = ML_FIELDS.filter(f => {
+        const v = mlValues[f]
+        const src = v[sourceLang as keyof MultiLangValue]?.trim()
+        return src && ['zh','th','en'].some(l => l !== sourceLang && !v[l as keyof MultiLangValue]?.trim())
+      })
 
       if (needsTranslation.length > 0) {
-        const loadingKey = 'auto-translate'
-        message.loading({ content: '🌐 正在自动翻译多语言字段…', key: loadingKey, duration: 0 })
         try {
           const texts: Record<string, string> = {}
-          needsTranslation.forEach(f => { texts[f] = mlValues[f].zh || '' })
-          const res: any = await request.post('/api/translate', { texts, sourceLang: 'zh' })
+          needsTranslation.forEach(f => { texts[f] = mlValues[f][sourceLang as keyof MultiLangValue] || '' })
+          const res: any = await request.post('/translate', { texts, sourceLang }, { timeout: 8000, silentError: true } as any)
           const result: Record<string, MultiLangValue> = res.data?.result ?? {}
-          needsTranslation.forEach(f => {
-            if (result[f]) mlValues[f] = result[f]
-          })
-          message.success({ content: '✅ 翻译完成', key: loadingKey, duration: 2 })
+          needsTranslation.forEach(f => { if (result[f]) mlValues[f] = result[f] })
         } catch {
-          message.warning({ content: '自动翻译失败，将以中文保存其他语言字段', key: loadingKey, duration: 3 })
-          needsTranslation.forEach(f => {
-            mlValues[f] = { zh: mlValues[f].zh || '', th: mlValues[f].zh || '', en: mlValues[f].zh || '' }
-          })
+          // 翻译失败静默降级，继续保存
         }
       }
 
@@ -303,8 +305,9 @@ export default function ActivityManage() {
       setFormVisible(false)
       loadList()
     } catch (e: any) {
-      if (e?.errorFields) return
       message.error('保存失败，请重试')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -500,7 +503,8 @@ export default function ActivityManage() {
 
       <Modal
         title={isEdit ? am('modalEdit') : am('modalCreate')}
-        open={formVisible} onOk={handleFormOk} onCancel={() => setFormVisible(false)}
+        open={formVisible} onOk={handleFormOk} onCancel={() => { if (!saving) setFormVisible(false) }}
+        confirmLoading={saving}
         width={860} destroyOnClose
       >
         <Form form={form} layout="vertical">
@@ -531,28 +535,6 @@ export default function ActivityManage() {
           </Row>
 
           <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>{am('dividerContent')}</span></Divider>
-
-          <AutoTranslateButton
-            sourceLang="zh"
-            getTexts={() => {
-              const v = form.getFieldsValue()
-              return {
-                name: v.name?.zh || '',
-                subTitle: v.subTitle?.zh || '',
-                description: v.description?.zh || '',
-                highlights: v.highlights?.zh || '',
-                participationGuide: v.participationGuide?.zh || '',
-                rewardGuide: v.rewardGuide?.zh || '',
-                noticeText: v.noticeText?.zh || '',
-              }
-            }}
-            onResult={(result) => {
-              const patch: Record<string, MultiLangValue> = {}
-              const fields = ['name','subTitle','description','highlights','participationGuide','rewardGuide','noticeText']
-              fields.forEach(f => { if (result[f]) patch[f] = result[f] })
-              form.setFieldsValue(patch)
-            }}
-          />
 
           <Form.Item name="description" label={am('formDescription')}>
             <MultiLangInput textarea rows={3} placeholder={am('formDescriptionHint')} />

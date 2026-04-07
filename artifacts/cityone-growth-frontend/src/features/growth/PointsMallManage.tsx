@@ -6,7 +6,7 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, ShareAltOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
-import MultiLangInput, { AutoTranslateButton, type MultiLangValue } from '../../components/MultiLangInput'
+import MultiLangInput, { type MultiLangValue } from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
 
 export default function PointsMallManage() {
@@ -66,6 +66,7 @@ export default function PointsMallManage() {
   }
 
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [form] = Form.useForm()
@@ -127,16 +128,39 @@ export default function PointsMallManage() {
   }
 
   const handleSave = async () => {
+    let values: any
     try {
-      const values = await form.validateFields()
+      values = await form.validateFields()
+    } catch {
+      return
+    }
+    setSaving(true)
+    try {
       const ensureML = (v: any): MultiLangValue =>
         (v && typeof v === 'object' && !Array.isArray(v)) ? v : { zh: String(v || ''), th: '', en: '' }
+      const mlFields = ['name', 'highlights', 'rules'] as const
+      const mlValues: Record<string, MultiLangValue> = {}
+      mlFields.forEach(f => { mlValues[f] = ensureML(values[f]) })
+      const textsToTranslate: Record<string, string> = {}
+      mlFields.forEach(f => {
+        const v = mlValues[f]
+        if (v.zh?.trim() && (!v.th?.trim() || !v.en?.trim())) textsToTranslate[f] = v.zh
+      })
+      if (Object.keys(textsToTranslate).length > 0) {
+        try {
+          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang: 'zh' }, { timeout: 8000, silentError: true } as any)
+          const result = res.data?.result ?? {}
+          mlFields.forEach(f => { if (result[f]) mlValues[f] = result[f] })
+        } catch {
+          // 翻译失败静默降级
+        }
+      }
       const payload = {
         ...values,
         cover_image: coverImage,
-        name: ensureML(values.name),
-        highlights: ensureML(values.highlights),
-        rules: ensureML(values.rules),
+        name: mlValues.name,
+        highlights: mlValues.highlights,
+        rules: mlValues.rules,
       }
       if (editItem) {
         await request.put(`/growth/mall/items/${editItem.id}`, payload)
@@ -145,8 +169,13 @@ export default function PointsMallManage() {
         await request.post('/growth/mall/items', payload)
         message.success(pm('addSuccess'))
       }
-      setModalOpen(false); loadItems(itemPage)
-    } catch {}
+      setModalOpen(false)
+      loadItems(itemPage)
+    } catch (err: any) {
+      message.error(err?.message || '保存失败，请重试')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDelete = async (record: any) => {
@@ -246,7 +275,7 @@ export default function PointsMallManage() {
                 />
                 <Modal
                   title={editItem ? pm('modalEdit') : pm('modalAdd')}
-                  open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={700} destroyOnHidden
+                  open={modalOpen} onOk={handleSave} onCancel={() => { if (!saving) setModalOpen(false) }} confirmLoading={saving} width={700} destroyOnHidden
                 >
                   <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
                     <div style={{ display: 'flex', gap: 16 }}>
@@ -297,30 +326,7 @@ export default function PointsMallManage() {
                       </Form.Item>
                     </div>
                     <Form.Item name="detailTitle" label={pm('formDetailTitle')}><Input /></Form.Item>
-                    <Form.Item
-                      name="highlights"
-                      label={
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span>{pm('formHighlights')}</span>
-                          <AutoTranslateButton
-                            getTexts={() => {
-                              const vals = form.getFieldsValue(['name', 'highlights', 'rules'])
-                              const res: Record<string, string> = {}
-                              const n = vals.name; const h = vals.highlights; const r = vals.rules
-                              if (n?.zh) res.name = n.zh
-                              if (h?.zh) res.highlights = h.zh
-                              if (r?.zh) res.rules = r.zh
-                              return res
-                            }}
-                            onResult={result => {
-                              if (result.name) form.setFieldValue('name', result.name)
-                              if (result.highlights) form.setFieldValue('highlights', result.highlights)
-                              if (result.rules) form.setFieldValue('rules', result.rules)
-                            }}
-                          />
-                        </div>
-                      }
-                    >
+                    <Form.Item name="highlights" label={pm('formHighlights')}>
                       <MultiLangInput textarea rows={3} placeholder="每行一条，一键翻译后自动填充" />
                     </Form.Item>
                     <Form.Item name="rules" label={pm('formRules')}>

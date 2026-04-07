@@ -107,7 +107,7 @@ export function AutoTranslateButton({
     }
     setLoading(true)
     try {
-      const res: any = await request.post('/api/translate', { texts, sourceLang })
+      const res: any = await request.post('/translate', { texts, sourceLang }, { timeout: 8000, silentError: true } as any)
       const result = res.data?.result ?? {}
       if (Object.keys(result).length === 0) {
         message.warning('翻译返回为空，请稍后重试')

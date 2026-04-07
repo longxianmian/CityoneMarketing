@@ -135,24 +135,6 @@ export default function LandingTemplateManage() {
     }
   }
 
-  const handleAutoTranslate = () => {
-    const vals = form.getFieldsValue(MULTI_LANG_FIELDS)
-    const texts: Record<string, string> = {}
-    MULTI_LANG_FIELDS.forEach((f) => { const v = vals[f]; if (v?.zh?.trim()) texts[f] = v.zh })
-    return texts
-  }
-
-  const applyTranslation = (result: Record<string, any>) => {
-    const patch: any = {}
-    MULTI_LANG_FIELDS.forEach((f) => {
-      if (result[f]) {
-        const cur = form.getFieldValue(f) || {}
-        patch[f] = { ...cur, ...result[f] }
-      }
-    })
-    form.setFieldsValue(patch)
-  }
-
   const displayTitle = (v: any) => typeof v === 'string' ? v : (v?.[language] || v?.zh || v?.th || v?.en || '')
 
   const columns = [

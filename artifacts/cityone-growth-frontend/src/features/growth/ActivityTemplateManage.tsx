@@ -33,6 +33,7 @@ export default function ActivityTemplateManage() {
   const [formVisible, setFormVisible] = useState(false)
   const [isEdit, setIsEdit] = useState(false)
   const [editingId, setEditingId] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
   const [coverImage, setCoverImage] = useState('')
   const [coverVideo, setCoverVideo] = useState('')
@@ -40,7 +41,7 @@ export default function ActivityTemplateManage() {
   const fetchData = async (p = page) => {
     setLoading(true)
     try {
-      const res: any = await request.get('/api/activity-templates', { params: { page: p, pageSize } })
+      const res: any = await request.get('/activity-templates', { params: { page: p, pageSize } })
       setData(res.data?.list || [])
       setTotal(res.data?.total || 0)
     } catch { setData([]) }
@@ -69,7 +70,7 @@ export default function ActivityTemplateManage() {
       title: t('adminTemplate.activity.confirmDelete'),
       onOk: async () => {
         try {
-          await request.delete(`/api/activity-templates/${r.id}`)
+          await request.delete(`/activity-templates/${r.id}`)
           message.success(t('adminTemplate.common.deleteSuccess')); fetchData()
         } catch { message.error(t('adminTemplate.common.deleteFail')) }
       },
@@ -77,23 +78,26 @@ export default function ActivityTemplateManage() {
   }
 
   const handleOk = async () => {
+    let values: any
     try {
-      const values = await form.validateFields()
-
-      const langs = ['zh', 'th', 'en']
+      values = await form.validateFields()
+    } catch {
+      return
+    }
+    setSaving(true)
+    try {
       const sourceLang = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
       const textsToTranslate: Record<string, string> = {}
       MULTI_LANG_FIELDS.forEach((f) => {
         const v = values[f] || {}
         const srcText = v[sourceLang]?.trim()
-        const hasEmpty = langs.some((l) => l !== sourceLang && !v[l]?.trim())
+        const hasEmpty = ['zh','th','en'].some((l) => l !== sourceLang && !v[l]?.trim())
         if (srcText && hasEmpty) textsToTranslate[f] = srcText
       })
 
       if (Object.keys(textsToTranslate).length > 0) {
-        const hide = message.loading(t('adminTemplate.common.translating'), 0)
         try {
-          const res: any = await request.post('/api/translate', { texts: textsToTranslate, sourceLang })
+          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 8000, silentError: true } as any)
           const result = res.data?.result ?? {}
           const patch: any = {}
           Object.entries(result).forEach(([key, translated]) => {
@@ -102,42 +106,26 @@ export default function ActivityTemplateManage() {
             values[key] = patch[key]
           })
           form.setFieldsValue(patch)
-          hide()
-          message.success(t('adminTemplate.common.translateDone'))
         } catch {
-          hide()
-          message.warning(t('adminTemplate.common.translateFail'))
+          // 翻译失败静默降级，继续保存
         }
       }
 
       const payload = { ...values, coverImage, coverVideo }
       if (isEdit) {
-        await request.put(`/api/activity-templates/${editingId}`, payload)
+        await request.put(`/activity-templates/${editingId}`, payload)
         message.success(t('adminTemplate.common.updateSuccess'))
       } else {
-        await request.post('/api/activity-templates', payload)
+        await request.post('/activity-templates', payload)
         message.success(t('adminTemplate.common.createSuccess'))
       }
-      setFormVisible(false); fetchData()
-    } catch {}
-  }
-
-  const handleAutoTranslate = () => {
-    const vals = form.getFieldsValue(MULTI_LANG_FIELDS)
-    const texts: Record<string, string> = {}
-    MULTI_LANG_FIELDS.forEach((f) => { const v = vals[f]; if (v?.zh?.trim()) texts[f] = v.zh })
-    return texts
-  }
-
-  const applyTranslation = (result: Record<string, any>) => {
-    const patch: any = {}
-    MULTI_LANG_FIELDS.forEach((f) => {
-      if (result[f]) {
-        const cur = form.getFieldValue(f) || {}
-        patch[f] = { ...cur, ...result[f] }
-      }
-    })
-    form.setFieldsValue(patch)
+      setFormVisible(false)
+      fetchData()
+    } catch (err: any) {
+      message.error(err?.message || '保存失败，请重试')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const displayTitle = (v: any) => typeof v === 'string' ? v : (v?.[language] || v?.zh || v?.th || v?.en || '')
@@ -175,7 +163,8 @@ export default function ActivityTemplateManage() {
 
       <Modal
         title={isEdit ? t('adminTemplate.activity.modalEdit') : t('adminTemplate.activity.modalNew')}
-        open={formVisible} onOk={handleOk} onCancel={() => setFormVisible(false)}
+        open={formVisible} onOk={handleOk} onCancel={() => { if (!saving) setFormVisible(false) }}
+        confirmLoading={saving}
         width={720} destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>

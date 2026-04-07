@@ -4,7 +4,7 @@ import { SearchOutlined, ReloadOutlined, PlusOutlined, ExclamationCircleOutlined
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
 import SharePromoModal from '../../components/SharePromoModal'
-import MultiLangInput, { AutoTranslateButton, type MultiLangValue } from '../../components/MultiLangInput'
+import MultiLangInput, { type MultiLangValue } from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
 import dayjs from 'dayjs'
 
@@ -64,6 +64,7 @@ export default function CouponManage() {
   const [keyword, setKeyword] = useState('')
   const [formVisible, setFormVisible] = useState(false)
   const [isEdit, setIsEdit] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
   const [coverImage, setCoverImage] = useState('')
   const [coverVideo, setCoverVideo] = useState('')
@@ -110,8 +111,24 @@ export default function CouponManage() {
   }
 
   const handleFormOk = async () => {
+    let values: any
     try {
-      const values = await form.validateFields()
+      values = await form.validateFields()
+    } catch {
+      return
+    }
+    setSaving(true)
+    try {
+      const mlName: MultiLangValue = ensureML(values.name)
+      if (mlName.zh?.trim() && (!mlName.th?.trim() || !mlName.en?.trim())) {
+        try {
+          const res: any = await request.post('/translate', { texts: { name: mlName.zh }, sourceLang: 'zh' }, { timeout: 8000, silentError: true } as any)
+          const result = res.data?.result ?? {}
+          if (result.name) values.name = result.name
+        } catch {
+          // 翻译失败静默降级
+        }
+      }
       const payload = {
         ...values,
         name: ensureML(values.name),
@@ -130,7 +147,9 @@ export default function CouponManage() {
       setFormVisible(false)
       fetchData()
     } catch (e: any) {
-      if (e?.response?.data?.msg) message.error(e.response.data.msg)
+      message.error(e?.response?.data?.msg || '保存失败，请重试')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -248,22 +267,14 @@ export default function CouponManage() {
 
       <Modal
         title={isEdit ? t('couponManage.editTitle') : t('couponManage.createTitle')}
-        open={formVisible} onOk={handleFormOk} onCancel={() => setFormVisible(false)}
+        open={formVisible} onOk={handleFormOk} onCancel={() => { if (!saving) setFormVisible(false) }}
+        confirmLoading={saving}
         width={680} destroyOnClose
       >
         <Form form={form} layout="vertical">
           {isEdit && <Form.Item name="id" hidden><Input /></Form.Item>}
-          <Form.Item label={t('couponManage.formName')} required>
-            <Form.Item name="name" noStyle rules={[{ required: true, message: t('couponManage.formName') + ' 必填' }]}>
-              <MultiLangInput />
-            </Form.Item>
-            <div style={{ marginTop: 6 }}>
-              <AutoTranslateButton
-                getValue={() => form.getFieldValue('name') || {}}
-                setValue={v => form.setFieldValue('name', v)}
-                sourceField="zh"
-              />
-            </div>
+          <Form.Item name="name" label={t('couponManage.formName')} rules={[{ required: true, message: t('couponManage.formName') + ' 必填' }]}>
+            <MultiLangInput />
           </Form.Item>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
