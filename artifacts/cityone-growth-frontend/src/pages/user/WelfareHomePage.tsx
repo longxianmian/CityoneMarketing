@@ -475,7 +475,7 @@ export default function WelfareHomePage() {
       </Drawer>
 
       {/* 城市选择 */}
-      <Drawer placement="right" open={cityOpen} onClose={() => setCityOpen(false)} title={pageText.city} styles={{ body: { paddingTop: 8, background: '#F7F9FC' } }}>
+      <Drawer placement="right" open={cityOpen} onClose={() => setCityOpen(false)} title={pageText.city} width="30%" styles={{ body: { paddingTop: 8, padding: '8px 10px', background: '#F7F9FC' } }}>
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: 14, boxShadow: '0 8px 18px rgba(15,23,42,0.06)' }}>
             <div style={{ color: '#667085', marginBottom: 10 }}>{pageText.autoLocate}</div>
@@ -486,7 +486,7 @@ export default function WelfareHomePage() {
             const active = city.code === cityCode
             return (
               <button key={city.code} onClick={() => { setCityCode(city.code); setCityOpen(false) }}
-                style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 18, padding: '14px 16px', background: active ? '#2CDBCE' : '#fff', color: active ? '#fff' : '#111827', fontWeight: 700, boxShadow: '0 8px 18px rgba(15,23,42,0.06)', cursor: 'pointer' }}
+                style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 14, padding: '10px 12px', background: active ? '#2CDBCE' : '#fff', color: active ? '#fff' : '#111827', fontWeight: 700, boxShadow: '0 4px 12px rgba(15,23,42,0.06)', cursor: 'pointer', fontSize: 13 }}
               >
                 {label}
               </button>
