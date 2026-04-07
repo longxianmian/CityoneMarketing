@@ -130,15 +130,15 @@ export default function ActivityDetailPage() {
 
       if (isFan) {
         // 已关注：直接执行
-        if (isInteractive && typeInfo.route) {
-          nav(`${typeInfo.route}${id}`)
+        if (isInteractive && typeInfoML.route) {
+          nav(`${typeInfoML.route}${id}`)
         } else {
           await doParticipate()
         }
       } else {
         // 未关注：跳到关注页，回跳目标根据类型决定
-        const redirectTo = isInteractive && typeInfo.route
-          ? `${typeInfo.route}${id}`
+        const redirectTo = isInteractive && typeInfoML.route
+          ? `${typeInfoML.route}${id}`
           : `/activity/${id}?auto=participate`
         nav(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(title)}&back=${encodeURIComponent(`/activity/${id}`)}`)
       }

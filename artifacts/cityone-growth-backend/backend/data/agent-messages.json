@@ -4978,5 +4978,92 @@
     },
     "intent_code": "borrow_help",
     "created_at": "2026-04-07T14:26:25.370Z"
+  },
+  {
+    "message_id": "am_00258",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "在吗",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T14:31:12.555Z"
+  },
+  {
+    "message_id": "am_00259",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "greeting",
+    "text": "你好！我是小城，随时为你服务。你可以问我附近站点、优惠券、积分、邀请好友等问题。",
+    "payload": {
+      "reply_type": "greeting",
+      "text": "你好！我是小城，随时为你服务。你可以问我附近站点、优惠券、积分、邀请好友等问题。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "greeting",
+    "created_at": "2026-04-07T14:31:12.558Z"
+  },
+  {
+    "message_id": "am_00260",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "帮我看看有哪些券能用",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T14:31:16.623Z"
+  },
+  {
+    "message_id": "am_00261",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "greeting",
+    "text": "你好！我是小城，随时为你服务。你可以问我附近站点、优惠券、积分、邀请好友等问题。",
+    "payload": {
+      "reply_type": "greeting",
+      "text": "你好！我是小城，随时为你服务。你可以问我附近站点、优惠券、积分、邀请好友等问题。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "greeting",
+    "created_at": "2026-04-07T14:31:16.626Z"
+  },
+  {
+    "message_id": "am_00262",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "积分怎么兑换？",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T14:31:24.602Z"
+  },
+  {
+    "message_id": "am_00263",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "info_reply",
+    "text": "我是小城。打开CityOne→我的→积分商城，选券兑换，兑换后在卡券包查看。要我帮你查可兑券吗？",
+    "payload": {
+      "reply_type": "info_reply",
+      "text": "我是小城。打开CityOne→我的→积分商城，选券兑换，兑换后在卡券包查看。要我帮你查可兑券吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "points_redeem_help",
+    "created_at": "2026-04-07T14:31:52.163Z"
   }
 ]
