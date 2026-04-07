@@ -45,7 +45,7 @@ export default function LandingTemplateManage() {
   const fetchData = async (p = page) => {
     setLoading(true)
     try {
-      const res: any = await request.get('/api/landing-templates', { params: { page: p, pageSize } })
+      const res: any = await request.get('/landing-templates', { params: { page: p, pageSize } })
       setData(res.data?.list || [])
       setTotal(res.data?.total || 0)
     } catch { setData([]) }
@@ -74,7 +74,7 @@ export default function LandingTemplateManage() {
       title: t('adminTemplate.landing.confirmDelete'),
       onOk: async () => {
         try {
-          await request.delete(`/api/landing-templates/${r.id}`)
+          await request.delete(`/landing-templates/${r.id}`)
           message.success(t('adminTemplate.common.deleteSuccess')); fetchData()
         } catch { message.error(t('adminTemplate.common.deleteFail')) }
       },
@@ -98,7 +98,7 @@ export default function LandingTemplateManage() {
       if (Object.keys(textsToTranslate).length > 0) {
         const hide = message.loading(t('adminTemplate.common.translating'), 0)
         try {
-          const res: any = await request.post('/api/translate', { texts: textsToTranslate, sourceLang })
+          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang })
           const result = res.data?.result ?? {}
           const patch: any = {}
           Object.entries(result).forEach(([key, translated]) => {
@@ -117,10 +117,10 @@ export default function LandingTemplateManage() {
 
       const payload = { ...values, coverImage }
       if (isEdit) {
-        await request.put(`/api/landing-templates/${editingId}`, payload)
+        await request.put(`/landing-templates/${editingId}`, payload)
         message.success(t('adminTemplate.common.updateSuccess'))
       } else {
-        await request.post('/api/landing-templates', payload)
+        await request.post('/landing-templates', payload)
         message.success(t('adminTemplate.common.createSuccess'))
       }
       setFormVisible(false); fetchData()

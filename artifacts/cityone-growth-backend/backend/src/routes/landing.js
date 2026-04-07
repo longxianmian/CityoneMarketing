@@ -55,10 +55,27 @@ function idFromPath(pathname, pattern) {
 
 // ─── 落地页模板 ──────────────────────────────────────────────────────────────
 
+function toML(v) {
+  if (v && typeof v === "object" && ("zh" in v || "th" in v || "en" in v))
+    return { zh: v.zh || "", th: v.th || "", en: v.en || "" };
+  return { zh: typeof v === "string" ? v : "", th: "", en: "" };
+}
+
+export function handleLandingTemplateList(req, res, url, sendJson) {
+  const list = loadJsonArray(LANDING_TEMPLATES_FILE);
+  const page = Number(url.searchParams?.get("page") || 1);
+  const pageSize = Number(url.searchParams?.get("pageSize") || 20);
+  const start = (page - 1) * pageSize;
+  return sendOk(res, sendJson, "landing templates loaded", {
+    list: list.slice(start, start + pageSize),
+    total: list.length,
+  });
+}
+
 export function handleLandingTemplateGet(req, res, url, sendJson) {
   const id = idFromPath(url.pathname, /^\/api\/landing-templates\/([^/]+)$/);
   const list = loadJsonArray(LANDING_TEMPLATES_FILE);
-  const item = list.find((t) => t.template_id === id);
+  const item = list.find((t) => t.id === id);
   if (!item) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到落地页模板");
   return sendOk(res, sendJson, "landing template loaded", item);
 }
@@ -66,53 +83,28 @@ export function handleLandingTemplateGet(req, res, url, sendJson) {
 export async function handleLandingTemplateCreate(req, res, url, sendJson, readBody) {
   try {
     const body = await readBody(req);
-    const templateName = String(body.template_name || "").trim();
-    const templateType = String(body.template_type || "").trim();
-
-    if (!templateName) return sendError(res, sendJson, 400, "NAME_REQUIRED", "template_name 必填");
-
-    const VALID_TYPES = ["solution", "welcome_gift", "limited_offer", "nearby_available"];
-    if (!VALID_TYPES.includes(templateType))
-      return sendError(res, sendJson, 400, "TYPE_INVALID", `template_type 必须是: ${VALID_TYPES.join(" | ")}`);
+    const name = String(body.name || "").trim();
+    if (!name) return sendError(res, sendJson, 400, "NAME_REQUIRED", "name 必填");
 
     const list = loadJsonArray(LANDING_TEMPLATES_FILE);
     const now = new Date().toISOString();
-
     const item = {
-      template_id: nextId(list, "lt", "template_id"),
-      template_name: templateName,
-      template_type: templateType,
-      title_zh: body.title_zh || "",
-      title_th: body.title_th || "",
-      title_en: body.title_en || "",
-      sub_title_zh: body.sub_title_zh || "",
-      sub_title_th: body.sub_title_th || "",
-      sub_title_en: body.sub_title_en || "",
-      benefit_text_zh: body.benefit_text_zh || "",
-      benefit_text_th: body.benefit_text_th || "",
-      benefit_text_en: body.benefit_text_en || "",
-      support_text_zh: body.support_text_zh || "",
-      support_text_th: body.support_text_th || "",
-      support_text_en: body.support_text_en || "",
-      hero_image: body.hero_image || "",
-      hero_video: body.hero_video || "",
-      primary_cta_text_zh: body.primary_cta_text_zh || "",
-      primary_cta_text_th: body.primary_cta_text_th || "",
-      primary_cta_text_en: body.primary_cta_text_en || "",
-      primary_cta_action: "follow_oa",
-      follow_success_action: body.follow_success_action || "auto_open_welfare_home",
-      target_activity_id: body.target_activity_id || "",
-      target_product_id: body.target_product_id || "",
-      target_page: body.target_page || "",
-      auto_claim_reward: !!body.auto_claim_reward,
-      auto_join_activity: !!body.auto_join_activity,
-      auto_open_nearby: !!body.auto_open_nearby,
-      auto_open_welfare_home: !!body.auto_open_welfare_home,
-      status: "enabled",
-      created_at: now,
-      updated_at: now,
+      id: nextId(list, "lt", "id"),
+      name,
+      templateType: String(body.templateType || "").trim(),
+      title: toML(body.title),
+      subTitle: toML(body.subTitle),
+      benefitText: toML(body.benefitText),
+      supportText: toML(body.supportText),
+      buttonText: toML(body.buttonText),
+      coverImage: body.coverImage || "",
+      autoAction: body.autoAction || "open_welfare",
+      targetActivityId: body.targetActivityId || "",
+      targetProductId: body.targetProductId || "",
+      enabled: body.enabled !== false,
+      createdAt: now,
+      updatedAt: now,
     };
-
     list.push(item);
     saveJsonArray(LANDING_TEMPLATES_FILE, list);
     return sendOk(res, sendJson, "landing template created", item);
@@ -124,38 +116,47 @@ export async function handleLandingTemplateCreate(req, res, url, sendJson, readB
 export async function handleLandingTemplateUpdate(req, res, url, sendJson, readBody) {
   try {
     const id = idFromPath(url.pathname, /^\/api\/landing-templates\/([^/]+)$/);
-    if (!id) return sendError(res, sendJson, 400, "ID_REQUIRED", "template_id 必填");
+    if (!id) return sendError(res, sendJson, 400, "ID_REQUIRED", "id 必填");
 
     const body = await readBody(req);
     const list = loadJsonArray(LANDING_TEMPLATES_FILE);
-    const idx = list.findIndex((t) => t.template_id === id);
+    const idx = list.findIndex((t) => t.id === id);
     if (idx < 0) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到落地页模板");
 
-    const VALID_TYPES = ["solution", "welcome_gift", "limited_offer", "nearby_available"];
-    const templateType = body.template_type ? String(body.template_type).trim() : list[idx].template_type;
-    if (!VALID_TYPES.includes(templateType))
-      return sendError(res, sendJson, 400, "TYPE_INVALID", `template_type 必须是: ${VALID_TYPES.join(" | ")}`);
-
-    const fields = [
-      "template_name","template_type","title_zh","title_th","title_en",
-      "sub_title_zh","sub_title_th","sub_title_en","benefit_text_zh","benefit_text_th","benefit_text_en",
-      "support_text_zh","support_text_th","support_text_en","hero_image","hero_video",
-      "primary_cta_text_zh","primary_cta_text_th","primary_cta_text_en",
-      "follow_success_action","target_activity_id","target_product_id","target_page",
-      "auto_claim_reward","auto_join_activity","auto_open_nearby","auto_open_welfare_home","status",
-    ];
-
-    const updated = { ...list[idx] };
-    for (const f of fields) {
-      if (body[f] !== undefined) updated[f] = body[f];
-    }
-    updated.updated_at = new Date().toISOString();
+    const prev = list[idx];
+    const updated = {
+      ...prev,
+      name: body.name !== undefined ? String(body.name).trim() : prev.name,
+      templateType: body.templateType !== undefined ? String(body.templateType).trim() : prev.templateType,
+      title: body.title !== undefined ? toML(body.title) : prev.title,
+      subTitle: body.subTitle !== undefined ? toML(body.subTitle) : prev.subTitle,
+      benefitText: body.benefitText !== undefined ? toML(body.benefitText) : prev.benefitText,
+      supportText: body.supportText !== undefined ? toML(body.supportText) : prev.supportText,
+      buttonText: body.buttonText !== undefined ? toML(body.buttonText) : prev.buttonText,
+      coverImage: body.coverImage !== undefined ? body.coverImage : prev.coverImage,
+      autoAction: body.autoAction !== undefined ? body.autoAction : prev.autoAction,
+      targetActivityId: body.targetActivityId !== undefined ? body.targetActivityId : prev.targetActivityId,
+      targetProductId: body.targetProductId !== undefined ? body.targetProductId : prev.targetProductId,
+      enabled: body.enabled !== undefined ? !!body.enabled : prev.enabled,
+      updatedAt: new Date().toISOString(),
+    };
     list[idx] = updated;
     saveJsonArray(LANDING_TEMPLATES_FILE, list);
     return sendOk(res, sendJson, "landing template updated", updated);
   } catch (err) {
     return sendError(res, sendJson, 500, "UPDATE_FAILED", err.message || "更新失败");
   }
+}
+
+export function handleLandingTemplateDelete(req, res, url, sendJson) {
+  const id = idFromPath(url.pathname, /^\/api\/landing-templates\/([^/]+)$/);
+  if (!id) return sendError(res, sendJson, 400, "ID_REQUIRED", "id 必填");
+  const list = loadJsonArray(LANDING_TEMPLATES_FILE);
+  const idx = list.findIndex((t) => t.id === id);
+  if (idx < 0) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到落地页模板");
+  list.splice(idx, 1);
+  saveJsonArray(LANDING_TEMPLATES_FILE, list);
+  return sendOk(res, sendJson, "landing template deleted", { id });
 }
 
 // ─── 创意-落地页绑定 ─────────────────────────────────────────────────────────

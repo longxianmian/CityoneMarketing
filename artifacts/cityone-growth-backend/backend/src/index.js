@@ -33,9 +33,11 @@ import {
   handleQrAssetList
 } from "./routes/entries.js";
 import {
+  handleLandingTemplateList,
   handleLandingTemplateGet,
   handleLandingTemplateCreate,
   handleLandingTemplateUpdate,
+  handleLandingTemplateDelete,
   handleCreativeBindingList,
   handleCreativeBindingCreate,
   handleFollowSuccessDispatch
@@ -543,6 +545,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── 落地页模板层 ─────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/landing-templates") {
+      return handleLandingTemplateList(req, res, url, sendJson);
+    }
     if (req.method === "GET" && /^\/api\/landing-templates\/[^/]+$/.test(url.pathname)) {
       return handleLandingTemplateGet(req, res, url, sendJson);
     }
@@ -551,6 +556,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "PUT" && /^\/api\/landing-templates\/[^/]+$/.test(url.pathname)) {
       return handleLandingTemplateUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "DELETE" && /^\/api\/landing-templates\/[^/]+$/.test(url.pathname)) {
+      return handleLandingTemplateDelete(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/creative-landing-bindings") {
       return handleCreativeBindingList(req, res, url, sendJson);
