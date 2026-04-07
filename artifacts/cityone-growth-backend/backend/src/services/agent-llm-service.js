@@ -116,7 +116,7 @@ ${intentList.map((i) => `- ${i.code}：${i.desc}`).join("\n")}
     { role: "user", content: text }
   ];
 
-  const raw = await chatCompletion(messages, { jsonMode: true });
+  const raw = await chatCompletion(messages, { jsonMode: true, maxTokens: 512 });
 
   try {
     const parsed = JSON.parse(raw);
@@ -181,7 +181,7 @@ export async function generateReplyText(intentCode, toolResult, identityTier, la
     { role: "user", content: userContent }
   ];
 
-  return chatCompletion(messages, { maxTokens: 8192 });
+  return chatCompletion(messages, { maxTokens: 256 });
 }
 
 /**

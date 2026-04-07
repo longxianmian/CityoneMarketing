@@ -9,6 +9,8 @@ router.use(
     target: "http://localhost:3100",
     changeOrigin: true,
     pathRewrite: { "^/api/agent": "/api/agent" },
+    proxyTimeout: 60000,
+    timeout: 60000,
   })
 );
 
