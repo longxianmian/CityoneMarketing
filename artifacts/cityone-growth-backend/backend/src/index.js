@@ -131,6 +131,10 @@ import {
 } from "./routes/agent.js";
 import { handleTranslate } from "./routes/translate.js";
 import {
+  handleDashboardStats,
+  handleGrowthReport,
+} from "./routes/dashboard.js";
+import {
   handleGetCityDistricts,
   handleGetStations,
   handleGetNearbyStations,
@@ -637,6 +641,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/growth/mall/redeems") {
       return handleGetMallRedeems(req, res, sendJson, url);
+    }
+
+    // ── 仪表板 ───────────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/dashboard/stats") {
+      return handleDashboardStats(req, res, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/dashboard/growth-report") {
+      return handleGrowthReport(req, res, sendJson);
     }
 
     // ── 站点管理 ─────────────────────────────────────────────────────────────

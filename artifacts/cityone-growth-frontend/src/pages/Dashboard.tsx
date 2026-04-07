@@ -1,5 +1,5 @@
-import React from 'react'
-import { Card, Row, Col, Statistic, Table, Tag, Progress } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Card, Row, Col, Statistic, Table, Tag, Progress, Spin, Empty } from 'antd'
 import {
   FunnelPlotOutlined,
   UserOutlined,
@@ -7,45 +7,71 @@ import {
   FileTextOutlined,
   ShareAltOutlined,
   RiseOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons'
 import { useI18n } from '../i18n'
+import request from '../api/request'
+
+interface DashboardStats {
+  visitCount: number
+  newUsers: number
+  couponIssued: number
+  attributedOrders: number
+  inviteUsers: number
+  conversionRate: number
+}
+
+interface ChannelRow {
+  channel: string
+  visits: number
+  users: number
+  orders: number
+  rate: number
+}
+
+interface ActivityRow {
+  id: string
+  name: string
+  status: string
+  participants: number
+  interactions: number
+  rewards: string
+  orders: number
+}
 
 export default function Dashboard() {
   const { t } = useI18n()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [channelData, setChannelData] = useState<ChannelRow[]>([])
+  const [activityData, setActivityData] = useState<ActivityRow[]>([])
 
-  const stats = {
-    visitCount: 28630,
-    newUsers: 5218,
-    couponIssued: 6320,
-    attributedOrders: 1392,
-    inviteUsers: 886,
-    conversionRate: 18.2,
+  const load = () => {
+    setLoading(true)
+    request.get('/dashboard/stats')
+      .then((res: any) => {
+        const d = res?.data || res
+        if (d?.stats) setStats(d.stats)
+        if (d?.channelData) setChannelData(d.channelData)
+        if (d?.activityData) setActivityData(d.activityData)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }
 
-  const channelData = [
-    { key: '1', channel: 'LINE OA', visits: 12680, users: 2830, orders: 688, rate: 24.3 },
-    { key: '2', channel: 'TikTok', visits: 8230, users: 1320, orders: 356, rate: 15.7 },
-    { key: '3', channel: 'Facebook', visits: 4560, users: 760, orders: 208, rate: 13.4 },
-    { key: '4', channel: '地推二维码', visits: 3160, users: 308, orders: 140, rate: 9.7 },
-  ]
-
-  const activityData = [
-    { key: '1', name: '扫码抽奖赢免费时长', status: t('dashboard.statusOngoing'), participants: 1328, rewards: '30分钟/2小时券', orders: 322 },
-    { key: '2', name: '新用户首借免单', status: t('dashboard.statusOngoing'), participants: 2311, rewards: '首单免单券', orders: 905 },
-    { key: '3', name: '关注 LINE 领券', status: t('dashboard.statusDraft'), participants: 0, rewards: '15分钟券', orders: 0 },
-    { key: '4', name: '周末借电返积分', status: t('dashboard.statusEnded'), participants: 889, rewards: '50积分', orders: 165 },
-  ]
+  useEffect(() => { load() }, [])
 
   const channelColumns = [
     { title: t('dashboard.colChannel'), dataIndex: 'channel', key: 'channel' },
     { title: t('dashboard.colVisits'), dataIndex: 'visits', key: 'visits' },
     { title: t('dashboard.colNewUsers'), dataIndex: 'users', key: 'users' },
-    { title: t('dashboard.colOrders'), dataIndex: 'orders', key: 'orders' },
+    { title: t('dashboard.colOrders'), dataIndex: 'orders', key: 'orders',
+      render: (v: number) => v === 0 ? <span style={{ color: '#bbb' }}>待接A系统</span> : v },
     {
       title: t('dashboard.colRate'),
       dataIndex: 'rate',
       key: 'rate',
-      render: (v: number) => <Tag color={v >= 20 ? 'green' : v >= 12 ? 'blue' : 'default'}>{v}%</Tag>,
+      render: (v: number) => <Tag color={v >= 30 ? 'green' : v >= 15 ? 'blue' : 'default'}>{v}%</Tag>,
     },
   ]
 
@@ -55,126 +81,147 @@ export default function Dashboard() {
       title: t('dashboard.colStatus'),
       dataIndex: 'status',
       key: 'status',
-      render: (v: string) => {
-        const ongoing = t('dashboard.statusOngoing')
-        const draft = t('dashboard.statusDraft')
-        return <Tag color={v === ongoing ? 'green' : v === draft ? 'gold' : 'default'}>{v}</Tag>
-      },
+      render: (v: string) => (
+        <Tag color={v === '进行中' ? 'green' : v === '草稿' ? 'gold' : 'default'}>{v}</Tag>
+      ),
     },
-    { title: t('dashboard.colParticipants'), dataIndex: 'participants', key: 'participants' },
+    { title: '参与用户', dataIndex: 'participants', key: 'participants' },
+    { title: '互动次数', dataIndex: 'interactions', key: 'interactions' },
     { title: t('dashboard.colRewards'), dataIndex: 'rewards', key: 'rewards' },
-    { title: t('dashboard.colDrivenOrders'), dataIndex: 'orders', key: 'orders' },
+    {
+      title: t('dashboard.colDrivenOrders'),
+      dataIndex: 'orders',
+      key: 'orders',
+      render: (v: number) => v === 0 ? <span style={{ color: '#bbb' }}>待接A系统</span> : v,
+    },
   ]
+
+  const maxRate = channelData.length > 0 ? Math.max(...channelData.map(c => c.rate)) : 100
 
   return (
     <div>
-      <h2 style={{ marginBottom: 16 }}>{t('dashboard.pageTitle')}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <h2 style={{ margin: 0 }}>{t('dashboard.pageTitle')}</h2>
+        <ReloadOutlined
+          onClick={load}
+          spin={loading}
+          style={{ color: '#2CDBCE', cursor: 'pointer', fontSize: 16 }}
+        />
+      </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={12} sm={8} md={4}>
-          <Card>
-            <Statistic
-              title={t('dashboard.visitCount')}
-              value={stats.visitCount}
-              prefix={<FunnelPlotOutlined style={{ color: '#1677ff' }} />}
-            />
-          </Card>
-        </Col>
+      {loading && !stats ? (
+        <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
+      ) : (
+        <>
+          <Row gutter={[16, 16]}>
+            <Col xs={12} sm={8} md={4}>
+              <Card>
+                <Statistic
+                  title={t('dashboard.visitCount')}
+                  value={stats?.visitCount ?? 0}
+                  prefix={<FunnelPlotOutlined style={{ color: '#1677ff' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card>
+                <Statistic
+                  title={t('dashboard.newUsers')}
+                  value={stats?.newUsers ?? 0}
+                  prefix={<UserOutlined style={{ color: '#52c41a' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card>
+                <Statistic
+                  title={t('dashboard.couponIssued')}
+                  value={stats?.couponIssued ?? 0}
+                  prefix={<GiftOutlined style={{ color: '#faad14' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card>
+                <Statistic
+                  title={t('dashboard.attributedOrders')}
+                  value={stats?.attributedOrders ?? 0}
+                  prefix={<FileTextOutlined style={{ color: '#eb2f96' }} />}
+                  suffix={<span style={{ fontSize: 12, color: '#bbb' }}>待A系统</span>}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card>
+                <Statistic
+                  title={t('dashboard.inviteUsers')}
+                  value={stats?.inviteUsers ?? 0}
+                  prefix={<ShareAltOutlined style={{ color: '#13c2c2' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card>
+                <Statistic
+                  title={t('dashboard.conversionRate')}
+                  value={stats?.conversionRate ?? 0}
+                  suffix="%"
+                  prefix={<RiseOutlined style={{ color: '#722ed1' }} />}
+                />
+              </Card>
+            </Col>
+          </Row>
 
-        <Col xs={12} sm={8} md={4}>
-          <Card>
-            <Statistic
-              title={t('dashboard.newUsers')}
-              value={stats.newUsers}
-              prefix={<UserOutlined style={{ color: '#52c41a' }} />}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={8} md={4}>
-          <Card>
-            <Statistic
-              title={t('dashboard.couponIssued')}
-              value={stats.couponIssued}
-              prefix={<GiftOutlined style={{ color: '#faad14' }} />}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={8} md={4}>
-          <Card>
-            <Statistic
-              title={t('dashboard.attributedOrders')}
-              value={stats.attributedOrders}
-              prefix={<FileTextOutlined style={{ color: '#eb2f96' }} />}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={8} md={4}>
-          <Card>
-            <Statistic
-              title={t('dashboard.inviteUsers')}
-              value={stats.inviteUsers}
-              prefix={<ShareAltOutlined style={{ color: '#13c2c2' }} />}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={8} md={4}>
-          <Card>
-            <Statistic
-              title={t('dashboard.conversionRate')}
-              value={stats.conversionRate}
-              suffix="%"
-              prefix={<RiseOutlined style={{ color: '#722ed1' }} />}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24} md={10}>
-          <Card title={t('dashboard.channelOverview')}>
-            <div style={{ display: 'grid', gap: 16 }}>
-              {channelData.map((item) => (
-                <div key={item.key}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span>{item.channel}</span>
-                    <span>{item.rate}%</span>
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col xs={24} md={10}>
+              <Card title={t('dashboard.channelOverview')}>
+                {channelData.length === 0 ? (
+                  <Empty description="暂无渠道数据（互动记录中 utm_source 为空时统一归入 LINE OA）" />
+                ) : (
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    {channelData.map((item) => (
+                      <div key={item.channel}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span>{item.channel}</span>
+                          <span>{item.rate}%</span>
+                        </div>
+                        <Progress percent={Number(((item.rate / maxRate) * 100).toFixed(0))} showInfo={false} />
+                      </div>
+                    ))}
                   </div>
-                  <Progress percent={item.rate} showInfo={false} />
-                </div>
-              ))}
-            </div>
-          </Card>
-        </Col>
+                )}
+              </Card>
+            </Col>
 
-        <Col xs={24} md={14}>
-          <Card title={t('dashboard.channelDetail')}>
-            <Table
-              rowKey="key"
-              columns={channelColumns}
-              dataSource={channelData}
-              pagination={false}
-              size="small"
-            />
-          </Card>
-        </Col>
-      </Row>
+            <Col xs={24} md={14}>
+              <Card title={t('dashboard.channelDetail')}>
+                <Table
+                  rowKey="channel"
+                  columns={channelColumns}
+                  dataSource={channelData}
+                  pagination={false}
+                  size="small"
+                  locale={{ emptyText: '暂无渠道数据' }}
+                />
+              </Card>
+            </Col>
+          </Row>
 
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24}>
-          <Card title={t('dashboard.activityOverview')}>
-            <Table
-              rowKey="key"
-              columns={activityColumns}
-              dataSource={activityData}
-              pagination={false}
-            />
-          </Card>
-        </Col>
-      </Row>
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col xs={24}>
+              <Card title={t('dashboard.activityOverview')}>
+                <Table
+                  rowKey="id"
+                  columns={activityColumns}
+                  dataSource={activityData}
+                  pagination={false}
+                  locale={{ emptyText: '暂无活动数据' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
     </div>
   )
 }
