@@ -58,7 +58,8 @@ function getCityLabel(cityCode: string, lang: AppLanguage) {
 // 图片 URL 须用 backgroundImage + url() 才能正确显示
 function coverBgStyle(cover: string): React.CSSProperties {
   if (/^(https?:\/\/|\/)/.test(cover)) {
-    return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    // top center：确保图片顶部内容（Logo、标题）始终可见，不被裁掉
+    return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'top center' }
   }
   return { background: cover }
 }
@@ -98,76 +99,60 @@ function WaterfallCard({
 
   return (
     /* break-inside: avoid 防止 CSS columns 把卡片切断跨列 */
-    <div style={{ breakInside: 'avoid', marginBottom: 6 }}>
-      {/* iOS Safari 不支持 aspect-ratio 在 flex 容器上 —— 改用 paddingTop trick */}
+    <div
+      onClick={onClick}
+      style={{
+        breakInside: 'avoid',
+        marginBottom: 6,
+        borderRadius: 20,
+        overflow: 'hidden',
+        background: '#fff',
+        boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
+        cursor: 'pointer',
+        border: '1px solid rgba(15, 23, 42, 0.04)',
+      }}
+    >
+      {/* 图片区 — 固定 16:9 宽高比，paddingTop trick 兼容 iOS Safari */}
       <div
-        onClick={onClick}
         style={{
           position: 'relative',
           width: '100%',
-          paddingTop: '161.8%', /* 黄金比例 1:1.618 */
-          borderRadius: 20,
-          overflow: 'hidden',
-          background: '#fff',
-          boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
-          cursor: 'pointer',
-          border: '1px solid rgba(15, 23, 42, 0.04)',
+          paddingTop: '56.25%', /* 16:9 */
+          ...coverBgStyle(cover),
         }}
       >
-        {/* 绝对定位内容层 */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* 缩略图区 — 占 2/3 */}
-          <div
+        {badge ? (
+          <Tag
             style={{
-              flex: '2 0 0',
-              ...coverBgStyle(cover),
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'flex-start',
-              padding: 10,
-              minHeight: 0,
+              position: 'absolute',
+              top: 10,
+              left: 10,
+              margin: 0,
+              borderRadius: 999,
+              paddingInline: 9,
+              paddingBlock: 3,
+              border: 'none',
+              fontWeight: 700,
+              fontSize: 11,
+              background: 'rgba(255,255,255,0.92)',
+              color: '#111827',
+              lineHeight: 1.6,
             }}
           >
-            {badge ? (
-              <Tag
-                style={{
-                  margin: 0,
-                  borderRadius: 999,
-                  paddingInline: 9,
-                  paddingBlock: 3,
-                  border: 'none',
-                  fontWeight: 700,
-                  fontSize: 11,
-                  background: 'rgba(255,255,255,0.92)',
-                  color: '#111827',
-                  lineHeight: 1.6,
-                }}
-              >
-                {badge}
-              </Tag>
-            ) : null}
-          </div>
+            {badge}
+          </Tag>
+        ) : null}
+      </div>
 
-          {/* 信息区 — 占 1/3 */}
-          <div
-            style={{
-              flex: '1 0 0',
-              padding: '10px 12px 10px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              minHeight: 0,
-              overflow: 'hidden',
-            }}
-          >
+      {/* 信息区 — 自然高度，不再固定比例 */}
+      <div
+        style={{
+          padding: '10px 12px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}
+      >
         {/* 标题 */}
         <div
           style={{
@@ -232,8 +217,6 @@ function WaterfallCard({
             {viewsLabel}
           </div>
         )}
-          </div>
-        </div>
       </div>
     </div>
   )
