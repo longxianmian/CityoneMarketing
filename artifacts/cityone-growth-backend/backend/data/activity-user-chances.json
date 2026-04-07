@@ -3,11 +3,11 @@
     "chance_id": "ch_001",
     "activity_id": "act_003",
     "line_user_id": "U001",
-    "granted_count": 3,
-    "used_count": 1,
-    "remaining_count": 2,
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
     "grant_source": "first_follow",
-    "updated_at": "2026-04-02T17:20:34.116Z"
+    "updated_at": "2026-04-07T10:42:04.133Z"
   },
   {
     "chance_id": "ch_002",
@@ -53,61 +53,61 @@
     "chance_id": "ch_006",
     "activity_id": "act_003",
     "line_user_id": "dev_test123",
-    "granted_count": 3,
-    "used_count": 1,
-    "remaining_count": 2,
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
     "grant_source": "system",
-    "updated_at": "2026-04-06T06:35:46.427Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_007",
     "activity_id": "act_003",
     "line_user_id": "brand_new_user_xyz",
-    "granted_count": 1,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 1,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-06T06:37:22.432Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_008",
     "activity_id": "act_003",
     "line_user_id": "dev_7s1zpwbtmnmtgcb8",
-    "granted_count": 1,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 1,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:05:09.672Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_009",
     "activity_id": "act_003",
     "line_user_id": "brand_new_user_xyz2",
-    "granted_count": 1,
-    "used_count": 1,
-    "remaining_count": 0,
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-06T06:39:34.015Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_010",
     "activity_id": "act_003",
     "line_user_id": "final_test_user",
-    "granted_count": 1,
-    "used_count": 1,
-    "remaining_count": 0,
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-06T06:40:43.039Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_011",
     "activity_id": "act_003",
     "line_user_id": "dev_1q175hnsmnmtn22u",
-    "granted_count": 4,
-    "used_count": 3,
-    "remaining_count": 1,
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
     "grant_source": "admin test reset",
-    "updated_at": "2026-04-07T10:34:12.504Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_012",
@@ -263,50 +263,50 @@
     "chance_id": "ch_027",
     "activity_id": "act_003",
     "line_user_id": "dev_hwry781hmnog37ar",
-    "granted_count": 1,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 1,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-07T09:56:55.350Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_028",
     "activity_id": "act_003",
     "line_user_id": "dev_3cd2i1pcmnoge26k",
-    "granted_count": 1,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 1,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:05:21.941Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_029",
     "activity_id": "act_003",
     "line_user_id": "dev_2ez8pzkrmnogkqw6",
-    "granted_count": 1,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 1,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:10:33.896Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_030",
     "activity_id": "act_003",
     "line_user_id": "dev_67fxxcromnogum0p",
-    "granted_count": 1,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 1,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:18:14.141Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   },
   {
     "chance_id": "ch_031",
     "activity_id": "act_003",
     "line_user_id": "dev_chztrekcmnohluzf",
-    "granted_count": 1,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 1,
+    "remaining_count": 5,
     "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:39:25.473Z"
+    "updated_at": "2026-04-07T10:42:04.134Z"
   }
 ]
