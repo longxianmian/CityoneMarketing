@@ -8,12 +8,13 @@ import { getDeviceUserId } from '../../utils/deviceUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
-const TYPE_LABELS: Record<string, { label: string; color: string; btnText: string; route: string }> = {
-  lucky_wheel:        { label: '大转盘',  color: '#fa8c16', btnText: '立即抽奖', route: '/activity/wheel/'   },
-  spin_wheel:         { label: '大转盘',  color: '#fa8c16', btnText: '立即抽奖', route: '/activity/wheel/'   },
-  scratch_card:       { label: '刮刮卡',  color: '#1677ff', btnText: '立即刮卡', route: '/activity/scratch/' },
-  thai_fortune_draw:  { label: '祈福抽签', color: '#722ed1', btnText: '求签祈福', route: '/activity/fortune/' },
-  default:            { label: '活动',    color: '#52c41a', btnText: '立即参与', route: '' },
+type ML = { zh: string; th: string; en: string }
+const TYPE_LABELS_ML: Record<string, { label: ML; color: string; btnText: ML; route: string }> = {
+  lucky_wheel:       { label: { zh:'大转盘',  th:'วงล้อนำโชค',  en:'Lucky Wheel'    }, color:'#fa8c16', btnText:{ zh:'立即抽奖', th:'หมุนเลย',       en:'Spin Now'     }, route:'/activity/wheel/'   },
+  spin_wheel:        { label: { zh:'大转盘',  th:'วงล้อนำโชค',  en:'Lucky Wheel'    }, color:'#fa8c16', btnText:{ zh:'立即抽奖', th:'หมุนเลย',       en:'Spin Now'     }, route:'/activity/wheel/'   },
+  scratch_card:      { label: { zh:'刮刮卡',  th:'การ์ดขูด',    en:'Scratch Card'   }, color:'#1677ff', btnText:{ zh:'立即刮卡', th:'ขูดเลย',        en:'Scratch Now'  }, route:'/activity/scratch/' },
+  thai_fortune_draw: { label: { zh:'祈福抽签', th:'เซียมซีนำโชค', en:'Fortune Draw'   }, color:'#722ed1', btnText:{ zh:'求签祈福', th:'จับเซียมซี',     en:'Draw Fortune' }, route:'/activity/fortune/' },
+  default:           { label: { zh:'活动',   th:'กิจกรรม',     en:'Activity'       }, color:'#52c41a', btnText:{ zh:'立即参与', th:'เข้าร่วมเลย',    en:'Join Now'     }, route:'' },
 }
 
 type Step = 'detail' | 'success'
@@ -32,7 +33,7 @@ export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
   const [searchParams] = useSearchParams()
-  const { language } = useI18n()
+  const { language, t } = useI18n()
   const lang = language as AppLanguage
   const [activity, setActivity] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -76,7 +77,9 @@ export default function ActivityDetailPage() {
   )
 
   const actType = activity?.activity_type || activity?.activityType || activity?.type || ''
-  const typeInfo = TYPE_LABELS[actType] || TYPE_LABELS.default
+  const typeInfoML = TYPE_LABELS_ML[actType] || TYPE_LABELS_ML.default
+  const typeLabel = typeInfoML.label[lang] || typeInfoML.label.zh
+  const typeBtnText = typeInfoML.btnText[lang] || typeInfoML.btnText.zh
   const title = pick(activity?.activity_name || activity?.activity_title || activity?.title) || activity?.name || ''
   const subTitle = pick(activity?.activity_subtitle || activity?.subTitle) || ''
   const description = pick(activity?.activity_desc || activity?.description) || ''
@@ -87,7 +90,7 @@ export default function ActivityDetailPage() {
   const coverImage = activity?.cover_image || activity?.coverImage || ''
   const coverVideo = activity?.cover_video || activity?.coverVideo || ''
   const linkedProducts: any[] = activity?.linkedProducts || []
-  const buttonText = activity?.buttonText ? pick(activity.buttonText) : typeInfo.btnText
+  const buttonText = activity?.buttonText ? pick(activity.buttonText) : typeBtnText
   const isInteractive = ['lucky_wheel', 'spin_wheel', 'scratch_card', 'thai_fortune_draw'].includes(actType)
 
   const backLabel = { zh: '返回福利中心', th: 'กลับศูนย์สิทธิพิเศษ', en: 'Back to Benefits' }[language]!
@@ -207,8 +210,8 @@ export default function ActivityDetailPage() {
         <button onClick={() => nav('/welfare')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
           <ArrowLeftOutlined style={{ fontSize: 20 }} />
         </button>
-        <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>活动详情</span>
-        {activity && <Tag color={typeInfo.color} style={{ marginRight: 8 }}>{typeInfo.label}</Tag>}
+        <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>{t('detail.detail')}</span>
+        {activity && <Tag color={typeInfoML.color} style={{ marginRight: 8 }}>{typeLabel}</Tag>}
         <button
           onClick={() => setShareVisible(true)}
           title="分享好友赚积分"
@@ -242,13 +245,13 @@ export default function ActivityDetailPage() {
         {subTitle && <p style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>{subTitle}</p>}
 
         {description && (
-          <Section title="活动说明">
+          <Section title={t('detail.description')}>
             <p style={{ fontSize: 14, color: '#444', lineHeight: 1.8 }}>{description}</p>
           </Section>
         )}
 
         {highlights && (
-          <Section title="活动亮点">
+          <Section title={t('detail.highlights')}>
             {highlights.split(/\n|·|•/).filter(Boolean).map((h: string, i: number) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                 <span style={{ color: '#1677ff', fontWeight: 700, flexShrink: 0, marginTop: 2 }}>✦</span>
@@ -259,7 +262,7 @@ export default function ActivityDetailPage() {
         )}
 
         {participationGuide && (
-          <Section title="参与步骤">
+          <Section title={t('detail.howToJoin')}>
             {participationGuide.split(/\n|→/).filter(Boolean).map((s: string, i: number) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
                 <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#1677ff', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
@@ -270,7 +273,7 @@ export default function ActivityDetailPage() {
         )}
 
         {(rewardGuide || linkedProducts.length > 0) && (
-          <Section title="奖励预告">
+          <Section title={t('detail.rewards')}>
             {rewardGuide && <p style={{ fontSize: 14, color: '#444', lineHeight: 1.8, marginBottom: 12 }}>{rewardGuide}</p>}
             {linkedProducts.map((p: any) => (
               <div
@@ -281,8 +284,8 @@ export default function ActivityDetailPage() {
                 {p.coverImage && <img src={p.coverImage} alt={p.title} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{pick(p.title) || p.title}</div>
-                  {p.pointsPrice > 0 && <div style={{ fontSize: 12, color: '#1677ff' }}>{p.pointsPrice} 积分</div>}
-                  {p.pointsPrice === 0 && <div style={{ fontSize: 12, color: '#52c41a' }}>免费</div>}
+                  {p.pointsPrice > 0 && <div style={{ fontSize: 12, color: '#1677ff' }}>{p.pointsPrice} {t('productDetail.pts')}</div>}
+                  {p.pointsPrice === 0 && <div style={{ fontSize: 12, color: '#52c41a' }}>{t('productDetail.free')}</div>}
                 </div>
                 <span style={{ color: '#bbb', fontSize: 18 }}>›</span>
               </div>
@@ -291,7 +294,7 @@ export default function ActivityDetailPage() {
         )}
 
         {noticeText && (
-          <Section title="注意事项">
+          <Section title={t('detail.notice')}>
             <p style={{ fontSize: 13, color: '#999', lineHeight: 1.8 }}>{noticeText}</p>
           </Section>
         )}
