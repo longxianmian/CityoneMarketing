@@ -65,12 +65,10 @@ function coverBgStyle(cover: string): React.CSSProperties {
 }
 
 // ---------- 卡片组件 ----------
-// 黄金比例容器：宽:高 = 1:1.618
-// 图片区 = 卡片高度 2/3 ；信息区 = 1/3
+// 总高 = 112.5% 宽度；图片区 55%，信息区 45%
 function WaterfallCard({
   type,
   title,
-  badge,
   cover,
   views,
   price,
@@ -81,7 +79,6 @@ function WaterfallCard({
 }: {
   type: ContentCard['type']
   title: string
-  badge?: string
   cover: string
   views?: number
   price?: string
@@ -425,7 +422,6 @@ export default function WelfareHomePage() {
                 key={item.id}
                 type={item.type}
                 title={pickLocalizedText({ title: item.title }, 'title', language)}
-                badge={pickLocalizedText({ badge: item.badge }, 'badge', language)}
                 cover={item.cover}
                 views={item.views}
                 price={item.price}
