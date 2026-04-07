@@ -190,5 +190,21 @@
     "result_type": "sign",
     "related_product_id": "",
     "created_at": "2026-04-06T06:53:11.005Z"
+  },
+  {
+    "interaction_id": "ia_013",
+    "activity_id": "act_003",
+    "activity_type": "scratch_card",
+    "line_user_id": "dev_1q175hnsmnmtn22u",
+    "user_id": "",
+    "station_id": "",
+    "entry_id": "",
+    "utm_source": "",
+    "utm_campaign": "",
+    "action_type": "scratch_open",
+    "action_result_id": "pz_002",
+    "result_type": "thanks",
+    "related_product_id": "",
+    "created_at": "2026-04-07T10:27:04.401Z"
   }
 ]

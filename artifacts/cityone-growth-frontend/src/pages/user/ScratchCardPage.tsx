@@ -58,6 +58,7 @@ export default function ScratchCardPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawing = useRef(false)
   const hasRevealed = useRef(false)
+  const scratchPctRef = useRef(0)
 
   const [activity, setActivity] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -113,6 +114,7 @@ export default function ScratchCardPage() {
     ctx.textAlign = 'center'
     ctx.fillText(ui.scratchHint, canvas.width / 2, canvas.height / 2)
     setScratchPct(0)
+    scratchPctRef.current = 0
     hasRevealed.current = false
   }
 
@@ -148,10 +150,23 @@ export default function ScratchCardPage() {
     for (let i = 3; i < data.length; i += 4) if (data[i] === 0) transparent++
     const pct = Math.round((transparent / (canvas.width * canvas.height)) * 100)
     setScratchPct(pct)
+    scratchPctRef.current = pct
 
-    if (pct >= 60 && !hasRevealed.current) {
+    if (pct >= 40 && !hasRevealed.current) {
       hasRevealed.current = true
       doReveal(canvas)
+    }
+  }
+
+  // 松手时：如果已刮 ≥25% 还没揭晓，自动揭晓
+  const onScratchEnd = () => {
+    isDrawing.current = false
+    if (!hasRevealed.current && scratchPctRef.current >= 25) {
+      const canvas = canvasRef.current
+      if (canvas) {
+        hasRevealed.current = true
+        doReveal(canvas)
+      }
     }
   }
 
@@ -259,11 +274,11 @@ export default function ScratchCardPage() {
             style={{ position: 'absolute', inset: 0, cursor: noChance ? 'not-allowed' : 'crosshair', touchAction: 'none' }}
             onMouseDown={() => { if (!noChance) isDrawing.current = true }}
             onMouseMove={e => { if (isDrawing.current) eraseAt(e) }}
-            onMouseUp={() => { isDrawing.current = false }}
-            onMouseLeave={() => { isDrawing.current = false }}
+            onMouseUp={onScratchEnd}
+            onMouseLeave={onScratchEnd}
             onTouchStart={e => { if (!noChance) { isDrawing.current = true; eraseAt(e) } }}
             onTouchMove={e => eraseAt(e)}
-            onTouchEnd={() => { isDrawing.current = false }}
+            onTouchEnd={onScratchEnd}
           />
         )}
       </div>
