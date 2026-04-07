@@ -239,10 +239,40 @@ export default function ActivityManage() {
       const values = await form.validateFields()
       const ensureML = (v: any): MultiLangValue =>
         v && typeof v === 'object' ? v : { zh: v || '', th: '', en: '' }
+
+      const ML_FIELDS = ['name','subTitle','description','highlights','participationGuide','rewardGuide','noticeText'] as const
+      type MlKey = typeof ML_FIELDS[number]
+      const mlValues: Record<MlKey, MultiLangValue> = {} as any
+      ML_FIELDS.forEach(f => { mlValues[f] = ensureML(values[f]) })
+
+      const needsTranslation = ML_FIELDS.filter(
+        f => mlValues[f].zh?.trim() && (!mlValues[f].th?.trim() || !mlValues[f].en?.trim())
+      )
+
+      if (needsTranslation.length > 0) {
+        const loadingKey = 'auto-translate'
+        message.loading({ content: '🌐 正在自动翻译多语言字段…', key: loadingKey, duration: 0 })
+        try {
+          const texts: Record<string, string> = {}
+          needsTranslation.forEach(f => { texts[f] = mlValues[f].zh || '' })
+          const res: any = await request.post('/api/translate', { texts, sourceLang: 'zh' })
+          const result: Record<string, MultiLangValue> = res.data?.result ?? {}
+          needsTranslation.forEach(f => {
+            if (result[f]) mlValues[f] = result[f]
+          })
+          message.success({ content: '✅ 翻译完成', key: loadingKey, duration: 2 })
+        } catch {
+          message.warning({ content: '自动翻译失败，将以中文保存其他语言字段', key: loadingKey, duration: 3 })
+          needsTranslation.forEach(f => {
+            mlValues[f] = { zh: mlValues[f].zh || '', th: mlValues[f].zh || '', en: mlValues[f].zh || '' }
+          })
+        }
+      }
+
       const backendPayload: Record<string, unknown> = {
-        activity_name: ensureML(values.name),
-        activity_subtitle: ensureML(values.subTitle),
-        activity_desc: ensureML(values.description),
+        activity_name: mlValues.name,
+        activity_subtitle: mlValues.subTitle,
+        activity_desc: mlValues.description,
         activity_type: values.activityType || 'general',
         start_time: values.dateRange?.[0]?.format('YYYY-MM-DD HH:mm:ss') || '',
         end_time: values.dateRange?.[1]?.format('YYYY-MM-DD HH:mm:ss') || '',
@@ -253,10 +283,10 @@ export default function ActivityManage() {
         owner_dept: values.ownerDept || '',
         partner_dept: values.partnerDept || '',
         coupon_name: values.couponName || '',
-        highlights: ensureML(values.highlights),
-        participation_guide: ensureML(values.participationGuide),
-        reward_guide: ensureML(values.rewardGuide),
-        notice_text: ensureML(values.noticeText),
+        highlights: mlValues.highlights,
+        participation_guide: mlValues.participationGuide,
+        reward_guide: mlValues.rewardGuide,
+        notice_text: mlValues.noticeText,
         cover_image: coverImage,
         cover_video: coverVideo,
         template_id: values.template_id || '',

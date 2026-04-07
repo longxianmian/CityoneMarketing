@@ -195,5 +195,71 @@
     "cover_video": "",
     "created_at": "2026-04-07T09:47:13.577Z",
     "updated_at": "2026-04-07T09:48:24.163Z"
+  },
+  {
+    "activity_id": "act_004",
+    "activity_type": "lucky_wheel",
+    "activity_name": {
+      "zh": "转转转好运气",
+      "th": "",
+      "en": ""
+    },
+    "activity_title": "",
+    "activity_subtitle": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "activity_desc": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "template_id": "",
+    "usage_mode": "public",
+    "start_time": "2026-04-07 00:00:00",
+    "end_time": "2026-04-30 00:00:00",
+    "status": "active",
+    "require_oa_follow": false,
+    "auto_join_after_follow": false,
+    "entry_scope_json": null,
+    "site_scope_json": null,
+    "channel_scope_json": null,
+    "share_content_type": "activity",
+    "share_enabled": false,
+    "share_title": "",
+    "share_desc": "",
+    "share_cover": "",
+    "campaign_id": "",
+    "share_status": "disabled",
+    "goal": "拉新",
+    "department": "互联网推广部",
+    "owner_dept": "互联网推广部",
+    "partner_dept": "",
+    "coupon_name": "",
+    "highlights": {
+      "zh": "测试",
+      "th": "",
+      "en": ""
+    },
+    "participation_guide": {
+      "zh": "测试",
+      "th": "",
+      "en": ""
+    },
+    "reward_guide": {
+      "zh": "测试",
+      "th": "",
+      "en": ""
+    },
+    "notice_text": {
+      "zh": "测试",
+      "th": "",
+      "en": ""
+    },
+    "cover_image": "/uploads/1775559356315_37b7df59a602.png",
+    "cover_video": "",
+    "created_at": "2026-04-07T10:57:09.806Z",
+    "updated_at": "2026-04-07T10:57:29.186Z"
   }
 ]
