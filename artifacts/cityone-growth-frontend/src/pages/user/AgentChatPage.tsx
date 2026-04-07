@@ -148,8 +148,9 @@ function normalizeMessage(backendMsg: any): AgentMessage {
     subtitle: c.desc || c.subtitle || '',
     badge: c.badge,
     meta: c.meta,
+    coverImage: c.cover_image || '',
     ctaPrimary: c.action_text
-      ? { text: c.action_text, action: c.action_type, route: c.action_url }
+      ? { text: c.action_text, action: c.action_type, route: c.route || c.action_url }
       : undefined,
   }))
 

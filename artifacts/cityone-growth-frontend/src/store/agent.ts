@@ -11,11 +11,12 @@ export type AgentMessageType =
   | 'system_notice'
 
 export interface AgentCard {
-  type: 'site' | 'coupon' | 'benefit' | 'order' | 'invite'
+  type: 'site' | 'coupon' | 'benefit' | 'order' | 'invite' | 'activity'
   title: string
   subtitle?: string
   badge?: string
   meta?: string
+  coverImage?: string
   ctaPrimary?: { text: string; route?: string; action?: string }
   ctaSecondary?: { text: string; route?: string; action?: string }
 }

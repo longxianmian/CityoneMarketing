@@ -5290,5 +5290,707 @@
     },
     "intent_code": "points_redeem_help",
     "created_at": "2026-04-07T14:56:53.800Z"
+  },
+  {
+    "message_id": "am_00277",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "你是谁、",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:01:16.805Z"
+  },
+  {
+    "message_id": "am_00278",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "greeting",
+    "text": "你好！我是小城，随时为你服务。你可以问我附近站点、优惠券、积分、邀请好友等问题。",
+    "payload": {
+      "reply_type": "greeting",
+      "text": "你好！我是小城，随时为你服务。你可以问我附近站点、优惠券、积分、邀请好友等问题。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "greeting",
+    "created_at": "2026-04-07T15:01:16.808Z"
+  },
+  {
+    "message_id": "am_00279",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "积分怎么兑换？",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:01:21.846Z"
+  },
+  {
+    "message_id": "am_00280",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "info_reply",
+    "text": "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
+    "payload": {
+      "reply_type": "info_reply",
+      "text": "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "points_redeem_help",
+    "created_at": "2026-04-07T15:01:27.245Z"
+  },
+  {
+    "message_id": "am_00281",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "帮我找附近站点",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:01:31.736Z"
+  },
+  {
+    "message_id": "am_00282",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "我找到了 5 个附近可用站点：",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "我找到了 5 个附近可用站点：",
+      "cards": [
+        {
+          "card_type": "site",
+          "title": "Central World 1F",
+          "desc": "999 Rama I Rd, Bangkok",
+          "tag": "可用 8 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_001"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "Siam Paragon B1",
+          "desc": "991 Rama I Rd, Bangkok",
+          "tag": "可用 3 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_002"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "MBK Center 2F",
+          "desc": "444 Phayathai Rd, Bangkok",
+          "tag": "暂无可用设备",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_003"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "Terminal 21 3F",
+          "desc": "88 Sukhumvit Soi 19, Bangkok",
+          "tag": "可用 5 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_004"
+          }
+        },
+        {
+          "card_type": "site",
+          "title": "EmQuartier 1F",
+          "desc": "689 Sukhumvit Rd, Bangkok",
+          "tag": "可用 2 台",
+          "action_text": "查看站点",
+          "action_type": "open_site",
+          "action_data": {
+            "site_id": "site_005"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "nearby_sites_query",
+    "created_at": "2026-04-07T15:01:31.739Z"
+  },
+  {
+    "message_id": "am_00283",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "帮我看看有哪些券能用",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:01:35.639Z"
+  },
+  {
+    "message_id": "am_00284",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "你还可以领取 3 个福利：",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "你还可以领取 3 个福利：",
+      "cards": [
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_001"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_002"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "验收卡券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_003"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "benefit_claim_query",
+    "created_at": "2026-04-07T15:01:41.261Z"
+  },
+  {
+    "message_id": "am_00285",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "今天曼谷有什么电影",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:02:15.168Z"
+  },
+  {
+    "message_id": "am_00286",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "intent_unknown",
+    "text": "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+    "payload": {
+      "reply_type": "intent_unknown",
+      "text": "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "unknown",
+    "created_at": "2026-04-07T15:02:22.501Z"
+  },
+  {
+    "message_id": "am_00287",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "今天有什么优惠",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:03:03.147Z"
+  },
+  {
+    "message_id": "am_00288",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "你还可以领取 3 个福利：",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "你还可以领取 3 个福利：",
+      "cards": [
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_001"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "30分钟充电券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_002"
+          }
+        },
+        {
+          "card_type": "benefit",
+          "title": "验收卡券",
+          "desc": "",
+          "action_text": "领取",
+          "action_type": "claim_product",
+          "action_data": {
+            "product_id": "dp_003"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "benefit_claim_query",
+    "created_at": "2026-04-07T15:03:09.451Z"
+  },
+  {
+    "message_id": "am_00289",
+    "session_id": "as_00085",
+    "role": "agent",
+    "type": "welcome",
+    "text": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+    "payload": {
+      "reply_type": "welcome",
+      "text": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "intent_code": "session_init",
+    "created_at": "2026-04-07T15:11:36.141Z"
+  },
+  {
+    "message_id": "am_00290",
+    "session_id": "as_00085",
+    "role": "user",
+    "type": "text",
+    "text": "今天有什么优惠",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:11:36.156Z"
+  },
+  {
+    "message_id": "am_00291",
+    "session_id": "as_00085",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "为你找到 4 个活动 + 3 个可领福利：",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "为你找到 4 个活动 + 3 个可领福利：",
+      "cards": [
+        {
+          "card_type": "activity",
+          "title": "大转盘抽大奖",
+          "desc": "转一转，好礼不停",
+          "cover_image": "/uploads/1775489766908_0b477d2f1c6e.png",
+          "route": "/activity/act_002",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_002"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "刮出好运气！",
+          "desc": "刮刮卡，手机都能刮一刮",
+          "cover_image": "/uploads/1775555010978_610cf0d0ecb7.png",
+          "route": "/activity/act_003",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_003"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "转转转好运气",
+          "desc": "测试",
+          "cover_image": "/uploads/1775559356315_37b7df59a602.png",
+          "route": "/activity/act_004",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_004"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "新用户注册礼",
+          "desc": "注册即送50积分",
+          "cover_image": "",
+          "route": "/activity/act_001",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_001"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "benefit_claim_query",
+    "created_at": "2026-04-07T15:11:40.482Z"
+  },
+  {
+    "message_id": "am_00292",
+    "session_id": "as_00085",
+    "role": "user",
+    "type": "text",
+    "text": "今天有什么优惠",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:12:22.712Z"
+  },
+  {
+    "message_id": "am_00293",
+    "session_id": "as_00085",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "为你找到 4 个活动 + 3 个可领福利：",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "为你找到 4 个活动 + 3 个可领福利：",
+      "cards": [
+        {
+          "card_type": "activity",
+          "title": "大转盘抽大奖",
+          "desc": "转一转，好礼不停",
+          "cover_image": "/uploads/1775489766908_0b477d2f1c6e.png",
+          "route": "/activity/act_002",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_002"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "刮出好运气！",
+          "desc": "刮刮卡，手机都能刮一刮",
+          "cover_image": "/uploads/1775555010978_610cf0d0ecb7.png",
+          "route": "/activity/act_003",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_003"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "转转转好运气",
+          "desc": "测试",
+          "cover_image": "/uploads/1775559356315_37b7df59a602.png",
+          "route": "/activity/act_004",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_004"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "新用户注册礼",
+          "desc": "注册即送50积分",
+          "cover_image": "",
+          "route": "/activity/act_001",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_001"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "benefit_claim_query",
+    "created_at": "2026-04-07T15:12:32.151Z"
+  },
+  {
+    "message_id": "am_00294",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "我是谁？",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:12:48.530Z"
+  },
+  {
+    "message_id": "am_00295",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "intent_unknown",
+    "text": "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+    "payload": {
+      "reply_type": "intent_unknown",
+      "text": "嗯～这个问题有点超出我的服务范围了 😄 不过关于充电宝借还、卡券和积分这些，我很在行，要不试试：",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "unknown",
+    "created_at": "2026-04-07T15:12:53.855Z"
+  },
+  {
+    "message_id": "am_00296",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "积分怎么兑换？",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:13:11.644Z"
+  },
+  {
+    "message_id": "am_00297",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "info_reply",
+    "text": "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
+    "payload": {
+      "reply_type": "info_reply",
+      "text": "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "points_redeem_help",
+    "created_at": "2026-04-07T15:13:18.304Z"
+  },
+  {
+    "message_id": "am_00298",
+    "session_id": "as_00082",
+    "role": "user",
+    "type": "text",
+    "text": "帮我看看有哪些券能用",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:13:34.377Z"
+  },
+  {
+    "message_id": "am_00299",
+    "session_id": "as_00086",
+    "role": "agent",
+    "type": "welcome",
+    "text": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+    "payload": {
+      "reply_type": "welcome",
+      "text": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "intent_code": "session_init",
+    "created_at": "2026-04-07T15:13:39.483Z"
+  },
+  {
+    "message_id": "am_00300",
+    "session_id": "as_00086",
+    "role": "user",
+    "type": "text",
+    "text": "今天有什么优惠",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T15:13:39.505Z"
+  },
+  {
+    "message_id": "am_00301",
+    "session_id": "as_00082",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "为你找到 4 个活动 + 3 个可领福利：",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "为你找到 4 个活动 + 3 个可领福利：",
+      "cards": [
+        {
+          "card_type": "activity",
+          "title": "大转盘抽大奖",
+          "desc": "转一转，好礼不停",
+          "cover_image": "/uploads/1775489766908_0b477d2f1c6e.png",
+          "route": "/activity/act_002",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_002"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "刮出好运气！",
+          "desc": "刮刮卡，手机都能刮一刮",
+          "cover_image": "/uploads/1775555010978_610cf0d0ecb7.png",
+          "route": "/activity/act_003",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_003"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "转转转好运气",
+          "desc": "测试",
+          "cover_image": "/uploads/1775559356315_37b7df59a602.png",
+          "route": "/activity/act_004",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_004"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "新用户注册礼",
+          "desc": "注册即送50积分",
+          "cover_image": "",
+          "route": "/activity/act_001",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_001"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "benefit_claim_query",
+    "created_at": "2026-04-07T15:13:41.899Z"
+  },
+  {
+    "message_id": "am_00302",
+    "session_id": "as_00086",
+    "role": "agent",
+    "type": "tool_result",
+    "text": "为你找到 4 个活动 + 3 个可领福利：",
+    "payload": {
+      "reply_type": "tool_result",
+      "text": "为你找到 4 个活动 + 3 个可领福利：",
+      "cards": [
+        {
+          "card_type": "activity",
+          "title": "大转盘抽大奖",
+          "desc": "转一转，好礼不停",
+          "cover_image": "/uploads/1775489766908_0b477d2f1c6e.png",
+          "route": "/activity/act_002",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_002"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "刮出好运气！",
+          "desc": "刮刮卡，手机都能刮一刮",
+          "cover_image": "/uploads/1775555010978_610cf0d0ecb7.png",
+          "route": "/activity/act_003",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_003"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "转转转好运气",
+          "desc": "测试",
+          "cover_image": "/uploads/1775559356315_37b7df59a602.png",
+          "route": "/activity/act_004",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_004"
+          }
+        },
+        {
+          "card_type": "activity",
+          "title": "新用户注册礼",
+          "desc": "注册即送50积分",
+          "cover_image": "",
+          "route": "/activity/act_001",
+          "action_text": "去参与",
+          "action_type": "open_activity",
+          "action_data": {
+            "activity_id": "act_001"
+          }
+        }
+      ],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "benefit_claim_query",
+    "created_at": "2026-04-07T15:13:46.230Z"
   }
 ]

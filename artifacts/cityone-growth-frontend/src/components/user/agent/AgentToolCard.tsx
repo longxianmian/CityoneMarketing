@@ -8,6 +8,7 @@ const CARD_ICONS: Record<string, string> = {
   benefit: '🎁',
   order: '📦',
   invite: '🤝',
+  activity: '🎯',
 }
 
 const CARD_COLORS: Record<string, string> = {
@@ -16,6 +17,16 @@ const CARD_COLORS: Record<string, string> = {
   benefit: '#7B61FF',
   order: '#2F80FF',
   invite: '#52c41a',
+  activity: '#7B61FF',
+}
+
+const COVER_GRADIENTS: Record<string, string> = {
+  site: 'linear-gradient(135deg, #2CDBCE 0%, #1a9e99 100%)',
+  coupon: 'linear-gradient(135deg, #FF7A59 0%, #e85d3d 100%)',
+  benefit: 'linear-gradient(135deg, #7B61FF 0%, #5a40e8 100%)',
+  activity: 'linear-gradient(135deg, #7B61FF 0%, #a855f7 100%)',
+  order: 'linear-gradient(135deg, #2F80FF 0%, #1a5fd4 100%)',
+  invite: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)',
 }
 
 interface CardItemProps {
@@ -23,7 +34,76 @@ interface CardItemProps {
   onAction?: (action?: string, route?: string) => void
 }
 
-function CardItem({ card, onAction }: CardItemProps) {
+function ActivityCardItem({ card, onAction }: CardItemProps) {
+  const color = CARD_COLORS[card.type] || '#7B61FF'
+  const gradient = COVER_GRADIENTS[card.type] || COVER_GRADIENTS.activity
+  const coverBg = card.coverImage
+    ? { backgroundImage: `url(${card.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'top center' }
+    : { background: gradient }
+
+  return (
+    <div
+      style={{
+        background: '#fff',
+        borderRadius: 16,
+        overflow: 'hidden',
+        boxShadow: '0 8px 24px rgba(15, 23, 42, 0.10)',
+        border: '1px solid rgba(15, 23, 42, 0.05)',
+        marginBottom: 10,
+      }}
+    >
+      <div
+        style={{
+          height: 130,
+          ...coverBg,
+          position: 'relative',
+        }}
+      />
+      <div style={{ padding: '12px 14px 14px' }}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 800,
+            color: '#111827',
+            lineHeight: 1.35,
+            marginBottom: 4,
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
+          {card.title}
+        </div>
+        {card.subtitle && (
+          <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.4, marginBottom: 10 }}>
+            {card.subtitle}
+          </div>
+        )}
+        {card.ctaPrimary && (
+          <button
+            onClick={() => onAction?.(card.ctaPrimary?.action, card.ctaPrimary?.route)}
+            style={{
+              width: '100%',
+              padding: '9px 0',
+              borderRadius: 10,
+              border: 'none',
+              background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {card.ctaPrimary.text}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SimpleCardItem({ card, onAction }: CardItemProps) {
   const icon = CARD_ICONS[card.type] || '✦'
   const color = CARD_COLORS[card.type] || '#1677ff'
 
@@ -103,9 +183,12 @@ export default function AgentToolCard({ message }: Props) {
 
   return (
     <div style={{ marginLeft: 46, marginBottom: 16 }}>
-      {message.cards.map((card, i) => (
-        <CardItem key={i} card={card} onAction={handleAction} />
-      ))}
+      {message.cards.map((card, i) => {
+        const isRichCard = card.type === 'activity' || (card.type === 'benefit' && !!card.coverImage)
+        return isRichCard
+          ? <ActivityCardItem key={i} card={card} onAction={handleAction} />
+          : <SimpleCardItem key={i} card={card} onAction={handleAction} />
+      })}
     </div>
   )
 }

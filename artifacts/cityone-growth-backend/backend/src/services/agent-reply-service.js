@@ -117,17 +117,26 @@ function buildToolResultReply(intentCode, toolResult, language, suggestions) {
     }
 
     case "benefit_claim_query": {
-      const benefits = data.claimable_benefits || [];
-      const text = benefits.length
-        ? { zh: `你还可以领取 ${benefits.length} 个福利：`, th: `คุณสามารถรับสิทธิ์ได้ ${benefits.length} รายการ:`, en: `You can claim ${benefits.length} benefits:` }[language]
-        : { zh: "当前没有可领取的新福利。", th: "ไม่มีสิทธิ์ที่รับได้", en: "No new benefits available." }[language];
-      const cards = benefits.slice(0, 4).map((b) => ({
-        card_type: "benefit",
-        title: b.product_name || b.product_id,
-        desc: b.short_benefit_text || "",
-        action_text: { zh: "领取", th: "รับ", en: "Claim" }[language],
-        action_type: "claim_product",
-        action_data: { product_id: b.product_id }
+      const combined = data.combined_items || [];
+      const benefitCount = data.benefit_count || 0;
+      const activityCount = data.activity_count || 0;
+      const totalCount = combined.length;
+
+      const text = totalCount > 0
+        ? { zh: `为你找到 ${activityCount > 0 ? `${activityCount} 个活动` : ""}${activityCount > 0 && benefitCount > 0 ? " + " : ""}${benefitCount > 0 ? `${benefitCount} 个可领福利` : ""}：`, th: `พบ ${totalCount} รายการสำหรับคุณ:`, en: `Found ${totalCount} items for you:` }[language]
+        : { zh: "当前没有可领取的福利或进行中的活动。", th: "ไม่มีสิทธิ์หรือกิจกรรมในขณะนี้", en: "No benefits or activities available now." }[language];
+
+      const actionLabel = { zh: { activity: "去参与", benefit: "领取" }, th: { activity: "เข้าร่วม", benefit: "รับ" }, en: { activity: "Join", benefit: "Claim" } }[language] || { activity: "Join", benefit: "Claim" };
+
+      const cards = combined.slice(0, 4).map((item) => ({
+        card_type: item.item_type === "activity" ? "activity" : "benefit",
+        title: item.title,
+        desc: item.subtitle || "",
+        cover_image: item.cover_image || "",
+        route: item.route || "",
+        action_text: item.item_type === "activity" ? actionLabel.activity : actionLabel.benefit,
+        action_type: item.item_type === "activity" ? "open_activity" : "claim_product",
+        action_data: item.item_type === "activity" ? { activity_id: item.id } : { product_id: item.id }
       }));
       return { reply_type: "tool_result", text, cards, suggestions };
     }
