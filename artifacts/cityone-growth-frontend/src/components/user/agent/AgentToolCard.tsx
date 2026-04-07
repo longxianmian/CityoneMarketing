@@ -176,7 +176,6 @@ export default function AgentToolCard({ message }: Props) {
 
   const handleAction = (action?: string, route?: string) => {
     if (route) nav(route)
-    else if (action) console.log('[AgentToolCard] action:', action)
   }
 
   if (!message.cards?.length) return null
