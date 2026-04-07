@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
-import { Spin, message, Modal, Button, Space } from 'antd'
+import { Spin, App, Modal, Button, Space } from 'antd'
 import { ArrowLeftOutlined, FireOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
@@ -20,6 +20,7 @@ async function checkFanStatus(userId: string): Promise<boolean> {
 }
 
 export default function ProductDetailPage() {
+  const { message } = App.useApp()
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
   const location = useLocation()

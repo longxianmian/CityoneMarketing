@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Card, Space, Tag, Spin, Modal, message } from 'antd'
+import { Button, Card, Space, Tag, Spin, Modal, App } from 'antd'
 import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import request from '../../api/request'
@@ -53,6 +53,7 @@ async function checkFanStatus(userId: string): Promise<boolean> {
 }
 
 export default function RedeemUserPage() {
+  const { message } = App.useApp()
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()

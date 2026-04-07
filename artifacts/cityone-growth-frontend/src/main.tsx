@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, App as AntdApp } from 'antd'
 import App from './App'
 import './styles/global.css'
 import { I18nProvider, useI18n } from './i18n'
@@ -20,7 +20,9 @@ function AppWithI18n() {
           },
         }}
       >
-        <App />
+        <AntdApp>
+          <App />
+        </AntdApp>
       </ConfigProvider>
     </BrowserRouter>
   )
