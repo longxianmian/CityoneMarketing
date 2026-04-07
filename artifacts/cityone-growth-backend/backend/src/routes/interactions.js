@@ -641,3 +641,54 @@ export async function handleFortuneDraw(req, res, url, sendJson, readBody) {
     return sendError(res, sendJson, 500, "DRAW_FAILED", err.message || "抽签失败");
   }
 }
+
+// ── 管理端：查询某活动的用户次数列表 ─────────────────────────────────────────
+// GET /api/activities/:id/user-chances?page=1&pageSize=20&keyword=xxx
+export async function handleGetUserChances(req, res, url, sendJson) {
+  try {
+    const activityId = url.pathname.match(/^\/api\/activities\/([^/]+)\/user-chances/)?.[1];
+    if (!activityId) return sendError(res, sendJson, 400, "ID_REQUIRED", "activity_id 必填");
+
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const pageSize = Math.min(parseInt(url.searchParams.get("pageSize") || "20", 10), 100);
+    const keyword = (url.searchParams.get("keyword") || "").toLowerCase().trim();
+
+    const all = loadJsonArray(CHANCES_FILE).filter((c) => c.activity_id === activityId);
+
+    const filtered = keyword
+      ? all.filter((c) => c.line_user_id?.toLowerCase().includes(keyword))
+      : all;
+
+    const total = filtered.length;
+    const totalGranted = filtered.reduce((s, c) => s + (c.granted_count || 0), 0);
+    const totalUsed = filtered.reduce((s, c) => s + (c.used_count || 0), 0);
+    const totalRemain = filtered.reduce((s, c) => s + (c.remaining_count || 0), 0);
+
+    const list = filtered
+      .slice((page - 1) * pageSize, page * pageSize)
+      .map((c) => ({
+        userId: c.line_user_id,
+        nickName: c.nick_name || "",
+        avatarUrl: c.avatar_url || "",
+        grantedChances: c.granted_count || 0,
+        usedChances: c.used_count || 0,
+        remainChances: c.remaining_count || 0,
+        grantSource: c.grant_source || "",
+        firstPlayAt: c.created_at || "",
+        lastPlayAt: c.updated_at || "",
+      }));
+
+    return sendOk(res, sendJson, "ok", {
+      list,
+      total,
+      page,
+      pageSize,
+      totalGranted,
+      totalUsed,
+      totalRemain,
+      userCount: all.length,
+    });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "FETCH_FAILED", err.message || "查询失败");
+  }
+}

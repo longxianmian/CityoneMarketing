@@ -89,6 +89,7 @@ import {
   handleSignList,
   handleSignCreate,
   handleGrantChance,
+  handleGetUserChances,
   handleWheelStart,
   handleWheelDraw,
   handleScratchStart,
@@ -692,6 +693,26 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/activity-chances/grant") {
       return handleGrantChance(req, res, url, sendJson, readBody);
+    }
+    // 管理端：查询次数列表 GET /api/activities/:id/user-chances
+    if (req.method === "GET" && /^\/api\/activities\/[^/]+\/user-chances$/.test(url.pathname)) {
+      return handleGetUserChances(req, res, url, sendJson);
+    }
+    // 管理端次数发放：POST /api/activities/:id/user-chances/grant
+    // 前端传 { userId, amount, remark }，转换为标准 handleGrantChance 格式
+    const chanceGrantMatch = url.pathname.match(/^\/api\/activities\/([^/]+)\/user-chances\/grant$/);
+    if (req.method === "POST" && chanceGrantMatch) {
+      const activityId = decodeURIComponent(chanceGrantMatch[1]);
+      const origBody = readBody;
+      return handleGrantChance(req, res, url, sendJson, async (r) => {
+        const rawBody = await origBody(r);
+        return {
+          activity_id: activityId,
+          line_user_id: rawBody.userId || rawBody.line_user_id || "",
+          count: Number(rawBody.amount || rawBody.count || 1),
+          grant_source: rawBody.remark || rawBody.grant_source || "admin",
+        };
+      });
     }
 
     // ── 三种互动工具执行 ─────────────────────────────────────────────────────
