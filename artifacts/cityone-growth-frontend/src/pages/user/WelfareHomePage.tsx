@@ -128,27 +128,7 @@ function WaterfallCard({
             position: 'relative',
           }}
         >
-          {badge ? (
-            <Tag
-              style={{
-                position: 'absolute',
-                top: 10,
-                left: 10,
-                margin: 0,
-                borderRadius: 999,
-                paddingInline: 9,
-                paddingBlock: 3,
-                border: 'none',
-                fontWeight: 700,
-                fontSize: 11,
-                background: 'rgba(255,255,255,0.92)',
-                color: '#111827',
-                lineHeight: 1.6,
-              }}
-            >
-              {badge}
-            </Tag>
-          ) : null}
+          {null}
         </div>
 
         {/* 信息区 — 占 45% */}
