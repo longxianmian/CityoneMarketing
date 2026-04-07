@@ -172,7 +172,7 @@ export default function AgentConfigManage() {
             <MultiLangInput
               textarea
               rows={3}
-              fieldKey="welcomeMessage"
+              
               placeholder="你好！我是 CityOne AI 助理，有什么可以帮你？"
             />
           </Form.Item>
@@ -192,7 +192,7 @@ export default function AgentConfigManage() {
             <MultiLangInput
               textarea
               rows={5}
-              fieldKey="quickPrompts"
+              
               placeholder={'怎么借充电宝？\n卡券怎么使用？\n积分怎么兑换？'}
             />
           </Form.Item>

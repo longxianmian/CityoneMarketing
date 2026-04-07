@@ -90,7 +90,7 @@ export default function AdminLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [openKeys, setOpenKeys] = useState<string[]>([])
   const { userInfo, logout: authLogout } = useAuthStore()
-  const { t, language, setLanguage } = useI18n('admin')
+  const { t, language, setLanguage } = useI18n()
 
   const lt = (key: string) => t(`admin.layout.${key}`)
 

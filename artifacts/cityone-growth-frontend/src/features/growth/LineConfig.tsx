@@ -7,7 +7,7 @@ import { useI18n } from '../../i18n'
 const { Text } = Typography
 
 export default function LineConfig() {
-  const { t } = useI18n('admin')
+  const { t } = useI18n()
   const lt = (key: string) => t(`admin.line.${key}`)
 
   const [form] = Form.useForm()

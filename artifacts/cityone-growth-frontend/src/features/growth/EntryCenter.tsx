@@ -110,7 +110,7 @@ function escapeCsv(value: unknown) {
 }
 
 export default function EntryCenter() {
-  const { t } = useI18n('admin')
+  const { t } = useI18n()
   const et = (key: string) => t(`admin.entry.${key}`)
   const [loading, setLoading] = useState(false)
   const [config, setConfig] = useState<EntryConfigData | null>(null)

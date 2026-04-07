@@ -53,7 +53,7 @@ type RouteLog = {
 }
 
 export default function RouteCenter() {
-  const { t } = useI18n('admin')
+  const { t } = useI18n()
   const rt = (key: string) => t(`admin.route.${key}`)
 
   const [loading, setLoading] = useState(false)

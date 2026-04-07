@@ -68,7 +68,7 @@ export default function TrafficAttribution() {
             <Col xs={12} sm={8} md={4} key={s.key}>
               <Card>
                 <Statistic title={s.title} value={s.value} suffix={s.suffix}
-                  prefix={React.cloneElement(s.icon as React.ReactElement, { style: { color: s.color } })}
+                  prefix={React.cloneElement(s.icon as React.ReactElement<any>, { style: { color: s.color } })}
                 />
               </Card>
             </Col>

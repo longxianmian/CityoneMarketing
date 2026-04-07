@@ -221,7 +221,7 @@ export default function MessageManage() {
             <MultiLangInput
               textarea
               rows={3}
-              fieldKey="messageContent"
+              
               placeholder="请输入中文消息内容，点击 AI 自动翻译补齐其他语言"
             />
           </Form.Item>

@@ -66,7 +66,7 @@ const getSourceTypes = (at: (key: string) => string) => [
 ]
 
 function SourceConfigSection() {
-  const { t } = useI18n('admin')
+  const { t } = useI18n()
   const at = (key: string) => t(`admin.attribution.${key}`)
   const sourceTypes = getSourceTypes(at)
   const [rows, setRows] = useState<any[]>([])
@@ -217,7 +217,7 @@ function SourceConfigSection() {
 }
 
 export default function AttributionCenter() {
-  const { t } = useI18n('admin')
+  const { t } = useI18n()
   const at = (key: string) => t(`admin.attribution.${key}`)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
   const [channel, setChannel] = useState<string>('all')
