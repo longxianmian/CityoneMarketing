@@ -108,5 +108,25 @@
     "consumed_points": 0,
     "revoked_points": 0,
     "updated_at": "2026-04-07T14:22:35.075Z"
+  },
+  {
+    "user_id": "test_redeem_user",
+    "line_user_id": "test_redeem_user",
+    "total_points": 5000,
+    "available_points": 4000,
+    "pending_points": 0,
+    "consumed_points": 1000,
+    "revoked_points": 0,
+    "updated_at": "2026-04-07T15:28:08.493Z"
+  },
+  {
+    "user_id": "final_test_user",
+    "line_user_id": "final_test_user",
+    "total_points": 2000,
+    "available_points": 1000,
+    "pending_points": 0,
+    "consumed_points": 1000,
+    "revoked_points": 0,
+    "updated_at": "2026-04-07T15:30:59.296Z"
   }
 ]

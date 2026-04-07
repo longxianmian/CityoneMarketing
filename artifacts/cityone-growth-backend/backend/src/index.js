@@ -55,6 +55,8 @@ import {
   handleUpdateMallItem,
   handleDeleteMallItem,
   handleGetMallOrders,
+  handleMallRedeem,
+  handleGetMallRedeems,
 } from "./routes/mall-items.js";
 import {
   handleActivityTemplateGet,
@@ -591,6 +593,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/growth/mall/orders") {
       return handleGetMallOrders(req, res, sendJson, url);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/mall/redeem") {
+      return handleMallRedeem(req, res, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/growth/mall/redeems") {
+      return handleGetMallRedeems(req, res, sendJson, url);
     }
 
     // ── 玩法程序 ─────────────────────────────────────────────────────────────

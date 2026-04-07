@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Card, Space, Tag, Spin, Modal } from 'antd'
+import { Button, Card, Space, Tag, Spin, Modal, message } from 'antd'
 import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import request from '../../api/request'
@@ -16,11 +16,6 @@ const ITEM_TYPE_GRADIENT: Record<string, string> = {
   flash:    'linear-gradient(135deg, #f5222d 0%, #ff7875 100%)',
 }
 
-function formatNow() {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
 
 function pickML(field: any, lang?: string): string {
   if (!field) return ''
@@ -68,6 +63,7 @@ export default function RedeemUserPage() {
   const [notFound, setNotFound] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [acting, setActing] = useState(false)
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -88,26 +84,31 @@ export default function RedeemUserPage() {
     }
   }, [item, searchParams.get('auto')])
 
-  const handleConfirmRedeem = () => {
-    const spendPoints = item?.points_required || 0
-    const title = pickML(item?.name, language) || ''
-    const localKey = 'cityone_local_point_records'
-    const current = (() => {
-      try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] }
-    })()
-    localStorage.setItem(localKey, JSON.stringify([{
-      id: `redeem_${Date.now()}`,
-      type: 'spend',
-      title,
-      points: -spendPoints,
-      createdAt: formatNow(),
-      source: 'digital_redeem',
-    }, ...current]))
-    setConfirmOpen(false)
-    setTimeout(() => navigate('/my-points'), 120)
+  const handleConfirmRedeem = async () => {
+    if (!item) return
+    setActing(true)
+    try {
+      const userId = getDeviceUserId()
+      await (request.post as any)('/growth/mall/redeem', {
+        user_id: userId,
+        item_id: item.id,
+      })
+      setConfirmOpen(false)
+      navigate('/my-points')
+    } catch (err: any) {
+      const msg = err?.response?.data?.msg || err?.message || ''
+      if (msg.includes('积分不足') || msg.includes('INSUFFICIENT')) {
+        message.error(language === 'zh' ? (msg.includes('当前可用') ? msg : '积分不足，无法兑换') : language === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient points')
+      } else {
+        message.error(language === 'zh' ? '兑换失败，请稍后重试' : language === 'th' ? 'แลกไม่สำเร็จ กรุณาลองใหม่' : 'Redemption failed')
+      }
+      setConfirmOpen(false)
+    } finally {
+      setActing(false)
+    }
   }
 
-  // 核心：检查粉丝身份 → 已关注直接打开确认框，未关注跳关注页
+  // 核心：检查粉丝身份 + 积分余额 → 已关注且积分充足才打开确认框
   const handleRedeem = async () => {
     if (item?.item_type === 'physical') {
       Modal.info({ title: itemName, content: labels.physicalTip, okText: 'OK' })
@@ -117,12 +118,35 @@ export default function RedeemUserPage() {
     try {
       const userId = getDeviceUserId()
       const isFan = await checkFanStatus(userId)
-      if (isFan) {
-        setConfirmOpen(true)
-      } else {
+      if (!isFan) {
         const redirectTo = `/redeem/${id}?auto=redeem`
         navigate(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(itemName)}&back=${encodeURIComponent(`/redeem/${id}`)}`)
+        return
       }
+      // 检查积分余额
+      const pointsRequired = Number(item?.points_required) || 0
+      if (pointsRequired > 0) {
+        try {
+          const summaryRes: any = await (request.get as any)(`/growth/user/points/summary?user_id=${encodeURIComponent(userId)}`)
+          const summaryData = summaryRes?.data || summaryRes
+          const available = Number(summaryData?.available_points) || 0
+          if (available < pointsRequired) {
+            Modal.warning({
+              title: language === 'zh' ? '积分不足' : language === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
+              content: language === 'zh'
+                ? `当前可用积分 ${available}，兑换需要 ${pointsRequired} 积分。`
+                : language === 'th'
+                  ? `คะแนนที่มี ${available} คะแนน ต้องการ ${pointsRequired} คะแนน`
+                  : `You have ${available} pts, but need ${pointsRequired} pts.`,
+              okText: 'OK',
+            })
+            return
+          }
+        } catch {
+          // 查询失败时不阻止，让后端做最终验证
+        }
+      }
+      setConfirmOpen(true)
     } finally {
       setChecking(false)
     }
@@ -272,6 +296,7 @@ export default function RedeemUserPage() {
         onOk={handleConfirmRedeem}
         okText={labels.confirmOk}
         cancelText={labels.confirmCancel}
+        confirmLoading={acting}
       >
         <div style={{ display: 'grid', gap: 12, lineHeight: 1.8 }}>
           <div><strong>{language === 'zh' ? '商品名称：' : 'Item: '}</strong>{itemName}</div>

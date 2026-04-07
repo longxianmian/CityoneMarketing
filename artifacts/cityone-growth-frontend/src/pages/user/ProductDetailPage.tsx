@@ -64,27 +64,38 @@ export default function ProductDetailPage() {
     }
   }, [product, searchParams.get('auto')])
 
-  // 实际执行兑换（确认后调用）
-  const doRedeem = () => {
+  // 实际执行兑换（确认后调用）—— 调用真实 API，含余额验证
+  const doRedeem = async () => {
     setActing(true)
     try {
-      const spendPoints = product.points_required || 0
-      const localKey = 'cityone_local_point_records'
-      const current = (() => { try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] } })()
-      localStorage.setItem(localKey, JSON.stringify([{
-        id: `redeem_${Date.now()}`, type: 'spend', title: pick(product.name),
-        points: -spendPoints, createdAt: new Date().toISOString(), source: 'mall_redeem',
-      }, ...current]))
+      const userId = getDeviceUserId()
+      const res: any = await (request.post as any)('/growth/mall/redeem', {
+        user_id: userId,
+        item_id: product.id,
+      })
+      const data = res?.data || res
+      if (data?.error === 'INSUFFICIENT_POINTS' || res?.code === 400) {
+        message.error(lang === 'zh' ? '积分不足，无法兑换' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient points')
+        setConfirmOpen(false)
+        return
+      }
       setConfirmOpen(false)
       setRedeemSuccess(true)
-    } catch {
-      message.error(t('productDetail.actionFail'))
+    } catch (err: any) {
+      const msg = err?.response?.data?.msg || err?.message || ''
+      if (msg.includes('积分不足') || msg.includes('INSUFFICIENT')) {
+        const zh = msg.includes('当前可用') ? msg : '积分不足，无法兑换'
+        message.error(lang === 'zh' ? zh : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient points')
+      } else {
+        message.error(lang === 'zh' ? '兑换失败，请稍后重试' : lang === 'th' ? 'แลกไม่สำเร็จ กรุณาลองใหม่' : 'Redemption failed, please try again')
+      }
+      setConfirmOpen(false)
     } finally {
       setActing(false)
     }
   }
 
-  // 点击按钮：先检查粉丝身份，再决定路径
+  // 点击按钮：先检查粉丝身份，再检查积分余额，最后开确认弹窗
   const handleAction = async () => {
     if (!product) return
     if (product.item_type === 'physical') {
@@ -99,13 +110,36 @@ export default function ProductDetailPage() {
     try {
       const userId = getDeviceUserId()
       const isFan = await checkFanStatus(userId)
-      if (isFan) {
-        setConfirmOpen(true)
-      } else {
+      if (!isFan) {
         const redirectTo = `/redeem/${id}?auto=redeem`
         const name = pick(product.name)
         nav(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(name)}&back=${encodeURIComponent(`/redeem/${id}`)}`)
+        return
       }
+      // 检查积分余额
+      const pointsRequired = Number(product.points_required) || 0
+      if (pointsRequired > 0) {
+        try {
+          const summaryRes: any = await (request.get as any)(`/growth/user/points/summary?user_id=${encodeURIComponent(userId)}`)
+          const summaryData = summaryRes?.data || summaryRes
+          const available = Number(summaryData?.available_points) || 0
+          if (available < pointsRequired) {
+            Modal.warning({
+              title: lang === 'zh' ? '积分不足' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
+              content: lang === 'zh'
+                ? `当前可用积分 ${available}，兑换需要 ${pointsRequired} 积分，积分不足无法兑换。`
+                : lang === 'th'
+                  ? `คะแนนที่มี ${available} คะแนน ต้องการ ${pointsRequired} คะแนน`
+                  : `You have ${available} pts, but need ${pointsRequired} pts to redeem.`,
+              okText: 'OK',
+            })
+            return
+          }
+        } catch {
+          // 查询失败时不阻止，让后端做最终验证
+        }
+      }
+      setConfirmOpen(true)
     } finally {
       setChecking(false)
     }
@@ -124,7 +158,7 @@ export default function ProductDetailPage() {
               { lang === 'zh' ? '兑换成功！' : lang === 'th' ? 'แลกสำเร็จ!' : 'Redeemed!' }
             </div>
             <div style={{ fontSize: 14, color: '#888', lineHeight: 1.8, marginBottom: 20 }}>
-              { lang === 'zh' ? '数字商品将在 24 小时内发放到您的账户。' : lang === 'th' ? 'สินค้าดิจิทัลจะถูกส่งไปยังบัญชีของคุณภายใน 24 ชั่วโมง' : 'Your digital item will be delivered to your account within 24 hours.' }
+              { lang === 'zh' ? '数字商品已成功兑换，即时发放到账户。' : lang === 'th' ? 'สินค้าดิจิทัลแลกสำเร็จแล้ว ส่งไปยังบัญชีของคุณทันที' : 'Your digital item has been redeemed and delivered to your account.' }
             </div>
             <div style={{ background: 'linear-gradient(135deg, #f0f5ff 0%, #e6f4ff 100%)', border: '1px solid #adc6ff', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#333', marginBottom: 8 }}>{title}</div>
@@ -337,7 +371,7 @@ export default function ProductDetailPage() {
             </div>
           )}
           <div style={{ fontSize: 13, color: '#888', background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
-            {lang === 'zh' ? '数字商品兑换成功后将在 24 小时内发放到账户。' : lang === 'th' ? 'สินค้าดิจิทัลจะถูกส่งไปยังบัญชีภายใน 24 ชั่วโมง' : 'Digital items will be delivered to your account within 24 hours.'}
+            {lang === 'zh' ? '确认兑换后积分立即扣除，数字商品即时到账。' : lang === 'th' ? 'หลังยืนยัน คะแนนจะถูกหักทันที สินค้าดิจิทัลส่งถึงบัญชีทันที' : 'Points will be deducted immediately and the digital item delivered instantly.'}
           </div>
         </div>
       </Modal>

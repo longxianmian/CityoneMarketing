@@ -1,0 +1,30 @@
+[
+  {
+    "id": "mr_1775575688493_5543f92d",
+    "user_id": "test_redeem_user",
+    "item_id": "mi_1775485551092_gdx7s",
+    "item_name": {
+      "zh": "深海塞尔高端耳机",
+      "th": "หูฟัง Deep Sea Sennheiser พรีเมียม",
+      "en": "Deep Sea Sennheiser Premium Earphones"
+    },
+    "points_spent": 1000,
+    "status": "success",
+    "ledger_id": "ledger_1775575688493_eb57cbc6",
+    "created_at": "2026-04-07T15:28:08.493Z"
+  },
+  {
+    "id": "mr_1775575859297_bd65fec6",
+    "user_id": "final_test_user",
+    "item_id": "mi_1775485551092_gdx7s",
+    "item_name": {
+      "zh": "深海塞尔高端耳机",
+      "th": "หูฟัง Deep Sea Sennheiser พรีเมียม",
+      "en": "Deep Sea Sennheiser Premium Earphones"
+    },
+    "points_spent": 1000,
+    "status": "success",
+    "ledger_id": "ledger_1775575859296_c18b8945",
+    "created_at": "2026-04-07T15:30:59.296Z"
+  }
+]
