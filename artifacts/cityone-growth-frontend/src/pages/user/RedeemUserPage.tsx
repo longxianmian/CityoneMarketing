@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card, Space, Tag, Spin, Modal } from 'antd'
-import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined, UserAddOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import request from '../../api/request'
+
+type RedeemStep = 'detail' | 'follow'
 
 const ITEM_TYPE_GRADIENT: Record<string, string> = {
   digital:  'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
@@ -19,7 +21,6 @@ function formatNow() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-// 多语字段 pick 工具（降级顺序：当前语言 → en → zh → th，与 pickLocalizedText 一致）
 function pickML(field: any, lang?: string): string {
   if (!field) return ''
   if (typeof field === 'string') return field
@@ -29,6 +30,7 @@ function pickML(field: any, lang?: string): string {
   }
   return ''
 }
+
 function pickStrings(field: any, lang?: string): string[] {
   if (!field) return []
   const l = lang || 'en'
@@ -46,7 +48,6 @@ function pickStrings(field: any, lang?: string): string[] {
 
 export default function RedeemUserPage() {
   const { id = '' } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { language } = useI18n()
 
@@ -54,8 +55,7 @@ export default function RedeemUserPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-
-  const followed = searchParams.get('followed') === '1'
+  const [step, setStep] = useState<RedeemStep>('detail')
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -68,12 +68,6 @@ export default function RedeemUserPage() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
   }, [id])
-
-  const handleFollowDone = () => {
-    const next = new URLSearchParams(searchParams)
-    next.set('followed', '1')
-    setSearchParams(next)
-  }
 
   const handleConfirmRedeem = () => {
     const spendPoints = item?.points_required || 0
@@ -96,6 +90,7 @@ export default function RedeemUserPage() {
 
   const labels = {
     backLabel:    language === 'zh' ? '返回' : language === 'th' ? 'กลับ' : 'Back',
+    backDetail:   language === 'zh' ? '返回商品详情' : language === 'th' ? 'กลับรายละเอียด' : 'Back to Item',
     pointsUnit:   language === 'zh' ? '积分' : language === 'th' ? 'คะแนน' : 'pts',
     thbLabel:     language === 'zh' ? '+ ฿' : language === 'th' ? '+ ฿' : '+ ฿',
     redeemBtn:    language === 'zh' ? '立即积分兑换' : language === 'th' ? 'แลกด้วยคะแนน' : 'Redeem with Points',
@@ -105,9 +100,10 @@ export default function RedeemUserPage() {
     rulesLabel:   language === 'zh' ? '兑换须知' : language === 'th' ? 'เงื่อนไข' : 'Terms',
     notFound:     language === 'zh' ? '商品不存在' : language === 'th' ? 'ไม่พบสินค้า' : 'Item not found',
     notFoundSub:  language === 'zh' ? '该商品可能已下架或链接有误' : language === 'th' ? 'สินค้าอาจถูกนำออกหรือลิงก์ผิด' : 'This item may be unavailable or the link is invalid',
-    followTitle:  language === 'zh' ? '需先关注 LINE OA' : language === 'th' ? 'ต้องติดตาม LINE OA ก่อน' : 'Follow LINE OA First',
-    followDesc:   language === 'zh' ? '请先关注 CityOne LINE OA，再点击继续兑换。' : language === 'th' ? 'กรุณาติดตาม CityOne LINE OA ก่อน แล้วกด "ติดตามแล้ว" เพื่อดำเนินการต่อ' : 'Please follow CityOne LINE OA first, then tap continue.',
-    followedBtn:  language === 'zh' ? '已关注，继续' : language === 'th' ? 'ติดตามแล้ว ดำเนินการต่อ' : 'Already Followed, Continue',
+    followTitle:  language === 'zh' ? '关注 LINE OA 即可兑换' : language === 'th' ? 'ติดตาม LINE OA เพื่อแลก' : 'Follow LINE OA to Redeem',
+    followDesc:   language === 'zh' ? '请先关注 CityOne LINE OA，完成关注后点击「已关注，继续兑换」即可继续。' : language === 'th' ? 'กรุณาติดตาม CityOne LINE OA ก่อน แล้วกด "ติดตามแล้ว ดำเนินการต่อ" เพื่อดำเนินการต่อ' : 'Please follow CityOne LINE OA first, then tap "Already Followed" to continue.',
+    followTag:    language === 'zh' ? '需关注 LINE OA' : language === 'th' ? 'ต้องติดตาม LINE OA' : 'LINE OA Follow Required',
+    followedBtn:  language === 'zh' ? '已关注，继续兑换' : language === 'th' ? 'ติดตามแล้ว ดำเนินการต่อ' : 'Already Followed, Continue',
     confirmTitle: language === 'zh' ? '确认积分兑换' : language === 'th' ? 'ยืนยันการแลกคะแนน' : 'Confirm Redemption',
     confirmOk:    language === 'zh' ? '确认兑换' : language === 'th' ? 'ยืนยัน' : 'Confirm',
     confirmCancel:language === 'zh' ? '取消' : language === 'th' ? 'ยกเลิก' : 'Cancel',
@@ -152,27 +148,42 @@ export default function RedeemUserPage() {
   const itemName = pickML(item.name, language) || ''
   const itemDesc = pickML(item.description, language) || ''
 
-  if (!followed) {
+  // ── Step: LINE OA Follow（兑换前验证粉丝身份）───────────────────────────────
+  if (step === 'follow') {
     return (
       <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
         <div style={{ maxWidth: 480, margin: '0 auto' }}>
-          <Button icon={<ArrowLeftOutlined />} style={{ marginBottom: 16 }} onClick={() => navigate('/welfare')}>
-            {labels.backLabel}
+          <Button
+            icon={<ArrowLeftOutlined />}
+            style={{ marginBottom: 16, paddingLeft: 0 }}
+            type="text"
+            onClick={() => setStep('detail')}
+          >
+            {labels.backDetail}
           </Button>
           <Card style={{ borderRadius: 16 }}>
             <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
               <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{itemName}</div>
-              <Tag color="blue" style={{ fontSize: 13, padding: '4px 10px' }}>
+              <Tag color="blue" style={{ fontSize: 13, padding: '4px 10px', marginBottom: 8 }}>
                 {pointsLabel}{priceLabel}
+              </Tag>
+              <br />
+              <Tag color="orange" style={{ fontSize: 13, padding: '4px 10px', marginTop: 4 }}>
+                {labels.followTag}
               </Tag>
             </div>
             <div style={{ marginTop: 20, padding: 18, borderRadius: 14, background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)', border: '1px solid #ffd591' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{labels.followTitle}</div>
-              <div style={{ color: '#555', lineHeight: 1.8 }}>{labels.followDesc}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <UserAddOutlined style={{ fontSize: 20, color: '#fa8c16' }} />
+                <span style={{ fontSize: 15, fontWeight: 700 }}>{labels.followTitle}</span>
+              </div>
+              <div style={{ color: '#555', lineHeight: 1.8, fontSize: 14 }}>{labels.followDesc}</div>
             </div>
             <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
-              <Button type="primary" size="large" block onClick={handleFollowDone}>{labels.followedBtn}</Button>
-              <Button size="large" block onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
+              <Button type="primary" size="large" block onClick={() => { setStep('detail'); setConfirmOpen(true) }}>
+                {labels.followedBtn}
+              </Button>
+              <Button size="large" block onClick={() => setStep('detail')}>{labels.backDetail}</Button>
             </Space>
           </Card>
         </div>
@@ -180,10 +191,10 @@ export default function RedeemUserPage() {
     )
   }
 
+  // ── Step: Detail（默认，浏览自由，无需任何条件）─────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
       <div style={{ maxWidth: 540, margin: '0 auto', paddingBottom: 32 }}>
-        {/* 封面 */}
         <div style={{ height: 280, ...coverBg, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 20 }}>
           <Button
             icon={<ArrowLeftOutlined />}
@@ -201,7 +212,6 @@ export default function RedeemUserPage() {
         </div>
 
         <div style={{ padding: 16 }}>
-          {/* 视频 */}
           {item.coverVideo ? (
             <Card style={{ marginBottom: 16, borderRadius: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>
@@ -211,7 +221,6 @@ export default function RedeemUserPage() {
             </Card>
           ) : null}
 
-          {/* 积分/价格 */}
           <Card style={{ marginBottom: 16, borderRadius: 16, background: 'linear-gradient(135deg, #f0f5ff 0%, #e6f4ff 100%)', border: '1px solid #adc6ff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 26, fontWeight: 800, color: '#1677ff' }}>{pointsLabel}</span>
@@ -220,7 +229,6 @@ export default function RedeemUserPage() {
             </div>
           </Card>
 
-          {/* 权益亮点 */}
           {highlights.length > 0 && (
             <Card style={{ marginBottom: 16, borderRadius: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>{labels.highlightsL}</div>
@@ -230,7 +238,6 @@ export default function RedeemUserPage() {
             </Card>
           )}
 
-          {/* 商品说明 */}
           {item.detailTitle || itemDesc ? (
             <Card style={{ marginBottom: 16, borderRadius: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>{labels.descLabel}</div>
@@ -238,7 +245,6 @@ export default function RedeemUserPage() {
             </Card>
           ) : null}
 
-          {/* 兑换须知 */}
           {rules.length > 0 && (
             <Card style={{ marginBottom: 20, borderRadius: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>{labels.rulesLabel}</div>
@@ -248,7 +254,6 @@ export default function RedeemUserPage() {
             </Card>
           )}
 
-          {/* 操作按钮 */}
           <Space direction="vertical" style={{ width: '100%' }}>
             <Button
               type="primary" size="large" block
@@ -259,17 +264,18 @@ export default function RedeemUserPage() {
                   Modal.info({ title: itemName, content: labels.physicalTip, okText: 'OK' })
                   return
                 }
-                setConfirmOpen(true)
+                setStep('follow')
               }}
             >
-              {item.item_type === 'physical' ? (language === 'zh' ? '实物商品，后续开放' : language === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon') : labels.redeemBtn}
+              {item.item_type === 'physical'
+                ? (language === 'zh' ? '实物商品，后续开放' : language === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon')
+                : labels.redeemBtn}
             </Button>
             <Button size="large" block onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
           </Space>
         </div>
       </div>
 
-      {/* 确认弹窗 */}
       <Modal
         title={labels.confirmTitle}
         open={confirmOpen}

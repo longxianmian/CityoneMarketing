@@ -347,7 +347,7 @@ export default function MinePage() {
       }
       setBenefitLoading(false)
     },
-    [lineUserId]
+    [effectiveUserId]
   )
 
   useEffect(() => {
@@ -359,7 +359,7 @@ export default function MinePage() {
       }
       loadBenefits(statusMap[couponSub])
     }
-  }, [mainTab, couponSub])
+  }, [mainTab, couponSub, loadBenefits])
 
   // ── 阶段三：加载订单记录（当前返回空列表+说明） ──────────────────────────
   const loadOrders = useCallback(async () => {

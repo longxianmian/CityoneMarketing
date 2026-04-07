@@ -14,5 +14,13 @@
     "line_user_id": "dev_1q175hnsmnmtn22u",
     "points_awarded": 50,
     "joined_at": "2026-04-06T15:53:37.779Z"
+  },
+  {
+    "id": "part_1775527907956_17fbdd2a",
+    "activity_id": "act_001",
+    "user_id": "dev_act_test_1775527907",
+    "line_user_id": "dev_act_test_1775527907",
+    "points_awarded": 50,
+    "joined_at": "2026-04-07T02:11:47.956Z"
   }
 ]

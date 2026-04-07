@@ -89,13 +89,7 @@ export default function ActivityDetailPage() {
   }[language]
 
   const handleAction = () => {
-    if (isInteractive && typeInfo.route) {
-      nav(`${typeInfo.route}${id}`)
-    } else if (requireOAFollow) {
-      setStep('follow')
-    } else {
-      doParticipate()
-    }
+    setStep('follow')
   }
 
   const doParticipate = async () => {
@@ -119,7 +113,11 @@ export default function ActivityDetailPage() {
   }
 
   const handleFollowDone = () => {
-    doParticipate()
+    if (isInteractive && typeInfo.route) {
+      nav(`${typeInfo.route}${id}`)
+    } else {
+      doParticipate()
+    }
   }
 
   // ── 关注 LINE OA 步骤 ─────────────────────────────────────────────────────
