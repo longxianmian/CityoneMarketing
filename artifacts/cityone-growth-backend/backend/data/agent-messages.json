@@ -4900,5 +4900,83 @@
     },
     "intent_code": "growth_saving_intent",
     "created_at": "2026-04-06T06:28:09.700Z"
+  },
+  {
+    "message_id": "am_00253",
+    "session_id": "as_00083",
+    "role": "agent",
+    "type": "welcome",
+    "text": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+    "payload": {
+      "reply_type": "welcome",
+      "text": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "intent_code": "session_init",
+    "created_at": "2026-04-07T14:25:28.227Z"
+  },
+  {
+    "message_id": "am_00254",
+    "session_id": "as_00083",
+    "role": "user",
+    "type": "text",
+    "text": "你好，怎么借充电宝？",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T14:25:35.160Z"
+  },
+  {
+    "message_id": "am_00255",
+    "session_id": "as_00083",
+    "role": "user",
+    "type": "text",
+    "text": "你好，怎么借充电宝？",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-07T14:26:05.025Z"
+  },
+  {
+    "message_id": "am_00256",
+    "session_id": "as_00083",
+    "role": "agent",
+    "type": "info_reply",
+    "text": "我是小城。借充电宝：现场扫码或打开小程序→点击借出→取出使用；用后在任一 CityOne 站点扫码归还。需要我帮你找附近站点吗？",
+    "payload": {
+      "reply_type": "info_reply",
+      "text": "我是小城。借充电宝：现场扫码或打开小程序→点击借出→取出使用；用后在任一 CityOne 站点扫码归还。需要我帮你找附近站点吗？",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "borrow_help",
+    "created_at": "2026-04-07T14:26:05.927Z"
+  },
+  {
+    "message_id": "am_00257",
+    "session_id": "as_00083",
+    "role": "agent",
+    "type": "info_reply",
+    "text": "我是小城，借充电宝很简单：打开CityOne小程序/APP→扫码取宝→支付并确认→取走即可。",
+    "payload": {
+      "reply_type": "info_reply",
+      "text": "我是小城，借充电宝很简单：打开CityOne小程序/APP→扫码取宝→支付并确认→取走即可。",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "borrow_help",
+    "created_at": "2026-04-07T14:26:25.370Z"
   }
 ]

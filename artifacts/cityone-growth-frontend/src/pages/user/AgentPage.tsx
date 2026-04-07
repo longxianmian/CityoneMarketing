@@ -29,14 +29,16 @@ const ACTIONS: Record<string, { zh: string; th: string; en: string; icon: string
 }
 
 const TIER_LABELS: Record<string, Record<string, string>> = {
-  guest:  { zh: '访客', th: 'ผู้เยี่ยมชม', en: 'Guest' },
-  fan:    { zh: 'OA 粉丝', th: 'แฟน OA', en: 'OA Fan' },
-  user:   { zh: '已认证用户', th: 'ผู้ใช้', en: 'User' },
-  member: { zh: '会员', th: 'สมาชิก', en: 'Member' },
+  guest:            { zh: '访客', th: 'ผู้เยี่ยมชม', en: 'Guest' },
+  guest_unfollowed: { zh: '访客', th: 'ผู้เยี่ยมชม', en: 'Guest' },
+  fan:              { zh: 'OA 粉丝', th: 'แฟน OA', en: 'OA Fan' },
+  user:             { zh: '已认证用户', th: 'ผู้ใช้', en: 'User' },
+  member:           { zh: '会员', th: 'สมาชิก', en: 'Member' },
 }
 
 const TIER_COLORS: Record<string, string> = {
-  guest: '#A0A7B3', fan: '#2CDBCE', user: '#2F80FF', member: '#7B61FF',
+  guest: '#A0A7B3', guest_unfollowed: '#A0A7B3',
+  fan: '#2CDBCE', user: '#2F80FF', member: '#7B61FF',
 }
 
 const LOCKED_CAP: Record<string, string> = {

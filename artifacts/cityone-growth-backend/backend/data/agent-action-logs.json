@@ -1374,5 +1374,37 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-06T06:28:09.703Z"
+  },
+  {
+    "log_id": "al_00087",
+    "session_id": "as_00083",
+    "message_id": "am_00254",
+    "line_user_id": "",
+    "user_id": "",
+    "identity_tier": "guest_unfollowed",
+    "input_text": "你好，怎么借充电宝？",
+    "intent_code": "borrow_help",
+    "intent_confidence": 0.8,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-07T14:26:05.937Z"
+  },
+  {
+    "log_id": "al_00088",
+    "session_id": "as_00083",
+    "message_id": "am_00255",
+    "line_user_id": "",
+    "user_id": "",
+    "identity_tier": "guest_unfollowed",
+    "input_text": "你好，怎么借充电宝？",
+    "intent_code": "borrow_help",
+    "intent_confidence": 0.8,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-07T14:26:25.390Z"
   }
 ]

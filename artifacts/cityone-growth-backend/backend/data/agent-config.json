@@ -1,9 +1,9 @@
 {
   "enabled": true,
   "welcome_messages": {
-    "zh": "你好，我是 CityOne AI 助理，有什么我可以帮你的吗？",
-    "th": "สวัสดี ฉันคือ CityOne AI Assistant มีอะไรให้ช่วยไหม?",
-    "en": "Hi, I'm CityOne AI Assistant. How can I help you today?"
+    "zh": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+    "th": "สวัสดี! ฉันคือ小城 👋 มีอะไรให้ช่วยไหม? พิมพ์ถามได้เลย หรือเลือกคำถามด้านล่าง",
+    "en": "Hi! I'm Xiao Cheng 👋 How can I help you? Ask me anything or pick a question below."
   },
   "identity_rules": {
     "guest_unfollowed": [
