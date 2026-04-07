@@ -98,12 +98,17 @@ function WaterfallCard({
   const ptLabel = lang === 'zh' ? '积分' : lang === 'th' ? 'คะแนน' : 'pts'
 
   return (
-    /* break-inside: avoid 防止 CSS columns 把卡片切断跨列 */
+    /* break-inside: avoid 防止 CSS columns 把卡片切断跨列
+       总高 = 2 × 56.25% = 112.5% 宽度
+       图片占上半（16:9）= 文字占下半，两区等高，卡片不会太矮 */
     <div
       onClick={onClick}
       style={{
         breakInside: 'avoid',
         marginBottom: 6,
+        position: 'relative',
+        width: '100%',
+        paddingTop: '112.5%',
         borderRadius: 20,
         overflow: 'hidden',
         background: '#fff',
@@ -112,84 +117,105 @@ function WaterfallCard({
         border: '1px solid rgba(15, 23, 42, 0.04)',
       }}
     >
-      {/* 图片区 — 固定 16:9 宽高比，paddingTop trick 兼容 iOS Safari */}
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          paddingTop: '56.25%', /* 16:9 */
-          ...coverBgStyle(cover),
-        }}
-      >
-        {badge ? (
-          <Tag
-            style={{
-              position: 'absolute',
-              top: 10,
-              left: 10,
-              margin: 0,
-              borderRadius: 999,
-              paddingInline: 9,
-              paddingBlock: 3,
-              border: 'none',
-              fontWeight: 700,
-              fontSize: 11,
-              background: 'rgba(255,255,255,0.92)',
-              color: '#111827',
-              lineHeight: 1.6,
-            }}
-          >
-            {badge}
-          </Tag>
-        ) : null}
-      </div>
+      {/* 绝对定位内容层 */}
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
 
-      {/* 信息区 — 自然高度，不再固定比例 */}
-      <div
-        style={{
-          padding: '10px 12px 12px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 4,
-        }}
-      >
-        {/* 标题 */}
+        {/* 图片区 — 占上半 50%（等于卡片宽 × 56.25% = 16:9） */}
         <div
           style={{
-            fontSize: 13,
-            fontWeight: 800,
-            lineHeight: 1.35,
-            color: '#111827',
-            overflow: 'hidden',
-            display: '-webkit-box',
-            WebkitLineClamp: isProduct ? 1 : 2,
-            WebkitBoxOrient: 'vertical',
+            flex: '0 0 50%',
+            ...coverBgStyle(cover),
+            position: 'relative',
           }}
         >
-          {title}
+          {badge ? (
+            <Tag
+              style={{
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                margin: 0,
+                borderRadius: 999,
+                paddingInline: 9,
+                paddingBlock: 3,
+                border: 'none',
+                fontWeight: 700,
+                fontSize: 11,
+                background: 'rgba(255,255,255,0.92)',
+                color: '#111827',
+                lineHeight: 1.6,
+              }}
+            >
+              {badge}
+            </Tag>
+          ) : null}
         </div>
 
-        {/* 底部信息行 */}
-        {isProduct ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* 价格 + 积分 */}
+        {/* 信息区 — 占下半 50%（与图片区等高） */}
+        <div
+          style={{
+            flex: '0 0 50%',
+            padding: '10px 12px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {/* 标题 */}
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 800,
+              lineHeight: 1.35,
+              color: '#111827',
+              overflow: 'hidden',
+              display: '-webkit-box',
+              WebkitLineClamp: isProduct ? 2 : 3,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
+            {title}
+          </div>
+
+          {/* 底部信息行 */}
+          {isProduct ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* 价格 + 积分 */}
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: footerTone !== '#667085' ? footerTone : '#7B61FF',
+                  lineHeight: 1.3,
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {price ? `${price}${points !== undefined ? ` · ${points} ${ptLabel}` : ''}` : points !== undefined ? `${points} ${ptLabel}` : ''}
+              </div>
+              {/* 热度 */}
+              <div
+                style={{
+                  fontSize: 11,
+                  color: '#9CA3AF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  lineHeight: 1.3,
+                }}
+              >
+                <EyeOutlined style={{ fontSize: 10 }} />
+                {viewsLabel}
+              </div>
+            </div>
+          ) : (
+            /* 活动 / 站点：只显示热度 */
             <div
               style={{
                 fontSize: 12,
-                fontWeight: 700,
-                color: footerTone !== '#667085' ? footerTone : '#7B61FF',
-                lineHeight: 1.3,
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {price ? `${price}${points !== undefined ? ` · ${points} ${ptLabel}` : ''}` : points !== undefined ? `${points} ${ptLabel}` : ''}
-            </div>
-            {/* 热度 */}
-            <div
-              style={{
-                fontSize: 11,
                 color: '#9CA3AF',
                 display: 'flex',
                 alignItems: 'center',
@@ -197,26 +223,11 @@ function WaterfallCard({
                 lineHeight: 1.3,
               }}
             >
-              <EyeOutlined style={{ fontSize: 10 }} />
+              <FireOutlined style={{ fontSize: 11, color: '#F59E0B' }} />
               {viewsLabel}
             </div>
-          </div>
-        ) : (
-          /* 活动 / 站点：只显示热度 */
-          <div
-            style={{
-              fontSize: 12,
-              color: '#9CA3AF',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 3,
-              lineHeight: 1.3,
-            }}
-          >
-            <FireOutlined style={{ fontSize: 11, color: '#F59E0B' }} />
-            {viewsLabel}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
