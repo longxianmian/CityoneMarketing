@@ -120,10 +120,10 @@ function WaterfallCard({
       {/* 绝对定位内容层 */}
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
 
-        {/* 图片区 — 占上半 50%（等于卡片宽 × 56.25% = 16:9） */}
+        {/* 图片区 — 占 55%（视觉上图片更突出） */}
         <div
           style={{
-            flex: '0 0 50%',
+            flex: '0 0 55%',
             ...coverBgStyle(cover),
             position: 'relative',
           }}
@@ -151,10 +151,10 @@ function WaterfallCard({
           ) : null}
         </div>
 
-        {/* 信息区 — 占下半 50%（与图片区等高） */}
+        {/* 信息区 — 占 45% */}
         <div
           style={{
-            flex: '0 0 50%',
+            flex: '0 0 45%',
             padding: '10px 12px 12px',
             display: 'flex',
             flexDirection: 'column',
