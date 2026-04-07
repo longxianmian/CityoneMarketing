@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+
 import { Card, Tag, Badge, Avatar, Spin, Empty, Modal } from 'antd'
 import {
   CreditCardOutlined,
@@ -24,6 +25,18 @@ import {
   getUserOrders,
 } from '../../api/growth'
 import { getDeviceUserId } from '../../utils/deviceUserId'
+
+// 将 UTC 时间戳转换为曼谷时间（UTC+7）显示
+function fmtBKK(iso?: string | null): string {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleString('zh-CN', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).replace(/\//g, '-')
+  } catch { return iso.slice(0, 16).replace('T', ' ') }
+}
 
 type AppLang = AppLanguage
 type LocalizedField = Partial<Record<AppLang, string>>
@@ -772,7 +785,7 @@ export default function MinePage() {
                           )}
                           <div style={{ color: '#A0A7B3', fontSize: 12 }}>
                             {item.created_at
-                              ? item.created_at.slice(0, 16).replace('T', ' ')
+                              ? fmtBKK(item.created_at)
                               : '--'}
                           </div>
                         </div>
@@ -832,9 +845,9 @@ export default function MinePage() {
                         )}
                         <div style={{ color: '#A0A7B3', fontSize: 12 }}>
                           {item.expire_at
-                            ? `${t('mine.expireAtPrefix')}${item.expire_at.slice(0, 10)}`
+                            ? `${t('mine.expireAtPrefix')}${fmtBKK(item.expire_at).slice(0, 10)}`
                             : item.issued_at
-                            ? `${t('mine.issuedAtPrefix')}${item.issued_at.slice(0, 10)}`
+                            ? `${t('mine.issuedAtPrefix')}${fmtBKK(item.issued_at).slice(0, 10)}`
                             : ''}
                         </div>
                       </div>
@@ -971,7 +984,7 @@ export default function MinePage() {
                               </div>
                               <div style={{ color: '#A0A7B3', fontSize: 12 }}>
                                 {rec.created_at
-                                  ? rec.created_at.slice(0, 16).replace('T', ' ')
+                                  ? fmtBKK(rec.created_at)
                                   : '--'}
                               </div>
                             </div>
@@ -1017,7 +1030,7 @@ export default function MinePage() {
                             </div>
                             <div style={{ color: '#A0A7B3', fontSize: 12 }}>
                               {rec.created_at
-                                ? rec.created_at.slice(0, 16).replace('T', ' ')
+                                ? fmtBKK(rec.created_at)
                                 : '--'}
                             </div>
                           </div>
@@ -1112,7 +1125,7 @@ export default function MinePage() {
                         </div>
                       </div>
                       <div style={{ fontSize: 12, color: '#A0A7B3', marginTop: 6 }}>
-                        {order.order_id || ''} · {order.created_at?.slice(0, 16).replace('T', ' ') || ''}
+                        {order.order_id || ''} · {fmtBKK(order.created_at) || ''}
                       </div>
                     </div>
                   ))

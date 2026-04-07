@@ -88,5 +88,15 @@
     "consumed_points": 0,
     "revoked_points": 0,
     "updated_at": "2026-04-07T02:11:47.956Z"
+  },
+  {
+    "user_id": "dev_0feu9a8zmnohy42q",
+    "line_user_id": "dev_0feu9a8zmnohy42q",
+    "total_points": 0,
+    "available_points": 0,
+    "pending_points": 0,
+    "consumed_points": 0,
+    "revoked_points": 0,
+    "updated_at": "2026-04-07T10:48:57.467Z"
   }
 ]
