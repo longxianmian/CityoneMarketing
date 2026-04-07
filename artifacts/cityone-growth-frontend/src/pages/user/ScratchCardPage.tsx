@@ -269,13 +269,37 @@ export default function ScratchCardPage() {
         </button>
       )}
 
-      {revealed && !resultVisible && (
-        <button
-          onClick={() => setResultVisible(true)}
-          style={{ marginTop: 12, padding: '12px 40px', background: '#1677ff', border: 'none', borderRadius: 50, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
-        >
-          {ui.viewResult}
-        </button>
+      {/* 刮开后：API 还未返回 → 显示"查看结果"按钮 */}
+      {revealed && !result && !resultVisible && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 20, width: '100%', maxWidth: 320, padding: '0 16px' }}>
+          <button
+            onClick={() => setResultVisible(true)}
+            style={{ width: '100%', padding: '14px 0', background: 'linear-gradient(135deg, #fa8c16, #ffc53d)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(250,140,22,0.35)' }}
+          >
+            {ui.viewResult}
+          </button>
+        </div>
+      )}
+
+      {/* 结果弹窗关闭后 → 显示"再来一次"或"算了" */}
+      {revealed && result && !resultVisible && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 8, width: '100%', maxWidth: 320, padding: '0 16px' }}>
+          {(chances !== null && chances > 0) && (
+            <button
+              onClick={() => { setRevealed(false); setScratchStarted(false); setResult(null); setScratchPercent(0); initCanvas() }}
+              style={{ width: '100%', padding: '14px 0', background: 'linear-gradient(135deg, #fa8c16, #ffc53d)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(250,140,22,0.35)' }}
+            >
+              🎴 {ui.scratchAgain}
+              {chances !== null && <span style={{ fontSize: 13, opacity: 0.85, marginLeft: 6 }}>（{lang === 'zh' ? `还剩 ${chances} 次` : lang === 'th' ? `เหลือ ${chances} ครั้ง` : `${chances} left`}）</span>}
+            </button>
+          )}
+          <button
+            onClick={() => nav(`/activity/${id}`)}
+            style={{ width: '100%', padding: '12px 0', background: 'rgba(0,0,0,0.05)', border: '1px solid #e0e0e0', borderRadius: 50, color: '#666', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+          >
+            {lang === 'zh' ? '算了，下次再来' : lang === 'th' ? 'ไว้คราวหน้า' : 'Maybe Next Time'}
+          </button>
+        </div>
       )}
 
       {resultVisible && (
@@ -300,11 +324,13 @@ export default function ScratchCardPage() {
             <button
               onClick={() => {
                 setResultVisible(false)
-                if (!isNoChance) { setRevealed(false); setScratchStarted(false); initCanvas() }
+                if (!isNoChance) { setRevealed(false); setScratchStarted(false); setResult(null); setScratchPercent(0); initCanvas() }
               }}
               style={{ width: '100%', marginTop: 10, padding: '10px 0', background: 'none', border: 'none', color: '#999', fontSize: 14, cursor: 'pointer' }}
             >
-              {isNoChance ? ui.close : ui.scratchAgain}
+              {isNoChance
+                ? (lang === 'zh' ? '关闭' : lang === 'th' ? 'ปิด' : 'Close')
+                : `🎴 ${ui.scratchAgain}（${lang === 'zh' ? `还剩 ${chances} 次` : lang === 'th' ? `เหลือ ${chances} ครั้ง` : `${chances} left`}）`}
             </button>
           </div>
         </div>

@@ -278,5 +278,15 @@
     "remaining_count": 1,
     "grant_source": "auto_first",
     "updated_at": "2026-04-07T10:05:21.941Z"
+  },
+  {
+    "chance_id": "ch_029",
+    "activity_id": "act_003",
+    "line_user_id": "dev_2ez8pzkrmnogkqw6",
+    "granted_count": 1,
+    "used_count": 0,
+    "remaining_count": 1,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-07T10:10:33.896Z"
   }
 ]
