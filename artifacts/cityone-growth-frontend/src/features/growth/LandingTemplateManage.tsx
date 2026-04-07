@@ -39,6 +39,7 @@ export default function LandingTemplateManage() {
   const [formVisible, setFormVisible] = useState(false)
   const [isEdit, setIsEdit] = useState(false)
   const [editingId, setEditingId] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
   const [coverImage, setCoverImage] = useState('')
 
@@ -82,9 +83,15 @@ export default function LandingTemplateManage() {
   }
 
   const handleOk = async () => {
+    let values: any
     try {
-      const values = await form.validateFields()
+      values = await form.validateFields()
+    } catch {
+      return
+    }
 
+    setSaving(true)
+    try {
       const langs = ['zh', 'th', 'en']
       const sourceLang = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
       const textsToTranslate: Record<string, string> = {}
@@ -96,9 +103,8 @@ export default function LandingTemplateManage() {
       })
 
       if (Object.keys(textsToTranslate).length > 0) {
-        const hide = message.loading(t('adminTemplate.common.translating'), 0)
         try {
-          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang })
+          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 8000, silentError: true } as any)
           const result = res.data?.result ?? {}
           const patch: any = {}
           Object.entries(result).forEach(([key, translated]) => {
@@ -107,11 +113,8 @@ export default function LandingTemplateManage() {
             values[key] = patch[key]
           })
           form.setFieldsValue(patch)
-          hide()
-          message.success(t('adminTemplate.common.translateDone'))
         } catch {
-          hide()
-          message.warning(t('adminTemplate.common.translateFail'))
+          // 翻译失败静默降级，继续保存
         }
       }
 
@@ -123,8 +126,13 @@ export default function LandingTemplateManage() {
         await request.post('/landing-templates', payload)
         message.success(t('adminTemplate.common.createSuccess'))
       }
-      setFormVisible(false); fetchData()
-    } catch {}
+      setFormVisible(false)
+      fetchData()
+    } catch (err: any) {
+      message.error(err?.message || '保存失败，请重试')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleAutoTranslate = () => {
@@ -189,7 +197,8 @@ export default function LandingTemplateManage() {
         title={isEdit ? t('adminTemplate.landing.modalEdit') : t('adminTemplate.landing.modalNew')}
         open={formVisible}
         onOk={handleOk}
-        onCancel={() => setFormVisible(false)}
+        onCancel={() => { if (!saving) setFormVisible(false) }}
+        confirmLoading={saving}
         width={720}
         destroyOnHidden
       >

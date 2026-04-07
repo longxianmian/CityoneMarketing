@@ -51,7 +51,9 @@ request.interceptors.response.use(
       removeToken()
       window.location.href = '/admin/login'
     }
-    message.error(err.message || '网络错误')
+    if (!(err.config as any)?.silentError) {
+      message.error(err.message || '网络错误')
+    }
     return Promise.reject(err)
   }
 )

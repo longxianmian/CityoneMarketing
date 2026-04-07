@@ -96,13 +96,13 @@
       "th": "",
       "en": ""
     },
-    "coverImage": "",
+    "coverImage": "/uploads/1775564999522_4f6b504333b5.png",
     "autoAction": "open_welfare",
     "targetActivityId": "",
     "targetProductId": "",
     "enabled": true,
     "createdAt": "2026-04-07T12:24:29.426Z",
-    "updatedAt": "2026-04-07T12:24:29.426Z"
+    "updatedAt": "2026-04-07T12:30:27.681Z"
   },
   {
     "id": "lt_002",
@@ -140,5 +140,79 @@
     "enabled": true,
     "createdAt": "2026-04-07T12:24:34.421Z",
     "updatedAt": "2026-04-07T12:24:34.421Z"
+  },
+  {
+    "id": "lt_003",
+    "name": "TikTok站点投放共享充电宝来啦",
+    "templateType": "video_ad",
+    "title": {
+      "zh": "免费体验使用共享充电宝充电！",
+      "th": "",
+      "en": ""
+    },
+    "subTitle": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "benefitText": {
+      "zh": "出门不用自带沉甸甸的充电宝了！",
+      "th": "",
+      "en": ""
+    },
+    "supportText": {
+      "zh": "快来领取，免费充电！",
+      "th": "",
+      "en": ""
+    },
+    "buttonText": {
+      "zh": "理解领取免费充电体验券",
+      "th": "",
+      "en": ""
+    },
+    "coverImage": "/uploads/1775564288648_8da70d53d630.png",
+    "autoAction": "open_welfare",
+    "targetActivityId": "",
+    "targetProductId": "",
+    "enabled": true,
+    "createdAt": "2026-04-07T12:29:14.512Z",
+    "updatedAt": "2026-04-07T12:29:14.512Z"
+  },
+  {
+    "id": "lt_004",
+    "name": "TikTok站点投放共享充电宝来啦",
+    "templateType": "video_ad",
+    "title": {
+      "zh": "免费体验使用共享充电宝充电！",
+      "th": "",
+      "en": ""
+    },
+    "subTitle": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "benefitText": {
+      "zh": "出门不用自带沉甸甸的充电宝了！",
+      "th": "",
+      "en": ""
+    },
+    "supportText": {
+      "zh": "快来领取，免费充电！",
+      "th": "",
+      "en": ""
+    },
+    "buttonText": {
+      "zh": "理解领取免费充电体验券",
+      "th": "",
+      "en": ""
+    },
+    "coverImage": "/uploads/1775564288648_8da70d53d630.png",
+    "autoAction": "open_welfare",
+    "targetActivityId": "",
+    "targetProductId": "",
+    "enabled": true,
+    "createdAt": "2026-04-07T12:29:16.250Z",
+    "updatedAt": "2026-04-07T12:29:16.250Z"
   }
 ]
