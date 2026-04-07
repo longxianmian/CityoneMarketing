@@ -1,66 +1,51 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Spin } from 'antd'
-import { ArrowLeftOutlined, TrophyOutlined, EnvironmentOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
 import { getDeviceUserId } from '../../utils/deviceUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
-const UI = {
+const T = {
   zh: {
     defaultTitle: '刮刮卡',
     remainChances: (n: number) => `剩余次数：${n} 次`,
-    scratchHint: '✦ 刮开查看结果 ✦',
-    noChance: '次数已用完',
-    revealed: '已刮开',
-    scratchGuide: (pct: number) => `用手指刮开涂层查看结果${pct > 0 ? `（${pct}%）` : ''}`,
-    startScratch: '开始刮卡',
-    viewResult: '查看结果',
+    scratchHint: '✦ 用手指刮开涂层 ✦',
+    noChanceBadge: '次数已用完',
+    consolation: '还差一点点，再来一次！',
+    winLabel: '中奖啦！',
     prizeArrived: '奖励已到账',
-    noWin: '很遗憾，未中奖',
-    win: '中奖啦！',
-    lose: '未中奖',
-    myBenefits: '我的奖品',
-    nearbyStation: '附近站点',
-    close: '关闭',
-    scratchAgain: '再刮一张',
+    claimNow: '立即领取',
+    scratchAgain: (n: number) => `再来一次（还剩 ${n} 次）`,
+    nextTime: '下次再来',
+    loading: '正在揭晓...',
   },
   th: {
     defaultTitle: 'สแครตการ์ด',
     remainChances: (n: number) => `เหลือ ${n} ครั้ง`,
-    scratchHint: '✦ ขูดเพื่อดูผล ✦',
-    noChance: 'หมดสิทธิ์แล้ว',
-    revealed: 'ขูดแล้ว',
-    scratchGuide: (pct: number) => `ใช้นิ้วขูดเพื่อดูผล${pct > 0 ? ` (${pct}%)` : ''}`,
-    startScratch: 'เริ่มขูด',
-    viewResult: 'ดูผล',
+    scratchHint: '✦ ขูดด้วยนิ้วของคุณ ✦',
+    noChanceBadge: 'หมดสิทธิ์',
+    consolation: 'เกือบได้แล้ว ลองอีกครั้ง!',
+    winLabel: 'ยินดีด้วย ได้รางวัล!',
     prizeArrived: 'ได้รับรางวัลแล้ว',
-    noWin: 'เสียใจด้วย ไม่ถูกรางวัล',
-    win: 'ยินดีด้วย ได้รางวัล!',
-    lose: 'ไม่ถูกรางวัล',
-    myBenefits: 'รางวัลของฉัน',
-    nearbyStation: 'สถานีใกล้เคียง',
-    close: 'ปิด',
-    scratchAgain: 'ขูดอีกใบ',
+    claimNow: 'รับรางวัล',
+    scratchAgain: (n: number) => `ขูดอีกครั้ง (เหลือ ${n} ครั้ง)`,
+    nextTime: 'ไว้คราวหน้า',
+    loading: 'กำลังเปิดเผย...',
   },
   en: {
     defaultTitle: 'Scratch Card',
     remainChances: (n: number) => `${n} chance${n !== 1 ? 's' : ''} left`,
-    scratchHint: '✦ Scratch to reveal ✦',
-    noChance: 'No chances left',
-    revealed: 'Revealed',
-    scratchGuide: (pct: number) => `Scratch the card to reveal your prize${pct > 0 ? ` (${pct}%)` : ''}`,
-    startScratch: 'Start Scratching',
-    viewResult: 'View Result',
-    prizeArrived: 'Prize credited',
-    noWin: 'Better luck next time',
-    win: 'You won!',
-    lose: 'No prize',
-    myBenefits: 'My Prizes',
-    nearbyStation: 'Nearby Stations',
-    close: 'Close',
-    scratchAgain: 'Scratch Again',
+    scratchHint: '✦ Scratch with your finger ✦',
+    noChanceBadge: 'No chances left',
+    consolation: 'So close! Try again!',
+    winLabel: 'You Won!',
+    prizeArrived: 'Prize credited to your account',
+    claimNow: 'Claim Now',
+    scratchAgain: (n: number) => `Try Again (${n} left)`,
+    nextTime: 'Maybe Next Time',
+    loading: 'Revealing...',
   },
 }
 
@@ -69,18 +54,18 @@ export default function ScratchCardPage() {
   const nav = useNavigate()
   const { language } = useI18n()
   const lang = language as AppLanguage
-  const ui = UI[lang] || UI.en
+  const ui = T[lang] || T.en
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const isDrawing = useRef(false)
+  const hasRevealed = useRef(false)
+
   const [activity, setActivity] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [chances, setChances] = useState<number | null>(null)
   const [result, setResult] = useState<any>(null)
   const [revealed, setRevealed] = useState(false)
-  const [resultVisible, setResultVisible] = useState(false)
-  const [scratchStarted, setScratchStarted] = useState(false)
-  const [scratchPercent, setScratchPercent] = useState(0)
-  const isDrawing = useRef(false)
-  const sessionId = useRef<string>('')
+  const [revealing, setRevealing] = useState(false)
+  const [scratchPct, setScratchPct] = useState(0)
 
   const pick = (field: any): string => {
     if (!field) return ''
@@ -92,15 +77,16 @@ export default function ScratchCardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const actRes = await fetch(`${API_BASE}/api/activities/${id}`)
+        const [actRes, startRes] = await Promise.all([
+          fetch(`${API_BASE}/api/activities/${id}`),
+          fetch(`${API_BASE}/api/activity/scratch/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+          }),
+        ])
         const actJson = await actRes.json()
         setActivity(actJson.data || actJson)
-
-        const startRes = await fetch(`${API_BASE}/api/activity/scratch/start`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
-        })
         const startJson = await startRes.json()
         if (startJson.data?.remaining_chances !== undefined) {
           setChances(startJson.data.remaining_chances)
@@ -118,44 +104,34 @@ export default function ScratchCardPage() {
     if (!ctx) return
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
-    grad.addColorStop(0, '#c0c0c0')
-    grad.addColorStop(1, '#a0a0a0')
+    grad.addColorStop(0, '#c8c8c8')
+    grad.addColorStop(1, '#a8a8a8')
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.font = 'bold 18px sans-serif'
-    ctx.fillStyle = 'rgba(255,255,255,0.6)'
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'
     ctx.textAlign = 'center'
     ctx.fillText(ui.scratchHint, canvas.width / 2, canvas.height / 2)
-    setScratchPercent(0)
+    setScratchPct(0)
+    hasRevealed.current = false
   }
 
   useEffect(() => {
-    if (!loading) setTimeout(initCanvas, 100)
-  }, [loading, ui.scratchHint])
-
-  const startScratch = () => {
-    if (scratchStarted || revealed || (chances !== null && chances <= 0)) return
-    setScratchStarted(true)
-  }
+    if (!loading) setTimeout(initCanvas, 80)
+  }, [loading])
 
   const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
+    const sx = canvas.width / rect.width
+    const sy = canvas.height / rect.height
     if ('touches' in e) {
-      return {
-        x: (e.touches[0].clientX - rect.left) * scaleX,
-        y: (e.touches[0].clientY - rect.top) * scaleY,
-      }
+      return { x: (e.touches[0].clientX - rect.left) * sx, y: (e.touches[0].clientY - rect.top) * sy }
     }
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-    }
+    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy }
   }
 
-  const scratch = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawing.current || revealed) return
+  const eraseAt = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing.current || revealed || revealing) return
     e.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
@@ -164,26 +140,27 @@ export default function ScratchCardPage() {
     const { x, y } = getPos(e, canvas)
     ctx.globalCompositeOperation = 'destination-out'
     ctx.beginPath()
-    ctx.arc(x, y, 24, 0, 2 * Math.PI)
+    ctx.arc(x, y, 26, 0, 2 * Math.PI)
     ctx.fill()
 
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
     let transparent = 0
-    for (let i = 3; i < imageData.data.length; i += 4) {
-      if (imageData.data[i] === 0) transparent++
-    }
+    for (let i = 3; i < data.length; i += 4) if (data[i] === 0) transparent++
     const pct = Math.round((transparent / (canvas.width * canvas.height)) * 100)
-    setScratchPercent(pct)
-    if (pct >= 60 && !revealed) revealResult()
+    setScratchPct(pct)
+
+    if (pct >= 60 && !hasRevealed.current) {
+      hasRevealed.current = true
+      doReveal(canvas)
+    }
   }
 
-  const revealResult = async () => {
+  const doReveal = async (canvas: HTMLCanvasElement) => {
+    setRevealing(true)
+    // 立即清除剩余遮罩
+    const ctx = canvas.getContext('2d')
+    if (ctx) { ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(0, 0, canvas.width, canvas.height) }
     setRevealed(true)
-    const canvas = canvasRef.current
-    if (canvas) {
-      const ctx = canvas.getContext('2d')
-      if (ctx) { ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(0, 0, canvas.width, canvas.height) }
-    }
     try {
       const res = await fetch(`${API_BASE}/api/activity/scratch/reveal`, {
         method: 'POST',
@@ -193,150 +170,148 @@ export default function ScratchCardPage() {
       const json = await res.json()
       if (json.code === 200) {
         setResult(json.data || {})
-        if (chances !== null) setChances(c => Math.max(0, (c ?? 1) - 1))
+        setChances(c => Math.max(0, (c ?? 1) - 1))
       } else {
         setResult({ _error: json.msg })
       }
-      setTimeout(() => setResultVisible(true), 400)
     } catch {
       setResult({})
-      setTimeout(() => setResultVisible(true), 400)
+    } finally {
+      setRevealing(false)
     }
   }
 
+  const resetForNext = () => {
+    setRevealed(false)
+    setRevealing(false)
+    setResult(null)
+    setTimeout(initCanvas, 50)
+  }
+
   if (loading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#fff5f5' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'linear-gradient(160deg, #fff1e6 0%, #ffe0cc 100%)' }}>
       <Spin size="large" />
     </div>
   )
 
-  const isNoChance = chances !== null && chances <= 0
+  const noChance = chances !== null && chances <= 0
   const isWin = result && !result._error && !result.is_thanks
-  const prizeText = result?.prize?.prize_name || (isWin ? ui.prizeArrived : ui.noWin)
-
-  const pageTitle = pick(activity?.activity_name) || pick(activity?.activity_title) || pick(activity?.name) || pick(activity?.title) || ui.defaultTitle
+  const prizeName = pick(result?.prize?.prize_name) || (isWin ? ui.prizeArrived : '')
+  const pageTitle = pick(activity?.activity_name) || pick(activity?.activity_title) || ui.defaultTitle
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #fff1e6 0%, #ffe0cc 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 0 40px' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #fff1e6 0%, #ffe0cc 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: 60 }}>
+
+      {/* 顶栏 */}
       <div style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 12 }}>
         <button onClick={() => nav(`/activity/${id}`)} style={{ background: 'rgba(0,0,0,0.08)', border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333' }}>
           <ArrowLeftOutlined />
         </button>
-        <span style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>
-          {pageTitle}
-        </span>
+        <span style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>{pageTitle}</span>
         <div style={{ width: 36 }} />
       </div>
 
+      {/* 次数徽章 */}
       {chances !== null && (
-        <div style={{ background: 'rgba(0,0,0,0.07)', borderRadius: 20, padding: '6px 20px', color: '#fa8c16', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-          {ui.remainChances(chances)}
+        <div style={{ background: noChance ? 'rgba(0,0,0,0.08)' : 'rgba(250,140,22,0.12)', borderRadius: 20, padding: '5px 18px', color: noChance ? '#aaa' : '#fa8c16', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+          {noChance ? ui.noChanceBadge : ui.remainChances(chances)}
         </div>
       )}
 
-      <div style={{ position: 'relative', marginTop: 24, width: 300, height: 160, borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #fff9c4, #fff176)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <span style={{ fontSize: 40 }}>{revealed ? (isWin ? '🎁' : '😅') : '🎫'}</span>
-          <span style={{ fontSize: 18, fontWeight: 700, color: isWin ? '#ff6b00' : '#666' }}>
-            {revealed ? prizeText : '???'}
-          </span>
+      {/* 刮刮卡 */}
+      <div style={{ position: 'relative', marginTop: 28, width: 300, height: 170, borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
+
+        {/* 卡片底层内容 */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #fffde7, #fff9c4)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          {revealing ? (
+            <>
+              <span style={{ fontSize: 36 }}>✨</span>
+              <span style={{ fontSize: 15, color: '#fa8c16', fontWeight: 600 }}>{ui.loading}</span>
+            </>
+          ) : revealed && result ? (
+            isWin ? (
+              <>
+                <span style={{ fontSize: 40 }}>🎁</span>
+                <span style={{ fontSize: 17, fontWeight: 800, color: '#e65c00', textAlign: 'center', padding: '0 12px', lineHeight: 1.4 }}>{prizeName}</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 36 }}>😅</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#fa8c16', textAlign: 'center', padding: '0 12px' }}>
+                  {ui.consolation}
+                </span>
+              </>
+            )
+          ) : (
+            <>
+              <span style={{ fontSize: 40 }}>🎫</span>
+              <span style={{ fontSize: 14, color: '#bbb' }}>???</span>
+            </>
+          )}
         </div>
-        <canvas
-          ref={canvasRef}
-          width={300}
-          height={160}
-          style={{ position: 'absolute', inset: 0, cursor: revealed ? 'default' : (isNoChance ? 'not-allowed' : 'crosshair'), touchAction: 'none' }}
-          onMouseDown={e => { if (!isNoChance) { isDrawing.current = true; startScratch() } }}
-          onMouseMove={e => { if (isDrawing.current) scratch(e) }}
-          onMouseUp={() => { isDrawing.current = false }}
-          onMouseLeave={() => { isDrawing.current = false }}
-          onTouchStart={e => { if (!isNoChance) { isDrawing.current = true; startScratch(); scratch(e) } }}
-          onTouchMove={e => { scratch(e) }}
-          onTouchEnd={() => { isDrawing.current = false }}
-        />
+
+        {/* 刮涂层 Canvas */}
+        {!revealed && (
+          <canvas
+            ref={canvasRef}
+            width={300}
+            height={170}
+            style={{ position: 'absolute', inset: 0, cursor: noChance ? 'not-allowed' : 'crosshair', touchAction: 'none' }}
+            onMouseDown={() => { if (!noChance) isDrawing.current = true }}
+            onMouseMove={e => { if (isDrawing.current) eraseAt(e) }}
+            onMouseUp={() => { isDrawing.current = false }}
+            onMouseLeave={() => { isDrawing.current = false }}
+            onTouchStart={e => { if (!noChance) { isDrawing.current = true; eraseAt(e) } }}
+            onTouchMove={e => eraseAt(e)}
+            onTouchEnd={() => { isDrawing.current = false }}
+          />
+        )}
       </div>
 
-      <p style={{ color: '#999', fontSize: 13, marginTop: 16, textAlign: 'center' }}>
-        {isNoChance ? ui.noChance : revealed ? ui.revealed : ui.scratchGuide(scratchPercent)}
-      </p>
-
-      {!isNoChance && !scratchStarted && !revealed && (
-        <button
-          onClick={startScratch}
-          style={{ marginTop: 12, padding: '12px 40px', background: 'linear-gradient(135deg, #fa8c16, #ffc53d)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(250,140,22,0.4)' }}
-        >
-          {ui.startScratch}
-        </button>
+      {/* 刮中提示 */}
+      {!revealed && !revealing && (
+        <p style={{ color: '#bbb', fontSize: 13, marginTop: 14, textAlign: 'center' }}>
+          {noChance ? ui.noChanceBadge : scratchPct > 0 ? `${scratchPct}%` : ui.scratchHint}
+        </p>
       )}
 
-      {/* 刮开后：API 还未返回 → 显示"查看结果"按钮 */}
-      {revealed && !result && !resultVisible && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 20, width: '100%', maxWidth: 320, padding: '0 16px' }}>
-          <button
-            onClick={() => setResultVisible(true)}
-            style={{ width: '100%', padding: '14px 0', background: 'linear-gradient(135deg, #fa8c16, #ffc53d)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(250,140,22,0.35)' }}
-          >
-            {ui.viewResult}
-          </button>
-        </div>
-      )}
+      {/* ── 结果操作区 ── */}
+      {revealed && result && !revealing && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 28, width: '100%', maxWidth: 320, padding: '0 20px' }}>
 
-      {/* 结果弹窗关闭后 → 显示"再来一次"或"算了" */}
-      {revealed && result && !resultVisible && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 8, width: '100%', maxWidth: 320, padding: '0 16px' }}>
-          {(chances !== null && chances > 0) && (
+          {/* 中奖 → 立即领取 */}
+          {isWin && (
             <button
-              onClick={() => { setRevealed(false); setScratchStarted(false); setResult(null); setScratchPercent(0); initCanvas() }}
-              style={{ width: '100%', padding: '14px 0', background: 'linear-gradient(135deg, #fa8c16, #ffc53d)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(250,140,22,0.35)' }}
+              onClick={() => nav('/mine?tab=prizes')}
+              style={{ width: '100%', padding: '15px 0', background: 'linear-gradient(135deg, #fa8c16, #ffc53d)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 17, fontWeight: 800, cursor: 'pointer', boxShadow: '0 6px 20px rgba(250,140,22,0.45)', letterSpacing: 1 }}
             >
-              🎴 {ui.scratchAgain}
-              {chances !== null && <span style={{ fontSize: 13, opacity: 0.85, marginLeft: 6 }}>（{lang === 'zh' ? `还剩 ${chances} 次` : lang === 'th' ? `เหลือ ${chances} ครั้ง` : `${chances} left`}）</span>}
+              🎁 {ui.claimNow}
             </button>
           )}
-          <button
-            onClick={() => nav(`/activity/${id}`)}
-            style={{ width: '100%', padding: '12px 0', background: 'rgba(0,0,0,0.05)', border: '1px solid #e0e0e0', borderRadius: 50, color: '#666', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
-          >
-            {lang === 'zh' ? '算了，下次再来' : lang === 'th' ? 'ไว้คราวหน้า' : 'Maybe Next Time'}
-          </button>
-        </div>
-      )}
 
-      {resultVisible && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
-          <div style={{ background: '#fff', borderRadius: 24, padding: 32, maxWidth: 320, width: '100%', textAlign: 'center', animation: 'scaleIn 0.3s ease' }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>{isWin ? '🎉' : '😅'}</div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>{isWin ? ui.win : ui.lose}</h2>
-            <p style={{ fontSize: 16, color: isWin ? '#1677ff' : '#666', marginBottom: 8, fontWeight: isWin ? 700 : 400 }}>{prizeText}</p>
-            {isWin && result?.issued_product && (
-              <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '6px 14px', marginBottom: 12, fontSize: 13, color: '#389e0d' }}>
-                奖品已发放到您的账户
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setResultVisible(false); nav('/mine?tab=prizes') }} style={{ flex: 1, padding: '12px 0', background: 'linear-gradient(135deg, #1677ff, #4096ff)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-                <TrophyOutlined style={{ marginRight: 4 }} />{ui.myBenefits}
-              </button>
-              <button onClick={() => { setResultVisible(false); nav('/nearby') }} style={{ flex: 1, padding: '12px 0', background: '#f5f5f5', border: '1px solid #e0e0e0', borderRadius: 50, color: '#333', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-                <EnvironmentOutlined style={{ marginRight: 4 }} />{ui.nearbyStation}
-              </button>
-            </div>
+          {/* 未中奖且有次数 → 再来一次 */}
+          {!isWin && chances !== null && chances > 0 && (
             <button
-              onClick={() => {
-                setResultVisible(false)
-                if (!isNoChance) { setRevealed(false); setScratchStarted(false); setResult(null); setScratchPercent(0); initCanvas() }
-              }}
-              style={{ width: '100%', marginTop: 10, padding: '10px 0', background: 'none', border: 'none', color: '#999', fontSize: 14, cursor: 'pointer' }}
+              onClick={resetForNext}
+              style={{ width: '100%', padding: '15px 0', background: 'linear-gradient(135deg, #fa8c16, #ffc53d)', border: 'none', borderRadius: 50, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 20px rgba(250,140,22,0.4)' }}
             >
-              {isNoChance
-                ? (lang === 'zh' ? '关闭' : lang === 'th' ? 'ปิด' : 'Close')
-                : `🎴 ${ui.scratchAgain}（${lang === 'zh' ? `还剩 ${chances} 次` : lang === 'th' ? `เหลือ ${chances} ครั้ง` : `${chances} left`}）`}
+              🎴 {ui.scratchAgain(chances)}
             </button>
-          </div>
+          )}
+
+          {/* 次数用完 或 中奖后 → 下次再来 */}
+          {(noChance || isWin) && (
+            <button
+              onClick={() => nav(`/activity/${id}`)}
+              style={{ width: '100%', padding: '13px 0', background: 'rgba(0,0,0,0.04)', border: '1px solid #e0e0e0', borderRadius: 50, color: '#888', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+            >
+              {ui.nextTime}
+            </button>
+          )}
         </div>
       )}
 
-      <style>{`@keyframes scaleIn { from { transform: scale(0.7); opacity: 0 } to { transform: scale(1); opacity: 1 } }`}</style>
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }`}</style>
     </div>
   )
 }
