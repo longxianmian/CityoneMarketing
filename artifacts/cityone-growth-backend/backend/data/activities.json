@@ -135,19 +135,19 @@
     "activity_type": "scratch_card",
     "activity_name": {
       "zh": "刮出好运气！",
-      "th": "",
-      "en": ""
+      "th": "ขูดโชคดี！",
+      "en": "Scratch Your Luck!"
     },
     "activity_title": "",
     "activity_subtitle": {
       "zh": "刮刮卡，手机都能刮一刮",
-      "th": "",
-      "en": ""
+      "th": "การ์ดขูด ขูดได้ทุกที่ด้วยมือถือ",
+      "en": "Scratch Card – Play Anywhere on Your Phone"
     },
     "activity_desc": {
       "zh": "刮刮卡，刮中什么奖，就可以按照相关说明去操作",
-      "th": "",
-      "en": ""
+      "th": "การ์ดขูด ขูดได้รางวัลอะไร ก็ดำเนินการตามคำแนะนำที่เกี่ยวข้องได้เลย",
+      "en": "Scratch the card and claim whatever prize you win by following the instructions."
     },
     "template_id": "",
     "usage_mode": "public",
@@ -173,18 +173,18 @@
     "coupon_name": "",
     "highlights": {
       "zh": "免费的充电卡、购物券",
-      "th": "",
-      "en": ""
+      "th": "บัตรชาร์จฟรี คูปองช้อปปิ้ง",
+      "en": "Free charging card & shopping coupons"
     },
     "participation_guide": {
       "zh": "关注OA即可参加",
-      "th": "",
-      "en": ""
+      "th": "ติดตาม LINE OA เพื่อเข้าร่วม",
+      "en": "Follow LINE OA to participate"
     },
     "reward_guide": {
       "zh": "购物卡、折扣券、免费体验券",
-      "th": "",
-      "en": ""
+      "th": "บัตรช้อปปิ้ง คูปองส่วนลด คูปองทดลองใช้ฟรี",
+      "en": "Shopping card, discount coupon, free trial voucher"
     },
     "notice_text": {
       "zh": "",
@@ -201,8 +201,8 @@
     "activity_type": "lucky_wheel",
     "activity_name": {
       "zh": "转转转好运气",
-      "th": "",
-      "en": ""
+      "th": "หมุนวงล้อโชคดี",
+      "en": "Spin to Win!"
     },
     "activity_title": "",
     "activity_subtitle": {
@@ -239,27 +239,27 @@
     "coupon_name": "",
     "highlights": {
       "zh": "测试",
-      "th": "",
-      "en": ""
+      "th": "ทดสอบ",
+      "en": "Test"
     },
     "participation_guide": {
       "zh": "测试",
-      "th": "",
-      "en": ""
+      "th": "ทดสอบ",
+      "en": "Test"
     },
     "reward_guide": {
       "zh": "测试",
-      "th": "",
-      "en": ""
+      "th": "ทดสอบ",
+      "en": "Test"
     },
     "notice_text": {
       "zh": "测试",
-      "th": "",
-      "en": ""
+      "th": "ทดสอบ",
+      "en": "Test"
     },
     "cover_image": "/uploads/1775559356315_37b7df59a602.png",
     "cover_video": "",
     "created_at": "2026-04-07T10:57:09.806Z",
-    "updated_at": "2026-04-07T10:57:29.186Z"
+    "updated_at": "2026-04-07T11:20:28.618Z"
   }
 ]

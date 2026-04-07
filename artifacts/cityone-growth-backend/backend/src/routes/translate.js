@@ -82,11 +82,11 @@ export async function handleTranslate(req, res, url, sendJson, readBody) {
     }
 
     if (!parsed.result || typeof parsed.result !== "object") {
-      return sendJson(res, 500, { msg: "翻译结果格式错误", raw: parsed });
+      return sendJson(res, 500, { code: 500, msg: "翻译结果格式错误" });
     }
 
-    return sendJson(res, 200, { result: parsed.result });
+    return sendJson(res, 200, { code: 200, msg: "ok", data: { result: parsed.result } });
   } catch (err) {
-    return sendJson(res, 500, { msg: err?.message || "翻译服务异常" });
+    return sendJson(res, 500, { code: 500, msg: err?.message || "翻译服务异常" });
   }
 }

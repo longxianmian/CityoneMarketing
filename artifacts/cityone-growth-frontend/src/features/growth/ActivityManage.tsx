@@ -17,6 +17,7 @@ import MultiLangInput, { AutoTranslateButton, type MultiLangValue } from '../../
 import dayjs from 'dayjs'
 import { useI18n, pickLocalizedText } from '../../i18n'
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
+import request from '../../api/request'
 
 const toMlObj = (v: any): MultiLangValue => {
   if (!v) return { zh: '', th: '', en: '' }
