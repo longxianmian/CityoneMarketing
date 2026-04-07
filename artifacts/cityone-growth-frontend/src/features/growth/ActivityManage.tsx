@@ -18,6 +18,7 @@ import dayjs from 'dayjs'
 import { useI18n, pickLocalizedText } from '../../i18n'
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
 import request from '../../api/request'
+import StationScopeSelect, { type StationScope } from '../../components/StationScopeSelect'
 
 const toMlObj = (v: any): MultiLangValue => {
   if (!v) return { zh: '', th: '', en: '' }
@@ -125,6 +126,7 @@ export default function ActivityManage() {
   const [shareRecord, setShareRecord] = useState<any | null>(null)
   const [coverImage, setCoverImage] = useState('')
   const [coverVideo, setCoverVideo] = useState('')
+  const [stationScope, setStationScope] = useState<StationScope>({ type: 'all' })
   const [gameProgramOptions, setGameProgramOptions] = useState<any[]>([])
   const [gameProgramLoading, setGameProgramLoading] = useState(false)
   const activityTypeInForm = Form.useWatch('activityType', form)
@@ -194,12 +196,13 @@ export default function ActivityManage() {
 
   const handleAdd = () => {
     setIsEdit(false); setEditingRecord(null)
-    form.resetFields(); setCoverImage(''); setCoverVideo('')
+    form.resetFields(); setCoverImage(''); setCoverVideo(''); setStationScope({ type: 'all' })
     setFormVisible(true)
   }
 
   const handleEdit = (record: any) => {
     setIsEdit(true); setEditingRecord(record)
+    setStationScope(record.station_scope || { type: 'all' })
     form.setFieldsValue({
       ...record,
       dateRange: record.start_at && record.end_at ? [dayjs(record.start_at), dayjs(record.end_at)] : undefined,
@@ -294,6 +297,7 @@ export default function ActivityManage() {
         cover_video: coverVideo,
         template_id: values.template_id || '',
         status: values.status || 'draft',
+        station_scope: stationScope,
       }
       if (isEdit && editingRecord) {
         await updateActivity(editingRecord.id, backendPayload)
@@ -645,6 +649,10 @@ export default function ActivityManage() {
               </Form.Item>
             </Col>
           </Row>
+
+          <Form.Item label=" " colon={false} style={{ marginBottom: 4 }}>
+            <StationScopeSelect value={stationScope} onChange={setStationScope} />
+          </Form.Item>
 
           <Form.Item noStyle shouldUpdate={(p, c) => p.activityType !== c.activityType}>
             {({ getFieldValue }) => {

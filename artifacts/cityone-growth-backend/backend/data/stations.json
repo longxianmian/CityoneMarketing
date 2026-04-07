@@ -1,0 +1,110 @@
+[
+  {
+    "id": "st_001",
+    "name": {
+      "zh": "暹罗广场站点 A",
+      "th": "สยามสแควร์ A",
+      "en": "Siam Square A"
+    },
+    "city": "bangkok",
+    "district": "siam",
+    "address": "Siam Square One, Pathum Wan, Bangkok",
+    "lat": 13.7455,
+    "lng": 100.5341,
+    "status": "active",
+    "capacity": 8,
+    "available": 5,
+    "source": "manual",
+    "external_id": ""
+  },
+  {
+    "id": "st_002",
+    "name": {
+      "zh": "MBK购物中心站点",
+      "th": "MBK Center",
+      "en": "MBK Center Station"
+    },
+    "city": "bangkok",
+    "district": "siam",
+    "address": "MBK Center, Phaya Thai, Bangkok",
+    "lat": 13.7448,
+    "lng": 100.5299,
+    "status": "active",
+    "capacity": 12,
+    "available": 8,
+    "source": "manual",
+    "external_id": ""
+  },
+  {
+    "id": "st_003",
+    "name": {
+      "zh": "素坤逸11路站点",
+      "th": "สุขุมวิท 11",
+      "en": "Sukhumvit 11 Station"
+    },
+    "city": "bangkok",
+    "district": "sukhumvit",
+    "address": "Sukhumvit Soi 11, Watthana, Bangkok",
+    "lat": 13.7426,
+    "lng": 100.554,
+    "status": "active",
+    "capacity": 6,
+    "available": 3,
+    "source": "manual",
+    "external_id": ""
+  },
+  {
+    "id": "st_004",
+    "name": {
+      "zh": "尼曼1路站点",
+      "th": "นิมมาน 1",
+      "en": "Nimman 1 Station"
+    },
+    "city": "chiang-mai",
+    "district": "nimman",
+    "address": "Nimmanhaemin Rd Soi 1, Chiang Mai",
+    "lat": 18.7995,
+    "lng": 98.9677,
+    "status": "active",
+    "capacity": 8,
+    "available": 6,
+    "source": "manual",
+    "external_id": ""
+  },
+  {
+    "id": "st_005",
+    "name": {
+      "zh": "芭东海滩站点",
+      "th": "ป่าตองบีช",
+      "en": "Patong Beach Station"
+    },
+    "city": "phuket",
+    "district": "patong",
+    "address": "Patong Beach Rd, Kathu, Phuket",
+    "lat": 7.8955,
+    "lng": 98.299,
+    "status": "active",
+    "capacity": 10,
+    "available": 7,
+    "source": "manual",
+    "external_id": ""
+  },
+  {
+    "id": "st_006",
+    "name": {
+      "zh": "是隆大厦站点",
+      "th": "สีลมคอมเพล็กซ์",
+      "en": "Silom Complex Station"
+    },
+    "city": "bangkok",
+    "district": "silom",
+    "address": "Silom Complex, Silom Rd, Bangkok",
+    "lat": 13.7283,
+    "lng": 100.5333,
+    "status": "active",
+    "capacity": 8,
+    "available": 4,
+    "source": "manual",
+    "external_id": ""
+  }
+]

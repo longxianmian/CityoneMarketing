@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { Card, Table, Input, Button, Space, Tag, Row, Col, Modal, Form, message, InputNumber, Select, DatePicker, Divider } from 'antd'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, ExclamationCircleOutlined, PictureOutlined, VideoCameraOutlined, ShareAltOutlined } from '@ant-design/icons'
 import request from '../../api/request'
+import StationScopeSelect, { type StationScope } from '../../components/StationScopeSelect'
 import MediaUploadField from '../../components/MediaUploadField'
 import SharePromoModal from '../../components/SharePromoModal'
 import MultiLangInput, { type MultiLangValue } from '../../components/MultiLangInput'
@@ -68,6 +69,7 @@ export default function CouponManage() {
   const [form] = Form.useForm()
   const [coverImage, setCoverImage] = useState('')
   const [coverVideo, setCoverVideo] = useState('')
+  const [stationScope, setStationScope] = useState<StationScope>({ type: 'all' })
   const [shareRecord, setShareRecord] = useState<any | null>(null)
 
   const fetchData = useCallback(async (p = page, ps = pageSize) => {
@@ -88,6 +90,7 @@ export default function CouponManage() {
     form.resetFields()
     setCoverImage('')
     setCoverVideo('')
+    setStationScope({ type: 'all' })
     setFormVisible(true)
   }
 
@@ -107,6 +110,7 @@ export default function CouponManage() {
     })
     setCoverImage(record.cover_image || '')
     setCoverVideo(record.cover_video || '')
+    setStationScope(record.station_scope || { type: 'all' })
     setFormVisible(true)
   }
 
@@ -136,6 +140,7 @@ export default function CouponManage() {
         validTo: values.validTo?.toISOString(),
         coverImage: coverImage || undefined,
         coverVideo: coverVideo || undefined,
+        station_scope: stationScope,
       }
       if (isEdit) {
         await request.post('/growth/coupon/update', payload)
@@ -322,6 +327,10 @@ export default function CouponManage() {
               { value: 1, label: t('couponManage.statusActive') },
               { value: 0, label: t('couponManage.statusDisabled') },
             ]} />
+          </Form.Item>
+
+          <Form.Item label=" " colon={false} style={{ marginBottom: 4 }}>
+            <StationScopeSelect value={stationScope} onChange={setStationScope} />
           </Form.Item>
 
           <Divider orientation="left" orientationMargin={0}>

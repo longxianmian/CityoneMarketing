@@ -131,6 +131,15 @@ import {
 } from "./routes/agent.js";
 import { handleTranslate } from "./routes/translate.js";
 import {
+  handleGetCityDistricts,
+  handleGetStations,
+  handleGetNearbyStations,
+  handleGetStation,
+  handleCreateStation,
+  handleUpdateStation,
+  handleDeleteStation,
+} from "./routes/stations.js";
+import {
   handleUserProfile,
   handleCheckFollow,
   handleUserPrizes,
@@ -628,6 +637,29 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/growth/mall/redeems") {
       return handleGetMallRedeems(req, res, sendJson, url);
+    }
+
+    // ── 站点管理 ─────────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/stations/city-districts") {
+      return handleGetCityDistricts(req, res, sendJsonCached30);
+    }
+    if (req.method === "GET" && url.pathname === "/api/stations/nearby") {
+      return handleGetNearbyStations(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/stations") {
+      return handleGetStations(req, res, url, sendJsonCached30);
+    }
+    if (req.method === "GET" && /^\/api\/stations\/[^/]+$/.test(url.pathname)) {
+      return handleGetStation(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/stations") {
+      return handleCreateStation(req, res, sendJson, await readBody(req));
+    }
+    if (req.method === "PUT" && /^\/api\/stations\/[^/]+$/.test(url.pathname)) {
+      return handleUpdateStation(req, res, url, sendJson, await readBody(req));
+    }
+    if (req.method === "DELETE" && /^\/api\/stations\/[^/]+$/.test(url.pathname)) {
+      return handleDeleteStation(req, res, url, sendJson);
     }
 
     // ── 玩法程序 ─────────────────────────────────────────────────────────────

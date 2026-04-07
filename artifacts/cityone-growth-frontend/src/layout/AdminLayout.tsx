@@ -33,6 +33,7 @@ import {
   BranchesOutlined,
   ThunderboltOutlined,
   ApiOutlined,
+  EnvironmentOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import useAuthStore from '../store/auth'
@@ -121,6 +122,7 @@ export default function AdminLayout() {
             label: lt('activityGroup'),
             children: [
               { key: '/admin/growth/activity', label: lt('activityInstances') },
+              { key: '/admin/growth/stations', label: '站点管理', icon: <EnvironmentOutlined /> },
               { key: '/admin/welfare/game', label: lt('gamePrograms') },
               { key: '/admin/growth/interaction-records', label: lt('interactiveResources') },
             ],

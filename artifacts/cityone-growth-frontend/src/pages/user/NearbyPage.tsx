@@ -1,89 +1,24 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Tag, Space } from 'antd'
+import { Card, Button, Tag, Space, Spin } from 'antd'
 import {
-  HomeOutlined,
-  RobotOutlined,
-  UserOutlined,
   EnvironmentOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
+import request from '../../api/request'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
-const nearbyActivities = [
-  {
-    id: '1',
-    title: {
-      zh: '附近首借免单活动',
-      th: 'กิจกรรมยืมครั้งแรกฟรีใกล้คุณ',
-      en: 'Nearby first-borrow free activity',
-    },
-    distance: '0.6 km',
-  },
-  {
-    id: '2',
-    title: {
-      zh: '附近 Battery SOS 福利',
-      th: 'สิทธิพิเศษ Battery SOS ใกล้คุณ',
-      en: 'Nearby Battery SOS benefits',
-    },
-    distance: '1.2 km',
-  },
-]
-
-const nearbyCoupons = [
-  {
-    id: '1',
-    title: {
-      zh: '15分钟券可在附近使用',
-      th: 'คูปอง 15 นาทีใช้ใกล้คุณได้',
-      en: '15-minute coupon usable nearby',
-    },
-    distance: '0.8 km',
-  },
-  {
-    id: '2',
-    title: {
-      zh: '首借免单券附近可核销',
-      th: 'คูปองยืมครั้งแรกใช้ฟรีใกล้คุณใช้ได้',
-      en: 'First-borrow-free coupon redeemable nearby',
-    },
-    distance: '1.5 km',
-  },
-]
-
-const nearbyStations = [
-  {
-    id: '1',
-    name: {
-      zh: 'CityOne 商圈站点 A',
-      th: 'สถานี CityOne ย่านการค้า A',
-      en: 'CityOne Mall Station A',
-    },
-    distance: '0.5 km',
-    status: {
-      zh: '可借可还',
-      th: 'ยืมและคืนได้',
-      en: 'Borrow & return available',
-    },
-  },
-  {
-    id: '2',
-    name: {
-      zh: 'CityOne 门店站点 B',
-      th: 'สถานีร้านค้า CityOne B',
-      en: 'CityOne Store Station B',
-    },
-    distance: '2.1 km',
-    status: {
-      zh: '可借电',
-      th: 'พร้อมให้ยืม',
-      en: 'Borrow available',
-    },
-  },
-]
+interface NearbyStation {
+  id: string
+  name: { zh: string; th?: string; en?: string }
+  distance_km: number
+  available: number
+  capacity: number
+  status: string
+}
 
 export default function NearbyPage() {
   const navigate = useNavigate()
@@ -91,6 +26,8 @@ export default function NearbyPage() {
   const [hasLocation, setHasLocation] = useState(false)
   const [locating, setLocating] = useState(false)
   const [locationText, setLocationText] = useState('')
+  const [nearbyStations, setNearbyStations] = useState<NearbyStation[]>([])
+  const [stationsLoading, setStationsLoading] = useState(false)
 
   const text = useMemo(() => {
     const map = {
@@ -140,6 +77,17 @@ export default function NearbyPage() {
     return map[language]
   }, [language])
 
+  const fetchNearbyStations = (lat: number, lng: number, radius = 3) => {
+    setStationsLoading(true)
+    request.get('/stations/nearby', { params: { lat: String(lat), lng: String(lng), radius: String(radius) } })
+      .then((res: any) => {
+        const data = res?.data || res
+        if (data?.list) setNearbyStations(data.list)
+      })
+      .catch(() => {})
+      .finally(() => setStationsLoading(false))
+  }
+
   const requestLocation = () => {
     if (!navigator.geolocation) {
       setLocationText(t('common.geoNotSupported'))
@@ -149,9 +97,11 @@ export default function NearbyPage() {
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        const { latitude, longitude } = position.coords
         setLocating(false)
         setHasLocation(true)
-        setLocationText(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`)
+        setLocationText(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`)
+        fetchNearbyStations(latitude, longitude)
       },
       () => {
         setLocating(false)
@@ -232,23 +182,45 @@ export default function NearbyPage() {
 
           <Card style={{ borderRadius: 18 }}>
             <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>{text.nearbyStations}</div>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {nearbyStations.map((item) => (
-                <Card key={item.id} size="small" style={{ borderRadius: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                    <div>
-                      <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                        {pickLocalizedText({ name: item.name }, 'name', language)}
+            {stationsLoading ? (
+              <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
+            ) : nearbyStations.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#bbb', padding: 16, fontSize: 14 }}>
+                {hasLocation ? '周围 3km 内暂无可用站点' : '获取位置后将显示附近站点'}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {nearbyStations.map((item) => (
+                  <Card key={item.id} size="small" style={{ borderRadius: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                          {pickLocalizedText({ name: item.name }, 'name', language)}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <ThunderboltOutlined style={{ color: '#2CDBCE' }} />
+                          {language === 'zh' ? `可借 ${item.available}/${item.capacity} 个` :
+                           language === 'th' ? `ยืมได้ ${item.available}/${item.capacity}` :
+                           `${item.available}/${item.capacity} available`}
+                        </div>
                       </div>
-                      <div style={{ color: '#666' }}>
-                        {pickLocalizedText({ status: item.status }, 'status', language)}
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <Tag color="green">{item.distance_km.toFixed(2)} km</Tag>
+                        {item.status === 'active' ? (
+                          <Tag color="blue" style={{ marginTop: 4, display: 'block' }}>
+                            {language === 'zh' ? '运营中' : language === 'th' ? 'เปิดให้บริการ' : 'Active'}
+                          </Tag>
+                        ) : (
+                          <Tag color="orange" style={{ marginTop: 4, display: 'block' }}>
+                            {language === 'zh' ? '维护中' : language === 'th' ? 'ซ่อมบำรุง' : 'Maintenance'}
+                          </Tag>
+                        )}
                       </div>
                     </div>
-                    <Tag color="green">{item.distance}</Tag>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 

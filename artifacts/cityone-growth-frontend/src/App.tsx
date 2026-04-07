@@ -58,6 +58,7 @@ const LandingTemplateManage = lazy(() => import('./features/growth/LandingTempla
 const ProductTemplateManage = lazy(() => import('./features/growth/ProductTemplateManage'))
 const GameProgram = lazy(() => import('./features/growth/GameProgram'))
 const ComingSoon = lazy(() => import('./features/growth/ComingSoon'))
+const StationManage = lazy(() => import('./features/growth/StationManage'))
 
 const AgentWenwenPage = lazy(() => import('./features/growth/AgentWenwenPage'))
 const AgentBizPage = lazy(() => import('./features/growth/AgentBizPage'))
@@ -129,6 +130,7 @@ export default function App() {
           {/* 福利中心 */}
           <Route path="growth/coupon" element={<CouponManage />} />
           <Route path="growth/activity" element={<ActivityManage />} />
+          <Route path="growth/stations" element={<StationManage />} />
 
           <Route path="growth/interaction-records" element={<InteractionRecords />} />
           <Route path="welfare/game" element={<GameProgram />} />
