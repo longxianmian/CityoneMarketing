@@ -20,7 +20,7 @@ async function checkFanStatus(userId: string): Promise<boolean> {
 }
 
 export default function ProductDetailPage() {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
   const location = useLocation()
@@ -121,14 +121,16 @@ export default function ProductDetailPage() {
           const summaryData = summaryRes?.data || summaryRes
           const available = Number(summaryData?.available_points) || 0
           if (available < pointsRequired) {
-            message.warning(
-              lang === 'zh'
-                ? `积分不足：当前 ${available} 积分，兑换需要 ${pointsRequired} 积分`
+            modal.warning({
+              title: lang === 'zh' ? '积分不足' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
+              content: lang === 'zh'
+                ? `当前可用积分 ${available} 分，兑换此商品需要 ${pointsRequired} 分，差 ${pointsRequired - available} 分。`
                 : lang === 'th'
-                  ? `คะแนนไม่เพียงพอ: มี ${available} ต้องการ ${pointsRequired}`
-                  : `Insufficient points: you have ${available} pts, need ${pointsRequired} pts`,
-              4
-            )
+                  ? `คะแนนปัจจุบัน ${available} คะแนน ต้องการ ${pointsRequired} คะแนน ขาด ${pointsRequired - available} คะแนน`
+                  : `You have ${available} pts but need ${pointsRequired} pts (short by ${pointsRequired - available} pts).`,
+              okText: lang === 'zh' ? '知道了' : lang === 'th' ? 'ตกลง' : 'OK',
+              centered: true,
+            })
             return
           }
         } catch {
