@@ -11,6 +11,7 @@ const FORTUNE_THEMES_FILE = path.join(DATA_DIR, "activity-fortune-themes.json");
 const SIGNS_FILE = path.join(DATA_DIR, "activity-signs.json");
 const CHANCES_FILE = path.join(DATA_DIR, "activity-user-chances.json");
 const INTERACTIONS_FILE = path.join(DATA_DIR, "activity-interactions.json");
+const ACTIVITIES_FILE = path.join(DATA_DIR, "activities.json");
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,36 @@ function nextId(list, prefix, field) {
     return matched ? Math.max(m, Number(matched[1])) : m;
   }, 0);
   return `${prefix}_${String(max + 1).padStart(3, "0")}`;
+}
+
+// ─── 新活动检测：若活动创建时间晚于用户次数记录更新时间，视为旧记录，重置次数 ──────────────────
+// 场景：管理端删除旧活动再创建同名新活动，得到相同 ID → 旧次数记录应作废
+function resetChanceIfNewActivity(activityId, chance) {
+  try {
+    const activities = loadJsonArray(ACTIVITIES_FILE);
+    const activity = activities.find((a) => a.activity_id === activityId);
+    if (!activity?.created_at || !chance?.updated_at) return false;
+    const actCreatedAt = new Date(activity.created_at);
+    const chanceUpdatedAt = new Date(chance.updated_at);
+    // 活动创建时间 > 次数记录最后更新时间 → 此记录属于旧活动，需要重置
+    if (actCreatedAt > chanceUpdatedAt) {
+      const list = loadJsonArray(CHANCES_FILE);
+      const idx = list.findIndex((c) => c.chance_id === chance.chance_id);
+      if (idx >= 0) {
+        list[idx] = {
+          ...list[idx],
+          granted_count: 1,
+          used_count: 0,
+          remaining_count: 1,
+          grant_source: "auto_first",
+          updated_at: new Date().toISOString(),
+        };
+        saveJsonArray(CHANCES_FILE, list);
+        return list[idx];
+      }
+    }
+  } catch { /* ignore */ }
+  return false;
 }
 
 // ─── 次数账户 ────────────────────────────────────────────────────────────────
@@ -368,6 +399,10 @@ export async function handleWheelStart(req, res, url, sendJson, readBody) {
         saveJsonArray(CHANCES_FILE, list);
         chance = list[idx];
       }
+    } else {
+      // 检测：若次数记录比活动创建时间更早，说明这是新活动复用了旧 ID → 重置
+      const reset = resetChanceIfNewActivity(activityId, chance);
+      if (reset) chance = reset;
     }
 
     const prizes = loadJsonArray(PRIZES_FILE).filter(
@@ -464,6 +499,9 @@ export async function handleScratchStart(req, res, url, sendJson, readBody) {
         saveJsonArray(CHANCES_FILE, list);
         chance = list[idx];
       }
+    } else {
+      const reset = resetChanceIfNewActivity(activityId, chance);
+      if (reset) chance = reset;
     }
 
     return sendOk(res, sendJson, "刮刮卡已就绪", {
@@ -554,6 +592,9 @@ export async function handleFortuneStart(req, res, url, sendJson, readBody) {
         saveJsonArray(CHANCES_FILE, list);
         chance = list[idx];
       }
+    } else {
+      const reset = resetChanceIfNewActivity(activityId, chance);
+      if (reset) chance = reset;
     }
 
     const themes = loadJsonArray(FORTUNE_THEMES_FILE).filter(
