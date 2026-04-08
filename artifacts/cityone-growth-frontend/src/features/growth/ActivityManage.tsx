@@ -239,23 +239,6 @@ export default function ActivityManage() {
     }
   }
 
-  const handleDelete = (record: any) => {
-    Modal.confirm({
-      title: am('btnDelete'),
-      content: am('deleteConfirm'),
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          await deleteActivity(record.id)
-          message.success(am('deleteSuccess'))
-          loadList()
-        } catch {
-          message.error('删除失败，请重试')
-        }
-      },
-    })
-  }
-
   const handleFormOk = async () => {
     let values: any
     try {

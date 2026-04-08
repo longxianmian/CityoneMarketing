@@ -101,7 +101,8 @@ app.use("/api/agent", (req: Request, res: Response) => {
     proxy.write(body);
     proxy.end();
   } else {
-    req.pipe(proxy);
+    // express.json() has already consumed the stream; end the proxy directly.
+    proxy.end();
   }
 });
 
@@ -120,6 +121,9 @@ app.use("/api", (req: Request, res: Response) => {
   if (body) {
     headers["content-type"] = "application/json";
     headers["content-length"] = String(Buffer.byteLength(body));
+  } else {
+    // Ensure no stale content-length header for body-less methods (DELETE, GET).
+    delete headers["content-length"];
   }
 
   const options: http.RequestOptions = {
@@ -145,7 +149,8 @@ app.use("/api", (req: Request, res: Response) => {
     proxy.write(body);
     proxy.end();
   } else {
-    req.pipe(proxy);
+    // express.json() has already consumed the stream; end the proxy directly.
+    proxy.end();
   }
 });
 

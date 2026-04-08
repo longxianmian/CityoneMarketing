@@ -14,8 +14,8 @@
     },
     "activity_desc": {
       "zh": "节日特别活动！每天限免抽转3次，有机会赢取充电宝免费使用券、积分、现金红包等丰厚奖品。",
-      "th": "กิจกรรมพิเศษช่วงเทศกาล! หมุนฟรีได้ 3 ครั้งต่อวัน ลุ้นรับคูปองยืมแบตสำรองฟรี คะแนน เงินสดแบบแพ็กเกจ",
-      "en": "Special festival activity! Spin free 3 times daily for chances to win free power bank vouchers, points, cash red packets and more."
+      "th": "กิจกรรมพิเศษช่วงเทศกาล! หมุนฟรีได้ 3 ครั้งต่อวัน",
+      "en": "Special festival activity! Spin free 3 times daily."
     },
     "activity_title": "",
     "template_id": "",
@@ -27,111 +27,15 @@
     "require_oa_follow": true,
     "auto_join_after_follow": true,
     "goal": "促活",
-    "department": "运营部",
-    "owner_dept": "运营部",
-    "partner_dept": "",
-    "coupon_name": "",
     "highlights": {
       "zh": "每日3次免费抽奖机会",
       "th": "สิทธิ์หมุนฟรี 3 ครั้งต่อวัน",
       "en": "3 free spins per day"
     },
-    "participation_guide": {
-      "zh": "1. 进入活动页\n2. 点击转盘\n3. 等待抽奖结果\n4. 奖品自动发放",
-      "th": "1. เข้าหน้ากิจกรรม\n2. คลิกที่วงล้อ\n3. รอผลรางวัล\n4. รางวัลจัดส่งอัตโนมัติ",
-      "en": "1. Enter activity page\n2. Click the wheel\n3. Await result\n4. Prize delivered automatically"
-    },
-    "reward_guide": {
-      "zh": "奖品包括：免费充电宝券、积分、现金红包、惊喜好礼",
-      "th": "รางวัลได้แก่: คูปองแบตสำรองฟรี คะแนน เงินสด และของขวัญสุดเซอร์ไพรส์",
-      "en": "Prizes include: free power bank voucher, points, cash, and surprise gifts"
-    },
-    "notice_text": {
-      "zh": "每日抽奖次数凌晨重置，请勿重复登录刷奖",
-      "th": "สิทธิ์หมุนรีเซ็ตทุกเที่ยงคืน ห้ามล็อกอินซ้ำเพื่อรับสิทธิ์เพิ่ม",
-      "en": "Daily spins reset at midnight. Do not attempt to gain extra spins by re-logging."
-    },
-    "cover_image": "/uploads/1775489766908_0b477d2f1c6e.png",
-    "cover_video": "",
-    "entry_scope_json": null,
-    "site_scope_json": null,
-    "channel_scope_json": null,
-    "share_enabled": true,
-    "share_title": "",
-    "share_desc": "",
-    "share_cover": "",
-    "campaign_id": "",
-    "share_status": "",
+    "cover_image": "",
+    "reward_points": 0,
     "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2026-04-06T16:04:25.893Z"
-  },
-  {
-    "activity_id": "act_003",
-    "activity_type": "scratch_card",
-    "activity_name": {
-      "zh": "刮出好运气！",
-      "th": "ขูดโชคดี！",
-      "en": "Scratch Your Luck!"
-    },
-    "activity_title": "",
-    "activity_subtitle": {
-      "zh": "刮刮卡，手机都能刮一刮",
-      "th": "การ์ดขูด ขูดได้ทุกที่ด้วยมือถือ",
-      "en": "Scratch Card – Play Anywhere on Your Phone"
-    },
-    "activity_desc": {
-      "zh": "刮刮卡，刮中什么奖，就可以按照相关说明去操作",
-      "th": "การ์ดขูด ขูดได้รางวัลอะไร ก็ดำเนินการตามคำแนะนำที่เกี่ยวข้องได้เลย",
-      "en": "Scratch the card and claim whatever prize you win by following the instructions."
-    },
-    "template_id": "",
-    "usage_mode": "public",
-    "start_time": "2026-04-07 00:00:00",
-    "end_time": "2026-04-30 00:00:00",
-    "status": "active",
-    "initial_chances": 5,
-    "require_oa_follow": true,
-    "auto_join_after_follow": true,
-    "entry_scope_json": null,
-    "site_scope_json": null,
-    "channel_scope_json": null,
-    "share_content_type": "activity",
-    "share_enabled": false,
-    "share_title": "",
-    "share_desc": "",
-    "share_cover": "",
-    "campaign_id": "",
-    "share_status": "disabled",
-    "goal": "拉新",
-    "department": "互联网推广部",
-    "owner_dept": "互联网推广部",
-    "partner_dept": "",
-    "coupon_name": "",
-    "highlights": {
-      "zh": "免费的充电卡、购物券",
-      "th": "บัตรชาร์จฟรี คูปองช้อปปิ้ง",
-      "en": "Free charging card & shopping coupons"
-    },
-    "participation_guide": {
-      "zh": "关注OA即可参加",
-      "th": "ติดตาม LINE OA เพื่อเข้าร่วม",
-      "en": "Follow LINE OA to participate"
-    },
-    "reward_guide": {
-      "zh": "购物卡、折扣券、免费体验券",
-      "th": "บัตรช้อปปิ้ง คูปองส่วนลด คูปองทดลองใช้ฟรี",
-      "en": "Shopping card, discount coupon, free trial voucher"
-    },
-    "notice_text": {
-      "zh": "",
-      "th": "",
-      "en": ""
-    },
-    "cover_image": "/uploads/1775555010978_610cf0d0ecb7.png",
-    "cover_video": "",
-    "created_at": "2026-04-07T09:47:13.577Z",
-    "updated_at": "2026-04-08T07:28:12.484Z",
-    "game_program_id": "gp_004"
+    "updated_at": "2026-04-08T11:45:55.863Z"
   },
   {
     "activity_id": "act_004",
@@ -265,5 +169,43 @@
     "cover_video": "",
     "created_at": "2026-04-08T10:12:55.452Z",
     "updated_at": "2026-04-08T10:12:55.452Z"
+  },
+  {
+    "activity_id": "act_003",
+    "activity_type": "scratch_card",
+    "activity_name": {
+      "zh": "刮刮卡赢好礼",
+      "th": "ขูดโชคลาภ",
+      "en": "Scratch & Win"
+    },
+    "activity_subtitle": {
+      "zh": "刮一刮，惊喜在手",
+      "th": "ขูดแล้วรับรางวัล",
+      "en": "Scratch for surprises"
+    },
+    "activity_desc": {
+      "zh": "限时刮刮卡活动，刮开涂层发现您的专属奖励！每日可玩5次。",
+      "th": "กิจกรรมขูดรางวัล จำกัดเวลา! ขูดพื้นผิวเพื่อค้นพบรางวัลพิเศษของคุณ",
+      "en": "Limited time scratch card event! Scratch to discover your reward."
+    },
+    "activity_title": "",
+    "template_id": "",
+    "usage_mode": "scan",
+    "start_time": "2025-01-01 00:00:00",
+    "end_time": "2026-12-31 23:59:59",
+    "status": "active",
+    "initial_chances": 5,
+    "require_oa_follow": true,
+    "auto_join_after_follow": true,
+    "goal": "促活",
+    "highlights": {
+      "zh": "每日5次刮卡机会",
+      "th": "สิทธิ์ขูด 5 ครั้งต่อวัน",
+      "en": "5 scratch cards per day"
+    },
+    "cover_image": "",
+    "reward_points": 0,
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2026-04-08T11:31:42.612Z"
   }
 ]
