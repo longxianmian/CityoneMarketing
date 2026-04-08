@@ -430,7 +430,7 @@ export default function WelfareHomePage() {
         <div style={{ padding: '6px 6px 90px' }}>
           {/* 轮播 Banner */}
           <div style={{ marginBottom: 6, borderRadius: 24, overflow: 'hidden', boxShadow: '0 14px 28px rgba(15,23,42,0.10)' }}>
-            <Carousel autoplay dots>
+            <Carousel autoplay dots swipe={false} touchMove={false}>
               {bannerItems.map((item) => (
                 <div
                   key={item.id}
