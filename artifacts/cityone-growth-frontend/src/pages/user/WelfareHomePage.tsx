@@ -56,10 +56,9 @@ function getCityLabel(cityCode: string, lang: AppLanguage) {
 // ---------- cover 样式辅助 ----------
 // cover 可能是 CSS 渐变字符串，也可能是真实图片 URL
 // 图片 URL 须用 backgroundImage + url() 才能正确显示
-function coverBgStyle(cover: string): React.CSSProperties {
+function coverBgStyle(cover: string, position = 'center'): React.CSSProperties {
   if (/^(https?:\/\/|\/)/.test(cover)) {
-    // top center：确保图片顶部内容（Logo、标题）始终可见，不被裁掉
-    return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'top center' }
+    return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: position }
   }
   return { background: cover }
 }
@@ -121,7 +120,7 @@ function WaterfallCard({
         <div
           style={{
             flex: '0 0 55%',
-            ...coverBgStyle(cover),
+            ...coverBgStyle(cover, type === 'coupon' ? 'top center' : 'center'),
             position: 'relative',
           }}
         >
