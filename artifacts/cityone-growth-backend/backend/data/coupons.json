@@ -40,5 +40,26 @@
     "cover_video": "",
     "created_at": "2026-04-06T11:37:48.567Z",
     "updated_at": "2026-04-06T11:37:48.567Z"
+  },
+  {
+    "id": "coupon_003",
+    "name": {
+      "zh": "测试",
+      "th": "",
+      "en": ""
+    },
+    "coupon_type": "channel",
+    "discount_type": "fixed",
+    "discount_value": 200,
+    "min_amount": 1000,
+    "total_count": 100,
+    "claimed_count": 0,
+    "status": 1,
+    "valid_from": "2026-04-07T17:00:00.000Z",
+    "valid_to": "2026-04-29T17:00:00.000Z",
+    "cover_image": "/uploads/1775654647155_c3c1478d11bb.png",
+    "cover_video": "/uploads/1775654685531_53b159759c31.mp4",
+    "created_at": "2026-04-08T13:26:02.174Z",
+    "updated_at": "2026-04-08T13:26:02.174Z"
   }
 ]

@@ -18,3 +18,9 @@ id = "XUIDA1h99pEJhCLFVNg5R"
 uri = "file://cityone-growth-20260405.tar.gz"
 type = "unspecified"
 title = "CityOne Growth 完整源码 2026-04-05"
+
+[[outputs]]
+id = "NGyByxkqKyMkRxE9GTvAT"
+uri = "file://docs/CityOne-卡券操作说明书.md"
+type = "text"
+title = "CityOne 卡券操作说明书 v1.0"
