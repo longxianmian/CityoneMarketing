@@ -214,7 +214,7 @@ export async function handleUpdateAdmin(req, body, id, res, sendJson) {
   const admins = readAdmins();
   const idx = admins.findIndex((a) => a.id === Number(id));
   if (idx === -1) return sendError(res, sendJson, 404, "NOT_FOUND", "账号不存在");
-  if (admins[idx].role === "super_admin" && admins[idx].username === "superadmin")
+  if (admins[idx].role === "super_admin" && admins[idx].id === 1)
     return sendError(res, sendJson, 400, "PROTECTED", "超级管理员基础账号不可修改角色");
 
   const { display_name, role, department, status, new_password } = body || {};
@@ -241,7 +241,7 @@ export function handleDeleteAdmin(req, id, res, sendJson) {
   const admins = readAdmins();
   const target = admins.find((a) => a.id === Number(id));
   if (!target) return sendError(res, sendJson, 404, "NOT_FOUND", "账号不存在");
-  if (target.username === "superadmin")
+  if (target.role === "super_admin" && target.id === 1)
     return sendError(res, sendJson, 400, "PROTECTED", "不能删除超级管理员账号");
   if (target.id === user.id)
     return sendError(res, sendJson, 400, "SELF_DELETE", "不能删除自己的账号");
