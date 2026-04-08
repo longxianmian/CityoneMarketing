@@ -206,13 +206,13 @@ export default function AdminLayout() {
           { key: '/admin/growth/agent/metrics', label: lt('metricsBoard') },
         ],
       },
-      // === 6. 会员管理 ===
+      // === 6. 客户管理（粉丝 / 用户 / 会员）===
       {
-        key: 'member-manage',
-        icon: <CrownOutlined style={{ color: '#faad14' }} />,
-        label: '会员管理',
+        key: 'customer-manage',
+        icon: <TeamOutlined style={{ color: '#1677ff' }} />,
+        label: '客户管理',
         children: [
-          { key: '/admin/member/list', icon: <TeamOutlined />, label: '会员与用户列表' },
+          { key: '/admin/member/list', icon: <TeamOutlined />, label: '客户列表' },
           { key: '/admin/member/benefits', icon: <ThunderboltOutlined />, label: '权益配置 & 对接口' },
         ],
       },

@@ -514,8 +514,8 @@ const server = http.createServer(async (req, res) => {
       return handleRoleTemplates(req, res, sendJson);
     }
 
-    // ── 会员管理 ───────────────────────────────────────────────────────────
-    if (req.method === "GET" && url.pathname === "/api/admin/members") {
+    // ── 客户管理（三层人群：粉丝 / 用户 / 会员） ──────────────────────────
+    if (req.method === "GET" && (url.pathname === "/api/admin/customers" || url.pathname === "/api/admin/members")) {
       return handleListMembers(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/admin/member-config") {
@@ -524,7 +524,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/admin/member-config/update") {
       return handleUpdateMemberConfig(req, await readBody(req), res, sendJson);
     }
-    if (req.method === "POST" && /^\/api\/admin\/members\/[^/]+\/set-member$/.test(url.pathname)) {
+    if (req.method === "POST" && /^\/api\/admin\/(customers|members)\/[^/]+\/set-member$/.test(url.pathname)) {
       const userId = url.pathname.split("/")[4];
       return handleSetMember(req, await readBody(req), userId, res, sendJson);
     }
