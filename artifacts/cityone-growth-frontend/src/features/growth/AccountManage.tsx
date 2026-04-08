@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   Table, Button, Tag, Space, Modal, Form, Input, Select,
   Tabs, Tooltip, Badge, Popconfirm, Checkbox, App as AntdApp,
-  Typography, Row, Col, Card,
+  Typography, Row, Col, Card, Collapse, Alert,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, KeyOutlined,
-  UserOutlined, StopOutlined, CheckCircleOutlined,
+  UserOutlined, StopOutlined, CheckCircleOutlined, LockOutlined,
 } from '@ant-design/icons'
 import request from '../../api/request'
 import useAuthStore from '../../store/auth'
@@ -138,10 +138,19 @@ export default function AccountManage({ mode }: Props) {
   const handleEdit = async () => {
     if (!current) return
     const values = await editForm.validateFields()
+    // 如果新密码字段有值，做二次确认校验
+    if (values.new_password && values.new_password !== values.confirm_password) {
+      message.error('两次输入的密码不一致')
+      return
+    }
     setSubmitting(true)
     try {
-      await request.post(`${apiBase}/${current.id}/update`, values)
-      message.success('更新成功')
+      const payload: any = { ...values }
+      delete payload.confirm_password
+      // 如果没填新密码则不传 new_password 字段
+      if (!payload.new_password) delete payload.new_password
+      await request.post(`${apiBase}/${current.id}/update`, payload)
+      message.success(values.new_password ? '账号信息及密码已更新' : '更新成功')
       setEditOpen(false)
       loadAccounts()
     } catch (e: any) {
@@ -196,6 +205,8 @@ export default function AccountManage({ mode }: Props) {
       department: record.department,
       permissions: record.permissions,
       note: record.note,
+      new_password: '',
+      confirm_password: '',
     })
     setEditOpen(true)
   }
@@ -444,6 +455,58 @@ export default function AccountManage({ mode }: Props) {
           <Form.Item name="note" label="备注">
             <Input.TextArea rows={2} />
           </Form.Item>
+
+          <Collapse
+            ghost
+            style={{ marginTop: 4 }}
+            items={[{
+              key: 'pwd',
+              label: (
+                <span style={{ color: '#1677ff', fontWeight: 600 }}>
+                  <LockOutlined style={{ marginRight: 6 }} />重置密码（选填，不填则不修改）
+                </span>
+              ),
+              children: (
+                <>
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 12, fontSize: 12 }}
+                    message="密码采用不可逆加密存储，系统无法显示原始密码。如需让账号使用新密码，在此处设置后保存即可。"
+                  />
+                  <Row gutter={12}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="new_password"
+                        label="新密码"
+                        rules={[{ min: 8, message: '至少 8 位' }]}
+                      >
+                        <Input.Password placeholder="至少 8 位，不填则不修改" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="confirm_password"
+                        label="确认新密码"
+                        dependencies={['new_password']}
+                        rules={[
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              const np = getFieldValue('new_password')
+                              if (!np || !value || np === value) return Promise.resolve()
+                              return Promise.reject(new Error('两次密码不一致'))
+                            },
+                          }),
+                        ]}
+                      >
+                        <Input.Password placeholder="再次输入新密码" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </>
+              ),
+            }]}
+          />
         </Form>
       </Modal>
 
