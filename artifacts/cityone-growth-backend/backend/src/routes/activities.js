@@ -56,6 +56,16 @@ const VALID_ACTIVITY_TYPES = [
   "general", "sos", "lightning_coupon", "lucky_wheel", "scratch_card", "thai_fortune_draw", "invite_reward"
 ];
 
+export function handleActivityTemplateList(req, res, url, sendJson) {
+  const list = loadJsonArray(ACTIVITY_TEMPLATES_FILE);
+  const { page = 1, pageSize = 20, activity_type } = Object.fromEntries(url.searchParams);
+  const filtered = activity_type ? list.filter(t => t.activity_type === activity_type) : list;
+  const p = Math.max(1, Number(page));
+  const ps = Math.max(1, Math.min(100, Number(pageSize)));
+  const rows = filtered.slice((p - 1) * ps, p * ps);
+  return sendOk(res, sendJson, "activity templates loaded", { list: rows, total: filtered.length, page: p, pageSize: ps });
+}
+
 export function handleActivityTemplateGet(req, res, url, sendJson) {
   const id = idFromPath(url.pathname, /^\/api\/activity-templates\/([^/]+)$/);
   const list = loadJsonArray(ACTIVITY_TEMPLATES_FILE);

@@ -59,6 +59,7 @@ import {
   handleGetMallRedeems,
 } from "./routes/mall-items.js";
 import {
+  handleActivityTemplateList,
   handleActivityTemplateGet,
   handleActivityTemplateCreate,
   handleActivityTemplateUpdate,
@@ -230,6 +231,12 @@ import {
   handleCouponUpdate,
   handleCouponDelete,
 } from "./routes/coupons.js";
+import {
+  handleMessageList,
+  handleMessageSave,
+  handleMessageDelete,
+  handleMessageTest,
+} from "./routes/messages.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -816,6 +823,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── 活动模板层 ───────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/activity-templates") {
+      return handleActivityTemplateList(req, res, url, sendJson);
+    }
     if (req.method === "GET" && /^\/api\/activity-templates\/[^/]+$/.test(url.pathname)) {
       return handleActivityTemplateGet(req, res, url, sendJson);
     }
@@ -824,6 +834,20 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "PUT" && /^\/api\/activity-templates\/[^/]+$/.test(url.pathname)) {
       return handleActivityTemplateUpdate(req, res, url, sendJson, readBody);
+    }
+
+    // ── 消息管理 ──────────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/growth/message/list") {
+      return handleMessageList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/message/save") {
+      return handleMessageSave(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/message/delete") {
+      return handleMessageDelete(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/message/test") {
+      return handleMessageTest(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/activities") {
       return handleActivityList(req, res, url, sendJsonCached30);

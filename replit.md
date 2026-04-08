@@ -52,6 +52,40 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ---
 
+## 🏭 生产级运行标准（每次修改代理/路由/中间件后强制执行）
+
+### 健康检查
+```bash
+bash .local/scripts/health-check.sh
+```
+**规则：必须 0 失败才视为可提交。**脚本覆盖 20 项检查：服务可达、文件上传速度（< 2s）、用户端 API、管理端 API、/uploads 代理。
+
+### 代理架构规范（三层链路）
+```
+浏览器 → Vite(:23097) → api-server(:8080) → growth-backend(:3100)
+```
+
+| 路由类型 | 代理方式 | 规范 |
+|---------|---------|------|
+| `POST /api/upload` | `createProxyMiddleware` **位于 body-parser 之前** | multipart 流不经过 body-parser，否则挂起 60s |
+| `/uploads/*` | 原生 `http.request` pipe | 静态文件，无需 body 解析 |
+| `/api/agent/*` | 原生 `http.request` | 需 body 序列化 |
+| 其他 `/api/*` | fallback 原生 `http.request` | `req.body` 有值时序列化，否则 pipe |
+
+**禁止**：在通用 fallback 代理之前没有专属 proxy 的情况下新增需要 multipart 的路由。
+
+### 后端路由添加规范
+1. 在 `backend/src/routes/*.js` 新增 handler 函数并 `export`
+2. 在 `backend/src/index.js` 顶部 import 新函数
+3. 在 index.js 路由分发区按 `method + pathname` 精确注册
+4. 重启后端，运行健康检查确认 200
+
+### 已知路由缺口（不影响上线但需后续补齐）
+- `GET /api/product-templates`（列表）— 目前只有 GET by ID
+- `GET /api/entries`, `GET /api/entries/templates`（前端暂未调用列表）
+
+---
+
 ## ⚠️ 【必读】CityOne 多语言开发规范（每次开发前端模块前必须遵守）
 
 **规范全文见：`.local/docs/i18n-spec.md`**
