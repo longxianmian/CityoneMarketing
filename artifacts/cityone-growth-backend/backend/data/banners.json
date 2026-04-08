@@ -18,5 +18,25 @@
     "id": "bn_1775661686346_jbix8",
     "created_at": "2026-04-08T15:21:26.346Z",
     "updated_at": "2026-04-08T15:21:26.346Z"
+  },
+  {
+    "title": {
+      "zh": "",
+      "th": "",
+      "en": "生产验收测试"
+    },
+    "sub_title": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "link_type": "internal",
+    "sort_order": 1,
+    "enabled": true,
+    "link_url": "/welfare",
+    "image_url": "",
+    "id": "bn_1775664093578_mlbf5",
+    "created_at": "2026-04-08T16:01:33.578Z",
+    "updated_at": "2026-04-08T16:01:33.578Z"
   }
 ]

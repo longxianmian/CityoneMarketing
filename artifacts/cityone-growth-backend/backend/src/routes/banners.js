@@ -34,6 +34,14 @@ function saveJsonArray(filePath, data) {
 function generateId() {
   return "bn_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
 }
+function requireAdmin(req, res, sendJson) {
+  const admin = req._admin;
+  if (!admin) {
+    sendError(res, sendJson, 401, "UNAUTH", "未登录");
+    return null;
+  }
+  return admin;
+}
 
 // GET /api/growth/banners — list (公开端: enabled=true; 管理端: 全量)
 export function handleGetBanners(req, res, sendJson, url) {
@@ -44,8 +52,9 @@ export function handleGetBanners(req, res, sendJson, url) {
   return sendOk(res, sendJson, "ok", { list, total: list.length });
 }
 
-// POST /api/growth/banners — create
+// POST /api/growth/banners — create  [requires admin]
 export function handleCreateBanner(req, res, sendJson, body) {
+  if (!requireAdmin(req, res, sendJson)) return;
   const list = loadJsonArray(BANNERS_FILE);
   const banner = {
     ...body,
@@ -65,8 +74,9 @@ export function handleCreateBanner(req, res, sendJson, body) {
   return sendOk(res, sendJson, "created", banner);
 }
 
-// PUT /api/growth/banners/:id — update
+// PUT /api/growth/banners/:id — update  [requires admin]
 export function handleUpdateBanner(req, res, sendJson, body, bannerId) {
+  if (!requireAdmin(req, res, sendJson)) return;
   const list = loadJsonArray(BANNERS_FILE);
   const idx = list.findIndex(b => b.id === bannerId);
   if (idx === -1) return sendError(res, sendJson, 404, "NOT_FOUND", "Banner not found");
@@ -75,8 +85,9 @@ export function handleUpdateBanner(req, res, sendJson, body, bannerId) {
   return sendOk(res, sendJson, "updated", list[idx]);
 }
 
-// DELETE /api/growth/banners/:id
+// DELETE /api/growth/banners/:id  [requires admin]
 export function handleDeleteBanner(req, res, sendJson, bannerId) {
+  if (!requireAdmin(req, res, sendJson)) return;
   const list = loadJsonArray(BANNERS_FILE);
   const next = list.filter(b => b.id !== bannerId);
   if (next.length === list.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Banner not found");

@@ -292,6 +292,7 @@ export async function handleActivityProductBindingCreate(req, res, url, sendJson
 }
 
 export function handleActivityDelete(req, res, url, sendJson) {
+  if (!req._admin) return sendJson(res, 401, { code: 401, msg: "未登录", error: "UNAUTH" });
   const id = idFromPath(url.pathname, /^\/api\/activities\/([^/]+)$/);
   if (!id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少活动ID");
   const list = loadJsonArray(ACTIVITIES_FILE);

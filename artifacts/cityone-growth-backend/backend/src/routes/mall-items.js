@@ -61,6 +61,7 @@ export function handleGetMallItems(req, res, sendJson, url) {
 
 // POST /growth/mall/items  — create
 export function handleCreateMallItem(req, res, sendJson, body) {
+  if (!req._admin) return sendJson(res, 401, { code: 401, msg: "未登录", error: "UNAUTH" });
   const list = loadJsonArray(MALL_ITEMS_FILE);
   const item = {
     // 先铺一遍 body，保留 tag/badge/highlights/rules 等前端扩展字段
@@ -87,6 +88,7 @@ export function handleCreateMallItem(req, res, sendJson, body) {
 
 // PUT /growth/mall/items/:id  — update
 export function handleUpdateMallItem(req, res, sendJson, body, itemId) {
+  if (!req._admin) return sendJson(res, 401, { code: 401, msg: "未登录", error: "UNAUTH" });
   const list = loadJsonArray(MALL_ITEMS_FILE);
   const idx = list.findIndex(i => i.id === itemId);
   if (idx === -1) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
@@ -97,6 +99,7 @@ export function handleUpdateMallItem(req, res, sendJson, body, itemId) {
 
 // DELETE /growth/mall/items/:id
 export function handleDeleteMallItem(req, res, sendJson, itemId) {
+  if (!req._admin) return sendJson(res, 401, { code: 401, msg: "未登录", error: "UNAUTH" });
   const list = loadJsonArray(MALL_ITEMS_FILE);
   const next = list.filter(i => i.id !== itemId);
   if (next.length === list.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");

@@ -2,6 +2,12 @@
 data/line-config.json
 data/admins.json
 
+# ── CMS内容数据（含上传图片URL，由各环境独立维护，git pull 不应覆盖）──
+data/banners.json
+data/mall-items.json
+data/coupons.json
+data/activities.json
+
 # ── 运行时用户数据（生产服务器会自动写入，git pull 不应覆盖）──────
 data/activity-interactions.json
 data/activity-participations.json

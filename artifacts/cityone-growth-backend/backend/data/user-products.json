@@ -215,5 +215,45 @@
     "issued_at": "2026-04-07T04:25:15.219Z",
     "created_at": "2026-04-07T04:25:15.219Z",
     "updated_at": "2026-04-07T04:25:15.219Z"
+  },
+  {
+    "user_product_id": "up_coupon_1775663526472_01425ab3",
+    "user_id": "dev_1q175hnsmnmtn22u",
+    "line_user_id": "dev_1q175hnsmnmtn22u",
+    "product_id": "coupon_003",
+    "product_name": {
+      "zh": "测试",
+      "th": "",
+      "en": ""
+    },
+    "product_type": "coupon",
+    "source_type": "coupon_claim",
+    "source_id": "coupon_003",
+    "product_status": "claimed",
+    "coupon_data": {
+      "id": "coupon_003",
+      "name": {
+        "zh": "测试",
+        "th": "",
+        "en": ""
+      },
+      "coupon_type": "channel",
+      "discount_type": "fixed",
+      "discount_value": 200,
+      "min_amount": 1000,
+      "total_count": 100,
+      "claimed_count": 0,
+      "status": 1,
+      "valid_from": "2026-04-07T17:00:00.000Z",
+      "valid_to": "2026-04-29T17:00:00.000Z",
+      "cover_image": "/uploads/1775654647155_c3c1478d11bb.png",
+      "cover_video": "/uploads/1775654685531_53b159759c31.mp4",
+      "created_at": "2026-04-08T13:26:02.174Z",
+      "updated_at": "2026-04-08T13:26:02.174Z"
+    },
+    "claimed_at": "2026-04-08T15:52:06.472Z",
+    "issued_at": "2026-04-08T15:52:06.472Z",
+    "created_at": "2026-04-08T15:52:06.472Z",
+    "updated_at": "2026-04-08T15:52:06.472Z"
   }
 ]
