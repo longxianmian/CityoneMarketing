@@ -3,15 +3,16 @@ import { Card, Table, Button, Space, Tag, Modal, Form, Input, Select, message, D
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, LinkOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
-import MultiLangInput from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
 
-function toMultiLang(v: any): { zh: string; th: string; en: string } {
-  if (v && typeof v === 'object' && ('zh' in v || 'th' in v || 'en' in v)) return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
-  return { zh: typeof v === 'string' ? v : '', th: '', en: '' }
+function pickText(v: any, lang = 'zh'): string {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  return v[lang] || v.zh || v.th || v.en || ''
 }
 
 const MULTI_LANG_FIELDS = ['title', 'subTitle', 'benefitText', 'supportText', 'buttonText']
+const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
 
 export default function LandingTemplateManage() {
   const { t, language } = useI18n()
@@ -58,13 +59,15 @@ export default function LandingTemplateManage() {
   const handleAdd = () => {
     setIsEdit(false); setEditingId(null)
     form.resetFields(); setCoverImage('')
+    form.setFieldsValue({ _sourceLang: language || 'zh' })
     setFormVisible(true)
   }
 
   const handleEdit = (r: any) => {
     setIsEdit(true); setEditingId(r.id)
-    const patch: any = {}
-    MULTI_LANG_FIELDS.forEach((f) => { patch[f] = toMultiLang(r[f]) })
+    const sl = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
+    const patch: any = { _sourceLang: sl }
+    MULTI_LANG_FIELDS.forEach((f) => { patch[f] = pickText(r[f], sl) })
     form.setFieldsValue({ ...r, ...patch })
     setCoverImage(r.coverImage || '')
     setFormVisible(true)
@@ -92,13 +95,16 @@ export default function LandingTemplateManage() {
 
     setSaving(true)
     try {
-      const langs = ['zh', 'th', 'en']
-      const sourceLang = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
+      const sourceLang = values._sourceLang || 'zh'
       const textsToTranslate: Record<string, string> = {}
       MULTI_LANG_FIELDS.forEach((f) => {
-        const v = values[f] || {}
+        const raw = values[f]
+        const v: any = typeof raw === 'string'
+          ? { zh: '', th: '', en: '', [sourceLang]: raw }
+          : (raw || {})
+        values[f] = v
         const srcText = v[sourceLang]?.trim()
-        const hasEmpty = langs.some((l) => l !== sourceLang && !v[l]?.trim())
+        const hasEmpty = ['zh', 'th', 'en'].some((l) => l !== sourceLang && !v[l]?.trim())
         if (srcText && hasEmpty) textsToTranslate[f] = srcText
       })
 
@@ -108,8 +114,7 @@ export default function LandingTemplateManage() {
           const result = res.data?.result ?? {}
           const patch: any = {}
           Object.entries(result).forEach(([key, translated]) => {
-            const cur = values[key] || {}
-            patch[key] = { ...cur, ...(translated as any) }
+            patch[key] = { ...values[key], ...(translated as any) }
             values[key] = patch[key]
           })
           form.setFieldsValue(patch)
@@ -119,6 +124,7 @@ export default function LandingTemplateManage() {
       }
 
       const payload = { ...values, coverImage }
+      delete payload._sourceLang
       if (isEdit) {
         await request.put(`/landing-templates/${editingId}`, payload)
         message.success(t('adminTemplate.common.updateSuccess'))
@@ -191,22 +197,25 @@ export default function LandingTemplateManage() {
           <Form.Item name="templateType" label={t('adminTemplate.landing.formTemplateType')} rules={[{ required: true }]}>
             <Select options={TEMPLATE_TYPES} placeholder={t('adminTemplate.landing.placeholderTemplateType')} />
           </Form.Item>
+          <Form.Item name="_sourceLang" label="输入语言 / Input Language" initialValue="zh">
+            <Select options={LANG_OPTIONS} style={{ width: 160 }} />
+          </Form.Item>
 
           <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.landing.sectionContent')}</Divider>
           <Form.Item name="title" label={t('adminTemplate.landing.formMainTitle')} rules={[{ required: true, message: t('adminTemplate.common.requiredChTitle') }]}>
-            <MultiLangInput />
+            <Input />
           </Form.Item>
           <Form.Item name="subTitle" label={t('adminTemplate.landing.formSubTitle')}>
-            <MultiLangInput />
+            <Input />
           </Form.Item>
           <Form.Item name="benefitText" label={t('adminTemplate.landing.formBenefitText')}>
-            <MultiLangInput />
+            <Input />
           </Form.Item>
           <Form.Item name="supportText" label={t('adminTemplate.landing.formSupportText')}>
-            <MultiLangInput textarea rows={2} />
+            <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item name="buttonText" label={t('adminTemplate.landing.formButtonText')} rules={[{ required: true, message: t('adminTemplate.common.requiredChTitle') }]}>
-            <MultiLangInput />
+            <Input />
           </Form.Item>
           <Form.Item label={t('adminTemplate.landing.formCoverImage')}>
             <MediaUploadField type="image" value={coverImage} onChange={setCoverImage} placeholder={t('adminTemplate.landing.uploadCoverImage')} />

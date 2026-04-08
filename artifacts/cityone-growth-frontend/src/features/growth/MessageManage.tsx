@@ -3,7 +3,6 @@ import { Card, Table, Input, Button, Space, Tag, Row, Col, Modal, Form, message,
 import { SearchOutlined, ReloadOutlined, PlusOutlined, ExclamationCircleOutlined, SendOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import { useI18n } from '../../i18n'
-import MultiLangInput from '../../components/MultiLangInput'
 
 const channelMap: Record<string, { label: string; color: string }> = {
   line: { label: 'LINE', color: 'green' },
@@ -16,6 +15,14 @@ const channelOptions = [
   { value: 'sms', label: 'SMS' },
   { value: 'in_app', label: 'In-App' },
 ]
+
+const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
+
+function pickText(v: any, lang = 'zh'): string {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  return v[lang] || v.zh || v.th || v.en || ''
+}
 
 export default function MessageManage() {
   const { t, language } = useI18n()
@@ -58,24 +65,40 @@ export default function MessageManage() {
     form.resetFields()
     form.setFieldsValue({
       enabled: true,
-      content: { zh: '', th: '', en: '' },
+      _sourceLang: language || 'zh',
+      content: '',
     })
     setFormVisible(true)
   }
 
   const handleEdit = (record: any) => {
     setIsEdit(true)
-    const content = record.content && typeof record.content === 'object'
-      ? record.content
-      : { zh: record.content_zh || '', th: record.content_th || '', en: record.content_en || '' }
-    form.setFieldsValue({ ...record, content })
+    const sl = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
+    form.setFieldsValue({
+      ...record,
+      _sourceLang: sl,
+      content: pickText(record.content, sl) || record.content_zh || '',
+    })
     setFormVisible(true)
   }
 
   const handleFormOk = async () => {
     const values = await form.validateFields()
     try {
-      const content = values.content || { zh: '', th: '', en: '' }
+      const sourceLang = values._sourceLang || 'zh'
+      const raw: string = values.content || ''
+      let content: any = { zh: '', th: '', en: '', [sourceLang]: raw }
+
+      if (raw.trim() && ['zh', 'th', 'en'].some(l => l !== sourceLang && !content[l])) {
+        try {
+          const res: any = await request.post('/translate', { texts: { content: raw }, sourceLang }, { timeout: 8000, silentError: true } as any)
+          const result = res.data?.result ?? {}
+          if (result.content) content = { ...content, ...result.content }
+        } catch {
+          // 翻译失败静默降级
+        }
+      }
+
       const payload = {
         ...values,
         content,
@@ -83,6 +106,7 @@ export default function MessageManage() {
         content_th: content.th || '',
         content_en: content.en || '',
       }
+      delete payload._sourceLang
       await request.post('/growth/message/save', payload)
       message.success(isEdit ? mk('saveSuccess') : mk('createSuccess'))
       setFormVisible(false)
@@ -208,21 +232,22 @@ export default function MessageManage() {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item name="_sourceLang" label="输入语言 / Input Language" initialValue="zh">
+            <Select options={LANG_OPTIONS} style={{ width: 160 }} />
+          </Form.Item>
           <Form.Item
             name="content"
             label={mk('formContent')}
             rules={[{
               validator: (_, val) => {
-                if (!val?.zh?.trim()) return Promise.reject(mk('formContentRequired'))
+                if (!val?.trim()) return Promise.reject(mk('formContentRequired'))
                 return Promise.resolve()
               },
             }]}
           >
-            <MultiLangInput
-              textarea
+            <Input.TextArea
               rows={3}
-              
-              placeholder="请输入中文消息内容，点击 AI 自动翻译补齐其他语言"
+              placeholder="请输入消息内容，保存时自动翻译补齐其他语言"
             />
           </Form.Item>
           <Row gutter={16}>

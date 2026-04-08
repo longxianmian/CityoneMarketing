@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Form, Switch, Button, Select, InputNumber, message, Spin, Typography } from 'antd'
+import { Card, Form, Switch, Button, Select, InputNumber, Input, message, Spin, Typography } from 'antd'
 import { SaveOutlined, RobotOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { getAgentConfig, updateAgentConfig } from '../../api/agent-admin'
 import { useI18n } from '../../i18n'
-import MultiLangInput from '../../components/MultiLangInput'
+import request from '../../api/request'
 
 const { Text } = Typography
+
+const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
 
 const MOCK_CONFIG = {
   enabled: true,
@@ -27,8 +29,14 @@ const MOCK_CONFIG = {
   },
 }
 
+function pickText(v: any, lang = 'zh'): string {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  return v[lang] || v.zh || v.th || v.en || ''
+}
+
 export default function AgentConfigManage() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const ac = (key: string) => t(`agentConfig.${key}`)
 
   const CAPABILITIES = [
@@ -63,18 +71,16 @@ export default function AgentConfigManage() {
 
   useEffect(() => {
     if (config) {
+      const sl = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
       form.setFieldsValue({
+        _sourceLang: sl,
         enabled: config.enabled,
         maxHistoryMessages: config.maxHistoryMessages,
         showSuggestions: config.showSuggestions,
         allowContinuousAction: config.allowContinuousAction,
         fileUploadEnabled: config.fileUploadEnabled,
-        welcomeMessage: config.welcomeMessage || { zh: '', th: '', en: '' },
-        quickPrompts: {
-          zh: (config.quickPrompts?.zh || []).join('\n'),
-          th: (config.quickPrompts?.th || []).join('\n'),
-          en: (config.quickPrompts?.en || []).join('\n'),
-        },
+        welcomeMessage: pickText(config.welcomeMessage, sl),
+        quickPrompts: (config.quickPrompts?.[sl] || []).join('\n'),
         cap_guest: config.tierCapabilities?.guest || [],
         cap_fan: config.tierCapabilities?.fan || [],
         cap_user: config.tierCapabilities?.user || [],
@@ -87,18 +93,48 @@ export default function AgentConfigManage() {
     try {
       const values = await form.validateFields()
       setSaving(true)
-      const qp = values.quickPrompts || {}
+      const sourceLang = values._sourceLang || 'zh'
+
+      const wm: string = values.welcomeMessage || ''
+      const qpRaw: string = values.quickPrompts || ''
+
+      let welcomeMessage: any = { zh: '', th: '', en: '', [sourceLang]: wm }
+      let quickPromptsText: any = { zh: '', th: '', en: '', [sourceLang]: qpRaw }
+
+      const needsWmTranslate = wm.trim() && ['zh', 'th', 'en'].some(l => l !== sourceLang && !welcomeMessage[l])
+      const needsQpTranslate = qpRaw.trim() && ['zh', 'th', 'en'].some(l => l !== sourceLang && !quickPromptsText[l])
+
+      if (needsWmTranslate || needsQpTranslate) {
+        try {
+          const texts: Record<string, string> = {}
+          if (needsWmTranslate) texts.welcomeMessage = wm
+          if (needsQpTranslate) texts.quickPrompts = qpRaw
+          const res: any = await request.post('/translate', { texts, sourceLang }, { timeout: 10000, silentError: true } as any)
+          const result = res.data?.result ?? {}
+          if (result.welcomeMessage) {
+            welcomeMessage = { ...welcomeMessage, ...result.welcomeMessage }
+          }
+          if (result.quickPrompts) {
+            quickPromptsText = { ...quickPromptsText, ...result.quickPrompts }
+          }
+        } catch {
+          // 翻译失败静默降级
+        }
+      }
+
+      const splitLines = (s: string) => (s || '').split('\n').map(l => l.trim()).filter(Boolean)
+
       const payload = {
         enabled: values.enabled,
         maxHistoryMessages: values.maxHistoryMessages,
         showSuggestions: values.showSuggestions,
         allowContinuousAction: values.allowContinuousAction,
         fileUploadEnabled: values.fileUploadEnabled,
-        welcomeMessage: values.welcomeMessage || { zh: '', th: '', en: '' },
+        welcomeMessage,
         quickPrompts: {
-          zh: (qp.zh || '').split('\n').filter(Boolean),
-          th: (qp.th || '').split('\n').filter(Boolean),
-          en: (qp.en || '').split('\n').filter(Boolean),
+          zh: splitLines(quickPromptsText.zh),
+          th: splitLines(quickPromptsText.th),
+          en: splitLines(quickPromptsText.en),
         },
         tierCapabilities: {
           guest: values.cap_guest || [],
@@ -162,17 +198,20 @@ export default function AgentConfigManage() {
           title={ac('cardWelcome')}
           style={{ marginBottom: 16 }}
           extra={
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              <InfoCircleOutlined style={{ marginRight: 4 }} />
-              输入主语言内容，点击"AI 自动翻译"补齐其他语言
-            </Text>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Form.Item name="_sourceLang" noStyle initialValue="zh">
+                <Select options={LANG_OPTIONS} size="small" style={{ width: 120 }} />
+              </Form.Item>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                <InfoCircleOutlined style={{ marginRight: 4 }} />
+                输入主语言，保存时自动翻译
+              </Text>
+            </div>
           }
         >
           <Form.Item name="welcomeMessage" style={{ marginBottom: 0 }}>
-            <MultiLangInput
-              textarea
+            <Input.TextArea
               rows={3}
-              
               placeholder="你好！我是 CityOne AI 助理，有什么可以帮你？"
             />
           </Form.Item>
@@ -184,15 +223,13 @@ export default function AgentConfigManage() {
           extra={
             <Text type="secondary" style={{ fontSize: 12 }}>
               <InfoCircleOutlined style={{ marginRight: 4 }} />
-              每行一条快捷提示，翻译后将分发到各语言版本
+              每行一条快捷提示，保存时自动翻译
             </Text>
           }
         >
           <Form.Item name="quickPrompts" style={{ marginBottom: 0 }}>
-            <MultiLangInput
-              textarea
+            <Input.TextArea
               rows={5}
-              
               placeholder={'怎么借充电宝？\n卡券怎么使用？\n积分怎么兑换？'}
             />
           </Form.Item>

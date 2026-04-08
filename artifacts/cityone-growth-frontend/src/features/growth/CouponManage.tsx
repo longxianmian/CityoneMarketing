@@ -5,9 +5,10 @@ import request from '../../api/request'
 import StationScopeSelect, { type StationScope } from '../../components/StationScopeSelect'
 import MediaUploadField from '../../components/MediaUploadField'
 import SharePromoModal from '../../components/SharePromoModal'
-import MultiLangInput, { type MultiLangValue } from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
 import dayjs from 'dayjs'
+
+const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
 
 // 多语字段 pick（降级：当前语言 → en → zh → th）
 function pickML(field: any, lang = 'zh'): string {
@@ -17,21 +18,13 @@ function pickML(field: any, lang = 'zh'): string {
     return field[lang] || field.en || field.zh || field.th || ''
   return ''
 }
-// 旧字符串兼容转换为 {zh,th,en}
-function toML(v: any): MultiLangValue {
-  if (v && typeof v === 'object' && !Array.isArray(v)) return v as MultiLangValue
-  return { zh: typeof v === 'string' ? v : '', th: '', en: '' }
-}
-function ensureML(v: any): MultiLangValue {
-  return toML(v)
-}
 
 const discountTypeColors: Record<string, string> = {
   fixed: 'blue', percent: 'purple', free_time: 'green', free_order: 'orange',
 }
 
 export default function CouponManage() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
 
   const couponTypeMap: Record<string, string> = {
     newbie: t('couponManage.couponTypeNewbie'),
@@ -96,9 +89,11 @@ export default function CouponManage() {
 
   const handleEdit = (record: any) => {
     setIsEdit(true)
+    const sl = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
     form.setFieldsValue({
       id: record.id,
-      name: toML(record.name),
+      _sourceLang: sl,
+      name: pickML(record.name, sl),
       couponType: record.coupon_type,
       discountType: record.discount_type,
       discountValue: Number(record.discount_value),
@@ -123,25 +118,28 @@ export default function CouponManage() {
     }
     setSaving(true)
     try {
-      const mlName: MultiLangValue = ensureML(values.name)
-      if (mlName.zh?.trim() && (!mlName.th?.trim() || !mlName.en?.trim())) {
+      const sourceLang = values._sourceLang || 'zh'
+      const rawName: string = values.name || ''
+      let mlName: any = { zh: '', th: '', en: '', [sourceLang]: rawName }
+      if (rawName.trim() && ['zh', 'th', 'en'].some(l => l !== sourceLang && !mlName[l])) {
         try {
-          const res: any = await request.post('/translate', { texts: { name: mlName.zh }, sourceLang: 'zh' }, { timeout: 8000, silentError: true } as any)
+          const res: any = await request.post('/translate', { texts: { name: rawName }, sourceLang }, { timeout: 8000, silentError: true } as any)
           const result = res.data?.result ?? {}
-          if (result.name) values.name = result.name
+          if (result.name) mlName = { ...mlName, ...result.name }
         } catch {
           // 翻译失败静默降级
         }
       }
       const payload = {
         ...values,
-        name: ensureML(values.name),
+        name: mlName,
         validFrom: values.validFrom?.toISOString(),
         validTo: values.validTo?.toISOString(),
         coverImage: coverImage || undefined,
         coverVideo: coverVideo || undefined,
         station_scope: stationScope,
       }
+      delete payload._sourceLang
       if (isEdit) {
         await request.post('/growth/coupon/update', payload)
         message.success(t('couponManage.msgUpdateOk'))
@@ -279,7 +277,10 @@ export default function CouponManage() {
         <Form form={form} layout="vertical">
           {isEdit && <Form.Item name="id" hidden><Input /></Form.Item>}
           <Form.Item name="name" label={t('couponManage.formName')} rules={[{ required: true, message: t('couponManage.formName') + ' 必填' }]}>
-            <MultiLangInput />
+            <Input />
+          </Form.Item>
+          <Form.Item name="_sourceLang" label="输入语言 / Input Language" initialValue="zh">
+            <Select options={LANG_OPTIONS} style={{ width: 160 }} />
           </Form.Item>
           <Row gutter={16}>
             <Col xs={24} sm={12}>

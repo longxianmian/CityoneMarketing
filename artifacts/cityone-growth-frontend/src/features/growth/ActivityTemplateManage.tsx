@@ -3,15 +3,16 @@ import { Card, Table, Button, Space, Tag, Modal, Form, Input, Select, message, D
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
-import MultiLangInput from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
 
-function toMultiLang(v: any): { zh: string; th: string; en: string } {
-  if (v && typeof v === 'object' && ('zh' in v || 'th' in v || 'en' in v)) return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
-  return { zh: typeof v === 'string' ? v : '', th: '', en: '' }
+function pickText(v: any, lang = 'zh'): string {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  return v[lang] || v.zh || v.th || v.en || ''
 }
 
 const MULTI_LANG_FIELDS = ['title', 'subTitle', 'description', 'highlights', 'participationGuide', 'rewardGuide', 'noticeText', 'buttonText']
+const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
 
 export default function ActivityTemplateManage() {
   const { t, language } = useI18n()
@@ -53,13 +54,15 @@ export default function ActivityTemplateManage() {
   const handleAdd = () => {
     setIsEdit(false); setEditingId(null)
     form.resetFields(); setCoverImage(''); setCoverVideo('')
+    form.setFieldsValue({ _sourceLang: language || 'zh' })
     setFormVisible(true)
   }
 
   const handleEdit = (r: any) => {
     setIsEdit(true); setEditingId(r.id)
-    const patch: any = {}
-    MULTI_LANG_FIELDS.forEach((f) => { patch[f] = toMultiLang(r[f]) })
+    const sl = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
+    const patch: any = { _sourceLang: sl }
+    MULTI_LANG_FIELDS.forEach((f) => { patch[f] = pickText(r[f], sl) })
     form.setFieldsValue({ ...r, ...patch })
     setCoverImage(r.coverImage || ''); setCoverVideo(r.coverVideo || '')
     setFormVisible(true)
@@ -86,12 +89,16 @@ export default function ActivityTemplateManage() {
     }
     setSaving(true)
     try {
-      const sourceLang = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
+      const sourceLang = values._sourceLang || 'zh'
       const textsToTranslate: Record<string, string> = {}
       MULTI_LANG_FIELDS.forEach((f) => {
-        const v = values[f] || {}
+        const raw = values[f]
+        const v: any = typeof raw === 'string'
+          ? { zh: '', th: '', en: '', [sourceLang]: raw }
+          : (raw || {})
+        values[f] = v
         const srcText = v[sourceLang]?.trim()
-        const hasEmpty = ['zh','th','en'].some((l) => l !== sourceLang && !v[l]?.trim())
+        const hasEmpty = ['zh', 'th', 'en'].some((l) => l !== sourceLang && !v[l]?.trim())
         if (srcText && hasEmpty) textsToTranslate[f] = srcText
       })
 
@@ -101,8 +108,7 @@ export default function ActivityTemplateManage() {
           const result = res.data?.result ?? {}
           const patch: any = {}
           Object.entries(result).forEach(([key, translated]) => {
-            const cur = values[key] || {}
-            patch[key] = { ...cur, ...(translated as any) }
+            patch[key] = { ...values[key], ...(translated as any) }
             values[key] = patch[key]
           })
           form.setFieldsValue(patch)
@@ -112,6 +118,7 @@ export default function ActivityTemplateManage() {
       }
 
       const payload = { ...values, coverImage, coverVideo }
+      delete payload._sourceLang
       if (isEdit) {
         await request.put(`/activity-templates/${editingId}`, payload)
         message.success(t('adminTemplate.common.updateSuccess'))
@@ -171,13 +178,16 @@ export default function ActivityTemplateManage() {
           <Form.Item name="name" label={t('adminTemplate.common.templateName')} rules={[{ required: true }]}>
             <Input placeholder={t('adminTemplate.common.internalName')} />
           </Form.Item>
+          <Form.Item name="_sourceLang" label="输入语言 / Input Language" initialValue="zh">
+            <Select options={LANG_OPTIONS} style={{ width: 160 }} />
+          </Form.Item>
 
           <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.activity.sectionMain')}</Divider>
           <Form.Item name="title" label={t('adminTemplate.activity.formTitle')} rules={[{ required: true, message: t('adminTemplate.common.requiredChTitle') }]}>
-            <MultiLangInput />
+            <Input />
           </Form.Item>
           <Form.Item name="subTitle" label={t('adminTemplate.activity.formSubTitle')}>
-            <MultiLangInput />
+            <Input />
           </Form.Item>
           <Form.Item label={t('adminTemplate.activity.formCoverImage')}>
             <MediaUploadField type="image" value={coverImage} onChange={setCoverImage} placeholder={t('adminTemplate.activity.uploadCoverImage')} />
@@ -188,20 +198,20 @@ export default function ActivityTemplateManage() {
 
           <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.activity.sectionDesc')}</Divider>
           <Form.Item name="description" label={t('adminTemplate.activity.formDescription')}>
-            <MultiLangInput textarea rows={3} />
+            <Input.TextArea rows={3} />
           </Form.Item>
           <Form.Item name="highlights" label={t('adminTemplate.activity.formHighlights')}>
-            <MultiLangInput textarea rows={2} placeholder={t('adminTemplate.activity.placeholderHighlights')} />
+            <Input.TextArea rows={2} placeholder={t('adminTemplate.activity.placeholderHighlights')} />
           </Form.Item>
 
           <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.activity.sectionSteps')}</Divider>
           <Form.Item name="participationGuide" label={t('adminTemplate.activity.formParticipationGuide')}>
-            <MultiLangInput textarea rows={3} />
+            <Input.TextArea rows={3} />
           </Form.Item>
 
           <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.activity.sectionReward')}</Divider>
           <Form.Item name="rewardGuide" label={t('adminTemplate.activity.formRewardGuide')}>
-            <MultiLangInput textarea rows={2} />
+            <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item name="linkedProductIds" label={t('adminTemplate.activity.formLinkedProducts')}>
             <Input placeholder="e.g. 1,2,3" />
@@ -209,13 +219,13 @@ export default function ActivityTemplateManage() {
 
           <Divider orientation="left" orientationMargin={0} style={{ fontSize: 13 }}>{t('adminTemplate.activity.sectionNotice')}</Divider>
           <Form.Item name="noticeText" label={t('adminTemplate.activity.formNoticeText')}>
-            <MultiLangInput textarea rows={2} />
+            <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item name="buttonType" label={t('adminTemplate.activity.formButtonType')} rules={[{ required: true }]}>
             <Select options={BUTTON_TYPES} />
           </Form.Item>
           <Form.Item name="buttonText" label={t('adminTemplate.activity.formButtonText')}>
-            <MultiLangInput placeholder={t('adminTemplate.activity.placeholderButtonText')} />
+            <Input placeholder={t('adminTemplate.activity.placeholderButtonText')} />
           </Form.Item>
           <Form.Item name="enabled" label={t('adminTemplate.common.isEnabled')} valuePropName="checked" initialValue={true}>
             <Switch />

@@ -467,6 +467,21 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 | `detail.joinActivity` 翻译 key 补充三语 | i18n/index.tsx | ✅ |
 | activities.json 恢复 act_001/act_002 示例数据（多语格式） | data/activities.json | ✅ |
 
+### GitHub 上线前全面清理（2026-04-08 完成）
+
+| 改动 | 文件 | 状态 |
+|------|------|------|
+| `line-config.json`（含真实 LINE 密钥）加入 .gitignore | `artifacts/cityone-growth-backend/.gitignore` | ✅ |
+| 创建 `line-config.example.json` 模板 | `backend/data/line-config.example.json` | ✅ |
+| 替换 ActivityTemplateManage 中 9 处 MultiLangInput → Input/TextArea + `_sourceLang` 选择器 | ActivityTemplateManage.tsx | ✅ |
+| 替换 ProductTemplateManage 中 7 处 MultiLangInput | ProductTemplateManage.tsx | ✅ |
+| 替换 LandingTemplateManage 中 6 处 MultiLangInput | LandingTemplateManage.tsx | ✅ |
+| 替换 PointsMallManage 中 4 处 MultiLangInput + `_sourceLang` 驱动翻译 | PointsMallManage.tsx | ✅ |
+| 替换 AgentConfigManage 中 3 处 MultiLangInput（welcomeMessage/quickPrompts → 单文本+自动翻译） | AgentConfigManage.tsx | ✅ |
+| 替换 MessageManage 中 2 处 MultiLangInput（content → 单文本+自动翻译） | MessageManage.tsx | ✅ |
+| 替换 CouponManage 中 2 处 MultiLangInput（name → 单文本+自动翻译） | CouponManage.tsx | ✅ |
+| TypeScript 零错误验证 | 整个前端 | ✅ |
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

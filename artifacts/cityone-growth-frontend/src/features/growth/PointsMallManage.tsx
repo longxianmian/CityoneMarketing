@@ -6,11 +6,19 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, ShareAltOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
-import MultiLangInput, { type MultiLangValue } from '../../components/MultiLangInput'
 import { useI18n } from '../../i18n'
 
+const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
+
+function pickText(v: any, lang = 'zh'): string {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  if (Array.isArray(v)) return v.join('\n')
+  return v[lang] || v.zh || v.th || v.en || ''
+}
+
 export default function PointsMallManage() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const pm = (key: string) => t(`pointsMall.${key}`)
 
   const typeOptions = [
@@ -103,25 +111,20 @@ export default function PointsMallManage() {
   const handleAdd = () => {
     setEditItem(null)
     form.resetFields()
-    form.setFieldsValue({ item_type: 'voucher', exchange_mode: 'points', thumbTone: 'slate', on_shelf: true, stock: 100, points_required: 1000, price_thb: 0, valueBaht: 0, heat: 0, sort_order: 0 })
+    form.setFieldsValue({ item_type: 'voucher', exchange_mode: 'points', thumbTone: 'slate', on_shelf: true, stock: 100, points_required: 1000, price_thb: 0, valueBaht: 0, heat: 0, sort_order: 0, _sourceLang: language || 'zh' })
     setCoverImage('')
     setModalOpen(true)
   }
 
-  // 把旧的字符串/数组格式兼容转换为 {zh,th,en} 对象
-  const toML = (v: any, fallbackKey = 'zh'): MultiLangValue => {
-    if (v && typeof v === 'object' && !Array.isArray(v)) return v as MultiLangValue
-    const str = Array.isArray(v) ? v.join('\n') : (typeof v === 'string' ? v : '')
-    return { zh: fallbackKey === 'zh' ? str : '', th: '', en: '' }
-  }
-
   const handleEdit = (record: any) => {
     setEditItem(record)
+    const sl = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
     form.setFieldsValue({
       ...record,
-      name: toML(record.name),
-      highlights: toML(record.highlights),
-      rules: toML(record.rules),
+      _sourceLang: sl,
+      name: pickText(record.name, sl),
+      highlights: pickText(record.highlights, sl),
+      rules: pickText(record.rules, sl),
     })
     setCoverImage(record.cover_image || '')
     setModalOpen(true)
@@ -136,21 +139,26 @@ export default function PointsMallManage() {
     }
     setSaving(true)
     try {
-      const ensureML = (v: any): MultiLangValue =>
-        (v && typeof v === 'object' && !Array.isArray(v)) ? v : { zh: String(v || ''), th: '', en: '' }
+      const sourceLang = values._sourceLang || 'zh'
       const mlFields = ['name', 'highlights', 'rules'] as const
-      const mlValues: Record<string, MultiLangValue> = {}
-      mlFields.forEach(f => { mlValues[f] = ensureML(values[f]) })
+      const mlValues: Record<string, any> = {}
+      mlFields.forEach(f => {
+        const raw = values[f]
+        mlValues[f] = typeof raw === 'string'
+          ? { zh: '', th: '', en: '', [sourceLang]: raw }
+          : (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : { zh: '', th: '', en: '', [sourceLang]: String(raw || '') })
+      })
       const textsToTranslate: Record<string, string> = {}
       mlFields.forEach(f => {
         const v = mlValues[f]
-        if (v.zh?.trim() && (!v.th?.trim() || !v.en?.trim())) textsToTranslate[f] = v.zh
+        const src = v[sourceLang]?.trim()
+        if (src && ['zh', 'th', 'en'].some(l => l !== sourceLang && !v[l]?.trim())) textsToTranslate[f] = src
       })
       if (Object.keys(textsToTranslate).length > 0) {
         try {
-          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang: 'zh' }, { timeout: 8000, silentError: true } as any)
+          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 8000, silentError: true } as any)
           const result = res.data?.result ?? {}
-          mlFields.forEach(f => { if (result[f]) mlValues[f] = result[f] })
+          mlFields.forEach(f => { if (result[f]) mlValues[f] = { ...mlValues[f], ...result[f] } })
         } catch {
           // 翻译失败静默降级
         }
@@ -162,6 +170,7 @@ export default function PointsMallManage() {
         highlights: mlValues.highlights,
         rules: mlValues.rules,
       }
+      delete payload._sourceLang
       if (editItem) {
         await request.put(`/growth/mall/items/${editItem.id}`, payload)
         message.success(pm('updateSuccess'))
@@ -287,7 +296,10 @@ export default function PointsMallManage() {
                       </Form.Item>
                     </div>
                     <Form.Item name="name" label={pm('formTitle')} rules={[{ required: true }]}>
-                      <MultiLangInput placeholder="商品名称 / ชื่อสินค้า / Product name" />
+                      <Input placeholder="商品名称 / ชื่อสินค้า / Product name" />
+                    </Form.Item>
+                    <Form.Item name="_sourceLang" label="输入语言 / Input Language" initialValue="zh">
+                      <Select options={LANG_OPTIONS} style={{ width: 160 }} />
                     </Form.Item>
                     <Form.Item label={pm('formCoverImage')}>
                       <MediaUploadField type="image" value={coverImage} onChange={setCoverImage} placeholder={pm('formCoverImageHint')} />
@@ -327,10 +339,10 @@ export default function PointsMallManage() {
                     </div>
                     <Form.Item name="detailTitle" label={pm('formDetailTitle')}><Input /></Form.Item>
                     <Form.Item name="highlights" label={pm('formHighlights')}>
-                      <MultiLangInput textarea rows={3} placeholder="每行一条，一键翻译后自动填充" />
+                      <Input.TextArea rows={3} placeholder="每行一条，保存时自动翻译" />
                     </Form.Item>
                     <Form.Item name="rules" label={pm('formRules')}>
-                      <MultiLangInput textarea rows={3} placeholder="每行一条规则" />
+                      <Input.TextArea rows={3} placeholder="每行一条规则" />
                     </Form.Item>
                     <Form.Item name="on_shelf" label={pm('formEnabled')} valuePropName="checked">
                       <Switch checkedChildren={pm('statusOn')} unCheckedChildren={pm('statusOff')} />
