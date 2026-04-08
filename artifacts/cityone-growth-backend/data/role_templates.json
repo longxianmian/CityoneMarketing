@@ -1,0 +1,42 @@
+[
+  {
+    "key": "growth_content",
+    "label": "推广内容操作员",
+    "label_th": "ผู้ดำเนินการเนื้อหาการตลาด",
+    "label_en": "Growth Content Operator",
+    "description": "负责推广活动、优惠券等内容的创建和管理",
+    "group": "growth",
+    "default_permissions": ["growth:content:write", "growth:data:read"],
+    "can_be_created_by": ["super_admin", "admin"]
+  },
+  {
+    "key": "growth_data",
+    "label": "推广数据操作员",
+    "label_th": "ผู้ดำเนินการข้อมูลการตลาด",
+    "label_en": "Growth Data Operator",
+    "description": "负责推广数据报表的浏览和分析",
+    "group": "growth",
+    "default_permissions": ["growth:data:read"],
+    "can_be_created_by": ["super_admin", "admin"]
+  },
+  {
+    "key": "ops_activity",
+    "label": "运营活动操作员",
+    "label_th": "ผู้ดำเนินการกิจกรรม",
+    "label_en": "Ops Activity Operator",
+    "description": "负责运营活动的创建和管理",
+    "group": "ops",
+    "default_permissions": ["ops:activity:write", "ops:data:read"],
+    "can_be_created_by": ["super_admin", "admin"]
+  },
+  {
+    "key": "ops_data",
+    "label": "运营数据操作员",
+    "label_th": "ผู้ดำเนินการข้อมูลการดำเนินงาน",
+    "label_en": "Ops Data Operator",
+    "description": "负责运营数据报表的浏览和分析",
+    "group": "ops",
+    "default_permissions": ["ops:data:read"],
+    "can_be_created_by": ["super_admin", "admin"]
+  }
+]

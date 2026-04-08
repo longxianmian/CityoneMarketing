@@ -34,6 +34,8 @@ import {
   ThunderboltOutlined,
   ApiOutlined,
   EnvironmentOutlined,
+  TeamOutlined,
+  CrownOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import useAuthStore from '../store/auth'
@@ -94,6 +96,9 @@ export default function AdminLayout() {
   const { t, language, setLanguage } = useI18n()
 
   const lt = (key: string) => t(`admin.layout.${key}`)
+
+  const isSuperAdmin = userInfo?.roles?.includes('super_admin') ?? false
+  const canManageAccounts = isSuperAdmin || (userInfo?.roles?.includes('admin') ?? false)
 
   const menuItems = useMemo(
     () => [
@@ -212,10 +217,26 @@ export default function AdminLayout() {
           { key: '/admin/growth/risk', label: lt('riskRules') },
           { key: '/admin/growth/message', label: lt('messageReach') },
           { key: '/admin/system/params', label: lt('sysParams') },
+          ...(canManageAccounts && !isSuperAdmin
+            ? [{ key: '/admin/system/accounts', icon: <TeamOutlined />, label: '账户管理' }]
+            : []),
         ],
       },
+      // === 7. 超管中心（仅 super_admin，完全不渲染给其他角色）===
+      ...(isSuperAdmin
+        ? [
+            {
+              key: 'superadmin-center',
+              icon: <CrownOutlined style={{ color: '#722ed1' }} />,
+              label: <span style={{ color: '#722ed1', fontWeight: 600 }}>超管中心</span>,
+              children: [
+                { key: '/admin/superadmin/accounts', icon: <TeamOutlined />, label: '账户管理' },
+              ],
+            },
+          ]
+        : []),
     ],
-    [language]
+    [language, isSuperAdmin, canManageAccounts]
   )
 
   useEffect(() => {

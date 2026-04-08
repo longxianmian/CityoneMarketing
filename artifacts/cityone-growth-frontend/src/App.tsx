@@ -63,6 +63,7 @@ const StationManage = lazy(() => import('./features/growth/StationManage'))
 const AgentWenwenPage = lazy(() => import('./features/growth/AgentWenwenPage'))
 const AgentBizPage = lazy(() => import('./features/growth/AgentBizPage'))
 const AgentSysOpsPage = lazy(() => import('./features/growth/AgentSysOpsPage'))
+const AccountManage = lazy(() => import('./features/growth/AccountManage'))
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -175,6 +176,10 @@ export default function App() {
           <Route path="growth/risk" element={<RiskRuleManage />} />
           <Route path="growth/message" element={<MessageManage />} />
           <Route path="system/params" element={<CS title="基础系统参数" description="系统全局参数配置，阶段二实现" />} />
+          {/* 系统管理员：操作员管理 */}
+          <Route path="system/accounts" element={<AccountManage mode="my" />} />
+          {/* 超管中心：全量账号管理（super_admin only，后端也鉴权）*/}
+          <Route path="superadmin/accounts" element={<AccountManage mode="super" />} />
 
           {/* 旧路由兼容重定向 */}
           <Route path="device" element={<Navigate to="/admin/growth/activity" replace />} />

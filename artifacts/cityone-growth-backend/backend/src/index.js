@@ -146,6 +146,19 @@ import {
   handleDeleteAdmin,
 } from "./routes/auth.js";
 import {
+  handleRoleTemplates,
+  handleSuperListAccounts,
+  handleSuperCreateAccount,
+  handleSuperUpdateAccount,
+  handleSuperDeleteAccount,
+  handleSuperResetPassword,
+  handleAdminListMyAccounts,
+  handleAdminCreateMyAccount,
+  handleAdminUpdateMyAccount,
+  handleAdminDeleteMyAccount,
+  handleAdminResetMyPassword,
+} from "./routes/accounts.js";
+import {
   handleGetCityDistricts,
   handleGetStations,
   handleGetNearbyStations,
@@ -447,6 +460,51 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && /^\/api\/admin\/admins\/\d+\/delete$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
       return handleDeleteAdmin(req, id, res, sendJson);
+    }
+
+    // ── 超管中心：全量账号管理（super_admin only）─────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/admin/accounts") {
+      return handleSuperListAccounts(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/accounts") {
+      return handleSuperCreateAccount(req, await readBody(req), res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/accounts\/\d+\/update$/.test(url.pathname)) {
+      const id = url.pathname.split("/")[4];
+      return handleSuperUpdateAccount(req, await readBody(req), id, res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/accounts\/\d+\/delete$/.test(url.pathname)) {
+      const id = url.pathname.split("/")[4];
+      return handleSuperDeleteAccount(req, id, res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/accounts\/\d+\/reset-password$/.test(url.pathname)) {
+      const id = url.pathname.split("/")[4];
+      return handleSuperResetPassword(req, await readBody(req), id, res, sendJson);
+    }
+
+    // ── 系统管理员：操作员管理 ─────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/admin/my-accounts") {
+      return handleAdminListMyAccounts(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/my-accounts") {
+      return handleAdminCreateMyAccount(req, await readBody(req), res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/my-accounts\/\d+\/update$/.test(url.pathname)) {
+      const id = url.pathname.split("/")[4];
+      return handleAdminUpdateMyAccount(req, await readBody(req), id, res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/my-accounts\/\d+\/delete$/.test(url.pathname)) {
+      const id = url.pathname.split("/")[4];
+      return handleAdminDeleteMyAccount(req, id, res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/my-accounts\/\d+\/reset-password$/.test(url.pathname)) {
+      const id = url.pathname.split("/")[4];
+      return handleAdminResetMyPassword(req, await readBody(req), id, res, sendJson);
+    }
+
+    // ── 角色模板 ──────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/admin/role-templates") {
+      return handleRoleTemplates(req, res, sendJson);
     }
 
     if (req.method === "POST" && url.pathname === "/api/upload") {
