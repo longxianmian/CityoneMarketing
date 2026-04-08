@@ -1,22 +1,23 @@
 [
   {
     "prize_id": "pz_001",
+    "game_program_id": "gp_004",
     "activity_id": "act_003",
     "prize_name": "充电券",
     "prize_type": "digital_product",
     "reward_product_id": "dp_002",
     "probability_weight": 30,
-    "stock_qty": 46,
+    "stock_qty": 47,
     "display_text": "充电券",
     "display_color": "#FF6B35",
     "sort_no": 0,
     "status": "enabled",
     "created_at": "2026-04-02T17:20:33.240Z",
-    "updated_at": "2026-04-06T07:13:16.255Z",
-    "game_program_id": "gp_004"
+    "updated_at": "2026-04-06T07:13:16.255Z"
   },
   {
     "prize_id": "pz_002",
+    "game_program_id": "gp_004",
     "activity_id": "act_003",
     "prize_name": "谢谢参与",
     "prize_type": "thanks",
@@ -24,12 +25,11 @@
     "probability_weight": 70,
     "stock_qty": -1,
     "display_text": "谢谢参与",
-    "display_color": "#FF6B35",
-    "sort_no": 0,
+    "display_color": "#d9d9d9",
+    "sort_no": 1,
     "status": "enabled",
     "created_at": "2026-04-02T17:20:33.448Z",
-    "updated_at": "2026-04-02T17:20:33.448Z",
-    "game_program_id": "gp_004"
+    "updated_at": "2026-04-02T17:20:33.448Z"
   },
   {
     "prize_id": "pz_003",
@@ -62,5 +62,35 @@
     "created_at": "2026-04-02T17:20:34.449Z",
     "updated_at": "2026-04-02T17:20:34.449Z",
     "game_program_id": "gp_001"
+  },
+  {
+    "prize_id": "pz_005",
+    "game_program_id": "gp_004",
+    "prize_name": "60分钟充电免费券",
+    "prize_type": "coupon",
+    "reward_product_id": "coupon_002",
+    "probability_weight": 30,
+    "stock_qty": -1,
+    "display_text": "60分钟充电免费券",
+    "display_color": "#ff6714",
+    "sort_no": 0,
+    "status": "enabled",
+    "created_at": "2026-04-08T08:05:13.633Z",
+    "updated_at": "2026-04-08T08:06:01.715Z"
+  },
+  {
+    "prize_id": "pz_006",
+    "game_program_id": "gp_004",
+    "prize_name": "30分钟免费充电体验券",
+    "prize_type": "coupon",
+    "reward_product_id": "coupon_001",
+    "probability_weight": 60,
+    "stock_qty": -1,
+    "display_text": "30分钟免费充电体验券",
+    "display_color": "#8aff14",
+    "sort_no": 0,
+    "status": "enabled",
+    "created_at": "2026-04-08T08:05:44.333Z",
+    "updated_at": "2026-04-08T08:05:44.333Z"
   }
 ]
