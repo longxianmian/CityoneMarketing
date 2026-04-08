@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "title": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "sub_title": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "link_type": "internal",
+    "sort_order": 0,
+    "enabled": true,
+    "link_url": "https://6020db9e-7960-4d9a-894d-8e903510d0d3-00-280s0kpp81ple.picard.replit.dev/coupon/coupon_003?share_content_type=coupon&share_content_id=coupon_003&share_token=im1dhli0mnq73p1w&channel=direct",
+    "image_url": "/uploads/1775661674699_e0bcf9a098bc.png",
+    "id": "bn_1775661686346_jbix8",
+    "created_at": "2026-04-08T15:21:26.346Z",
+    "updated_at": "2026-04-08T15:21:26.346Z"
+  }
+]
