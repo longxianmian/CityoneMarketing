@@ -263,19 +263,14 @@ export default function WelfareHomePage() {
     if (b.sub_title && typeof b.sub_title === 'object') return b.sub_title[language] || b.sub_title.zh || b.sub_title.en || ''
     return ''
   }
-  const bannerDragRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 })
-  const handleBannerPointerDown = (e: React.MouseEvent | React.TouchEvent) => {
-    const pt = 'touches' in e ? e.touches[0] : e
-    bannerDragRef.current = { x: pt.clientX, y: pt.clientY }
-  }
-  const handleBannerPointerUp = (b: any, e: React.MouseEvent | React.TouchEvent) => {
-    const pt = 'changedTouches' in e ? e.changedTouches[0] : e
-    const dx = Math.abs(pt.clientX - bannerDragRef.current.x)
-    const dy = Math.abs(pt.clientY - bannerDragRef.current.y)
-    if (dx > 8 || dy > 8) return
+  const handleBannerClick = (b: any) => {
     if (!b.link_url) return
-    if (b.link_type === 'external') { window.open(b.link_url, '_blank'); return }
-    navigate(b.link_url)
+    const isAbsoluteUrl = /^https?:\/\//i.test(b.link_url)
+    if (isAbsoluteUrl) {
+      window.location.href = b.link_url
+    } else {
+      navigate(b.link_url)
+    }
   }
 
   const [apiActivities, setApiActivities] = useState<ContentCard[]>([])
@@ -435,14 +430,11 @@ export default function WelfareHomePage() {
         <div style={{ padding: '6px 6px 90px' }}>
           {/* 轮播 Banner */}
           <div style={{ marginBottom: 6, borderRadius: 24, overflow: 'hidden', boxShadow: '0 14px 28px rgba(15,23,42,0.10)' }}>
-            <Carousel autoplay dots draggable={false}>
+            <Carousel autoplay dots>
               {bannerItems.map((item) => (
                 <div
                   key={item.id}
-                  onMouseDown={handleBannerPointerDown}
-                  onMouseUp={(e) => handleBannerPointerUp(item, e)}
-                  onTouchStart={handleBannerPointerDown}
-                  onTouchEnd={(e) => handleBannerPointerUp(item, e)}
+                  onClick={() => handleBannerClick(item)}
                   style={{ cursor: item.link_url ? 'pointer' : 'default' }}
                 >
                   {item.image_url ? (

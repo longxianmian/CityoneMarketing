@@ -261,6 +261,15 @@ export default function BannerManage() {
             <Input
               prefix={<LinkOutlined />}
               placeholder={linkType === 'internal' ? '/welfare  /activity/xxx  /mine' : 'https://example.com'}
+              onChange={(e) => {
+                const val = e.target.value
+                const isAbs = /^https?:\/\//i.test(val)
+                const next = isAbs ? 'external' : 'internal'
+                if (next !== linkType) {
+                  setLinkType(next)
+                  form.setFieldValue('link_type', next)
+                }
+              }}
             />
           </Form.Item>
         </Form>
