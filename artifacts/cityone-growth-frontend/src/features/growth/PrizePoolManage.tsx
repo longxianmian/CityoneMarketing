@@ -8,6 +8,13 @@ import { useI18n } from '../../i18n'
 
 const API_BASE = '/api/activity-prizes'
 
+/** 根据 URL 参数决定用哪个维度查询奖池（gameProgramId 优先） */
+function resolveQueryParam(gameProgramId: string | null, activityId: string | null) {
+  if (gameProgramId) return { label: `游戏玩法 #${gameProgramId}`, param: `gameProgramId=${gameProgramId}`, idField: 'game_program_id', idValue: gameProgramId }
+  if (activityId)    return { label: `活动 #${activityId}`,         param: `activityId=${activityId}`,         idField: 'activity_id',    idValue: activityId }
+  return null
+}
+
 const PRIZE_TYPES = [
   { value: 'thanks',          labelKey: 'typeEmpty' },
   { value: 'digital_product', labelKey: 'typeCoupon' },
@@ -23,7 +30,10 @@ export default function PrizePoolManage() {
   const prizeTypeOptions = PRIZE_TYPES.map(p => ({ value: p.value, label: `${p.value} · ${pp(p.labelKey)}` }))
 
   const [searchParams] = useSearchParams()
-  const activityId = searchParams.get('activityId')
+  const activityId    = searchParams.get('activityId')
+  const gameProgramId = searchParams.get('gameProgramId')
+  const resolved      = resolveQueryParam(gameProgramId, activityId)
+
   const [prizes, setPrizes] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [formVisible, setFormVisible] = useState(false)
@@ -33,16 +43,16 @@ export default function PrizePoolManage() {
   const [displayColor, setDisplayColor] = useState('#FF6B35')
 
   const fetchPrizes = async () => {
-    if (!activityId) { setPrizes([]); return }
+    if (!resolved) { setPrizes([]); return }
     setLoading(true)
     try {
-      const res: any = await request.get(`${API_BASE}?activityId=${activityId}`)
+      const res: any = await request.get(`${API_BASE}?${resolved.param}`)
       setPrizes(res.data || [])
     } catch { setPrizes([]) }
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchPrizes() }, [activityId])
+  useEffect(() => { fetchPrizes() }, [activityId, gameProgramId])
 
   const handleAdd = () => {
     setIsEdit(false)
@@ -87,7 +97,8 @@ export default function PrizePoolManage() {
     try {
       const values = await form.validateFields()
       const payload: any = {
-        activity_id: activityId,
+        // 按 resolved 维度写入 id 字段
+        ...(resolved ? { [resolved.idField]: resolved.idValue } : {}),
         prize_name: values.prize_name,
         prize_type: values.prize_type,
         display_text: values.display_text || values.prize_name,
@@ -143,14 +154,14 @@ export default function PrizePoolManage() {
 
   return (
     <Card
-      title={<Space><TrophyOutlined />{pp('pageTitle')}{activityId ? ` — #${activityId}` : ` (${pp('enterFromList')})`}</Space>}
+      title={<Space><TrophyOutlined />{pp('pageTitle')}{resolved ? ` — ${resolved.label}` : ` (${pp('enterFromList')})`}</Space>}
       extra={
         <Space>
           <Tooltip title={`${pp('probTotal')}：${totalProb.toFixed(1)}`}>
             <Tag color={probOk ? 'green' : 'orange'}>{pp('probTotal')} {totalProb.toFixed(1)}</Tag>
           </Tooltip>
           <Button icon={<ReloadOutlined />} onClick={fetchPrizes}>{pp('refreshBtn')}</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} disabled={!activityId}>{pp('addBtn')}</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} disabled={!resolved}>{pp('addBtn')}</Button>
         </Space>
       }
     >
@@ -161,7 +172,7 @@ export default function PrizePoolManage() {
         loading={loading}
         pagination={false}
         size="small"
-        locale={{ emptyText: activityId ? '暂无奖项，点击右上角添加' : pp('enterFromList') }}
+        locale={{ emptyText: resolved ? '暂无奖项，点击右上角添加' : pp('enterFromList') }}
       />
 
       <Modal

@@ -404,7 +404,15 @@ export default function ActivityManage() {
             <Button type="link" size="small" icon={<ShareAltOutlined />} onClick={() => setShareRecord(record)} style={{ color: '#06C755' }}>{am('btnPromo')}</Button>
             {isInteractive && !isFortune && (
               <Tooltip title={am('tipPrizePool')}>
-                <Button type="link" size="small" icon={<GiftOutlined />} onClick={() => nav(`/admin/growth/prize-pool?activityId=${record.id}`)} style={{ color: '#fa8c16' }}>{am('btnPrizePool')}</Button>
+                <Button
+                  type="link" size="small" icon={<GiftOutlined />}
+                  onClick={() => {
+                    const gpId = record.game_program_id
+                    const qs = gpId ? `gameProgramId=${gpId}` : `activityId=${record.id}`
+                    nav(`/admin/growth/prize-pool?${qs}`)
+                  }}
+                  style={{ color: '#fa8c16' }}
+                >{am('btnPrizePool')}</Button>
               </Tooltip>
             )}
             {isFortune && (

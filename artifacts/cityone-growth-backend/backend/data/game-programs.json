@@ -1,0 +1,9 @@
+[
+  { "id": "gp_001", "type": "lucky_wheel", "name": "标准大转盘", "description": "经典8格转盘，奖品均衡分布", "slot_count": 8, "config": { "segments": 8 }, "status": "active", "created_at": "2026-04-01T00:00:00.000Z" },
+  { "id": "gp_002", "type": "lucky_wheel", "name": "精简大转盘", "description": "4格转盘，大奖集中，适合高回报活动", "slot_count": 4, "config": { "segments": 4 }, "status": "active", "created_at": "2026-04-01T00:00:00.000Z" },
+  { "id": "gp_003", "type": "lucky_wheel", "name": "豪华大转盘", "description": "12格转盘，奖品多样，适合大型活动", "slot_count": 12, "config": { "segments": 12 }, "status": "active", "created_at": "2026-04-01T00:00:00.000Z" },
+  { "id": "gp_004", "type": "scratch_card", "name": "标准刮刮卡", "description": "3连刮，默认60%刮开阈值", "config": { "threshold": 60 }, "status": "active", "created_at": "2026-04-01T00:00:00.000Z" },
+  { "id": "gp_005", "type": "scratch_card", "name": "轻松刮刮卡", "description": "3连刮，40%刮开阈值，体验更流畅", "config": { "threshold": 40 }, "status": "active", "created_at": "2026-04-01T00:00:00.000Z" },
+  { "id": "gp_006", "type": "thai_fortune_draw", "name": "标准祈福抽签", "description": "经典泰式祈福，支持多主题", "config": {}, "status": "active", "created_at": "2026-04-01T00:00:00.000Z" },
+  { "id": "gp_007", "type": "thai_fortune_draw", "name": "节日祈福抽签", "description": "节日专属主题，喜庆氛围强", "config": {}, "status": "active", "created_at": "2026-04-01T00:00:00.000Z" }
+]

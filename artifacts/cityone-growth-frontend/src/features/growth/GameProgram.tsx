@@ -5,9 +5,10 @@ import {
 } from 'antd'
 import {
   EditOutlined, DeleteOutlined, PlusOutlined, ArrowLeftOutlined,
-  MinusCircleOutlined, ClockCircleOutlined,
+  MinusCircleOutlined, ClockCircleOutlined, TrophyOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
 import request from '../../api/request'
 import { useI18n } from '../../i18n'
 
@@ -367,6 +368,7 @@ function FortuneDrawPlaceholder() {
 export default function GameProgram() {
   const { t } = useI18n()
   const gp = (key: string) => t(`gameProgram.${key}`)
+  const navigate = useNavigate()
 
   const [selectedType, setSelectedType] = useState<string | null>(null)
   const [programs, setPrograms] = useState<any[]>([])
@@ -519,9 +521,13 @@ export default function GameProgram() {
       render: (v: string) => <Tag color={v === 'active' ? 'green' : 'default'}>{v === 'active' ? gp('statusOn') : gp('statusOff')}</Tag>,
     },
     {
-      title: gp('colAction'), key: 'action', width: 120,
+      title: gp('colAction'), key: 'action', width: 200,
       render: (_: any, record: any) => (
         <Space size="small">
+          <Button
+            type="link" size="small" icon={<TrophyOutlined />}
+            onClick={() => navigate(`/admin/growth/prize-pool?gameProgramId=${record.id}`)}
+          >配置奖池</Button>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>{gp('btnEdit')}</Button>
           <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>{gp('btnDelete')}</Button>
         </Space>

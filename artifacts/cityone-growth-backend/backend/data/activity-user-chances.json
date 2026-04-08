@@ -104,10 +104,10 @@
     "activity_id": "act_003",
     "line_user_id": "dev_1q175hnsmnmtn22u",
     "granted_count": 10,
-    "used_count": 6,
-    "remaining_count": 4,
+    "used_count": 10,
+    "remaining_count": 0,
     "grant_source": "admin_grant",
-    "updated_at": "2026-04-08T07:24:40.706Z"
+    "updated_at": "2026-04-08T07:50:09.365Z"
   },
   {
     "chance_id": "ch_012",
