@@ -103,11 +103,11 @@
     "chance_id": "ch_011",
     "activity_id": "act_003",
     "line_user_id": "dev_1q175hnsmnmtn22u",
-    "granted_count": 5,
+    "granted_count": 10,
     "used_count": 5,
-    "remaining_count": 0,
-    "grant_source": "admin test reset",
-    "updated_at": "2026-04-08T06:06:52.941Z"
+    "remaining_count": 5,
+    "grant_source": "admin_grant",
+    "updated_at": "2026-04-08T07:24:09.501Z"
   },
   {
     "chance_id": "ch_012",
