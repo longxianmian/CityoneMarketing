@@ -71,10 +71,10 @@ export default function PrizePoolManage() {
   }
 
   const fetchPrizes = async () => {
-    if (!resolved) { setPrizes([]); return }
     setLoading(true)
     try {
-      const res: any = await request.get(`${API_BASE}?${resolved.param}`)
+      const url = resolved ? `${API_BASE}?${resolved.param}` : API_BASE
+      const res: any = await request.get(url)
       setPrizes(res.data || [])
     } catch { setPrizes([]) }
     finally { setLoading(false) }
@@ -207,6 +207,12 @@ export default function PrizePoolManage() {
         </Space>
       ),
     },
+    ...(!resolved ? [{
+      title: '所属玩法', key: 'gp', width: 110,
+      render: (_: any, r: any) => (
+        <Tag color="geekblue" style={{ fontSize: 11 }}>{r.game_program_id || r.activity_id || '—'}</Tag>
+      ),
+    }] : []),
     { title: '类型', dataIndex: 'prize_type', key: 'prize_type', width: 100, render: prizeTypeTag },
     {
       title: '展示', key: 'display', width: 140,
@@ -252,14 +258,16 @@ export default function PrizePoolManage() {
 
   return (
     <Card
-      title={<Space><TrophyOutlined />{pp('pageTitle')}{resolved ? ` — ${resolved.label}` : ` (${pp('enterFromList')})`}</Space>}
+      title={<Space><TrophyOutlined />{pp('pageTitle')}{resolved ? ` — ${resolved.label}` : ' — 全部奖品'}</Space>}
       extra={
         <Space>
           <Tooltip title={`概率权重合计：${totalProb.toFixed(1)}`}>
             <Tag color={probOk ? 'green' : 'orange'}>权重合计 {totalProb.toFixed(1)}</Tag>
           </Tooltip>
           <Button icon={<ReloadOutlined />} onClick={fetchPrizes}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} disabled={!resolved}>添加奖项</Button>
+          <Tooltip title={!resolved ? '请从游戏玩法或活动列表进入后再添加奖项' : ''}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} disabled={!resolved}>添加奖项</Button>
+          </Tooltip>
         </Space>
       }
     >
@@ -270,7 +278,7 @@ export default function PrizePoolManage() {
         loading={loading}
         pagination={false}
         size="small"
-        locale={{ emptyText: resolved ? '暂无奖项，点击右上角添加' : pp('enterFromList') }}
+        locale={{ emptyText: '暂无奖项' }}
       />
 
       <Modal
