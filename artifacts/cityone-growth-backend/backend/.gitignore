@@ -1,0 +1,26 @@
+# ── 敏感配置（含真实密钥，永远不入库）──────────────────────────
+data/line-config.json
+data/admins.json
+
+# ── 运行时用户数据（生产服务器会自动写入，git pull 不应覆盖）──────
+data/activity-interactions.json
+data/activity-participations.json
+data/activity-user-chances.json
+data/activity-signs.json
+data/agent-action-logs.json
+data/agent-messages.json
+data/agent-sessions.json
+data/mall-orders.json
+data/mall-redeems.json
+data/points-accounts.json
+data/points-ledger.json
+data/share-relations.json
+data/consume-relations.json
+
+# ── Node ───────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── 日志 ──────────────────────────────────────────────────────
+*.log
+logs/

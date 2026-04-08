@@ -20,7 +20,10 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, "..", "..", "..", "data");
 const ADMINS_FILE = path.join(DATA_DIR, "admins.json");
 
-const JWT_SECRET = process.env.JWT_SECRET || "cityone-dev-jwt-secret-change-in-production";
+const IS_PROD = process.env.NODE_ENV === "production";
+const JWT_SECRET = process.env.JWT_SECRET || (IS_PROD
+  ? (() => { throw new Error("JWT_SECRET environment variable is required in production"); })()
+  : "cityone-dev-jwt-secret-do-not-use-in-prod");
 const JWT_EXPIRES = process.env.JWT_EXPIRES || "8h";
 
 // ── 角色层级定义 ──────────────────────────────────────────────────────────

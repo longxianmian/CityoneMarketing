@@ -27,7 +27,8 @@ app.use(
     },
   }),
 );
-app.use(cors());
+const corsOrigin = process.env.CORS_ORIGIN || "*";
+app.use(cors({ origin: corsOrigin }));
 
 // Must be BEFORE body-parsers so raw multipart stream is forwarded intact.
 // Express strips "/api/upload" prefix, so pathRewrite restores it before forwarding.

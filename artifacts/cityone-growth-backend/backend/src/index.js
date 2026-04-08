@@ -380,8 +380,9 @@ function readBody(req) {
   });
 }
 
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": CORS_ORIGIN,
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With"
 };

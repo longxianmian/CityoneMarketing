@@ -1,4 +1,5 @@
 {
+  "_readme": "复制此文件为 line-config.json 并填入真实值；line-config.json 已被 .gitignore 忽略，不会提交到仓库",
   "channelId": "YOUR_LINE_CHANNEL_ID",
   "officialAccountId": "@your_oa_handle",
   "liffId": "",

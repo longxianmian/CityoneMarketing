@@ -1,9 +1,9 @@
 {
-  "channelId": "2008803922",
-  "officialAccountId": "@358zehdd",
+  "channelId": "YOUR_LINE_CHANNEL_ID",
+  "officialAccountId": "@YOUR_OA_ID",
   "liffId": "",
   "requireFollow": false,
-  "channelSecret": "18262025edaca5999dfa65609d829f33",
-  "channelAccessToken": "aWtxXZzHE+zQ/hH2mD0H0QfM5H+iwe4ju6fL7ZLDUlZ4JiPUS4ulj+3babUGMyJbYBKJeTDjIMls5BJaVzvhnWeiXYU+eSQGsacKAx+ETVoIxxJFc50C46vPnE9QJ1EmCch1WyVprXbKmLDnaUXbqgdB04t89/1O/w1cDnyilFU=",
-  "updatedAt": "2026-03-31T01:18:35.083Z"
+  "channelSecret": "YOUR_LINE_CHANNEL_SECRET",
+  "channelAccessToken": "YOUR_LINE_CHANNEL_ACCESS_TOKEN",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
 }
