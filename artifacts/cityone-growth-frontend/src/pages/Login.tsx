@@ -35,7 +35,7 @@ export default function Login() {
           permissions: ['*:*:*'],
         })
         message.success(lk('loginSuccess'))
-        nav('/', { replace: true })
+        nav('/admin', { replace: true })
         return
       }
 
@@ -60,7 +60,7 @@ export default function Login() {
       })
 
       message.success(lk('loginSuccess'))
-      nav('/', { replace: true })
+      nav('/admin', { replace: true })
     } catch (err: any) {
       const msg = err?.response?.data?.msg || err?.message || '登录失败，请检查用户名和密码'
       setErrorMsg(msg)
