@@ -146,6 +146,13 @@ import {
   handleDeleteAdmin,
 } from "./routes/auth.js";
 import {
+  handleListMembers,
+  handleGetMemberConfig,
+  handleUpdateMemberConfig,
+  handleSetMember,
+  handleCheckChargingDiscount,
+} from "./routes/members.js";
+import {
   handleRoleTemplates,
   handleSuperListAccounts,
   handleSuperCreateAccount,
@@ -505,6 +512,26 @@ const server = http.createServer(async (req, res) => {
     // ── 角色模板 ──────────────────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/admin/role-templates") {
       return handleRoleTemplates(req, res, sendJson);
+    }
+
+    // ── 会员管理 ───────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/admin/members") {
+      return handleListMembers(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/admin/member-config") {
+      return handleGetMemberConfig(req, res, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/member-config/update") {
+      return handleUpdateMemberConfig(req, await readBody(req), res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/members\/[^/]+\/set-member$/.test(url.pathname)) {
+      const userId = url.pathname.split("/")[4];
+      return handleSetMember(req, await readBody(req), userId, res, sendJson);
+    }
+
+    // ── 充电折扣旁路查询接口（阶段四对接 A 系统） ──────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/charging-discount/check") {
+      return handleCheckChargingDiscount(req, res, url, sendJson);
     }
 
     if (req.method === "POST" && url.pathname === "/api/upload") {

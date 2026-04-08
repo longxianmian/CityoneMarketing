@@ -1,0 +1,24 @@
+{
+  "charging_discount": {
+    "enabled": true,
+    "rate": 0.9,
+    "label_zh": "会员充电9折优惠",
+    "label_th": "ส่วนลด 10% สำหรับสมาชิก",
+    "label_en": "10% Off Charging for Members",
+    "description_zh": "会员充电直接享受9折结算，折扣自动抵扣，无需手动申请",
+    "description_th": "สมาชิกได้รับส่วนลด 10% สำหรับการชาร์จทุกครั้งโดยอัตโนมัติ",
+    "description_en": "Members automatically get 10% off every charging session, no manual claim required",
+    "apply_scope": "all_stations",
+    "updated_at": "2026-04-08T00:00:00.000Z"
+  },
+  "deposit": {
+    "amount": 299,
+    "currency": "THB",
+    "description_zh": "缴纳押金成为会员，享受全部会员权益",
+    "description_th": "วางเงินมัดจำเพื่อเป็นสมาชิกและรับสิทธิประโยชน์ทั้งหมด",
+    "description_en": "Pay deposit to become a member and enjoy all member benefits"
+  },
+  "extra_benefits": [],
+  "updated_at": "2026-04-08T00:00:00.000Z",
+  "updated_by": "lxtxcityone"
+}

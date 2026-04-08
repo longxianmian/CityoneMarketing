@@ -206,7 +206,17 @@ export default function AdminLayout() {
           { key: '/admin/growth/agent/metrics', label: lt('metricsBoard') },
         ],
       },
-      // === 6. 系统配置 ===
+      // === 6. 会员管理 ===
+      {
+        key: 'member-manage',
+        icon: <CrownOutlined style={{ color: '#faad14' }} />,
+        label: '会员管理',
+        children: [
+          { key: '/admin/member/list', icon: <TeamOutlined />, label: '会员与用户列表' },
+          { key: '/admin/member/benefits', icon: <ThunderboltOutlined />, label: '权益配置 & 对接口' },
+        ],
+      },
+      // === 7. 系统配置 ===
       {
         key: 'system-config',
         icon: <SettingOutlined />,
