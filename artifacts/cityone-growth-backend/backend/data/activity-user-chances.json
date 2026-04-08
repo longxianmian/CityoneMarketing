@@ -6,8 +6,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "first_follow",
-    "updated_at": "2026-04-07T10:42:04.133Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_002",
@@ -56,8 +56,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "system",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_007",
@@ -66,8 +66,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_008",
@@ -76,8 +76,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_009",
@@ -86,8 +86,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_010",
@@ -96,28 +96,28 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_011",
     "activity_id": "act_003",
     "line_user_id": "dev_1q175hnsmnmtn22u",
-    "granted_count": 10,
-    "used_count": 10,
-    "remaining_count": 0,
-    "grant_source": "admin_grant",
-    "updated_at": "2026-04-08T07:50:09.365Z"
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_012",
     "activity_id": "act_002",
     "line_user_id": "test_scratch_user_01",
-    "granted_count": 0,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 0,
-    "grant_source": "",
-    "updated_at": "2026-04-06T06:49:53.312Z"
+    "remaining_count": 5,
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_013",
@@ -233,31 +233,31 @@
     "chance_id": "ch_024",
     "activity_id": "act_002",
     "line_user_id": "dev_1q175hnsmnmtn22u",
-    "granted_count": 1,
-    "used_count": 1,
-    "remaining_count": 0,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-06T15:39:53.711Z"
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_025",
     "activity_id": "act_002",
     "line_user_id": "dev_guu64j2jmnncwtjy",
-    "granted_count": 1,
+    "granted_count": 5,
     "used_count": 0,
-    "remaining_count": 1,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-06T15:40:12.576Z"
+    "remaining_count": 5,
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_026",
     "activity_id": "act_002",
     "line_user_id": "dev_12cbi2f4mnne23zp",
-    "granted_count": 1,
-    "used_count": 1,
-    "remaining_count": 0,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-06T16:13:58.826Z"
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_027",
@@ -266,8 +266,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_028",
@@ -276,8 +276,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_029",
@@ -286,8 +286,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_030",
@@ -296,8 +296,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_031",
@@ -306,8 +306,8 @@
     "granted_count": 5,
     "used_count": 0,
     "remaining_count": 5,
-    "grant_source": "auto_first",
-    "updated_at": "2026-04-07T10:42:04.134Z"
+    "grant_source": "admin_reset_demo",
+    "updated_at": "2026-04-08T10:15:46.480Z"
   },
   {
     "chance_id": "ch_032",
@@ -318,5 +318,75 @@
     "remaining_count": 0,
     "grant_source": "auto_first",
     "updated_at": "2026-04-07T10:58:05.815Z"
+  },
+  {
+    "chance_id": "ch_033",
+    "activity_id": "act_005",
+    "line_user_id": "dev_1q175hnsmnmtn22u",
+    "granted_count": 1,
+    "used_count": 1,
+    "remaining_count": 0,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-08T10:14:19.305Z"
+  },
+  {
+    "chance_id": "ch_034",
+    "activity_id": "act_002",
+    "line_user_id": "test_demo_user_001",
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-08T10:16:03.336Z"
+  },
+  {
+    "chance_id": "ch_035",
+    "activity_id": "act_003",
+    "line_user_id": "test_demo_user_001",
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-08T10:16:03.455Z"
+  },
+  {
+    "chance_id": "ch_036",
+    "activity_id": "act_002",
+    "line_user_id": "demo_user_1775643429",
+    "granted_count": 5,
+    "used_count": 2,
+    "remaining_count": 3,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-08T10:17:09.731Z"
+  },
+  {
+    "chance_id": "ch_037",
+    "activity_id": "act_003",
+    "line_user_id": "demo_sc_1775643429",
+    "granted_count": 5,
+    "used_count": 1,
+    "remaining_count": 4,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-08T10:17:09.999Z"
+  },
+  {
+    "chance_id": "ch_038",
+    "activity_id": "act_002",
+    "line_user_id": "dev_nj03trqrmnpw9xpw",
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-08T10:17:49.558Z"
+  },
+  {
+    "chance_id": "ch_039",
+    "activity_id": "act_003",
+    "line_user_id": "dev_nj03trqrmnpw9xpw",
+    "granted_count": 5,
+    "used_count": 0,
+    "remaining_count": 5,
+    "grant_source": "auto_first",
+    "updated_at": "2026-04-08T10:17:51.915Z"
   }
 ]

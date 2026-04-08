@@ -416,13 +416,17 @@ export async function handleWheelStart(req, res, url, sendJson, readBody) {
     if (!activityId) return sendError(res, sendJson, 400, "ACTIVITY_ID_REQUIRED", "activity_id 必填");
     if (!lineUserId) return sendError(res, sendJson, 400, "LINE_USER_ID_REQUIRED", "line_user_id 必填");
 
+    const activities = loadJsonArray(ACTIVITIES_FILE);
+    const activity = activities.find((a) => a.activity_id === activityId);
+    const initialChances = Number(activity?.initial_chances || 1);
+
     let chance = getOrCreateChance(activityId, lineUserId);
-    // 首次进入自动赠送 1 次机会
+    // 首次进入自动赠送 initial_chances 次机会（默认 1）
     if (chance.granted_count === 0) {
       const list = loadJsonArray(CHANCES_FILE);
       const idx = list.findIndex((c) => c.chance_id === chance.chance_id);
       if (idx >= 0) {
-        list[idx] = { ...list[idx], granted_count: 1, remaining_count: 1, grant_source: "auto_first", updated_at: new Date().toISOString() };
+        list[idx] = { ...list[idx], granted_count: initialChances, remaining_count: initialChances, grant_source: "auto_first", updated_at: new Date().toISOString() };
         saveJsonArray(CHANCES_FILE, list);
         chance = list[idx];
       }
@@ -517,12 +521,16 @@ export async function handleScratchStart(req, res, url, sendJson, readBody) {
     if (!activityId) return sendError(res, sendJson, 400, "ACTIVITY_ID_REQUIRED", "activity_id 必填");
     if (!lineUserId) return sendError(res, sendJson, 400, "LINE_USER_ID_REQUIRED", "line_user_id 必填");
 
+    const activities = loadJsonArray(ACTIVITIES_FILE);
+    const activity = activities.find((a) => a.activity_id === activityId);
+    const initialChances = Number(activity?.initial_chances || 1);
+
     let chance = getOrCreateChance(activityId, lineUserId);
     if (chance.granted_count === 0) {
       const list = loadJsonArray(CHANCES_FILE);
       const idx = list.findIndex((c) => c.chance_id === chance.chance_id);
       if (idx >= 0) {
-        list[idx] = { ...list[idx], granted_count: 1, remaining_count: 1, grant_source: "auto_first", updated_at: new Date().toISOString() };
+        list[idx] = { ...list[idx], granted_count: initialChances, remaining_count: initialChances, grant_source: "auto_first", updated_at: new Date().toISOString() };
         saveJsonArray(CHANCES_FILE, list);
         chance = list[idx];
       }
