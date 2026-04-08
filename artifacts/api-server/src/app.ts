@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from "express";
 import cors from "cors";
 import http from "http";
 import pinoHttp from "pino-http";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -27,6 +28,19 @@ app.use(
   }),
 );
 app.use(cors());
+
+// Must be BEFORE body-parsers so raw multipart stream is forwarded intact
+app.use(
+  "/api/upload",
+  createProxyMiddleware({
+    target: "http://localhost:3100",
+    changeOrigin: true,
+    pathRewrite: { "^": "/api/upload" },
+    proxyTimeout: 120000,
+    timeout: 120000,
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
