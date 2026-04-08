@@ -23,6 +23,7 @@ import {
   LinkOutlined,
   FileTextOutlined,
   ShopOutlined,
+  PictureOutlined,
   RobotOutlined,
   ToolOutlined,
   FileSearchOutlined,
@@ -121,6 +122,11 @@ export default function AdminLayout() {
         icon: <GiftOutlined />,
         label: lt('welfareGroup'),
         children: [
+          {
+            key: '/admin/welfare/banners',
+            icon: <PictureOutlined />,
+            label: lt('bannerManage'),
+          },
           {
             key: 'welfare-activity',
             icon: <TrophyOutlined />,

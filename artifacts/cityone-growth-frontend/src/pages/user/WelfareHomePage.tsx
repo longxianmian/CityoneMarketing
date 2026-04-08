@@ -236,14 +236,38 @@ export default function WelfareHomePage() {
     return map[language]
   }, [language])
 
-  const bannerItems = useMemo(
+  const fallbackBanners = useMemo(
     () => [
-      { id: '1', title: t('welfare.banner1Title'), subTitle: t('welfare.banner1Sub'), cover: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)' },
-      { id: '2', title: t('welfare.banner2Title'), subTitle: t('welfare.banner2Sub'), cover: 'linear-gradient(135deg, #7B61FF 0%, #2CDBCE 100%)' },
-      { id: '3', title: t('welfare.banner3Title'), subTitle: t('welfare.banner3Sub'), cover: 'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)' },
+      { id: '1', title: t('welfare.banner1Title'), sub_title: t('welfare.banner1Sub'), image_url: '', link_type: 'internal', link_url: '', cover: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)' },
+      { id: '2', title: t('welfare.banner2Title'), sub_title: t('welfare.banner2Sub'), image_url: '', link_type: 'internal', link_url: '', cover: 'linear-gradient(135deg, #7B61FF 0%, #2CDBCE 100%)' },
+      { id: '3', title: t('welfare.banner3Title'), sub_title: t('welfare.banner3Sub'), image_url: '', link_type: 'internal', link_url: '', cover: 'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)' },
     ],
     [t]
   )
+  const [apiBanners, setApiBanners] = useState<any[]>([])
+  useEffect(() => {
+    request.get('/growth/banners', { params: { enabled: 'true' } }).then((res: any) => {
+      const list = res.data?.list || []
+      if (list.length > 0) setApiBanners(list)
+    }).catch(() => {})
+  }, [])
+  const bannerItems = apiBanners.length > 0 ? apiBanners : fallbackBanners
+
+  const getBannerTitle = (b: any): string => {
+    if (typeof b.title === 'string') return b.title
+    if (b.title && typeof b.title === 'object') return b.title[language] || b.title.zh || b.title.en || ''
+    return ''
+  }
+  const getBannerSub = (b: any): string => {
+    if (typeof b.sub_title === 'string') return b.sub_title
+    if (b.sub_title && typeof b.sub_title === 'object') return b.sub_title[language] || b.sub_title.zh || b.sub_title.en || ''
+    return ''
+  }
+  const handleBannerClick = (b: any) => {
+    if (!b.link_url) return
+    if (b.link_type === 'external') { window.open(b.link_url, '_blank'); return }
+    navigate(b.link_url)
+  }
 
   const [apiActivities, setApiActivities] = useState<ContentCard[]>([])
   const [apiCoupons, setApiCoupons] = useState<ContentCard[]>([])
@@ -404,11 +428,23 @@ export default function WelfareHomePage() {
           <div style={{ marginBottom: 6, borderRadius: 24, overflow: 'hidden', boxShadow: '0 14px 28px rgba(15,23,42,0.10)' }}>
             <Carousel autoplay dots>
               {bannerItems.map((item) => (
-                <div key={item.id}>
-                  <div style={{ height: 172, ...coverBgStyle(item.cover), color: '#fff', padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{item.title}</div>
-                    <div style={{ fontSize: 14, opacity: 0.96 }}>{item.subTitle}</div>
-                  </div>
+                <div key={item.id} onClick={() => handleBannerClick(item)} style={{ cursor: item.link_url ? 'pointer' : 'default' }}>
+                  {item.image_url ? (
+                    <div style={{ height: 172, position: 'relative', overflow: 'hidden' }}>
+                      <img src={item.image_url} alt={getBannerTitle(item)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      {(getBannerTitle(item) || getBannerSub(item)) && (
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '32px 20px 16px', background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }}>
+                          {getBannerTitle(item) && <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>{getBannerTitle(item)}</div>}
+                          {getBannerSub(item) && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)' }}>{getBannerSub(item)}</div>}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ height: 172, ...(item.cover ? coverBgStyle(item.cover) : {}), color: '#fff', padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                      <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{getBannerTitle(item)}</div>
+                      <div style={{ fontSize: 14, opacity: 0.96 }}>{getBannerSub(item)}</div>
+                    </div>
+                  )}
                 </div>
               ))}
             </Carousel>

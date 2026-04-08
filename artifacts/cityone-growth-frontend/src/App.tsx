@@ -54,6 +54,7 @@ const InteractionRecords = lazy(() => import('./features/growth/InteractionRecor
 const UserChancesManage = lazy(() => import('./features/growth/UserChancesManage'))
 const CouponStatsPage = lazy(() => import('./features/growth/CouponStatsPage'))
 const RedeemStatsPage = lazy(() => import('./features/growth/RedeemStatsPage'))
+const BannerManage = lazy(() => import('./features/growth/BannerManage'))
 const LandingTemplateManage = lazy(() => import('./features/growth/LandingTemplateManage'))
 const ProductTemplateManage = lazy(() => import('./features/growth/ProductTemplateManage'))
 const GameProgram = lazy(() => import('./features/growth/GameProgram'))
@@ -138,6 +139,7 @@ export default function App() {
           <Route path="welfare/game" element={<GameProgram />} />
           <Route path="growth/prize-pool" element={<PrizePoolManage />} />
           <Route path="welfare/coupon-stats" element={<CouponStatsPage />} />
+          <Route path="welfare/banners" element={<BannerManage />} />
           <Route path="growth/points/mall" element={<PointsMallManage />} />
           <Route path="growth/fortune-sign" element={<FortuneSignManage />} />
           <Route path="welfare/redeem-stats" element={<RedeemStatsPage />} />

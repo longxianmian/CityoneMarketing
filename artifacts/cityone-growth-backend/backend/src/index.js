@@ -59,6 +59,12 @@ import {
   handleGetMallRedeems,
 } from "./routes/mall-items.js";
 import {
+  handleGetBanners,
+  handleCreateBanner,
+  handleUpdateBanner,
+  handleDeleteBanner,
+} from "./routes/banners.js";
+import {
   handleActivityTemplateList,
   handleActivityTemplateGet,
   handleActivityTemplateCreate,
@@ -748,6 +754,22 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/follow/success-dispatch") {
       return handleFollowSuccessDispatch(req, res, url, sendJson, readBody);
+    }
+
+    // ── 广告 Banner ──────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/growth/banners") {
+      return handleGetBanners(req, res, sendJson, url);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/banners") {
+      return handleCreateBanner(req, res, sendJson, await readBody(req));
+    }
+    if (req.method === "PUT" && /^\/api\/growth\/banners\/[^/]+$/.test(url.pathname)) {
+      const bannerId = url.pathname.split("/").pop();
+      return handleUpdateBanner(req, res, sendJson, await readBody(req), bannerId);
+    }
+    if (req.method === "DELETE" && /^\/api\/growth\/banners\/[^/]+$/.test(url.pathname)) {
+      const bannerId = url.pathname.split("/").pop();
+      return handleDeleteBanner(req, res, sendJson, bannerId);
     }
 
     // ── 商城商品 ─────────────────────────────────────────────────────────────
