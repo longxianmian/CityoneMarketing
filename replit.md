@@ -50,6 +50,24 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ## Packages
 
+---
+
+## ⚠️ 【必读】CityOne 多语言开发规范（每次开发前端模块前必须遵守）
+
+**规范全文见：`.local/docs/i18n-spec.md`**
+
+核心规则：
+1. **静态 UI 文案** → 用 `t('module.key')` ，禁止硬编码中/泰/英文字符串
+2. **动态内容（活动标题/描述/卡券名等）** → 后端存 `{ zh, th, en }` 结构；前端读取用 `pickLocalizedText(data, field, language)`
+3. **管理后台录入表单** → 单个 Input/TextArea（禁止用三 tab 多语言输入组件）+ 表单顶部的"录入语言"选择器；保存时调 `/translate` API 自动补齐另外两种语言
+4. **`MultiLangInput` 三 tab 组件** → 禁止在后台任何录入场景中使用
+5. **翻译 API** → `POST /translate`，body: `{ texts: {field: string}, sourceLang: 'zh'|'th'|'en' }`，响应: `{ result: {field: {zh, th, en}} }`
+6. **降级顺序** → 当前语言 → en → zh → th → ''
+
+违反上述规则需立即修复，不得上线。
+
+---
+
 ## CityOne Growth 阶段一整改（已完成）
 
 ### AdminLayout 6组菜单

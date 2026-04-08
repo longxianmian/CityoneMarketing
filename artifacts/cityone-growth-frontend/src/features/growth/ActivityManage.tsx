@@ -13,17 +13,25 @@ import {
 import { useNavigate } from 'react-router-dom'
 import SharePromoModal from '../../components/SharePromoModal'
 import MediaUploadField from '../../components/MediaUploadField'
-import MultiLangInput, { type MultiLangValue } from '../../components/MultiLangInput'
 import dayjs from 'dayjs'
 import { useI18n, pickLocalizedText } from '../../i18n'
+
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
 import request from '../../api/request'
 import StationScopeSelect, { type StationScope } from '../../components/StationScopeSelect'
+
+type MultiLangValue = { zh: string; th: string; en: string }
 
 const toMlObj = (v: any): MultiLangValue => {
   if (!v) return { zh: '', th: '', en: '' }
   if (typeof v === 'object') return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
   return { zh: String(v), th: '', en: '' }
+}
+
+const pickText = (v: any, lang = 'zh'): string => {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  return v[lang] || v.zh || v.en || v.th || ''
 }
 
 export default function ActivityManage() {
@@ -203,8 +211,17 @@ export default function ActivityManage() {
   const handleEdit = (record: any) => {
     setIsEdit(true); setEditingRecord(record)
     setStationScope(record.station_scope || { type: 'all' })
+    const lang = 'zh'
     form.setFieldsValue({
       ...record,
+      _sourceLang: lang,
+      name:               pickText(record.name, lang),
+      subTitle:           pickText(record.subTitle, lang),
+      description:        pickText(record.description, lang),
+      highlights:         pickText(record.highlights, lang),
+      participationGuide: pickText(record.participationGuide, lang),
+      rewardGuide:        pickText(record.rewardGuide, lang),
+      noticeText:         pickText(record.noticeText, lang),
       dateRange: record.start_at && record.end_at ? [dayjs(record.start_at), dayjs(record.end_at)] : undefined,
     })
     setCoverImage(record.coverImage || ''); setCoverVideo(record.coverVideo || '')
@@ -248,15 +265,19 @@ export default function ActivityManage() {
     }
     setSaving(true)
     try {
-      const ensureML = (v: any): MultiLangValue =>
-        v && typeof v === 'object' ? v : { zh: v || '', th: '', en: '' }
+      const sourceLang = ['zh','th','en'].includes(values._sourceLang) ? values._sourceLang : 'zh'
+
+      const ensureML = (v: any): MultiLangValue => {
+        if (v && typeof v === 'object') return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
+        const r: MultiLangValue = { zh: '', th: '', en: '' }
+        r[sourceLang as keyof MultiLangValue] = v || ''
+        return r
+      }
 
       const ML_FIELDS = ['name','subTitle','description','highlights','participationGuide','rewardGuide','noticeText'] as const
       type MlKey = typeof ML_FIELDS[number]
       const mlValues: Record<MlKey, MultiLangValue> = {} as any
       ML_FIELDS.forEach(f => { mlValues[f] = ensureML(values[f]) })
-
-      const sourceLang = ['zh','th','en'].includes(values._sourceLang) ? values._sourceLang : 'zh'
       const needsTranslation = ML_FIELDS.filter(f => {
         const v = mlValues[f]
         const src = v[sourceLang as keyof MultiLangValue]?.trim()
@@ -522,15 +543,26 @@ export default function ActivityManage() {
         <Form form={form} layout="vertical">
           <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>{am('dividerMedia')}</span></Divider>
 
-          <Form.Item name="name" label={am('formName')} rules={[{ required: true, validator: (_: any, val: any) => {
-            const zh = typeof val === 'object' ? (val?.zh || '').trim() : (val || '').trim()
-            return zh ? Promise.resolve() : Promise.reject(new Error(am('formNameRequired')))
-          }}]}>
-            <MultiLangInput placeholder={am('formNamePlaceholder')} />
+          <Form.Item
+            name="_sourceLang"
+            label="录入语言"
+            initialValue="zh"
+            extra="选择你正在使用的语言录入，保存时系统自动翻译另外两种语言"
+            style={{ marginBottom: 12 }}
+          >
+            <Select style={{ width: 180 }} options={[
+              { value: 'zh', label: '🇨🇳 中文' },
+              { value: 'th', label: '🇹🇭 ภาษาไทย' },
+              { value: 'en', label: '🇬🇧 English' },
+            ]} />
+          </Form.Item>
+
+          <Form.Item name="name" label={am('formName')} rules={[{ required: true, message: am('formNameRequired') }]}>
+            <Input placeholder={am('formNamePlaceholder')} />
           </Form.Item>
 
           <Form.Item name="subTitle" label={am('formSubTitle')}>
-            <MultiLangInput placeholder={am('formSubTitlePlaceholder')} />
+            <Input placeholder={am('formSubTitlePlaceholder')} />
           </Form.Item>
 
           <Row gutter={16}>
@@ -549,19 +581,19 @@ export default function ActivityManage() {
           <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>{am('dividerContent')}</span></Divider>
 
           <Form.Item name="description" label={am('formDescription')}>
-            <MultiLangInput textarea rows={3} placeholder={am('formDescriptionHint')} />
+            <Input.TextArea rows={3} placeholder={am('formDescriptionHint')} />
           </Form.Item>
           <Form.Item name="highlights" label={am('formHighlights')}>
-            <MultiLangInput textarea rows={2} placeholder={am('formHighlightsHint')} />
+            <Input.TextArea rows={2} placeholder={am('formHighlightsHint')} />
           </Form.Item>
           <Form.Item name="participationGuide" label={am('formParticipation')}>
-            <MultiLangInput textarea rows={2} placeholder={am('formParticipationHint')} />
+            <Input.TextArea rows={2} placeholder={am('formParticipationHint')} />
           </Form.Item>
           <Form.Item name="rewardGuide" label={am('formReward')}>
-            <MultiLangInput textarea rows={2} placeholder={am('formRewardHint')} />
+            <Input.TextArea rows={2} placeholder={am('formRewardHint')} />
           </Form.Item>
           <Form.Item name="noticeText" label={am('formNotice')}>
-            <MultiLangInput textarea rows={2} placeholder={am('formNoticeHint')} />
+            <Input.TextArea rows={2} placeholder={am('formNoticeHint')} />
           </Form.Item>
 
           <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>{am('dividerBiz')}</span></Divider>
