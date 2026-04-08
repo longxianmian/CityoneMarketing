@@ -68,15 +68,15 @@
     "game_program_id": "gp_004",
     "prize_name": "60分钟充电免费券",
     "prize_type": "coupon",
-    "reward_product_id": "coupon_002",
+    "reward_product_id": "cp_003",
     "probability_weight": 30,
     "stock_qty": -1,
     "display_text": "60分钟充电免费券",
-    "display_color": "#ff6714",
-    "sort_no": 0,
+    "display_color": "#52C41A",
+    "sort_no": 4,
     "status": "enabled",
-    "created_at": "2026-04-08T08:05:13.633Z",
-    "updated_at": "2026-04-08T08:06:01.715Z"
+    "created_at": "2026-04-03T10:00:00.000Z",
+    "updated_at": "2026-04-03T10:00:00.000Z"
   },
   {
     "prize_id": "pz_006",

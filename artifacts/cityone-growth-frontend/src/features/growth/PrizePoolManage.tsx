@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Card, Table, Button, Space, Tag, Modal, Form, Input, InputNumber,
-  Select, message, Switch, Tooltip, Radio, Typography,
+  Select, message, Switch, Tooltip, Radio, Typography, Popconfirm,
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, TrophyOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
@@ -115,17 +115,14 @@ export default function PrizePoolManage() {
     setFormVisible(true)
   }
 
-  const handleDelete = (r: any) => {
-    Modal.confirm({
-      title: pp('deleteConfirm'),
-      onOk: async () => {
-        try {
-          await request.delete(`${API_BASE}/${r.prize_id}`)
-          message.success(pp('deleteSuccess'))
-          fetchPrizes()
-        } catch { message.error(pp('deleteError')) }
-      },
-    })
+  const handleDelete = async (r: any) => {
+    try {
+      await request.delete(`${API_BASE}/${r.prize_id}`)
+      message.success('删除成功')
+      fetchPrizes()
+    } catch {
+      message.error('删除失败，请重试')
+    }
   }
 
   const handleOk = async () => {
@@ -240,7 +237,14 @@ export default function PrizePoolManage() {
       render: (_: any, r: any) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>编辑</Button>
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>删除</Button>
+          <Popconfirm
+            title="确认删除该奖项？"
+            okText="确认"
+            cancelText="取消"
+            onConfirm={() => handleDelete(r)}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
         </Space>
       ),
     },
