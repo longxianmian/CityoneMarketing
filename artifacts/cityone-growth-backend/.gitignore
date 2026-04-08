@@ -12,3 +12,6 @@ _tmp_backup_*/
 *.bak
 *.bak_*
 *.before_*
+
+# 管理员数据文件含账号哈希，不入库（用 admins.example.json 作为模板）
+data/admins.json
