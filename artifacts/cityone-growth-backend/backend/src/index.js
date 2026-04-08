@@ -135,6 +135,17 @@ import {
   handleGrowthReport,
 } from "./routes/dashboard.js";
 import {
+  requireAuth,
+  handleAdminLogin,
+  handleAdminLogout,
+  handleAdminMe,
+  handleChangePassword,
+  handleListAdmins,
+  handleCreateAdmin,
+  handleUpdateAdmin,
+  handleDeleteAdmin,
+} from "./routes/auth.js";
+import {
   handleGetCityDistricts,
   handleGetStations,
   handleGetNearbyStations,
@@ -406,7 +417,38 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
+  // JWT 鉴权：解析 Authorization 头，挂载 req._admin（可为 null）
+  req._admin = requireAuth(req);
+
   try {
+    // ── 管理端认证 ────────────────────────────────────────────────────────
+    if (req.method === "POST" && url.pathname === "/api/admin/login") {
+      return handleAdminLogin(req, await readBody(req), res, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/logout") {
+      return handleAdminLogout(req, res, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/admin/me") {
+      return handleAdminMe(req, res, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/change-password") {
+      return handleChangePassword(req, await readBody(req), res, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/admin/admins") {
+      return handleListAdmins(req, res, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/admins") {
+      return handleCreateAdmin(req, await readBody(req), res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/admins\/\d+\/update$/.test(url.pathname)) {
+      const id = url.pathname.split("/")[4];
+      return handleUpdateAdmin(req, await readBody(req), id, res, sendJson);
+    }
+    if (req.method === "POST" && /^\/api\/admin\/admins\/\d+\/delete$/.test(url.pathname)) {
+      const id = url.pathname.split("/")[4];
+      return handleDeleteAdmin(req, id, res, sendJson);
+    }
+
     if (req.method === "POST" && url.pathname === "/api/upload") {
       return handleUpload(req, res);
     }
