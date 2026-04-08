@@ -3,134 +3,41 @@
     "activity_id": "act_004",
     "activity_type": "lucky_wheel",
     "activity_name": {
-      "zh": "转转转好运气",
-      "th": "หมุนวงล้อโชคดี",
-      "en": "Spin to Win!"
+      "zh": "转转好运气",
+      "th": "หมุนสุ่มโชค",
+      "en": "Lucky Spin"
     },
-    "activity_title": "",
     "activity_subtitle": {
-      "zh": "",
-      "th": "",
-      "en": ""
+      "zh": "--",
+      "th": "--",
+      "en": "--"
     },
     "activity_desc": {
       "zh": "",
       "th": "",
       "en": ""
     },
-    "template_id": "",
-    "usage_mode": "public",
-    "start_time": "2026-04-07 00:00:00",
-    "end_time": "2026-04-30 00:00:00",
-    "status": "active",
-    "require_oa_follow": false,
-    "auto_join_after_follow": false,
-    "entry_scope_json": null,
-    "site_scope_json": null,
-    "channel_scope_json": null,
-    "share_content_type": "activity",
-    "share_enabled": false,
-    "share_title": "",
-    "share_desc": "",
-    "share_cover": "",
-    "campaign_id": "",
-    "share_status": "disabled",
-    "goal": "拉新",
-    "department": "互联网推广部",
-    "owner_dept": "互联网推广部",
-    "partner_dept": "",
-    "coupon_name": "",
-    "highlights": {
-      "zh": "测试",
-      "th": "ทดสอบ",
-      "en": "Test"
-    },
-    "participation_guide": {
-      "zh": "测试",
-      "th": "ทดสอบ",
-      "en": "Test"
-    },
-    "reward_guide": {
-      "zh": "测试",
-      "th": "ทดสอบ",
-      "en": "Test"
-    },
-    "notice_text": {
-      "zh": "测试",
-      "th": "ทดสอบ",
-      "en": "Test"
-    },
-    "cover_image": "/uploads/1775559356315_37b7df59a602.png",
-    "cover_video": "",
-    "created_at": "2026-04-07T10:57:09.806Z",
-    "updated_at": "2026-04-07T11:20:28.618Z",
-    "game_program_id": "gp_001"
-  },
-  {
-    "activity_id": "act_005",
-    "activity_type": "lucky_wheel",
-    "activity_name": {
-      "zh": "测试1",
-      "th": "",
-      "en": ""
-    },
     "activity_title": "",
-    "activity_subtitle": {
-      "zh": "",
-      "th": "",
-      "en": ""
-    },
-    "activity_desc": {
-      "zh": "",
-      "th": "",
-      "en": ""
-    },
     "template_id": "",
-    "usage_mode": "public",
-    "start_time": "2026-04-08 00:00:00",
-    "end_time": "2026-04-30 00:00:00",
+    "usage_mode": "scan",
+    "start_time": "2025-01-01 00:00:00",
+    "end_time": "2026-12-31 23:59:59",
     "status": "active",
+    "initial_chances": 5,
     "require_oa_follow": false,
     "auto_join_after_follow": false,
-    "entry_scope_json": null,
-    "site_scope_json": null,
-    "channel_scope_json": null,
-    "share_content_type": "activity",
-    "share_enabled": false,
-    "share_title": "",
-    "share_desc": "",
-    "share_cover": "",
-    "campaign_id": "",
-    "share_status": "disabled",
     "goal": "拉新",
-    "department": "互联网推广部",
-    "owner_dept": "互联网推广部",
-    "partner_dept": "",
-    "coupon_name": "",
     "highlights": {
       "zh": "",
       "th": "",
       "en": ""
     },
-    "participation_guide": {
-      "zh": "",
-      "th": "",
-      "en": ""
-    },
-    "reward_guide": {
-      "zh": "",
-      "th": "",
-      "en": ""
-    },
-    "notice_text": {
-      "zh": "",
-      "th": "",
-      "en": ""
-    },
-    "cover_image": "/uploads/1775642326685_5cd4f322cb02.png",
-    "cover_video": "",
-    "created_at": "2026-04-08T10:12:55.452Z",
-    "updated_at": "2026-04-08T10:12:55.452Z"
+    "cover_image": "",
+    "reward_points": 0,
+    "dept": "互联网推广部",
+    "main_dept": "互联网推广部",
+    "created_at": "2026-04-02T17:20:34.449Z",
+    "updated_at": "2026-04-08T12:50:15.237Z"
   },
   {
     "activity_id": "act_003",
@@ -169,5 +76,83 @@
     "reward_points": 0,
     "created_at": "2025-01-01T00:00:00.000Z",
     "updated_at": "2026-04-08T11:31:42.612Z"
+  },
+  {
+    "activity_id": "act_002",
+    "activity_type": "spin_wheel",
+    "activity_name": {
+      "zh": "大转盘抽大奖",
+      "th": "วงล้อนำโชคเทศกาล",
+      "en": "Festival Lucky Wheel"
+    },
+    "activity_subtitle": {
+      "zh": "转一转，好礼不停",
+      "th": "หมุนเลย รางวัลไม่หยุด",
+      "en": "Spin for non-stop prizes"
+    },
+    "activity_desc": {
+      "zh": "节日特别活动！每天限免抽转3次",
+      "th": "กิจกรรมพิเศษช่วงเทศกาล",
+      "en": "Special festival activity!"
+    },
+    "activity_title": "",
+    "template_id": "",
+    "usage_mode": "scan",
+    "start_time": "2025-01-01 00:00:00",
+    "end_time": "2026-12-31 23:59:59",
+    "status": "active",
+    "initial_chances": 5,
+    "require_oa_follow": true,
+    "auto_join_after_follow": true,
+    "goal": "促活",
+    "highlights": {
+      "zh": "每日3次免费抽奖机会",
+      "th": "สิทธิ์หมุนฟรี 3 ครั้งต่อวัน",
+      "en": "3 free spins per day"
+    },
+    "cover_image": "",
+    "reward_points": 0,
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2026-04-08T12:55:28.450Z"
+  },
+  {
+    "activity_id": "act_005",
+    "activity_type": "lucky_wheel",
+    "activity_name": {
+      "zh": "测试1",
+      "th": "ทดสอบ1",
+      "en": "Test 1"
+    },
+    "activity_subtitle": {
+      "zh": "--",
+      "th": "--",
+      "en": "--"
+    },
+    "activity_desc": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "activity_title": "",
+    "template_id": "",
+    "usage_mode": "scan",
+    "start_time": "2025-01-01 00:00:00",
+    "end_time": "2026-12-31 23:59:59",
+    "status": "active",
+    "initial_chances": 5,
+    "require_oa_follow": false,
+    "auto_join_after_follow": false,
+    "goal": "拉新",
+    "highlights": {
+      "zh": "",
+      "th": "",
+      "en": ""
+    },
+    "cover_image": "",
+    "reward_points": 0,
+    "dept": "互联网推广部",
+    "main_dept": "互联网推广部",
+    "created_at": "2026-04-02T00:00:00.000Z",
+    "updated_at": "2026-04-08T12:55:28.457Z"
   }
 ]

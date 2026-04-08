@@ -389,6 +389,7 @@ const CORS_HEADERS = {
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
     ...CORS_HEADERS
   });
   res.end(JSON.stringify(payload, null, 2));
@@ -850,7 +851,7 @@ const server = http.createServer(async (req, res) => {
       return handleMessageTest(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/activities") {
-      return handleActivityList(req, res, url, sendJsonCached30);
+      return handleActivityList(req, res, url, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/activities") {
       return handleActivityCreate(req, res, url, sendJson, readBody);
