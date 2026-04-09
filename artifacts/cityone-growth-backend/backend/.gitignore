@@ -7,6 +7,10 @@ data/banners.json
 data/mall-items.json
 data/coupons.json
 data/activities.json
+data/media-assets.json
+
+# ── 本地上传目录（生产环境应使用OSS，本地开发降级保存在此）──────────
+uploads/
 
 # ── 运行时用户数据（生产服务器会自动写入，git pull 不应覆盖）──────
 data/activity-interactions.json

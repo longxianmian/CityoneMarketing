@@ -243,6 +243,11 @@ import {
   handleMessageDelete,
   handleMessageTest,
 } from "./routes/messages.js";
+import {
+  handleMediaUpload,
+  handleMediaViewUrl,
+  handleMediaDelete,
+} from "./routes/media.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -547,6 +552,18 @@ const server = http.createServer(async (req, res) => {
     // ── 充电折扣旁路查询接口（阶段四对接 A 系统） ──────────────────────────
     if (req.method === "GET" && url.pathname === "/api/charging-discount/check") {
       return handleCheckChargingDiscount(req, res, url, sendJson);
+    }
+
+    // ── 媒体资产（OSS） ────────────────────────────────────────────────────────
+    if (req.method === "POST" && url.pathname === "/api/media/upload") {
+      return handleMediaUpload(req, res, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/media/view-url") {
+      return handleMediaViewUrl(req, res, sendJson, url);
+    }
+    if (req.method === "DELETE" && /^\/api\/media\/[^/]+$/.test(url.pathname)) {
+      const assetId = url.pathname.split("/").pop();
+      return handleMediaDelete(req, res, sendJson, assetId);
     }
 
     if (req.method === "POST" && url.pathname === "/api/upload") {

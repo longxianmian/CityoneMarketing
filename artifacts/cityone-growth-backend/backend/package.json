@@ -8,9 +8,12 @@
     "start": "node src/index.js"
   },
   "dependencies": {
+    "ali-oss": "^6.23.0",
     "bcryptjs": "^3.0.3",
     "busboy": "^1.6.0",
     "jsonwebtoken": "^9.0.3",
-    "openai": "^6.33.0"
+    "openai": "^6.33.0",
+    "sharp": "^0.34.5",
+    "uuid": "^13.0.0"
   }
 }
