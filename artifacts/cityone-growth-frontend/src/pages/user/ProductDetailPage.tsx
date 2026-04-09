@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation, useSearchParams } from 'react-rout
 import { Spin, App, Modal, Button, Space } from 'antd'
 import { ArrowLeftOutlined, FireOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
+import OssImage from '../../components/OssImage'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 import { getDeviceUserId } from '../../utils/deviceUserId'
@@ -254,7 +255,7 @@ export default function ProductDetailPage() {
       {coverVideo ? (
         <video src={coverVideo} autoPlay muted loop playsInline style={{ width: '100%', maxHeight: 260, objectFit: 'cover', display: 'block' }} />
       ) : coverImage ? (
-        <img src={coverImage} alt={title} style={{ width: '100%', maxHeight: 260, objectFit: 'cover', display: 'block' }} />
+        <OssImage src={coverImage} alt={title} style={{ width: '100%', maxHeight: 260, objectFit: 'cover', display: 'block' }} />
       ) : (
         <div style={{ height: 200, background: 'linear-gradient(135deg, #52c41a20, #52c41a40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: 64 }}>🎫</span>

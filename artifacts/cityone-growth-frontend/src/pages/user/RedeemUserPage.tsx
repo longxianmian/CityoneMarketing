@@ -5,6 +5,7 @@ import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@an
 import { useI18n } from '../../i18n'
 import request from '../../api/request'
 import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useOssUrl } from '../../components/OssImage'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -65,6 +66,7 @@ export default function RedeemUserPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [checking, setChecking] = useState(false)
   const [acting, setActing] = useState(false)
+  const resolvedCoverImage = useOssUrl(item?.cover_image)
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -193,8 +195,8 @@ export default function RedeemUserPage() {
     )
   }
 
-  const coverBg = item.cover_image
-    ? { backgroundImage: `url(${item.cover_image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  const coverBg = resolvedCoverImage
+    ? { backgroundImage: `url(${resolvedCoverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { background: ITEM_TYPE_GRADIENT[item.item_type] || ITEM_TYPE_GRADIENT.digital }
 
   const pointsLabel = item.points_required != null

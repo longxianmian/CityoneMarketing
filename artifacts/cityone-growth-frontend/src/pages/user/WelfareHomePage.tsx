@@ -21,6 +21,15 @@ import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
 import { getActivities } from '../../api/growth'
 import request from '../../api/request'
+import { isObjectKey, fetchSignedUrl } from '../../components/OssImage'
+
+async function resolveCover(cover: string): Promise<string> {
+  if (isObjectKey(cover)) {
+    const url = await fetchSignedUrl(cover)
+    return url || cover
+  }
+  return cover
+}
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -293,7 +302,7 @@ export default function WelfareHomePage() {
     }
     ;(request.get('/user/coupons') as any).then((res: any) => {
       const list: any[] = res.data || []
-      const cards: ContentCard[] = list.map(c => ({
+      const rawCards: ContentCard[] = list.map(c => ({
         id: c.id,
         type: 'coupon' as const,
         title: (c.name && typeof c.name === 'object' && !Array.isArray(c.name)) ? c.name : { zh: c.name, th: c.name, en: c.name },
@@ -305,7 +314,7 @@ export default function WelfareHomePage() {
         route: `/coupon/${c.id}`,
         footerTone: '#2F80FF',
       }))
-      setApiCoupons(cards)
+      Promise.all(rawCards.map(async c => ({ ...c, cover: await resolveCover(c.cover) }))).then(setApiCoupons)
     }).catch(() => {})
   }, [])
 
@@ -330,7 +339,7 @@ export default function WelfareHomePage() {
       const list: any[] = (res as any).data || []
       const toML = (v: any, fb: Record<string, string>) =>
         (v && typeof v === 'object' && !Array.isArray(v)) ? v : (v ? { zh: v, th: v, en: v } : fb)
-      const cards: ContentCard[] = list.map((a, idx) => ({
+      const rawCards: ContentCard[] = list.map((a, idx) => ({
         id: a.activity_id,
         type: 'activity' as const,
         title: toML(a.activity_name || a.activity_title, { zh: '活动', th: 'กิจกรรม', en: 'Activity' }),
@@ -339,7 +348,7 @@ export default function WelfareHomePage() {
         views: 0,
         route: `/activity/${a.activity_id}`,
       }))
-      setApiActivities(cards)
+      Promise.all(rawCards.map(async c => ({ ...c, cover: await resolveCover(c.cover) }))).then(setApiActivities)
     }).catch(() => {})
   }, [])
 
@@ -352,7 +361,7 @@ export default function WelfareHomePage() {
     ;(request.get('/growth/mall/items', { params: { onShelf: 'true', pageSize: 50 } }) as any)
       .then((res: any) => {
         const list: any[] = (res.data || res)?.list || []
-        const cards: ContentCard[] = list.map(item => ({
+        const rawCards: ContentCard[] = list.map(item => ({
           id: item.id,
           type: 'redeem' as const,
           title: item.name,
@@ -364,7 +373,7 @@ export default function WelfareHomePage() {
           route: `/redeem/${item.id}`,
           footerTone: '#7B61FF',
         }))
-        setApiMallItems(cards)
+        Promise.all(rawCards.map(async c => ({ ...c, cover: await resolveCover(c.cover) }))).then(setApiMallItems)
       })
       .catch(() => {})
   }, [])

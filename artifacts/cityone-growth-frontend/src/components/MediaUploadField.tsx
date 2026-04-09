@@ -1,7 +1,7 @@
 import React, { useState, useId, useEffect, useRef } from 'react'
 import { Button, message } from 'antd'
 import { UploadOutlined, LoadingOutlined, VideoCameraOutlined } from '@ant-design/icons'
-import { getToken } from '../store/auth'
+import { isObjectKey, fetchSignedUrl } from './OssImage'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -11,26 +11,6 @@ interface Props {
   type: 'image' | 'video'
   placeholder?: string
   moduleType?: string
-}
-
-function isObjectKey(v?: string): boolean {
-  if (!v) return false
-  if (v.startsWith('http') || v.startsWith('/')) return false
-  return v.includes('/')
-}
-
-async function fetchSignedUrl(objectKey: string): Promise<string | null> {
-  try {
-    const token = getToken() || ''
-    const res = await fetch(`${API_BASE}/api/media/view-url?key=${encodeURIComponent(objectKey)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    const json = await res.json()
-    if (json.code === 200 && json.data?.previewUrl) return json.data.previewUrl
-    return null
-  } catch {
-    return null
-  }
 }
 
 export default function MediaUploadField({ value, onChange, type, placeholder, moduleType = 'uploads' }: Props) {

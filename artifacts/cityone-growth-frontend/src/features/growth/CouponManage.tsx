@@ -5,6 +5,7 @@ import request from '../../api/request'
 import StationScopeSelect, { type StationScope } from '../../components/StationScopeSelect'
 import MediaUploadField from '../../components/MediaUploadField'
 import SharePromoModal from '../../components/SharePromoModal'
+import OssImage from '../../components/OssImage'
 import { useI18n } from '../../i18n'
 import dayjs from 'dayjs'
 
@@ -173,7 +174,7 @@ export default function CouponManage() {
     {
       title: t('couponManage.colCover'), key: 'cover', width: 60,
       render: (_: any, r: any) => r.cover_image
-        ? <img src={r.cover_image} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+        ? <OssImage src={r.cover_image} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} fallback={<span style={{ color: '#ddd', fontSize: 18 }}>—</span>} />
         : <span style={{ color: '#ddd', fontSize: 18 }}>—</span>,
     },
     {

@@ -4,6 +4,7 @@ import { Button, Card, Tag, Space, Spin, message } from 'antd'
 import { ShareAltOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
+import OssImage from '../../components/OssImage'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 import { getDeviceUserId } from '../../utils/deviceUserId'
@@ -250,7 +251,7 @@ export default function CouponUserPage() {
       />
 
       {coverUrl ? (
-        <img src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+        <OssImage src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
       ) : (
         <div style={{ height: 160, background: 'linear-gradient(135deg, #1677ff20, #fa8c1640)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: 56 }}>🎫</span>

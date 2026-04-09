@@ -4,6 +4,7 @@ import { Spin, Tag, Button, Card, Space } from 'antd'
 import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
+import OssImage from '../../components/OssImage'
 import { getDeviceUserId } from '../../utils/deviceUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -233,7 +234,7 @@ export default function ActivityDetailPage() {
       {coverVideo ? (
         <video src={coverVideo} autoPlay muted loop playsInline style={{ width: '100%', maxHeight: 260, objectFit: 'cover', display: 'block' }} />
       ) : coverImage ? (
-        <img src={coverImage} alt={title} style={{ width: '100%', maxHeight: 260, objectFit: 'cover', display: 'block' }} />
+        <OssImage src={coverImage} alt={title} style={{ width: '100%', maxHeight: 260, objectFit: 'cover', display: 'block' }} />
       ) : (
         <div style={{ height: 180, background: 'linear-gradient(135deg, #1677ff20, #1677ff40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: 48 }}>🎁</span>
@@ -281,7 +282,7 @@ export default function ActivityDetailPage() {
                 onClick={() => nav(`/redeem/${p.id}`)}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#fff', borderRadius: 12, marginBottom: 8, cursor: 'pointer', border: '1px solid #f0f0f0' }}
               >
-                {p.coverImage && <img src={p.coverImage} alt={p.title} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
+                {p.coverImage && <OssImage src={p.coverImage} alt={p.title} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{pick(p.title) || p.title}</div>
                   {p.pointsPrice > 0 && <div style={{ fontSize: 12, color: '#1677ff' }}>{p.pointsPrice} {t('productDetail.pts')}</div>}

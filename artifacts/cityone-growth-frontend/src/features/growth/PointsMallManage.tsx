@@ -6,6 +6,7 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, ShareAltOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
+import OssImage from '../../components/OssImage'
 import { useI18n } from '../../i18n'
 
 const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
@@ -202,7 +203,9 @@ export default function PointsMallManage() {
   const itemColumns = [
     {
       title: pm('colThumb'), dataIndex: 'cover_image', key: 'thumb', width: 70,
-      render: (v: string) => v ? <img src={v} alt="cover" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} /> : <div style={{ width: 48, height: 48, background: '#f0f0f0', borderRadius: 6 }} />,
+      render: (v: string) => v
+        ? <OssImage src={v} alt="cover" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} fallback={<div style={{ width: 48, height: 48, background: '#f0f0f0', borderRadius: 6 }} />} />
+        : <div style={{ width: 48, height: 48, background: '#f0f0f0', borderRadius: 6 }} />,
     },
     {
       title: pm('colTitle'), dataIndex: 'name', key: 'name', width: 180,
