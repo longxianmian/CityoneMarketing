@@ -31,13 +31,25 @@ const corsOrigin = process.env.CORS_ORIGIN || "*";
 app.use(cors({ origin: corsOrigin }));
 
 // Must be BEFORE body-parsers so raw multipart stream is forwarded intact.
-// Express strips "/api/upload" prefix, so pathRewrite restores it before forwarding.
+// Express strips path prefix, so pathRewrite restores the full path before forwarding.
 app.use(
   "/api/upload",
   createProxyMiddleware({
     target: "http://localhost:3100",
     changeOrigin: true,
     pathRewrite: { "^/": "/api/upload" },
+    proxyTimeout: 120000,
+    timeout: 120000,
+  })
+);
+
+// /api/media/upload is also multipart — must proxy BEFORE body-parsers consume the stream.
+app.use(
+  "/api/media/upload",
+  createProxyMiddleware({
+    target: "http://localhost:3100",
+    changeOrigin: true,
+    pathRewrite: { "^/": "/api/media/upload" },
     proxyTimeout: 120000,
     timeout: 120000,
   })
