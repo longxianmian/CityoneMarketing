@@ -45,3 +45,13 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+ALIYUN_OSS_REGION = "oss-ap-southeast-1"
+ALIYUN_OSS_BUCKET = "cityone-marketing"
+ALIYUN_OSS_ENDPOINT = "oss-ap-southeast-1.aliyuncs.com"
+ALIYUN_OSS_URL_EXPIRES = "86400"
+MEDIA_MAX_IMAGE_SIZE = "10485760"
+MEDIA_MAX_VIDEO_SIZE = "209715200"
