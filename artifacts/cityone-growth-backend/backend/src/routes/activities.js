@@ -369,37 +369,38 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
     const rewardPoints = Number(activity.reward_points) || 0;
     const now = new Date();
 
-    // 防重复参与
-    const { rows: existing } = await query(
-      "SELECT id FROM activity_participations WHERE activity_id=$1 AND user_id=$2",
-      [id, userId]
-    );
-    if (existing.length > 0) {
-      return sendOk(res, sendJson, "already_joined", {
-        already_joined: true,
-        points_awarded: 0,
-        participation: existing[0],
-      });
-    }
+    // 归因快照字段
+    const srcEntryId   = body.source_entry_id   || "";
+    const srcLandingId = body.source_landing_id  || activity.landing_code || "";
+    const srcBannerId  = body.source_banner_id   || activity.banner_code  || "";
+    const srcChannelId = body.source_channel_id  || activity.source_channel_id || "";
 
     const participationCode = `part_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 
-    const participation = await withTransaction(async (client) => {
-      // 记录参与
+    // ── 幂等核心：ON CONFLICT (activity_id, user_id) DO NOTHING ──────────────
+    // 无论并发还是重放请求，DB 层唯一约束保证只插入一条。
+    // INSERT 无 RETURNING 行 → 已存在 → 直接返回 already_joined。
+    const result = await withTransaction(async (client) => {
       const { rows: partRows } = await client.query(
         `INSERT INTO activity_participations
-           (id, activity_id, user_id, line_user_id, points_awarded, source_entry_id, source_channel_id, joined_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+           (id, activity_id, user_id, line_user_id, points_awarded,
+            source_entry_id, source_landing_id, source_banner_id, source_channel_id,
+            joined_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (activity_id, user_id) DO NOTHING
+         RETURNING *`,
         [
           participationCode, id, userId, body.line_user_id || userId,
           rewardPoints,
-          body.source_entry_id || "",
-          body.source_channel_id || "",
+          srcEntryId, srcLandingId, srcBannerId, srcChannelId,
           now,
         ]
       );
 
-      // 发放积分（只有 reward_points > 0 时）
+      // 无 RETURNING 行 → 幂等命中（已参与过），跳过积分发放
+      if (partRows.length === 0) return { already_joined: true };
+
+      // 发放积分（仅 reward_points > 0 时）
       if (rewardPoints > 0) {
         const actName = activity.activity_name;
         const actNameStr = typeof actName === "object"
@@ -408,20 +409,24 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
 
         const ledgerId = `ledger_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 
-        // 写入积分流水
+        // 写积分流水（携带完整归因快照）
         await client.query(
           `INSERT INTO points_ledger
-             (id, user_id, line_user_id, type, points, ref_type, ref_id, reason, operator_id, created_at)
-           VALUES ($1,$2,$3,'credit',$4,'activity_reward',$5,$6,'activity_system',$7)`,
+             (id, user_id, line_user_id, type, points, ref_type, ref_id, reason, operator_id,
+              source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
+              created_at)
+           VALUES ($1,$2,$3,'credit',$4,'activity_reward',$5,$6,'activity_system',
+                   $7,$8,$9,$10,$11,$12)`,
           [
             ledgerId, userId, body.line_user_id || userId,
             rewardPoints, id,
             `活动奖励：${actNameStr}`,
+            srcEntryId, id, srcLandingId, srcBannerId, srcChannelId,
             now,
           ]
         );
 
-        // 更新积分账户（有则更新，无则插入）
+        // 更新积分账户（ON CONFLICT 保证原子性）
         await client.query(
           `INSERT INTO points_accounts (user_id, line_user_id, total_points, available_points, updated_at)
            VALUES ($1,$2,$3,$3,$4)
@@ -433,13 +438,21 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
         );
       }
 
-      return partRows[0];
+      return { already_joined: false, participation: partRows[0] };
     });
+
+    if (result.already_joined) {
+      return sendOk(res, sendJson, "already_joined", {
+        already_joined: true,
+        points_awarded: 0,
+        participation: null,
+      });
+    }
 
     return sendOk(res, sendJson, "参与成功", {
       already_joined: false,
       points_awarded: rewardPoints,
-      participation,
+      participation: result.participation,
     });
   } catch (err) {
     return sendError(res, sendJson, 500, "SERVER_ERROR", err.message || "参与失败");

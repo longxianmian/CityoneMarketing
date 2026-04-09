@@ -65,10 +65,29 @@ export async function handleGetBanners(req, res, sendJson, url) {
   }
 }
 
+// ─── 内部：校验跳转目标存在性 ─────────────────────────────────────────────────
+async function validateJumpTargets(res, sendJson, landingCode, activityCode) {
+  if (landingCode) {
+    const { rows } = await query("SELECT id FROM landing_pages WHERE landing_code=$1", [landingCode]);
+    if (rows.length === 0)
+      return sendError(res, sendJson, 422, "LANDING_NOT_FOUND", `landing_code "${landingCode}" 不存在，请先创建落地页`);
+  }
+  if (activityCode) {
+    const { rows } = await query("SELECT activity_id FROM activities WHERE activity_id=$1", [activityCode]);
+    if (rows.length === 0)
+      return sendError(res, sendJson, 422, "ACTIVITY_NOT_FOUND", `activity_code "${activityCode}" 不存在，请先创建活动`);
+  }
+  return null;
+}
+
 // POST /api/growth/banners
 export async function handleCreateBanner(req, res, sendJson, body) {
   if (!requireAdmin(req, res, sendJson)) return;
   try {
+    // Task 4: 跳转目标有效性校验
+    const validErr = await validateJumpTargets(res, sendJson, body.landing_code || "", body.activity_code || "");
+    if (validErr !== null) return;
+
     const { rows: last } = await query("SELECT COUNT(*) as cnt FROM banners", []);
     const cnt = parseInt(last[0]?.cnt || "0");
     const bannerCode = generateBannerCode();
@@ -111,6 +130,12 @@ export async function handleUpdateBanner(req, res, sendJson, body, bannerId) {
   try {
     const { rows: found } = await query("SELECT id FROM banners WHERE banner_code=$1", [bannerId]);
     if (found.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "Banner not found");
+
+    // Task 4: 跳转目标有效性校验（仅当字段出现在请求中时才校验）
+    const landingToCheck  = body.landing_code  !== undefined ? body.landing_code  : "";
+    const activityToCheck = body.activity_code !== undefined ? body.activity_code : "";
+    const validErr = await validateJumpTargets(res, sendJson, landingToCheck, activityToCheck);
+    if (validErr !== null) return;
 
     const { rows } = await query(
       `UPDATE banners SET
