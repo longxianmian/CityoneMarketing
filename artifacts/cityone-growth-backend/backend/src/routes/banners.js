@@ -1,11 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, "..", "..", "data");
-const BANNERS_FILE = path.join(DATA_DIR, "banners.json");
+import { query } from "../db/pool.js";
 
 function sendOk(res, sendJson, msg, data) {
   return sendJson(res, 200, { code: 200, msg, data });
@@ -13,84 +6,164 @@ function sendOk(res, sendJson, msg, data) {
 function sendError(res, sendJson, statusCode, errorCode, msg) {
   return sendJson(res, statusCode, { code: statusCode, msg, error: errorCode });
 }
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+function requireAdmin(req, res, sendJson) {
+  if (!req._admin) { sendError(res, sendJson, 401, "UNAUTH", "未登录"); return null; }
+  return req._admin;
 }
-function loadJsonArray(filePath) {
-  ensureDataDir();
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, "[]", "utf-8");
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
-}
-function saveJsonArray(filePath, data) {
-  ensureDataDir();
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
-}
-function generateId() {
+function generateBannerCode() {
   return "bn_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
 }
-function requireAdmin(req, res, sendJson) {
-  const admin = req._admin;
-  if (!admin) {
-    sendError(res, sendJson, 401, "UNAUTH", "未登录");
-    return null;
-  }
-  return admin;
+function toML(v) {
+  if (!v) return { zh: "", th: "", en: "" };
+  if (typeof v === "object" && ("zh" in v || "th" in v || "en" in v))
+    return { zh: v.zh || "", th: v.th || "", en: v.en || "" };
+  return { zh: typeof v === "string" ? v : "", th: "", en: "" };
 }
-
-// GET /api/growth/banners — list (公开端: enabled=true; 管理端: 全量)
-export function handleGetBanners(req, res, sendJson, url) {
-  let list = loadJsonArray(BANNERS_FILE);
-  const onlyEnabled = url.searchParams.get("enabled") === "true";
-  if (onlyEnabled) list = list.filter(b => b.enabled !== false);
-  list = list.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  return sendOk(res, sendJson, "ok", { list, total: list.length });
-}
-
-// POST /api/growth/banners — create  [requires admin]
-export function handleCreateBanner(req, res, sendJson, body) {
-  if (!requireAdmin(req, res, sendJson)) return;
-  const list = loadJsonArray(BANNERS_FILE);
-  const banner = {
-    ...body,
-    id: generateId(),
-    title: body.title || {},
-    sub_title: body.sub_title || {},
-    image_url: body.image_url || "",
-    link_type: body.link_type || "internal",
-    link_url: body.link_url || "",
-    sort_order: body.sort_order != null ? Number(body.sort_order) : list.length,
-    enabled: body.enabled !== false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+function rowToClient(r) {
+  return {
+    id: r.banner_code,
+    title: r.title || { zh: "", th: "", en: "" },
+    sub_title: r.sub_title || { zh: "", th: "", en: "" },
+    image_url: r.image_url,
+    position_key: r.position_key,
+    jump_type: r.jump_type,
+    jump_target_id: r.jump_target_id,
+    jump_target_type: r.jump_target_type,
+    link_type: r.link_type,
+    link_url: r.link_url,
+    landing_code: r.landing_code,
+    activity_code: r.activity_code,
+    enabled: r.enabled,
+    sort_order: r.sort_order,
+    start_at: r.start_at,
+    end_at: r.end_at,
+    source_entry_id: r.source_entry_id,
+    source_channel_id: r.source_channel_id,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
   };
-  list.push(banner);
-  saveJsonArray(BANNERS_FILE, list);
-  return sendOk(res, sendJson, "created", banner);
 }
 
-// PUT /api/growth/banners/:id — update  [requires admin]
-export function handleUpdateBanner(req, res, sendJson, body, bannerId) {
-  if (!requireAdmin(req, res, sendJson)) return;
-  const list = loadJsonArray(BANNERS_FILE);
-  const idx = list.findIndex(b => b.id === bannerId);
-  if (idx === -1) return sendError(res, sendJson, 404, "NOT_FOUND", "Banner not found");
-  list[idx] = { ...list[idx], ...body, id: list[idx].id, updated_at: new Date().toISOString() };
-  saveJsonArray(BANNERS_FILE, list);
-  return sendOk(res, sendJson, "updated", list[idx]);
+// GET /api/growth/banners
+export async function handleGetBanners(req, res, sendJson, url) {
+  try {
+    const onlyEnabled = url.searchParams.get("enabled") === "true";
+    const positionKey = url.searchParams.get("position_key") || "";
+    let sql = "SELECT * FROM banners";
+    const params = [];
+    const where = [];
+    if (onlyEnabled) { where.push("enabled = TRUE"); }
+    if (positionKey) { params.push(positionKey); where.push(`position_key = $${params.length}`); }
+    if (where.length) sql += " WHERE " + where.join(" AND ");
+    sql += " ORDER BY sort_order ASC, id ASC";
+
+    const { rows } = await query(sql, params);
+    const list = rows.map(rowToClient);
+    return sendOk(res, sendJson, "ok", { list, total: list.length });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-// DELETE /api/growth/banners/:id  [requires admin]
-export function handleDeleteBanner(req, res, sendJson, bannerId) {
+// POST /api/growth/banners
+export async function handleCreateBanner(req, res, sendJson, body) {
   if (!requireAdmin(req, res, sendJson)) return;
-  const list = loadJsonArray(BANNERS_FILE);
-  const next = list.filter(b => b.id !== bannerId);
-  if (next.length === list.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Banner not found");
-  saveJsonArray(BANNERS_FILE, next);
-  return sendOk(res, sendJson, "deleted", null);
+  try {
+    const { rows: last } = await query("SELECT COUNT(*) as cnt FROM banners", []);
+    const cnt = parseInt(last[0]?.cnt || "0");
+    const bannerCode = generateBannerCode();
+    const { rows } = await query(
+      `INSERT INTO banners
+         (banner_code, title, sub_title, image_url, position_key, jump_type, jump_target_id, jump_target_type,
+          link_type, link_url, landing_code, activity_code, enabled, sort_order, start_at, end_at,
+          source_entry_id, source_channel_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+      [
+        bannerCode,
+        JSON.stringify(toML(body.title)),
+        JSON.stringify(toML(body.sub_title)),
+        body.image_url || "",
+        body.position_key || "home_top",
+        body.jump_type || body.link_type || "external",
+        body.jump_target_id || "",
+        body.jump_target_type || "",
+        body.link_type || "external",
+        body.link_url || "",
+        body.landing_code || "",
+        body.activity_code || "",
+        body.enabled !== false,
+        body.sort_order != null ? Number(body.sort_order) : cnt,
+        body.start_at ? new Date(body.start_at) : null,
+        body.end_at ? new Date(body.end_at) : null,
+        body.source_entry_id || "",
+        body.source_channel_id || "",
+      ]
+    );
+    return sendOk(res, sendJson, "created", rowToClient(rows[0]));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// PUT /api/growth/banners/:id
+export async function handleUpdateBanner(req, res, sendJson, body, bannerId) {
+  if (!requireAdmin(req, res, sendJson)) return;
+  try {
+    const { rows: found } = await query("SELECT id FROM banners WHERE banner_code=$1", [bannerId]);
+    if (found.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "Banner not found");
+
+    const { rows } = await query(
+      `UPDATE banners SET
+         title = COALESCE($1, title),
+         sub_title = COALESCE($2, sub_title),
+         image_url = COALESCE($3, image_url),
+         position_key = COALESCE($4, position_key),
+         jump_type = COALESCE($5, jump_type),
+         jump_target_id = COALESCE($6, jump_target_id),
+         jump_target_type = COALESCE($7, jump_target_type),
+         link_type = COALESCE($8, link_type),
+         link_url = COALESCE($9, link_url),
+         landing_code = COALESCE($10, landing_code),
+         activity_code = COALESCE($11, activity_code),
+         enabled = COALESCE($12, enabled),
+         sort_order = COALESCE($13, sort_order),
+         start_at = $14,
+         end_at = $15,
+         updated_at = NOW()
+       WHERE banner_code=$16 RETURNING *`,
+      [
+        body.title !== undefined ? JSON.stringify(toML(body.title)) : null,
+        body.sub_title !== undefined ? JSON.stringify(toML(body.sub_title)) : null,
+        body.image_url !== undefined ? body.image_url : null,
+        body.position_key !== undefined ? body.position_key : null,
+        body.jump_type !== undefined ? body.jump_type : null,
+        body.jump_target_id !== undefined ? body.jump_target_id : null,
+        body.jump_target_type !== undefined ? body.jump_target_type : null,
+        body.link_type !== undefined ? body.link_type : null,
+        body.link_url !== undefined ? body.link_url : null,
+        body.landing_code !== undefined ? body.landing_code : null,
+        body.activity_code !== undefined ? body.activity_code : null,
+        body.enabled !== undefined ? !!body.enabled : null,
+        body.sort_order !== undefined ? Number(body.sort_order) : null,
+        body.start_at ? new Date(body.start_at) : null,
+        body.end_at ? new Date(body.end_at) : null,
+        bannerId,
+      ]
+    );
+    return sendOk(res, sendJson, "updated", rowToClient(rows[0]));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// DELETE /api/growth/banners/:id
+export async function handleDeleteBanner(req, res, sendJson, bannerId) {
+  if (!requireAdmin(req, res, sendJson)) return;
+  try {
+    const { rows } = await query("DELETE FROM banners WHERE banner_code=$1 RETURNING id", [bannerId]);
+    if (rows.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "Banner not found");
+    return sendOk(res, sendJson, "deleted", null);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }

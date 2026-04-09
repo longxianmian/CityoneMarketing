@@ -1,0 +1,534 @@
+# CityOne 营销增长系统第二批第2份：入口与活动归因主链路整改执行文档
+
+> 适用范围：CityOne → 营销增长系统生产级整改 → 第二批第 2 份执行任务
+>
+> 本文档只处理入口与活动归因主链路，不允许扩散到其它模块。
+>
+> 本次整改范围仅限：
+>
+> * `entries`
+> * `activities`
+> * `landing`
+> * `banners`
+>
+> 本文档用于直接分发给 ReplitAI 执行。
+
+---
+
+## 一、整改背景
+
+第一批 PostgreSQL 迁移已完成并验证通过，第二批第 1 份《认证与账户体系整改》也已完成并验证通过。
+
+当前已具备的基础：
+
+* PostgreSQL 已正式接入
+* 核心业务表已建立第一版基础
+* coupons / mall-items / growth-points 已迁入 PostgreSQL
+* admins / accounts / members 已从 JSON 迁移到 PostgreSQL
+* 管理员登录、会员查询、账户查询已可真实走 DB
+
+因此，当前第二批下一步应进入：
+
+**入口与活动归因主链路整改。**
+
+这是营销增长系统真正的业务主骨架。因为对增长系统而言，最关键的问题不是“页面有没有”，而是：
+
+1. 用户从哪个入口进入
+2. 进入后落到哪个落地页
+3. 当前看到的是哪个 Banner / 哪组承接内容
+4. 最终进入了哪个活动
+5. 后续参与、领券、积分、订单是否能正确归因回入口与活动
+
+如果 `entries / activities / landing / banners` 继续停留在 JSON 或假数据状态，那么整个增长系统即使页面能看，也无法做到真实增长归因。
+
+---
+
+## 二、整改目标
+
+本次整改目标是把“入口 → 落地页 → Banner → 活动”这条营销主链路，从 JSON / 假数据 / 混合状态整改为 PostgreSQL 正式承接，并形成第一版真实可追踪的归因基础。
+
+整改完成后，至少应实现：
+
+### 1. 入口体系正式落库
+
+* 各类入口对象不再依赖 JSON 文件
+* 入口基本信息、状态、类型、关联落地页/活动具备正式表结构
+* 后续可承接二维码入口、渠道入口、A 系统设备入口预留
+
+### 2. 活动体系正式落库
+
+* 活动列表、活动详情、活动状态、活动时间、活动承接关系具备正式表结构
+* 后续活动参与、奖品、卡券、积分规则可有稳定主表依附
+
+### 3. 落地页体系正式落库
+
+* 落地页基本信息、模板类型、承接内容、关联入口/活动具备正式表结构
+* 后续可支持不同入口落到不同落地页
+
+### 4. Banner 体系正式落库
+
+* Banner 不再只作为静态前端配置
+* Banner 的位置、排序、跳转对象、关联活动/落地页等具备正式存储
+
+### 5. 形成第一版主归因链路
+
+至少形成以下关系：
+
+* `entry` → `landing`
+* `entry` → `activity`
+* `landing` → `banner`
+* `banner` → `activity`
+* `activity` 可反查来源入口/落地页/Banner
+
+---
+
+## 三、本次整改范围（严格限定）
+
+你这次只能处理以下 4 类模块：
+
+### 1. `entries`
+
+重点关注：
+
+* 入口类型
+* 入口状态
+* 入口名称/编码
+* 入口与落地页的关系
+* 入口与活动的关系
+* 来源渠道字段
+* 二维码 / 设备 / 外部链接预留字段
+
+### 2. `activities`
+
+重点关注：
+
+* 活动基本信息
+* 活动状态
+* 活动时间
+* 活动承接页
+* 活动关联入口
+* 活动关联 Banner
+* 活动可见性/优先级/排序等字段
+
+### 3. `landing`
+
+重点关注：
+
+* 落地页基本资料
+* 页面模板类型
+* 页面标题/描述/封面
+* 关联入口
+* 关联活动
+* 关联 Banner 区块
+* 页面状态
+
+### 4. `banners`
+
+重点关注：
+
+* Banner 列表
+* Banner 位置
+* Banner 素材
+* 跳转类型
+* 跳转目标
+* 排序
+* 上下架状态
+* 关联落地页/活动
+
+### 本次明确不处理
+
+以下内容这次先不要动：
+
+* `stations`
+* `game-programs`
+* `messages`
+* `biz-*`
+* `agent-*`
+* 订单、积分、卡券主逻辑扩展
+* A 系统深度联动逻辑
+
+注意：本次可以**预留字段**，但不要越界去做站点联动全逻辑。
+
+---
+
+## 四、必须先做的真实代码检查
+
+你不能直接设计表，必须先基于真实代码检查当前实现。
+
+### 先检查并反馈以下内容
+
+#### 1）真实文件位置
+
+必须找到以下真实文件：
+
+* `entries` 对应 routes / services / data 文件
+* `activities` 对应 routes / services / data 文件
+* `landing` 对应 routes / services / data 文件
+* `banners` 对应 routes / services / data 文件
+* 当前 JSON 文件存储目录
+* 当前前端使用这些模块的页面文件
+
+#### 2）当前数据来源方式
+
+必须确认：
+
+* 哪些模块仍在读 JSON
+* 哪些模块已有部分走 PostgreSQL
+* 哪些页面只是前端假数据拼装
+* 哪些 API 真实存在但底层仍是 JSON
+
+#### 3）当前字段真实情况
+
+必须梳理每类对象当前真实字段：
+
+* 字段名
+* 当前来源（JSON / mock / DB）
+* 是否被前端真实使用
+* 是否需要保留
+* 是否需要规范化
+
+#### 4）当前链路真实情况
+
+必须确认：
+
+* 入口页如何跳转到落地页/活动
+* landing 是否真实存在独立对象，还是写死在前端
+* banner 当前是静态配置、JSON 还是已有接口
+* activity 当前和 coupon / product / points 的关系是否已有字段
+
+### 先输出检查结论，再开始改
+
+你必须先给出一份简短检查结论，至少包含：
+
+1. 找到了哪些真实文件
+2. 这 4 类模块当前分别是如何存储的
+3. 当前入口 → 落地页 → 活动链路是如何实现的
+4. 建议如何设计正式表结构与迁移路径
+
+---
+
+## 五、建议数据模型（先基于真实代码校对再落地）
+
+以下是建议方向，不允许脱离现有代码强造。你必须先与真实字段对齐，再决定最终建表方案。
+
+### 1. entries（入口表）建议字段
+
+至少评估以下字段：
+
+* `id`
+* `entry_code`
+* `entry_name`
+* `entry_type`
+* `status`
+* `source_channel_id`
+* `landing_id`
+* `default_activity_id`
+* `qr_code_value`
+* `external_url`
+* `device_code`（预留）
+* `a_system_device_id`（预留）
+* `sort_order`
+* `created_at`
+* `updated_at`
+
+### 2. activities（活动表）建议字段
+
+至少评估以下字段：
+
+* `id`
+* `activity_code`
+* `title`
+* `subtitle`
+* `description`
+* `cover_url`
+* `activity_type`
+* `status`
+* `start_at`
+* `end_at`
+* `landing_id`
+* `entry_id`
+* `banner_id`（如适合）
+* `rule_config`（JSONB 可评估）
+* `sort_order`
+* `is_featured`
+* `created_at`
+* `updated_at`
+
+### 3. landing_pages（落地页表）建议字段
+
+至少评估以下字段：
+
+* `id`
+* `landing_code`
+* `title`
+* `subtitle`
+* `page_type`
+* `template_type`
+* `cover_url`
+* `content_config`（JSONB 可评估）
+* `status`
+* `default_activity_id`
+* `entry_id`
+* `sort_order`
+* `created_at`
+* `updated_at`
+
+### 4. banners（Banner 表）建议字段
+
+至少评估以下字段：
+
+* `id`
+* `banner_code`
+* `title`
+* `image_url`
+* `position_key`
+* `jump_type`
+* `jump_target_id`
+* `jump_target_type`
+* `landing_id`
+* `activity_id`
+* `status`
+* `sort_order`
+* `start_at`
+* `end_at`
+* `created_at`
+* `updated_at`
+
+### 5. 关系建议
+
+优先评估以下关系是否符合真实代码：
+
+* 一个 `entry` 可关联一个主 `landing`
+* 一个 `entry` 可关联一个默认 `activity`
+* 一个 `landing` 可承接多个 `banner`
+* 一个 `banner` 可跳转到一个 `activity` 或 `landing`
+* 一个 `activity` 可来自某个 `entry` 或 `landing`
+
+如果真实代码已有不同建模方式，你必须先说明，不要强行套模板。
+
+---
+
+## 六、整改实施要求
+
+### 第一阶段：迁移设计
+
+你需要完成：
+
+1. 为 `entries`、`activities`、`landing`、`banners` 设计正式 PostgreSQL 表结构
+2. 输出 migration / schema 变更
+3. 明确 JSON → PostgreSQL 的迁移策略
+4. 明确哪些历史字段保留、哪些废弃、哪些兼容
+
+### 第二阶段：历史 JSON 数据迁移
+
+你需要：
+
+1. 找到当前对应 JSON 文件
+2. 设计迁移脚本或 seed 脚本
+3. 将历史入口、活动、落地页、Banner 数据导入 PostgreSQL
+4. 对脏数据、空字段、重复键给出处理方式
+
+### 第三阶段：接口读写切换
+
+你需要：
+
+1. 将相关 routes / services / repository 改为优先走 PostgreSQL
+2. 移除或降级对 JSON 文件的主依赖
+3. 保证入口列表 / 活动列表 / 活动详情 / 落地页 / Banner 读取链路走 PostgreSQL
+4. 至少完成一条完整的入口 → 落地页/活动查询链路 DB 化
+
+### 第四阶段：前端兼容承接
+
+你需要：
+
+1. 保证旧前端页面字段不崩
+2. 对缺失字段做兼容处理
+3. 如前端某些页面此前吃的是假数据，需改成真实接口字段承接
+4. 不允许因为迁移导致活动页/入口页白屏
+
+### 第五阶段：归因字段预留
+
+你需要在合适位置预留：
+
+* `source_entry_id`
+* `source_activity_id`
+* `source_banner_id`
+* `source_channel_id`
+* `device_code`
+* `a_system_device_id`
+
+注意：这次先做主链路与字段预留，不要求把后续所有订单/积分/领券归因一起全做完。
+
+---
+
+## 七、必须覆盖的功能验证
+
+整改完成后，至少要完成以下验证。
+
+### A. 入口体系验证
+
+1. 入口列表从 PostgreSQL 返回
+2. 入口详情从 PostgreSQL 返回
+3. 入口状态字段可读
+4. 至少一条入口与 landing / activity 的关联可查
+
+### B. 活动体系验证
+
+1. 活动列表从 PostgreSQL 返回
+2. 活动详情从 PostgreSQL 返回
+3. 活动状态、时间、排序字段正确
+4. 至少一条活动可反查来源 entry / landing / banner 中的一项或多项
+
+### C. 落地页体系验证
+
+1. landing 数据从 PostgreSQL 返回
+2. landing 可正确承接标题/模板/封面等字段
+3. 至少一条 landing 与 entry / activity 关系正确
+
+### D. Banner 体系验证
+
+1. banner 列表从 PostgreSQL 返回
+2. banner 位置、排序、上下架状态正确
+3. 至少一条 banner 跳转目标正确
+4. banner 与 landing / activity 的关联关系可查
+
+### E. 迁移验证
+
+1. 原 JSON 数据已成功导入 PostgreSQL
+2. 数量对账基本一致
+3. 抽样字段核对正确
+4. 至少输出迁移前后数量对比
+
+### F. 一条主链路验证
+
+至少验证一条完整链路：
+
+* 某个 `entry`
+* 能拿到对应 `landing`
+* landing 中能返回对应 `banner`
+* banner/landing 最终能指向某个 `activity`
+
+---
+
+## 八、必须查看和修改的真实文件类型
+
+以下是你必须重点检查的文件类型。
+
+### 1. 后端入口与配置
+
+* `package.json`
+* `.env` / `.env.*`
+* DB 配置读取文件
+* 启动入口文件
+
+### 2. 入口与活动相关模块
+
+* `routes/entries*`
+* `routes/activities*`
+* `routes/landing*`
+* `routes/banners*`
+* `services/entries*`
+* `services/activities*`
+* `services/landing*`
+* `services/banners*`
+* `repositories/*`
+* `data/*.json`
+
+### 3. 前端承接文件（必须查看，不可想当然）
+
+* 管理端入口管理页面
+* 管理端活动管理页面
+* 管理端落地页管理页面
+* 管理端 Banner 管理页面
+* 用户端首页/活动页/落地页相关页面
+* 入口跳转相关组件
+
+### 4. 现有关联对象（只查看，不越界大改）
+
+* coupon / product / points 与 activity 的现有关联字段
+* QR / entry center 相关代码
+* 可能已有的 channel/source 相关类型定义
+
+---
+
+## 九、不允许做的事
+
+本次整改必须遵守以下禁令：
+
+1. 不允许脱离真实代码重造一套 CMS/活动系统
+2. 不允许把 `entries / landing / banners / activities` 混成一张大表偷懒
+3. 不允许只建表不改真实接口
+4. 不允许顺手把 `stations / game-programs / agent-*` 一起乱改
+5. 不允许只改后端不验证前端承接
+6. 不允许页面继续吃假数据但对外宣称已迁移完成
+7. 不允许在服务器直接手改业务代码替代正式提交
+
+---
+
+## 十、提交与回报要求
+
+完成后，你必须明确回报以下内容：
+
+### 1. 检查结论
+
+* 找到了哪些真实文件
+* 当前 `entries / activities / landing / banners` 分别是怎么存的
+* 当前入口 → 落地页 → 活动链路是什么
+
+### 2. 改动清单
+
+* 改了哪些文件
+* 每个文件改了什么
+* 新增了哪些 migration / schema / seed 文件
+
+### 3. 数据迁移说明
+
+* 迁移了哪些 JSON 文件
+* 迁移前数量
+* 迁移后数量
+* 脏数据如何处理
+
+### 4. 验证结果
+
+* 入口列表/详情验证结果
+* 活动列表/详情验证结果
+* landing 验证结果
+* banner 验证结果
+* 一条完整主链路验证结果
+
+### 5. Git 提交要求
+
+完成并验证通过后，再提交 Git，并明确提交说明。
+提交说明必须清晰，例如：
+
+* `feat: migrate entries activities landing banners from json to postgres`
+* `refactor: switch growth entry and activity chain to postgresql storage`
+
+---
+
+## 十一、本次整改完成标准
+
+只有同时满足以下条件，才算本次整改完成：
+
+1. `entries` 已从 JSON 迁移到 PostgreSQL
+2. `activities` 已从 JSON 迁移到 PostgreSQL
+3. `landing` 已从 JSON 迁移到 PostgreSQL
+4. `banners` 已从 JSON 迁移到 PostgreSQL
+5. 至少一条入口 → 落地页 / 活动的链路已真实走 PostgreSQL
+6. 历史 JSON 数据已迁移并完成对账
+7. Replit 本地验证通过
+8. 输出完整文件级改动说明
+
+---
+
+## 十二、下一步衔接说明
+
+本次完成后，第二批下一份建议进入：
+
+**《站点与 A 系统旁路连接预留整改执行文档》**
+
+范围建议为：
+
+* `stations`
+
+因为入口与活动归因主链路完成后，下一步就应正式处理站点/设备映射位，为共享充电宝系统旁路连接做数据基础预留。

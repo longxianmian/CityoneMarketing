@@ -55,7 +55,14 @@ The project is structured as a pnpm workspace monorepo, with distinct `artifacts
   - `role_templates` table: 4 templates seeded (growth_content, growth_data, ops_activity, ops_data)
   - `points_accounts` extended with member columns: deposit_paid, deposit_amount, has_used_charging, source, source_hint, line_display_name, member_level, tags
   - Login chain: `POST /api/admin/login` → bcrypt verify → JWT sign → `last_login_at` updated in DB
-- **Remaining (JSON-backed)**: activities, entries, landing, banners, stations, game-programs, agent-*, messages, biz-* (~30+ files still JSON-backed, awaiting next batch).
+- **Batch 2 Part 2 (Done)**: entries, activities, landing, banners — fully migrated to PostgreSQL.
+  - `entry_templates` (3 seeded), `entry_instances` (3 seeded)
+  - `landing_pages` (4 seeded, deduped from 6 JSON records), `creative_landing_bindings` (1 seeded)
+  - `banners` (2 seeded), `activity_templates` (2 seeded)
+  - `activities` table ALTER'd with 30+ business fields added; participations (3 seeded), product_bindings (1 seeded)
+  - `handleActivityParticipate` rewired to PostgreSQL — writes `activity_participations`, `points_ledger`, `points_accounts` atomically
+  - Main归因链路：entry → landing → banner → activity 全部字段落库
+- **Remaining (JSON-backed)**: stations, game-programs, agent-*, messages, biz-* (~25+ files still JSON-backed, awaiting next batch).
 
 **UI/UX Decisions:**
 - **AdminLayout:** Features 6 main menu groups (Growth Overview, Welfare Center, Entry & Distribution, Incentive & Attribution, AI Agent, System Configuration).
