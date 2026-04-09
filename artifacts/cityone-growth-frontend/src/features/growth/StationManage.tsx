@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, EnvironmentOutlined,
-  LinkOutlined, SyncOutlined,
+  LinkOutlined, SyncOutlined, ApiOutlined,
 } from '@ant-design/icons'
 import request from '../../api/request'
 
@@ -19,12 +19,25 @@ interface Station {
   status: string; capacity: number; available: number
   source: string; external_id: string
   createdAt?: string; updatedAt?: string
+  // 新增字段
+  station_code?: string
+  station_type?: string
+  venue_name?: string
+  venue_type?: string
+  entry_code?: string
+  landing_code?: string
+  default_activity_id?: string
+  a_system_station_id?: string
+  device_code?: string
+  device_group_code?: string
+  a_system_device_id?: string
+  source_channel_id?: string
 }
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
-  active: { color: 'green', label: '运营中' },
+  active:      { color: 'green',  label: '运营中' },
   maintenance: { color: 'orange', label: '维护中' },
-  offline: { color: 'red', label: '已下线' },
+  offline:     { color: 'red',    label: '已下线' },
 }
 
 export default function StationManage() {
@@ -65,7 +78,6 @@ export default function StationManage() {
   const cityOptions = cityDistricts.map(c => ({ value: c.code, label: `${c.zh} · ${c.en}` }))
   const districtOptions = (cityDistricts.find(c => c.code === (filterCity || selectedCity))?.districts || [])
     .map(d => ({ value: d.code, label: `${d.zh} · ${d.en}` }))
-
   const formDistrictOptions = (cityDistricts.find(c => c.code === selectedCity)?.districts || [])
     .map(d => ({ value: d.code, label: `${d.zh} · ${d.en}` }))
 
@@ -86,7 +98,18 @@ export default function StationManage() {
       city: row.city, district: row.district, address: row.address,
       lat: row.lat, lng: row.lng,
       status: row.status, capacity: row.capacity, available: row.available,
-      source: row.source, external_id: row.external_id,
+      source: row.source,
+      // A系统预留字段（a_system_station_id 向后兼容 external_id）
+      a_system_station_id: row.a_system_station_id || row.external_id || '',
+      device_code:         row.device_code        || '',
+      device_group_code:   row.device_group_code  || '',
+      a_system_device_id:  row.a_system_device_id || '',
+      // 增长主链路绑定
+      entry_code:          row.entry_code          || '',
+      landing_code:        row.landing_code        || '',
+      default_activity_id: row.default_activity_id || '',
+      source_channel_id:   row.source_channel_id   || '',
+      venue_name:          row.venue_name           || '',
     })
     setFormVisible(true)
   }
@@ -107,7 +130,18 @@ export default function StationManage() {
         lat: vals.lat, lng: vals.lng,
         status: vals.status || 'active',
         capacity: vals.capacity || 0, available: vals.available || 0,
-        source: vals.source || 'manual', external_id: vals.external_id || '',
+        source: vals.source || 'manual',
+        // A系统预留字段
+        a_system_station_id: vals.a_system_station_id || '',
+        device_code:         vals.device_code         || '',
+        device_group_code:   vals.device_group_code   || '',
+        a_system_device_id:  vals.a_system_device_id  || '',
+        // 增长主链路绑定
+        entry_code:          vals.entry_code          || '',
+        landing_code:        vals.landing_code        || '',
+        default_activity_id: vals.default_activity_id || '',
+        source_channel_id:   vals.source_channel_id   || '',
+        venue_name:          vals.venue_name           || '',
       }
       if (isEdit) {
         await request.put(`/stations/${editId}`, body)
@@ -174,17 +208,31 @@ export default function StationManage() {
       },
     },
     {
-      title: '数据来源',
-      dataIndex: 'source',
-      render: (source: string, row: Station) => (
+      title: '增长链路绑定',
+      render: (_: any, row: Station) => (
         <div style={{ fontSize: 12 }}>
-          <Tag color={source === 'a_system' ? 'purple' : 'default'}>
-            {source === 'a_system' ? 'A系统' : '手动录入'}
+          {row.entry_code && <div><Tag color="cyan" style={{ fontSize: 11 }}>入口 {row.entry_code}</Tag></div>}
+          {row.landing_code && <div><Tag color="geekblue" style={{ fontSize: 11 }}>落地页 {row.landing_code}</Tag></div>}
+          {row.default_activity_id && <div><Tag color="purple" style={{ fontSize: 11 }}>活动 {row.default_activity_id}</Tag></div>}
+          {!row.entry_code && !row.landing_code && !row.default_activity_id &&
+            <span style={{ color: '#d9d9d9' }}>-</span>}
+        </div>
+      ),
+    },
+    {
+      title: 'A系统预留',
+      render: (_: any, row: Station) => (
+        <div style={{ fontSize: 12 }}>
+          <Tag color={row.source === 'a_system' ? 'purple' : 'default'}>
+            {row.source === 'a_system' ? 'A系统' : '手动'}
           </Tag>
-          {row.external_id && (
+          {(row.a_system_station_id || row.external_id) && (
             <div style={{ color: '#999', marginTop: 2 }}>
-              <LinkOutlined /> {row.external_id}
+              <ApiOutlined /> {row.a_system_station_id || row.external_id}
             </div>
+          )}
+          {row.device_code && (
+            <div style={{ color: '#aaa', fontSize: 11 }}>设备: {row.device_code}</div>
           )}
         </div>
       ),
@@ -211,7 +259,7 @@ export default function StationManage() {
             站点管理
           </h2>
           <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
-            管理充电宝站点位置与状态 · 未来可对接 A 系统同步站点数据
+            管理充电宝站点位置与状态 · 已落 PostgreSQL · A系统旁路预留字段已开放
           </div>
         </div>
         <Space>
@@ -269,7 +317,7 @@ export default function StationManage() {
         onOk={handleSave}
         onCancel={() => { if (!saving) setFormVisible(false) }}
         confirmLoading={saving}
-        width={720}
+        width={760}
         destroyOnClose
       >
         <Form form={form} layout="vertical">
@@ -313,9 +361,18 @@ export default function StationManage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="address" label="详细地址">
-            <Input placeholder="例：Siam Square One, Pathum Wan, Bangkok" />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col xs={24} sm={16}>
+              <Form.Item name="address" label="详细地址">
+                <Input placeholder="例：Siam Square One, Pathum Wan, Bangkok" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item name="venue_name" label="场地名称（商场/楼宇）">
+                <Input placeholder="例：Siam Paragon" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
               <Form.Item name="lat" label="纬度 (Latitude)" rules={[{ required: true, message: '请填写纬度' }]}>
@@ -334,9 +391,9 @@ export default function StationManage() {
             <Col xs={24} sm={8}>
               <Form.Item name="status" label="状态" initialValue="active">
                 <Select options={[
-                  { value: 'active', label: '运营中' },
+                  { value: 'active',      label: '运营中' },
                   { value: 'maintenance', label: '维护中' },
-                  { value: 'offline', label: '已下线' },
+                  { value: 'offline',     label: '已下线' },
                 ]} />
               </Form.Item>
             </Col>
@@ -352,18 +409,61 @@ export default function StationManage() {
             </Col>
           </Row>
 
-          <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>A 系统对接（预留）</span></Divider>
+          <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>增长主链路绑定（软引用）</span></Divider>
+          <Row gutter={16}>
+            <Col xs={24} sm={8}>
+              <Form.Item name="entry_code" label="绑定入口 (entry_code)">
+                <Input placeholder="例：entry_001" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item name="landing_code" label="默认落地页 (landing_code)">
+                <Input placeholder="例：lt_001" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item name="default_activity_id" label="默认活动 (activity_id)">
+                <Input placeholder="例：act_001" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item name="source_channel_id" label="来源渠道">
+                <Input placeholder="例：wechat / line / tiktok" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#555' }}>A 系统旁路连接预留</span></Divider>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
               <Form.Item name="source" label="数据来源" initialValue="manual">
                 <Select options={[
-                  { value: 'manual', label: '手动录入' },
+                  { value: 'manual',   label: '手动录入' },
                   { value: 'a_system', label: 'A系统同步' },
                 ]} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item name="external_id" label="A系统站点ID（预留）">
+              <Form.Item name="a_system_station_id" label="A系统站点ID (a_system_station_id)">
+                <Input placeholder="待与A系统对接后填写" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={8}>
+              <Form.Item name="device_code" label="设备编码 (device_code)">
+                <Input placeholder="例：DEV_BKK_001" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item name="device_group_code" label="设备组编码 (device_group_code)">
+                <Input placeholder="例：GRP_BKK_SIAM" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item name="a_system_device_id" label="A系统设备ID (a_system_device_id)">
                 <Input placeholder="待与A系统对接后填写" />
               </Form.Item>
             </Col>

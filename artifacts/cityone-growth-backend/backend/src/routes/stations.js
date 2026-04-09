@@ -1,104 +1,46 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+/**
+ * stations.js — 站点与 A 系统旁路连接预留
+ * 第二批第3份整改：全量走 PostgreSQL，移除 JSON 文件依赖
+ */
 import crypto from "node:crypto";
+import { query, withTransaction } from "../db/pool.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, "..", "..", "data");
-const STATIONS_FILE = path.join(DATA_DIR, "stations.json");
-
+// ─── 城市/区域静态字典（无需落库，保持常量） ───────────────────────────────
 export const CITY_DISTRICTS = [
   { code: "bangkok", zh: "曼谷", th: "กรุงเทพฯ", en: "Bangkok", districts: [
-    { code: "siam", zh: "暹罗商圈", th: "สยาม", en: "Siam" },
-    { code: "sukhumvit", zh: "素坤逸", th: "สุขุมวิท", en: "Sukhumvit" },
-    { code: "silom", zh: "是隆", th: "สีลม", en: "Silom" },
-    { code: "chatuchak", zh: "恰图恰", th: "จตุจักร", en: "Chatuchak" },
-    { code: "ladprao", zh: "拉差达/拉玛九", th: "ลาดพร้าว", en: "Lat Phrao" },
-    { code: "bangna", zh: "邦纳", th: "บางนา", en: "Bang Na" },
+    { code: "siam",       zh: "暹罗商圈",  th: "สยาม",      en: "Siam" },
+    { code: "sukhumvit",  zh: "素坤逸",    th: "สุขุมวิท",  en: "Sukhumvit" },
+    { code: "silom",      zh: "是隆",      th: "สีลม",      en: "Silom" },
+    { code: "chatuchak",  zh: "恰图恰",    th: "จตุจักร",   en: "Chatuchak" },
+    { code: "ladprao",    zh: "拉差达/拉玛九", th: "ลาดพร้าว", en: "Lat Phrao" },
+    { code: "bangna",     zh: "邦纳",      th: "บางนา",     en: "Bang Na" },
   ]},
   { code: "chiang-mai", zh: "清迈", th: "เชียงใหม่", en: "Chiang Mai", districts: [
-    { code: "old-city", zh: "古城区", th: "เมืองเก่า", en: "Old City" },
-    { code: "nimman", zh: "尼曼区", th: "นิมมาน", en: "Nimmanhaemin" },
-    { code: "airport", zh: "机场区", th: "แม่เหียะ", en: "Airport Area" },
+    { code: "old-city",  zh: "古城区", th: "เมืองเก่า", en: "Old City" },
+    { code: "nimman",    zh: "尼曼区", th: "นิมมาน",   en: "Nimmanhaemin" },
+    { code: "airport",   zh: "机场区", th: "แม่เหียะ",  en: "Airport Area" },
   ]},
   { code: "pattaya", zh: "芭堤雅", th: "พัทยา", en: "Pattaya", districts: [
     { code: "central", zh: "中央区", th: "พัทยากลาง", en: "Central Pattaya" },
-    { code: "north", zh: "北区", th: "พัทยาเหนือ", en: "North Pattaya" },
-    { code: "south", zh: "南区", th: "พัทยาใต้", en: "South Pattaya" },
+    { code: "north",   zh: "北区",   th: "พัทยาเหนือ", en: "North Pattaya" },
+    { code: "south",   zh: "南区",   th: "พัทยาใต้",  en: "South Pattaya" },
   ]},
   { code: "phuket", zh: "普吉", th: "ภูเก็ต", en: "Phuket", districts: [
-    { code: "patong", zh: "芭东", th: "ป่าตอง", en: "Patong" },
+    { code: "patong",      zh: "芭东",   th: "ป่าตอง",       en: "Patong" },
     { code: "phuket-town", zh: "普吉镇", th: "เมืองภูเก็ต", en: "Phuket Town" },
-    { code: "kata-karon", zh: "卡塔卡隆", th: "กะตะ-กะรน", en: "Kata-Karon" },
+    { code: "kata-karon",  zh: "卡塔卡隆", th: "กะตะ-กะรน",  en: "Kata-Karon" },
   ]},
   { code: "khon-kaen", zh: "孔敬", th: "ขอนแก่น", en: "Khon Kaen", districts: [
-    { code: "city-center", zh: "市中心", th: "ใจกลางเมือง", en: "City Center" },
-    { code: "university", zh: "大学区", th: "มหาวิทยาลัย", en: "University Area" },
+    { code: "city-center", zh: "市中心", th: "ใจกลางเมือง",   en: "City Center" },
+    { code: "university",  zh: "大学区", th: "มหาวิทยาลัย",  en: "University Area" },
   ]},
   { code: "hat-yai", zh: "合艾", th: "หาดใหญ่", en: "Hat Yai", districts: [
-    { code: "downtown", zh: "市区", th: "ตัวเมือง", en: "Downtown" },
+    { code: "downtown",   zh: "市区",      th: "ตัวเมือง",    en: "Downtown" },
     { code: "lee-garden", zh: "Lee Garden", th: "ลีการ์เด้น", en: "Lee Garden" },
   ]},
 ];
 
-const INITIAL_STATIONS = [
-  {
-    id: "st_001",
-    name: { zh: "暹罗广场站点 A", th: "สยามสแควร์ A", en: "Siam Square A" },
-    city: "bangkok", district: "siam",
-    address: "Siam Square One, Pathum Wan, Bangkok",
-    lat: 13.7455, lng: 100.5341,
-    status: "active", capacity: 8, available: 5,
-    source: "manual", external_id: "",
-  },
-  {
-    id: "st_002",
-    name: { zh: "MBK购物中心站点", th: "MBK Center", en: "MBK Center Station" },
-    city: "bangkok", district: "siam",
-    address: "MBK Center, Phaya Thai, Bangkok",
-    lat: 13.7448, lng: 100.5299,
-    status: "active", capacity: 12, available: 8,
-    source: "manual", external_id: "",
-  },
-  {
-    id: "st_003",
-    name: { zh: "素坤逸11路站点", th: "สุขุมวิท 11", en: "Sukhumvit 11 Station" },
-    city: "bangkok", district: "sukhumvit",
-    address: "Sukhumvit Soi 11, Watthana, Bangkok",
-    lat: 13.7426, lng: 100.5540,
-    status: "active", capacity: 6, available: 3,
-    source: "manual", external_id: "",
-  },
-  {
-    id: "st_004",
-    name: { zh: "尼曼1路站点", th: "นิมมาน 1", en: "Nimman 1 Station" },
-    city: "chiang-mai", district: "nimman",
-    address: "Nimmanhaemin Rd Soi 1, Chiang Mai",
-    lat: 18.7995, lng: 98.9677,
-    status: "active", capacity: 8, available: 6,
-    source: "manual", external_id: "",
-  },
-  {
-    id: "st_005",
-    name: { zh: "芭东海滩站点", th: "ป่าตองบีช", en: "Patong Beach Station" },
-    city: "phuket", district: "patong",
-    address: "Patong Beach Rd, Kathu, Phuket",
-    lat: 7.8955, lng: 98.2990,
-    status: "active", capacity: 10, available: 7,
-    source: "manual", external_id: "",
-  },
-  {
-    id: "st_006",
-    name: { zh: "是隆大厦站点", th: "สีลมคอมเพล็กซ์", en: "Silom Complex Station" },
-    city: "bangkok", district: "silom",
-    address: "Silom Complex, Silom Rd, Bangkok",
-    lat: 13.7283, lng: 100.5333,
-    status: "active", capacity: 8, available: 4,
-    source: "manual", external_id: "",
-  },
-];
-
+// ─── Haversine 距离计算 ─────────────────────────────────────────────────────
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const toRad = d => d * Math.PI / 180;
@@ -109,115 +51,314 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-function loadStations() {
-  ensureDataDir();
-  if (!fs.existsSync(STATIONS_FILE)) {
-    fs.writeFileSync(STATIONS_FILE, JSON.stringify(INITIAL_STATIONS, null, 2), "utf-8");
-    return [...INITIAL_STATIONS];
-  }
-  try {
-    const parsed = JSON.parse(fs.readFileSync(STATIONS_FILE, "utf-8"));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
-}
-function saveStations(data) {
-  ensureDataDir();
-  fs.writeFileSync(STATIONS_FILE, JSON.stringify(data, null, 2), "utf-8");
+// ─── DB 行 → API 响应映射（向后兼容前端字段名） ────────────────────────────
+function rowToStation(row) {
+  return {
+    // 向后兼容：前端使用 id / name / city / lat / lng / available
+    id:           row.station_code,
+    name:         row.station_name,
+    city:         row.city_code,
+    district:     row.district,
+    address:      row.address,
+    lat:          Number(row.latitude),
+    lng:          Number(row.longitude),
+    status:       row.status,
+    capacity:     row.capacity,
+    available:    row.available_count,
+    source:       row.source,
+    external_id:  row.a_system_station_id,
+    // 新增字段（前端可渐进使用）
+    station_code:        row.station_code,
+    station_type:        row.station_type,
+    country_code:        row.country_code,
+    venue_name:          row.venue_name,
+    venue_type:          row.venue_type,
+    source_channel_id:   row.source_channel_id,
+    entry_code:          row.entry_code,
+    landing_code:        row.landing_code,
+    default_activity_id: row.default_activity_id,
+    a_system_station_id: row.a_system_station_id,
+    device_code:         row.device_code,
+    device_group_code:   row.device_group_code,
+    a_system_device_id:  row.a_system_device_id,
+    sort_order:          row.sort_order,
+    createdAt:           row.created_at,
+    updatedAt:           row.updated_at,
+  };
 }
 
+function sendOk(res, sendJson, msg, data) {
+  return sendJson(res, 200, { code: 200, msg, data });
+}
+function sendError(res, sendJson, status, error, msg) {
+  return sendJson(res, status, { code: status, error, msg });
+}
+
+// ─── GET /api/stations/city-districts ────────────────────────────────────────
 export function handleGetCityDistricts(req, res, sendJson) {
   return sendJson(res, 200, { code: 200, msg: "success", data: CITY_DISTRICTS });
 }
 
-export function handleGetStations(req, res, url, sendJson) {
-  const city = url.searchParams.get("city") || "";
-  const district = url.searchParams.get("district") || "";
-  const status = url.searchParams.get("status") || "";
-  const ids = url.searchParams.get("ids") || "";
+// ─── GET /api/stations ────────────────────────────────────────────────────────
+export async function handleGetStations(req, res, url, sendJson) {
+  try {
+    const city     = url.searchParams.get("city")     || "";
+    const district = url.searchParams.get("district") || "";
+    const status   = url.searchParams.get("status")   || "";
+    const ids      = url.searchParams.get("ids")      || "";
+    const page     = Math.max(1, Number(url.searchParams.get("page") || 1));
+    const pageSize = Math.max(1, Math.min(200, Number(url.searchParams.get("pageSize") || 200)));
 
-  let list = loadStations();
-  if (city) list = list.filter(s => s.city === city);
-  if (district) list = list.filter(s => s.district === district);
-  if (status) list = list.filter(s => s.status === status);
-  if (ids) {
-    const idSet = new Set(ids.split(",").map(x => x.trim()));
-    list = list.filter(s => idSet.has(s.id));
+    const params = [];
+    const where  = [];
+    if (city)     { params.push(city);     where.push(`city_code=$${params.length}`); }
+    if (district) { params.push(district); where.push(`district=$${params.length}`); }
+    if (status)   { params.push(status);   where.push(`status=$${params.length}`); }
+    if (ids) {
+      const idList = ids.split(",").map(x => x.trim()).filter(Boolean);
+      if (idList.length > 0) {
+        params.push(idList);
+        where.push(`station_code = ANY($${params.length})`);
+      }
+    }
+    const whereClause = where.length ? " WHERE " + where.join(" AND ") : "";
+    const { rows: countRows } = await query(`SELECT COUNT(*) AS cnt FROM stations${whereClause}`, params);
+    const offset = (page - 1) * pageSize;
+    params.push(pageSize, offset);
+    const { rows } = await query(
+      `SELECT * FROM stations${whereClause} ORDER BY sort_order ASC, station_code ASC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+    const list = rows.map(rowToStation);
+    return sendOk(res, sendJson, "success", { list, total: Number(countRows[0].cnt) });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
-  return sendJson(res, 200, { code: 200, msg: "success", data: { list, total: list.length } });
 }
 
-export function handleGetNearbyStations(req, res, url, sendJson) {
-  const lat = parseFloat(url.searchParams.get("lat") || "");
-  const lng = parseFloat(url.searchParams.get("lng") || "");
-  const radius = parseFloat(url.searchParams.get("radius") || "3");
-  const city = url.searchParams.get("city") || "";
+// ─── GET /api/stations/nearby ─────────────────────────────────────────────────
+export async function handleGetNearbyStations(req, res, url, sendJson) {
+  try {
+    const lat    = parseFloat(url.searchParams.get("lat")    || "");
+    const lng    = parseFloat(url.searchParams.get("lng")    || "");
+    const radius = parseFloat(url.searchParams.get("radius") || "3");
+    const city   = url.searchParams.get("city") || "";
 
-  let list = loadStations().filter(s => s.status === "active");
-  if (city) list = list.filter(s => s.city === city);
+    const params = ["active"];
+    const where  = ["status=$1"];
+    if (city) { params.push(city); where.push(`city_code=$${params.length}`); }
+    const { rows } = await query(
+      `SELECT * FROM stations WHERE ${where.join(" AND ")} ORDER BY sort_order ASC, station_code ASC`,
+      params
+    );
+    const list = rows.map(rowToStation);
 
-  if (isNaN(lat) || isNaN(lng)) {
-    return sendJson(res, 200, { code: 200, msg: "success", data: { list, total: list.length, located: false } });
+    if (isNaN(lat) || isNaN(lng)) {
+      return sendOk(res, sendJson, "success", { list, total: list.length, located: false });
+    }
+
+    const nearby = list
+      .map(s => ({ ...s, distance_km: Math.round(haversine(lat, lng, s.lat, s.lng) * 10) / 10 }))
+      .filter(s => s.distance_km <= radius)
+      .sort((a, b) => a.distance_km - b.distance_km);
+
+    return sendOk(res, sendJson, "success", { list: nearby, total: nearby.length, located: true, lat, lng, radius });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
-
-  const nearby = list
-    .map(s => ({ ...s, distance_km: Math.round(haversine(lat, lng, s.lat, s.lng) * 10) / 10 }))
-    .filter(s => s.distance_km <= radius)
-    .sort((a, b) => a.distance_km - b.distance_km);
-
-  return sendJson(res, 200, { code: 200, msg: "success", data: { list: nearby, total: nearby.length, located: true, lat, lng, radius } });
 }
 
-export function handleGetStation(req, res, url, sendJson) {
-  const id = url.pathname.split("/").pop();
-  const station = loadStations().find(s => s.id === id);
-  if (!station) return sendJson(res, 404, { code: 404, msg: "站点不存在" });
-  return sendJson(res, 200, { code: 200, msg: "success", data: station });
+// ─── GET /api/stations/:id ────────────────────────────────────────────────────
+export async function handleGetStation(req, res, url, sendJson) {
+  try {
+    const code = url.pathname.split("/").pop();
+    const { rows } = await query("SELECT * FROM stations WHERE station_code=$1", [code]);
+    if (rows.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "站点不存在");
+
+    // 查询绑定的 entry 信息（一条站点→entry 归因链，用于链路验证）
+    const station = rowToStation(rows[0]);
+    if (station.entry_code) {
+      const { rows: entries } = await query(
+        "SELECT entry_code, entry_qr_code, landing_code, default_activity_code, device_code, a_system_device_id FROM entry_instances WHERE entry_code=$1",
+        [station.entry_code]
+      );
+      if (entries.length > 0) station._entry_binding = entries[0];
+    }
+
+    return sendOk(res, sendJson, "success", station);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-export function handleCreateStation(req, res, sendJson, body) {
-  const list = loadStations();
-  const id = `st_${Date.now().toString(36)}_${crypto.randomBytes(3).toString("hex")}`;
-  const now = new Date().toISOString();
-  const station = {
-    id,
-    name: body.name || { zh: "", th: "", en: "" },
-    city: body.city || "",
-    district: body.district || "",
-    address: body.address || "",
-    lat: Number(body.lat) || 0,
-    lng: Number(body.lng) || 0,
-    status: body.status || "active",
-    capacity: Number(body.capacity) || 0,
-    available: Number(body.available) || 0,
-    source: body.source || "manual",
-    external_id: body.external_id || "",
-    createdAt: now,
-    updatedAt: now,
-  };
-  list.push(station);
-  saveStations(list);
-  return sendJson(res, 200, { code: 200, msg: "创建成功", data: station });
+// ─── POST /api/stations ───────────────────────────────────────────────────────
+export async function handleCreateStation(req, res, sendJson, body) {
+  try {
+    const rawName = body.name || body.station_name || { zh: "", th: "", en: "" };
+    const stationName = typeof rawName === "object" && rawName !== null ? rawName : { zh: String(rawName), th: "", en: "" };
+    if (!stationName.zh) return sendError(res, sendJson, 400, "NAME_REQUIRED", "站点中文名称必填");
+
+    // 生成 station_code
+    const { rows: last } = await query("SELECT COUNT(*) AS cnt FROM stations", []);
+    const cnt = parseInt(last[0]?.cnt || "0");
+    const stationCode = body.station_code || `st_${String(cnt + 1).padStart(3, "0")}`;
+
+    const { rows: dup } = await query("SELECT id FROM stations WHERE station_code=$1", [stationCode]);
+    if (dup.length > 0) return sendError(res, sendJson, 409, "DUPLICATE", `station_code "${stationCode}" 已存在`);
+
+    const { rows } = await query(
+      `INSERT INTO stations (
+        station_code, station_name, station_type, status,
+        country_code, city_code, district, address, venue_name, venue_type,
+        latitude, longitude, capacity, available_count,
+        source, source_channel_id,
+        entry_code, landing_code, default_activity_id,
+        a_system_station_id, device_code, device_group_code, a_system_device_id,
+        sort_order, created_at, updated_at
+      ) VALUES (
+        $1,$2,$3,$4,
+        $5,$6,$7,$8,$9,$10,
+        $11,$12,$13,$14,
+        $15,$16,
+        $17,$18,$19,
+        $20,$21,$22,$23,
+        $24,NOW(),NOW()
+      ) RETURNING *`,
+      [
+        stationCode,
+        JSON.stringify(stationName),
+        body.station_type || "powerbank",
+        body.status || "active",
+        body.country_code || "TH",
+        body.city || body.city_code || "",
+        body.district || "",
+        body.address || "",
+        body.venue_name || "",
+        body.venue_type || "",
+        Number(body.lat ?? body.latitude) || 0,
+        Number(body.lng ?? body.longitude) || 0,
+        Number(body.capacity) || 0,
+        Number(body.available ?? body.available_count) || 0,
+        body.source || "manual",
+        body.source_channel_id || "",
+        body.entry_code || "",
+        body.landing_code || "",
+        body.default_activity_id || "",
+        body.external_id || body.a_system_station_id || "",
+        body.device_code || "",
+        body.device_group_code || "",
+        body.a_system_device_id || "",
+        Number(body.sort_order) || 0,
+      ]
+    );
+    return sendOk(res, sendJson, "创建成功", rowToStation(rows[0]));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-export function handleUpdateStation(req, res, url, sendJson, body) {
-  const id = url.pathname.split("/").pop();
-  const list = loadStations();
-  const idx = list.findIndex(s => s.id === id);
-  if (idx === -1) return sendJson(res, 404, { code: 404, msg: "站点不存在" });
-  list[idx] = { ...list[idx], ...body, id, updatedAt: new Date().toISOString() };
-  saveStations(list);
-  return sendJson(res, 200, { code: 200, msg: "更新成功", data: list[idx] });
+// ─── PUT /api/stations/:id ────────────────────────────────────────────────────
+export async function handleUpdateStation(req, res, url, sendJson, body) {
+  try {
+    const code = url.pathname.split("/").pop();
+    const { rows: found } = await query("SELECT id FROM stations WHERE station_code=$1", [code]);
+    if (found.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "站点不存在");
+
+    // 动态构建 SET 子句
+    const fieldMap = {
+      status:             body.status,
+      station_type:       body.station_type,
+      country_code:       body.country_code,
+      city_code:          body.city ?? body.city_code,
+      district:           body.district,
+      address:            body.address,
+      venue_name:         body.venue_name,
+      venue_type:         body.venue_type,
+      latitude:           body.lat !== undefined ? Number(body.lat) : body.latitude !== undefined ? Number(body.latitude) : undefined,
+      longitude:          body.lng !== undefined ? Number(body.lng) : body.longitude !== undefined ? Number(body.longitude) : undefined,
+      capacity:           body.capacity !== undefined ? Number(body.capacity) : undefined,
+      available_count:    body.available !== undefined ? Number(body.available) : body.available_count !== undefined ? Number(body.available_count) : undefined,
+      source:             body.source,
+      source_channel_id:  body.source_channel_id,
+      entry_code:         body.entry_code,
+      landing_code:       body.landing_code,
+      default_activity_id: body.default_activity_id,
+      a_system_station_id: body.external_id !== undefined ? body.external_id : body.a_system_station_id,
+      device_code:        body.device_code,
+      device_group_code:  body.device_group_code,
+      a_system_device_id: body.a_system_device_id,
+      sort_order:         body.sort_order !== undefined ? Number(body.sort_order) : undefined,
+    };
+    if (body.name || body.station_name) {
+      const rawName = body.name || body.station_name;
+      fieldMap.station_name = JSON.stringify(typeof rawName === "object" ? rawName : { zh: String(rawName), th: "", en: "" });
+    }
+
+    const sets   = [];
+    const params = [];
+    for (const [col, val] of Object.entries(fieldMap)) {
+      if (val !== undefined) {
+        params.push(val);
+        sets.push(`${col}=$${params.length}`);
+      }
+    }
+    if (sets.length === 0) return sendError(res, sendJson, 400, "NO_FIELDS", "无可更新字段");
+    params.push(code);
+    const { rows } = await query(
+      `UPDATE stations SET ${sets.join(", ")}, updated_at=NOW() WHERE station_code=$${params.length} RETURNING *`,
+      params
+    );
+    return sendOk(res, sendJson, "更新成功", rowToStation(rows[0]));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-export function handleDeleteStation(req, res, url, sendJson) {
-  const id = url.pathname.split("/").pop();
-  const list = loadStations();
-  const idx = list.findIndex(s => s.id === id);
-  if (idx === -1) return sendJson(res, 404, { code: 404, msg: "站点不存在" });
-  list.splice(idx, 1);
-  saveStations(list);
-  return sendJson(res, 200, { code: 200, msg: "删除成功" });
+// ─── DELETE /api/stations/:id ─────────────────────────────────────────────────
+export async function handleDeleteStation(req, res, url, sendJson) {
+  try {
+    const code = url.pathname.split("/").pop();
+    const { rows } = await query("DELETE FROM stations WHERE station_code=$1 RETURNING station_code", [code]);
+    if (rows.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "站点不存在");
+    return sendOk(res, sendJson, "删除成功", { station_code: rows[0].station_code });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ─── GET /api/stations/:id/chain ─────────────────────────────────────────────
+// 站点归因基础链查询：station → entry → landing → activity
+export async function handleGetStationChain(req, res, url, sendJson) {
+  try {
+    const code = url.pathname.split("/")[3];
+    const { rows: stRows } = await query("SELECT * FROM stations WHERE station_code=$1", [code]);
+    if (stRows.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "站点不存在");
+    const station = rowToStation(stRows[0]);
+
+    const chain = { station };
+
+    if (station.entry_code) {
+      const { rows: entRows } = await query(
+        "SELECT entry_code, entry_qr_code, entry_type, landing_code, default_activity_code, device_code, a_system_device_id FROM entry_instances WHERE entry_code=$1",
+        [station.entry_code]
+      );
+      chain.entry = entRows[0] || null;
+
+      const targetLanding = chain.entry?.landing_code || station.landing_code;
+      if (targetLanding) {
+        const { rows: lpRows } = await query("SELECT landing_code, name, template_type, status FROM landing_pages WHERE landing_code=$1", [targetLanding]);
+        chain.landing = lpRows[0] || null;
+      }
+
+      const targetActivity = chain.entry?.default_activity_code || station.default_activity_id;
+      if (targetActivity) {
+        const { rows: actRows } = await query("SELECT activity_id, activity_name, activity_type, status FROM activities WHERE activity_id=$1", [targetActivity]);
+        chain.activity = actRows[0] || null;
+      }
+    }
+
+    return sendOk(res, sendJson, "station chain loaded", chain);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
