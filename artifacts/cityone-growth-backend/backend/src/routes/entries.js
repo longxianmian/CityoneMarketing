@@ -141,11 +141,20 @@ export async function handleEntryInstanceCreate(req, res, url, sendJson, readBod
     const siteName = String(body.site_name || "").trim();
     const entryType = String(body.entry_type || "").trim();
     const entryQrCode = String(body.entry_code || "").trim();
+    // station_code：新规范字段，与 site_id 并存；site_id 继续写入作为 legacy
+    const stationCode = String(body.station_code || "").trim();
 
     if (!siteId) return sendError(res, sendJson, 400, "SITE_ID_REQUIRED", "site_id 必填");
     if (!siteName) return sendError(res, sendJson, 400, "SITE_NAME_REQUIRED", "site_name 必填");
     if (!entryType) return sendError(res, sendJson, 400, "ENTRY_TYPE_REQUIRED", "entry_type 必填");
     if (!entryQrCode) return sendError(res, sendJson, 400, "ENTRY_CODE_REQUIRED", "entry_code 必填");
+
+    // 若提供了 station_code，校验其在 stations 表中存在
+    if (stationCode) {
+      const { rows: stFound } = await query("SELECT station_code FROM stations WHERE station_code=$1", [stationCode]);
+      if (stFound.length === 0)
+        return sendError(res, sendJson, 422, "STATION_NOT_FOUND", `station_code "${stationCode}" 不存在，请先创建站点`);
+    }
 
     const { rows: dup } = await query(
       "SELECT id FROM entry_instances WHERE entry_type=$1 AND LOWER(entry_qr_code)=LOWER($2)",
@@ -162,11 +171,11 @@ export async function handleEntryInstanceCreate(req, res, url, sendJson, readBod
     const currentFeatureName = entryType === "device_qr" ? "battery_sos" : "shake";
     const { rows } = await query(
       `INSERT INTO entry_instances
-         (entry_code, site_id, site_name, entry_type, entry_qr_code, current_feature_name, status,
+         (entry_code, site_id, site_name, station_code, entry_type, entry_qr_code, current_feature_name, status,
           landing_code, default_activity_code, device_code, a_system_device_id, source_channel_id)
-       VALUES ($1,$2,$3,$4,$5,$6,'enabled',$7,$8,$9,$10,$11) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'enabled',$8,$9,$10,$11,$12) RETURNING *`,
       [
-        entryCode, siteId, siteName, entryType, entryQrCode, currentFeatureName,
+        entryCode, siteId, siteName, stationCode, entryType, entryQrCode, currentFeatureName,
         body.landing_code || "", body.default_activity_code || "",
         body.device_code || "", body.a_system_device_id || "", body.source_channel_id || "",
       ]
@@ -174,6 +183,7 @@ export async function handleEntryInstanceCreate(req, res, url, sendJson, readBod
     const r = rows[0];
     return sendOk(res, sendJson, "entry instance created", {
       entry_id: r.entry_code, site_id: r.site_id, site_name: r.site_name,
+      station_code: r.station_code,
       entry_type: r.entry_type, entry_code: r.entry_qr_code,
       current_feature_name: r.current_feature_name, status: r.status,
     });
@@ -210,17 +220,30 @@ export async function handleEntryInstanceUpdate(req, res, url, sendJson, readBod
     const cfn = String(body.current_feature_name || "").trim()
       || (entryType === "device_qr" ? "battery_sos" : "shake");
 
+    // station_code 可选更新；若提供则校验存在性
+    const stationCode = body.station_code !== undefined ? String(body.station_code || "").trim() : undefined;
+    if (stationCode) {
+      const { rows: stFound } = await query("SELECT station_code FROM stations WHERE station_code=$1", [stationCode]);
+      if (stFound.length === 0)
+        return sendError(res, sendJson, 422, "STATION_NOT_FOUND", `station_code "${stationCode}" 不存在`);
+    }
+
+    const stationSet = stationCode !== undefined ? `, station_code=$9` : "";
+    const params = [siteId, siteName, entryType, entryQrCode, cfn,
+      body.landing_code || "", body.default_activity_code || "", entryCode];
+    if (stationCode !== undefined) params.push(stationCode);
+
     const { rows } = await query(
       `UPDATE entry_instances SET
          site_id=$1, site_name=$2, entry_type=$3, entry_qr_code=$4,
-         current_feature_name=$5, landing_code=$6, default_activity_code=$7, updated_at=NOW()
+         current_feature_name=$5, landing_code=$6, default_activity_code=$7, updated_at=NOW()${stationSet}
        WHERE entry_code=$8 RETURNING *`,
-      [siteId, siteName, entryType, entryQrCode, cfn,
-       body.landing_code || "", body.default_activity_code || "", entryCode]
+      params
     );
     const r = rows[0];
     return sendOk(res, sendJson, "entry instance updated", {
       entry_id: r.entry_code, site_id: r.site_id, site_name: r.site_name,
+      station_code: r.station_code,
       entry_type: r.entry_type, entry_code: r.entry_qr_code,
       current_feature_name: r.current_feature_name, status: r.status,
     });

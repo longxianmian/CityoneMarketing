@@ -375,6 +375,28 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
     const srcBannerId  = body.source_banner_id   || activity.banner_code  || "";
     const srcChannelId = body.source_channel_id  || activity.source_channel_id || "";
 
+    // 站点归因快照：优先来自请求体，其次通过 source_entry_id 反查 entry_instances → stations
+    let srcStationCode = body.source_station_code || "";
+    let srcASystemStationId = body.source_a_system_station_id || "";
+    let srcDeviceCode = body.source_device_code || body.device_code || "";
+
+    if (!srcStationCode && srcEntryId) {
+      try {
+        const { rows: entryRows } = await query(
+          "SELECT station_code FROM entry_instances WHERE entry_code=$1", [srcEntryId]
+        );
+        const entryStationCode = entryRows[0]?.station_code || "";
+        if (entryStationCode) {
+          const { rows: stRows } = await query(
+            "SELECT a_system_station_id, device_code FROM stations WHERE station_code=$1", [entryStationCode]
+          );
+          srcStationCode       = entryStationCode;
+          srcASystemStationId  = stRows[0]?.a_system_station_id || "";
+          srcDeviceCode        = srcDeviceCode || stRows[0]?.device_code || "";
+        }
+      } catch (_) {}
+    }
+
     const participationCode = `part_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 
     // ── 幂等核心：ON CONFLICT (activity_id, user_id) DO NOTHING ──────────────
@@ -385,14 +407,16 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
         `INSERT INTO activity_participations
            (id, activity_id, user_id, line_user_id, points_awarded,
             source_entry_id, source_landing_id, source_banner_id, source_channel_id,
+            source_station_code, source_a_system_station_id, source_device_code,
             joined_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          ON CONFLICT (activity_id, user_id) DO NOTHING
          RETURNING *`,
         [
           participationCode, id, userId, body.line_user_id || userId,
           rewardPoints,
           srcEntryId, srcLandingId, srcBannerId, srcChannelId,
+          srcStationCode, srcASystemStationId, srcDeviceCode,
           now,
         ]
       );
@@ -409,19 +433,22 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
 
         const ledgerId = `ledger_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 
-        // 写积分流水（携带完整归因快照）
+        // 写积分流水（携带完整归因快照，含站点维度）
         await client.query(
           `INSERT INTO points_ledger
              (id, user_id, line_user_id, type, points, ref_type, ref_id, reason, operator_id,
               source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
+              source_station_code, source_a_system_station_id, source_device_code,
               created_at)
            VALUES ($1,$2,$3,'credit',$4,'activity_reward',$5,$6,'activity_system',
-                   $7,$8,$9,$10,$11,$12)`,
+                   $7,$8,$9,$10,$11,
+                   $12,$13,$14,$15)`,
           [
             ledgerId, userId, body.line_user_id || userId,
             rewardPoints, id,
             `活动奖励：${actNameStr}`,
             srcEntryId, id, srcLandingId, srcBannerId, srcChannelId,
+            srcStationCode, srcASystemStationId, srcDeviceCode,
             now,
           ]
         );

@@ -94,6 +94,31 @@ function sendError(res, sendJson, status, error, msg) {
   return sendJson(res, status, { code: status, error, msg });
 }
 
+// ─── 内部：A系统字段程序级防重校验 ──────────────────────────────────────────
+// DB 层已有部分唯一索引（WHERE != ''），此处作为前置程序守卫提供清晰错误信息
+async function validateASystemFieldUniqueness(res, sendJson, fields, excludeCode = null) {
+  const checks = [
+    { col: "a_system_station_id", val: fields.a_system_station_id, label: "A系统站点ID" },
+    { col: "device_code",         val: fields.device_code,         label: "设备编码" },
+    { col: "a_system_device_id",  val: fields.a_system_device_id,  label: "A系统设备ID" },
+  ];
+  for (const { col, val, label } of checks) {
+    if (!val) continue;
+    const whereExtra = excludeCode ? ` AND station_code <> $3` : "";
+    const params = [col, val];
+    if (excludeCode) params.push(excludeCode);
+    // 动态列名不能参数化，但 col 来自内部常量列表，安全
+    const { rows } = await query(
+      `SELECT station_code FROM stations WHERE ${col}=$1 AND ${col} <> ''${excludeCode ? ` AND station_code <> $2` : ""}`,
+      excludeCode ? [val, excludeCode] : [val]
+    );
+    if (rows.length > 0)
+      return sendError(res, sendJson, 409, "A_SYSTEM_FIELD_DUPLICATE",
+        `${label} "${val}" 已被站点 ${rows[0].station_code} 使用，A系统字段必须全局唯一`);
+  }
+  return null;
+}
+
 // ─── GET /api/stations/city-districts ────────────────────────────────────────
 export function handleGetCityDistricts(req, res, sendJson) {
   return sendJson(res, 200, { code: 200, msg: "success", data: CITY_DISTRICTS });
@@ -206,6 +231,14 @@ export async function handleCreateStation(req, res, sendJson, body) {
     const { rows: dup } = await query("SELECT id FROM stations WHERE station_code=$1", [stationCode]);
     if (dup.length > 0) return sendError(res, sendJson, 409, "DUPLICATE", `station_code "${stationCode}" 已存在`);
 
+    // A系统字段程序级防重
+    const aErr = await validateASystemFieldUniqueness(res, sendJson, {
+      a_system_station_id: body.external_id || body.a_system_station_id || "",
+      device_code:         body.device_code        || "",
+      a_system_device_id:  body.a_system_device_id || "",
+    });
+    if (aErr !== null) return;
+
     const { rows } = await query(
       `INSERT INTO stations (
         station_code, station_name, station_type, status,
@@ -263,6 +296,14 @@ export async function handleUpdateStation(req, res, url, sendJson, body) {
     const code = url.pathname.split("/").pop();
     const { rows: found } = await query("SELECT id FROM stations WHERE station_code=$1", [code]);
     if (found.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "站点不存在");
+
+    // A系统字段程序级防重（排除当前站点自身）
+    const aErr = await validateASystemFieldUniqueness(res, sendJson, {
+      a_system_station_id: body.external_id !== undefined ? body.external_id : body.a_system_station_id,
+      device_code:         body.device_code,
+      a_system_device_id:  body.a_system_device_id,
+    }, code);
+    if (aErr !== null) return;
 
     // 动态构建 SET 子句
     const fieldMap = {
