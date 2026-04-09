@@ -465,95 +465,95 @@ const server = http.createServer(async (req, res) => {
   try {
     // ── 管理端认证 ────────────────────────────────────────────────────────
     if (req.method === "POST" && url.pathname === "/api/admin/login") {
-      return handleAdminLogin(req, await readBody(req), res, sendJson);
+      return await handleAdminLogin(req, await readBody(req), res, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/admin/logout") {
       return handleAdminLogout(req, res, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/admin/me") {
-      return handleAdminMe(req, res, sendJson);
+      return await handleAdminMe(req, res, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/admin/change-password") {
-      return handleChangePassword(req, await readBody(req), res, sendJson);
+      return await handleChangePassword(req, await readBody(req), res, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/admin/admins") {
-      return handleListAdmins(req, res, sendJson);
+      return await handleListAdmins(req, res, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/admin/admins") {
-      return handleCreateAdmin(req, await readBody(req), res, sendJson);
+      return await handleCreateAdmin(req, await readBody(req), res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/admins\/\d+\/update$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
-      return handleUpdateAdmin(req, await readBody(req), id, res, sendJson);
+      return await handleUpdateAdmin(req, await readBody(req), id, res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/admins\/\d+\/delete$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
-      return handleDeleteAdmin(req, id, res, sendJson);
+      return await handleDeleteAdmin(req, id, res, sendJson);
     }
 
     // ── 超管中心：全量账号管理（super_admin only）─────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/admin/accounts") {
-      return handleSuperListAccounts(req, res, url, sendJson);
+      return await handleSuperListAccounts(req, res, url, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/admin/accounts") {
-      return handleSuperCreateAccount(req, await readBody(req), res, sendJson);
+      return await handleSuperCreateAccount(req, await readBody(req), res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/accounts\/\d+\/update$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
-      return handleSuperUpdateAccount(req, await readBody(req), id, res, sendJson);
+      return await handleSuperUpdateAccount(req, await readBody(req), id, res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/accounts\/\d+\/delete$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
-      return handleSuperDeleteAccount(req, id, res, sendJson);
+      return await handleSuperDeleteAccount(req, id, res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/accounts\/\d+\/reset-password$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
-      return handleSuperResetPassword(req, await readBody(req), id, res, sendJson);
+      return await handleSuperResetPassword(req, await readBody(req), id, res, sendJson);
     }
 
     // ── 系统管理员：操作员管理 ─────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/admin/my-accounts") {
-      return handleAdminListMyAccounts(req, res, url, sendJson);
+      return await handleAdminListMyAccounts(req, res, url, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/admin/my-accounts") {
-      return handleAdminCreateMyAccount(req, await readBody(req), res, sendJson);
+      return await handleAdminCreateMyAccount(req, await readBody(req), res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/my-accounts\/\d+\/update$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
-      return handleAdminUpdateMyAccount(req, await readBody(req), id, res, sendJson);
+      return await handleAdminUpdateMyAccount(req, await readBody(req), id, res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/my-accounts\/\d+\/delete$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
-      return handleAdminDeleteMyAccount(req, id, res, sendJson);
+      return await handleAdminDeleteMyAccount(req, id, res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/my-accounts\/\d+\/reset-password$/.test(url.pathname)) {
       const id = url.pathname.split("/")[4];
-      return handleAdminResetMyPassword(req, await readBody(req), id, res, sendJson);
+      return await handleAdminResetMyPassword(req, await readBody(req), id, res, sendJson);
     }
 
     // ── 角色模板 ──────────────────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/admin/role-templates") {
-      return handleRoleTemplates(req, res, sendJson);
+      return await handleRoleTemplates(req, res, sendJson);
     }
 
     // ── 客户管理（三层人群：粉丝 / 用户 / 会员） ──────────────────────────
     if (req.method === "GET" && (url.pathname === "/api/admin/customers" || url.pathname === "/api/admin/members")) {
-      return handleListMembers(req, res, url, sendJson);
+      return await handleListMembers(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/admin/member-config") {
-      return handleGetMemberConfig(req, res, sendJson);
+      return await handleGetMemberConfig(req, res, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/admin/member-config/update") {
-      return handleUpdateMemberConfig(req, await readBody(req), res, sendJson);
+      return await handleUpdateMemberConfig(req, await readBody(req), res, sendJson);
     }
     if (req.method === "POST" && /^\/api\/admin\/(customers|members)\/[^/]+\/set-member$/.test(url.pathname)) {
       const userId = url.pathname.split("/")[4];
-      return handleSetMember(req, await readBody(req), userId, res, sendJson);
+      return await handleSetMember(req, await readBody(req), userId, res, sendJson);
     }
 
     // ── 充电折扣旁路查询接口（阶段四对接 A 系统） ──────────────────────────
     if (req.method === "GET" && url.pathname === "/api/charging-discount/check") {
-      return handleCheckChargingDiscount(req, res, url, sendJson);
+      return await handleCheckChargingDiscount(req, res, url, sendJson);
     }
 
     // ── 媒体资产（OSS） ────────────────────────────────────────────────────────

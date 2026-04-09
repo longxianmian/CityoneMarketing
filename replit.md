@@ -49,7 +49,13 @@ The project is structured as a pnpm workspace monorepo, with distinct `artifacts
 - **Historical Seed**: `scripts/seed-from-json.js` migrated all 10 JSON datasets into PostgreSQL.
 - **JSONB Pattern**: All JSONB column values MUST use `JSON.stringify(v)` — bare strings fail PostgreSQL JSONB type.
 - **Transaction Pattern**: `withTransaction(async (client) => {...})` for multi-table atomic ops; `query(sql, params)` for reads.
-- **Remaining (JSON-backed)**: auth/admins, activities, entries, landing, banners, stations, members, accounts, game-programs, agent-*, messages, biz-* (~35+ files still JSON-backed, awaiting second batch migration).
+- **Batch 2 Part 1 (Done)**: auth/admins, accounts (admin operators), members (customers) — fully migrated to PostgreSQL.
+  - `admins` table: 3 admins seeded (super_admin, admin, growth_content operator); bcrypt passwords preserved
+  - `member_config` table: charging_discount + deposit config seeded from JSON
+  - `role_templates` table: 4 templates seeded (growth_content, growth_data, ops_activity, ops_data)
+  - `points_accounts` extended with member columns: deposit_paid, deposit_amount, has_used_charging, source, source_hint, line_display_name, member_level, tags
+  - Login chain: `POST /api/admin/login` → bcrypt verify → JWT sign → `last_login_at` updated in DB
+- **Remaining (JSON-backed)**: activities, entries, landing, banners, stations, game-programs, agent-*, messages, biz-* (~30+ files still JSON-backed, awaiting next batch).
 
 **UI/UX Decisions:**
 - **AdminLayout:** Features 6 main menu groups (Growth Overview, Welfare Center, Entry & Distribution, Incentive & Attribution, AI Agent, System Configuration).
