@@ -1,6 +1,7 @@
 import React, { useState, useId, useEffect, useRef } from 'react'
 import { Button, message } from 'antd'
 import { UploadOutlined, LoadingOutlined, VideoCameraOutlined } from '@ant-design/icons'
+import { getToken } from '../store/auth'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -18,13 +19,9 @@ function isObjectKey(v?: string): boolean {
   return v.includes('/')
 }
 
-function getToken(): string {
-  try { return localStorage.getItem('growth_token') || '' } catch { return '' }
-}
-
 async function fetchSignedUrl(objectKey: string): Promise<string | null> {
   try {
-    const token = getToken()
+    const token = getToken() || ''
     const res = await fetch(`${API_BASE}/api/media/view-url?key=${encodeURIComponent(objectKey)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
@@ -81,7 +78,7 @@ export default function MediaUploadField({ value, onChange, type, placeholder, m
       formData.append('file', file)
       formData.append('moduleType', moduleType)
 
-      const token = getToken()
+      const token = getToken() || ''
       const res = await fetch(`${API_BASE}/api/media/upload`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
