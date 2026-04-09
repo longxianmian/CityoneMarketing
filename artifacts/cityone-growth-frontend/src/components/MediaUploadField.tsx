@@ -69,7 +69,7 @@ export default function MediaUploadField({ value, onChange, type, placeholder, m
       message.error('请上传视频文件（MP4 / WebM / MOV）')
       return
     }
-    const maxMB = type === 'image' ? 10 : 200
+    const maxMB = type === 'image' ? 5 : 100
     if (file.size > maxMB * 1024 * 1024) {
       message.error(`文件不能超过 ${maxMB}MB`)
       return
@@ -137,7 +137,7 @@ export default function MediaUploadField({ value, onChange, type, placeholder, m
           {uploading ? '上传中...' : placeholder || (type === 'image' ? '点击上传封面图' : '点击上传宣传视频')}
         </span>
         <span style={{ color: '#bbb', fontSize: 11, marginTop: 4 }}>
-          {type === 'image' ? '支持 JPG / PNG / WebP，最大 10MB' : '支持 MP4 / WebM / MOV，最大 200MB'}
+          {type === 'image' ? '支持 JPG / PNG / WebP，最大 5MB' : '支持 MP4 / WebM / MOV，最大 100MB'}
         </span>
       </div>
     </label>
