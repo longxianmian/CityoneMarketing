@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import busboy from "busboy";
 import crypto from "node:crypto";
+import { testConnection } from "./db/pool.js";
+import { runMigrations } from "./db/migrate.js";
 import {
   handleEntryResolve,
   handleEntryLivePreview,
@@ -1266,6 +1268,14 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, "0.0.0.0", async () => {
   console.log(`CityOne growth backend listening on http://0.0.0.0:${PORT}`);
+  try {
+    const dbInfo = await testConnection();
+    console.log(`[DB] Connected to "${dbInfo.db}" at ${new Date(dbInfo.now).toISOString()}`);
+    await runMigrations();
+  } catch (err) {
+    console.error("[DB] Startup error:", err.message);
+    console.error("[DB] Backend will continue but DB-backed routes may fail until DB is available.");
+  }
 });

@@ -38,9 +38,18 @@ The project is structured as a pnpm workspace monorepo, with distinct `artifacts
 - Routes are mounted at `/api`.
 
 **CityOne Growth Backend (`@workspace/cityone-growth-backend`):**
-- Node.js Express application for CityOne Growth business logic.
-- Routes are prefixed with `/cityone`.
-- Includes health check endpoint `GET /cityone/healthz`.
+- Node.js Express application for CityOne Growth business logic (port 3100).
+- Routes are prefixed with `/api/growth/` (not `/cityone`).
+- Includes health check endpoint `GET /health`.
+- **Database**: Uses PostgreSQL (Replit built-in `heliumdb` for dev; Alibaba Cloud RDS `pgm-t4n5aixu9y1rrpvk.pgsql.singapore.rds.aliyuncs.com` for production). No code change needed — just set `DATABASE_URL` env var.
+- **DB Pool**: `backend/src/db/pool.js` — connection pool, `DATABASE_URL`-first fallback to `DB_HOST/PORT/NAME/USER/PASSWORD`.
+- **Migrations**: `backend/src/db/migrate.js` runs automatically on startup; migration files in `backend/src/db/migrations/`.
+- **Migration 001**: `001_core_business.sql` — 10 core tables: `coupons`, `user_coupons`, `mall_items`, `points_accounts`, `points_ledger`, `mall_redeems`, `share_relations`, `consume_relations`, `points_rules`, `media_assets`, `activities`, `activity_participations`.
+- **Migrated Routes**: `coupons.js`, `mall-items.js`, `growth-points.js` — fully async PostgreSQL with `withTransaction` for atomic ops (redeem, adjust, claim).
+- **Historical Seed**: `scripts/seed-from-json.js` migrated all 10 JSON datasets into PostgreSQL.
+- **JSONB Pattern**: All JSONB column values MUST use `JSON.stringify(v)` — bare strings fail PostgreSQL JSONB type.
+- **Transaction Pattern**: `withTransaction(async (client) => {...})` for multi-table atomic ops; `query(sql, params)` for reads.
+- **Remaining (JSON-backed)**: auth/admins, activities, entries, landing, banners, stations, members, accounts, game-programs, agent-*, messages, biz-* (~35+ files still JSON-backed, awaiting second batch migration).
 
 **UI/UX Decisions:**
 - **AdminLayout:** Features 6 main menu groups (Growth Overview, Welfare Center, Entry & Distribution, Incentive & Attribution, AI Agent, System Configuration).

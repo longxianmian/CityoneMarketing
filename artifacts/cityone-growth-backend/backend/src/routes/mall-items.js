@@ -1,15 +1,11 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+/**
+ * 积分商城路由 — PostgreSQL 版
+ * 替代原 JSON 文件存储；保持与前端完全相同的 API 响应结构
+ */
 import crypto from "node:crypto";
+import { query, withTransaction } from "../db/pool.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, "..", "..", "data");
-const MALL_ITEMS_FILE   = path.join(DATA_DIR, "mall-items.json");
-const ACCOUNTS_FILE     = path.join(DATA_DIR, "points-accounts.json");
-const LEDGER_FILE       = path.join(DATA_DIR, "points-ledger.json");
-const MALL_REDEEMS_FILE = path.join(DATA_DIR, "mall-redeems.json");
+// ── 工具函数 ────────────────────────────────────────────────────────────────
 
 function sendOk(res, sendJson, msg, data) {
   return sendJson(res, 200, { code: 200, msg, data });
@@ -17,211 +13,341 @@ function sendOk(res, sendJson, msg, data) {
 function sendError(res, sendJson, statusCode, errorCode, msg) {
   return sendJson(res, statusCode, { code: statusCode, msg, error: errorCode });
 }
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+/** 将 pg mall_items 行规范化为 API 格式 */
+function itemRow(row) {
+  return {
+    ...row,
+    price_thb:       row.price_thb       != null ? Number(row.price_thb)       : null,
+    points_required: row.points_required != null ? Number(row.points_required) : 0,
+    stock:           row.stock           != null ? Number(row.stock)           : -1,
+    sort_order:      Number(row.sort_order ?? 0),
+    created_at:      row.created_at  ? new Date(row.created_at).toISOString()  : null,
+    updated_at:      row.updated_at  ? new Date(row.updated_at).toISOString()  : null,
+  };
 }
-function loadJsonArray(filePath) {
-  ensureDataDir();
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, "[]", "utf-8");
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
+
+/** 将 mall_redeems 行规范化 */
+function redeemRow(row) {
+  return {
+    ...row,
+    points_spent: Number(row.points_spent ?? 0),
+    price_thb:    row.price_thb != null ? Number(row.price_thb) : null,
+    created_at:   row.created_at ? new Date(row.created_at).toISOString() : null,
+    updated_at:   row.updated_at ? new Date(row.updated_at).toISOString() : null,
+  };
 }
-function saveJsonArray(filePath, data) {
-  ensureDataDir();
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
-}
+
+/** 生成商品 ID */
 function generateId() {
   return "mi_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
 }
 
-// GET /growth/mall/items/:id  — single item
-export function handleGetMallItemById(req, res, sendJson, itemId) {
-  const list = loadJsonArray(MALL_ITEMS_FILE);
-  const item = list.find(i => i.id === itemId);
-  if (!item) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
-  return sendOk(res, sendJson, "ok", item);
+/** 序列化 JSONB 字段（字符串也需要 JSON.stringify 以确保合法 JSON） */
+function toJsonb(v) {
+  if (v == null) return null;
+  return JSON.stringify(v);
 }
 
-// GET /growth/mall/items  — list (admin + user)
-export function handleGetMallItems(req, res, sendJson, url) {
-  const list = loadJsonArray(MALL_ITEMS_FILE);
-  const onlyOnShelf = url.searchParams.get("onShelf") === "true";
-  const result = onlyOnShelf ? list.filter(i => i.on_shelf === true) : list;
-  const page = parseInt(url.searchParams.get("pageNum") || "1", 10);
-  const pageSize = parseInt(url.searchParams.get("pageSize") || "20", 10);
-  const start = (page - 1) * pageSize;
-  const paged = result.slice(start, start + pageSize);
-  return sendOk(res, sendJson, "ok", { list: paged, total: result.length });
+// ── GET /api/growth/mall/items/:id  — 单件商品 ──────────────────────────────
+export async function handleGetMallItemById(req, res, sendJson, itemId) {
+  try {
+    const result = await query("SELECT * FROM mall_items WHERE id = $1", [itemId]);
+    if (!result.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
+    return sendOk(res, sendJson, "ok", itemRow(result.rows[0]));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-// POST /growth/mall/items  — create
-export function handleCreateMallItem(req, res, sendJson, body) {
+// ── GET /api/growth/mall/items  — 商品列表（管理端 + 用户端） ─────────────────
+export async function handleGetMallItems(req, res, sendJson, url) {
+  try {
+    const onlyOnShelf = url.searchParams.get("onShelf") === "true";
+    const page     = Math.max(1, parseInt(url.searchParams.get("pageNum")  || "1",  10));
+    const pageSize = Math.max(1, parseInt(url.searchParams.get("pageSize") || "20", 10));
+    const offset   = (page - 1) * pageSize;
+
+    const where  = onlyOnShelf ? "WHERE on_shelf = TRUE" : "";
+    const params = [pageSize, offset];
+
+    const countRes = await query(`SELECT COUNT(*) AS total FROM mall_items ${where}`);
+    const total    = Number(countRes.rows[0].total);
+
+    const dataRes = await query(
+      `SELECT * FROM mall_items ${where} ORDER BY sort_order ASC, created_at DESC LIMIT $1 OFFSET $2`,
+      params
+    );
+
+    return sendOk(res, sendJson, "ok", {
+      list:  dataRes.rows.map(itemRow),
+      total,
+    });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ── POST /api/growth/mall/items  — 创建商品 ───────────────────────────────────
+// body 已由 router 解析（await readBody 在 index.js 完成）
+export async function handleCreateMallItem(req, res, sendJson, body) {
   if (!req._admin) return sendJson(res, 401, { code: 401, msg: "未登录", error: "UNAUTH" });
-  const list = loadJsonArray(MALL_ITEMS_FILE);
-  const item = {
-    // 先铺一遍 body，保留 tag/badge/highlights/rules 等前端扩展字段
-    ...body,
-    // 再用明确字段覆盖，确保类型正确
-    id: generateId(),
-    name: body.name || "",
-    item_type: body.item_type || "digital",
-    exchange_mode: body.exchange_mode || "points",
-    price_thb: body.price_thb != null ? Number(body.price_thb) : null,
-    points_required: body.points_required != null ? Number(body.points_required) : null,
-    stock: body.stock == null ? -1 : Number(body.stock),
-    on_shelf: body.on_shelf !== false,
-    cover_image: body.cover_image || "",
-    description: body.description || "",
-    sort_order: body.sort_order != null ? Number(body.sort_order) : list.length,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  list.push(item);
-  saveJsonArray(MALL_ITEMS_FILE, list);
-  return sendOk(res, sendJson, "created", item);
+  try {
+    const countRes = await query("SELECT COUNT(*) AS cnt FROM mall_items");
+    const sortOrder = Number(body.sort_order ?? Number(countRes.rows[0].cnt));
+
+    const result = await query(`
+      INSERT INTO mall_items
+        (id, name, item_type, exchange_mode, price_thb, points_required, stock,
+         on_shelf, cover_image, cover_video, description, detail_title, highlights,
+         rules, tag, badge, sort_order, created_at, updated_at)
+      VALUES
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),NOW())
+      RETURNING *
+    `, [
+      generateId(),
+      toJsonb(body.name) || "",
+      body.item_type     || "digital",
+      body.exchange_mode || "points",
+      body.price_thb     != null ? Number(body.price_thb)     : null,
+      body.points_required != null ? Number(body.points_required) : null,
+      body.stock         == null  ? -1 : Number(body.stock),
+      body.on_shelf      !== false,
+      body.cover_image   || "",
+      body.cover_video   || "",
+      toJsonb(body.description),
+      toJsonb(body.detail_title || body.detailTitle),
+      toJsonb(body.highlights),
+      toJsonb(body.rules),
+      body.tag   || null,
+      body.badge || null,
+      sortOrder,
+    ]);
+
+    return sendOk(res, sendJson, "created", itemRow(result.rows[0]));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-// PUT /growth/mall/items/:id  — update
-export function handleUpdateMallItem(req, res, sendJson, body, itemId) {
+// ── PUT /api/growth/mall/items/:id  — 更新商品 ───────────────────────────────
+export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
   if (!req._admin) return sendJson(res, 401, { code: 401, msg: "未登录", error: "UNAUTH" });
-  const list = loadJsonArray(MALL_ITEMS_FILE);
-  const idx = list.findIndex(i => i.id === itemId);
-  if (idx === -1) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
-  list[idx] = { ...list[idx], ...body, id: list[idx].id, updated_at: new Date().toISOString() };
-  saveJsonArray(MALL_ITEMS_FILE, list);
-  return sendOk(res, sendJson, "updated", list[idx]);
+  try {
+    const existing = await query("SELECT id FROM mall_items WHERE id = $1", [itemId]);
+    if (!existing.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
+
+    const sets   = [];
+    const params = [];
+    let   idx    = 1;
+
+    const addSet = (col, val) => { sets.push(`${col} = $${idx++}`); params.push(val); };
+
+    if (body.name             != null) addSet("name",            toJsonb(body.name));
+    if (body.item_type        != null) addSet("item_type",       body.item_type);
+    if (body.exchange_mode    != null) addSet("exchange_mode",   body.exchange_mode);
+    if (body.price_thb        != null) addSet("price_thb",       Number(body.price_thb));
+    if (body.points_required  != null) addSet("points_required", Number(body.points_required));
+    if (body.stock             != null) addSet("stock",            Number(body.stock));
+    if (body.on_shelf          != null) addSet("on_shelf",         Boolean(body.on_shelf));
+    if (body.cover_image       != null) addSet("cover_image",      body.cover_image);
+    if (body.cover_video       != null) addSet("cover_video",      body.cover_video);
+    if (body.description       != null) addSet("description",      toJsonb(body.description));
+    if (body.detail_title      != null) addSet("detail_title",     toJsonb(body.detail_title));
+    if (body.detailTitle       != null) addSet("detail_title",     toJsonb(body.detailTitle));
+    if (body.highlights        != null) addSet("highlights",       toJsonb(body.highlights));
+    if (body.rules             != null) addSet("rules",            toJsonb(body.rules));
+    if (body.tag               != null) addSet("tag",              body.tag);
+    if (body.badge             != null) addSet("badge",            body.badge);
+    if (body.sort_order        != null) addSet("sort_order",       Number(body.sort_order));
+    addSet("updated_at", new Date().toISOString());
+
+    params.push(itemId);
+    const result = await query(
+      `UPDATE mall_items SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`,
+      params
+    );
+
+    return sendOk(res, sendJson, "updated", itemRow(result.rows[0]));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-// DELETE /growth/mall/items/:id
-export function handleDeleteMallItem(req, res, sendJson, itemId) {
+// ── DELETE /api/growth/mall/items/:id ────────────────────────────────────────
+export async function handleDeleteMallItem(req, res, sendJson, itemId) {
   if (!req._admin) return sendJson(res, 401, { code: 401, msg: "未登录", error: "UNAUTH" });
-  const list = loadJsonArray(MALL_ITEMS_FILE);
-  const next = list.filter(i => i.id !== itemId);
-  if (next.length === list.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
-  saveJsonArray(MALL_ITEMS_FILE, next);
-  return sendOk(res, sendJson, "deleted", null);
+  try {
+    const result = await query("DELETE FROM mall_items WHERE id = $1 RETURNING id", [itemId]);
+    if (!result.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
+    return sendOk(res, sendJson, "deleted", null);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-// GET /api/growth/mall/orders  — list orders (stub)
-export function handleGetMallOrders(req, res, sendJson, url) {
-  const ORDERS_FILE = path.join(DATA_DIR, "mall-orders.json");
-  const list = loadJsonArray(ORDERS_FILE);
-  const page = parseInt(url.searchParams.get("pageNum") || "1", 10);
-  const pageSize = parseInt(url.searchParams.get("pageSize") || "20", 10);
-  const start = (page - 1) * pageSize;
-  const paged = list.slice(start, start + pageSize);
-  return sendOk(res, sendJson, "ok", { list: paged, total: list.length });
+// ── GET /api/growth/mall/orders  — 兑换订单列表（管理端） ───────────────────
+export async function handleGetMallOrders(req, res, sendJson, url) {
+  try {
+    const page     = Math.max(1, parseInt(url.searchParams.get("pageNum")  || "1",  10));
+    const pageSize = Math.max(1, parseInt(url.searchParams.get("pageSize") || "20", 10));
+    const offset   = (page - 1) * pageSize;
+
+    const countRes = await query("SELECT COUNT(*) AS total FROM mall_redeems");
+    const total    = Number(countRes.rows[0].total);
+
+    const dataRes = await query(
+      "SELECT * FROM mall_redeems ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+      [pageSize, offset]
+    );
+
+    return sendOk(res, sendJson, "ok", {
+      list:  dataRes.rows.map(redeemRow),
+      total,
+    });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
 
-// POST /api/growth/mall/redeem  — 积分兑换商品（含余额验证 + 积分扣减）
+// ── POST /api/growth/mall/redeem  — 积分兑换（原子事务） ─────────────────────
 export async function handleMallRedeem(req, res, sendJson, readBody) {
   try {
-    const body = await readBody(req);
+    const body   = await readBody(req);
     const userId = String(body.user_id || body.line_user_id || "").trim();
     const itemId = String(body.item_id || "").trim();
 
     if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "user_id 必填");
     if (!itemId) return sendError(res, sendJson, 400, "MISSING_ITEM_ID", "item_id 必填");
 
-    // 1. 加载商品
-    const items = loadJsonArray(MALL_ITEMS_FILE);
-    const item = items.find(i => i.id === itemId);
-    if (!item) return sendError(res, sendJson, 404, "ITEM_NOT_FOUND", "商品不存在");
-    if (!item.on_shelf) return sendError(res, sendJson, 400, "ITEM_OFF_SHELF", "商品已下架");
-    if (item.item_type === "physical") return sendError(res, sendJson, 400, "PHYSICAL_NOT_SUPPORTED", "实物商品暂不支持积分兑换");
+    const result = await withTransaction(async (client) => {
+      // 1. 获取商品（行锁）
+      const itemRes = await client.query(
+        "SELECT * FROM mall_items WHERE id = $1 FOR UPDATE",
+        [itemId]
+      );
+      if (!itemRes.rows.length) return { error: { code: 404, key: "ITEM_NOT_FOUND",         msg: "商品不存在" } };
+      const item = itemRes.rows[0];
+      if (!item.on_shelf)           return { error: { code: 400, key: "ITEM_OFF_SHELF",       msg: "商品已下架" } };
+      if (item.item_type === "physical") return { error: { code: 400, key: "PHYSICAL_NOT_SUPPORTED", msg: "实物商品暂不支持积分兑换" } };
 
-    const pointsRequired = Number(item.points_required) || 0;
-    if (pointsRequired <= 0) return sendError(res, sendJson, 400, "NO_POINTS_PRICE", "该商品无积分兑换价格");
+      const pointsRequired = Number(item.points_required) || 0;
+      if (pointsRequired <= 0) return { error: { code: 400, key: "NO_POINTS_PRICE", msg: "该商品无积分兑换价格" } };
 
-    // 2. 检查库存
-    if (item.stock != null && item.stock >= 0) {
-      const redeems = loadJsonArray(MALL_REDEEMS_FILE);
-      const used = redeems.filter(r => r.item_id === itemId && r.status !== "cancelled").length;
-      if (used >= item.stock) return sendError(res, sendJson, 400, "OUT_OF_STOCK", "商品库存不足");
+      // 2. 检查库存
+      if (Number(item.stock) >= 0) {
+        const usedRes = await client.query(
+          "SELECT COUNT(*) AS cnt FROM mall_redeems WHERE item_id = $1 AND status != 'cancelled'",
+          [itemId]
+        );
+        if (Number(usedRes.rows[0].cnt) >= Number(item.stock)) {
+          return { error: { code: 400, key: "OUT_OF_STOCK", msg: "商品库存不足" } };
+        }
+      }
+
+      // 3. 获取用户积分（行锁）
+      const accRes = await client.query(
+        "SELECT * FROM points_accounts WHERE user_id = $1 OR line_user_id = $1 LIMIT 1 FOR UPDATE",
+        [userId]
+      );
+      const available = accRes.rows.length ? Number(accRes.rows[0].available_points) : 0;
+
+      if (available < pointsRequired) {
+        return {
+          error: {
+            code: 400,
+            key:  "INSUFFICIENT_POINTS",
+            msg:  `积分不足，当前可用 ${available} 积分，兑换需 ${pointsRequired} 积分`,
+          },
+        };
+      }
+
+      const now = new Date().toISOString();
+
+      // 4. 写积分流水（debit）
+      const ledgerId = `ledger_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+      const itemNameDisplay = typeof item.name === "object"
+        ? (item.name.zh || item.name.en || item.name.th || itemId)
+        : (item.name || itemId);
+
+      await client.query(`
+        INSERT INTO points_ledger
+          (id, user_id, line_user_id, type, points, ref_type, ref_id, reason, created_at)
+        VALUES ($1,$2,$3,'debit',$4,'exchange',$5,$6,$7)
+      `, [ledgerId, userId, userId, pointsRequired, itemId, `积分兑换：${itemNameDisplay}`, now]);
+
+      // 5. UPSERT 积分账户
+      await client.query(`
+        INSERT INTO points_accounts (user_id, line_user_id, available_points, consumed_points, updated_at)
+        VALUES ($1, $2, -$3, $3, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+          available_points = points_accounts.available_points - $3,
+          consumed_points  = points_accounts.consumed_points  + $3,
+          updated_at       = NOW()
+      `, [userId, userId, pointsRequired]);
+
+      // 6. 写兑换记录
+      const redeemId = `mr_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+      await client.query(`
+        INSERT INTO mall_redeems (id, user_id, line_user_id, item_id, item_name, points_spent, status, ledger_id, created_at, updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,'success',$7,$8,$8)
+      `, [redeemId, userId, userId, itemId, toJsonb(item.name), pointsRequired, ledgerId, now]);
+
+      // 7. 读取最新余额
+      const newAccRes = await client.query(
+        "SELECT available_points FROM points_accounts WHERE user_id = $1",
+        [userId]
+      );
+      const remainingPoints = newAccRes.rows.length ? Number(newAccRes.rows[0].available_points) : 0;
+
+      return { redeemId, itemId, pointsRequired, remainingPoints };
+    });
+
+    if (result.error) {
+      return sendError(res, sendJson, result.error.code, result.error.key, result.error.msg);
     }
-
-    // 3. 加载用户积分账户
-    const accounts = loadJsonArray(ACCOUNTS_FILE);
-    let account = accounts.find(a => a.user_id === userId || a.line_user_id === userId);
-    const available = account ? (account.available_points || 0) : 0;
-    if (available < pointsRequired) {
-      return sendError(res, sendJson, 400, "INSUFFICIENT_POINTS",
-        `积分不足，当前可用 ${available} 积分，兑换需 ${pointsRequired} 积分`);
-    }
-
-    const now = new Date().toISOString();
-
-    // 4. 写积分流水（debit / exchange）
-    const ledger = loadJsonArray(LEDGER_FILE);
-    const ledgerEntry = {
-      id: `ledger_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
-      user_id: userId,
-      line_user_id: userId,
-      type: "debit",
-      points: pointsRequired,
-      ref_type: "exchange",
-      ref_id: itemId,
-      reason: `积分兑换：${typeof item.name === "object" ? (item.name.zh || item.name.en || itemId) : (item.name || itemId)}`,
-      created_at: now,
-    };
-    ledger.push(ledgerEntry);
-    saveJsonArray(LEDGER_FILE, ledger);
-
-    // 5. 更新账户余额
-    if (!account) {
-      account = {
-        user_id: userId, line_user_id: userId,
-        total_points: 0, available_points: 0,
-        pending_points: 0, consumed_points: 0,
-        revoked_points: 0, updated_at: now,
-      };
-      accounts.push(account);
-    }
-    account.available_points = available - pointsRequired;
-    account.consumed_points  = (account.consumed_points || 0) + pointsRequired;
-    account.updated_at = now;
-    saveJsonArray(ACCOUNTS_FILE, accounts);
-
-    // 6. 写兑换记录
-    const redeems = loadJsonArray(MALL_REDEEMS_FILE);
-    const record = {
-      id: `mr_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
-      user_id: userId,
-      item_id: itemId,
-      item_name: item.name,
-      points_spent: pointsRequired,
-      status: "success",
-      ledger_id: ledgerEntry.id,
-      created_at: now,
-    };
-    redeems.push(record);
-    saveJsonArray(MALL_REDEEMS_FILE, redeems);
 
     return sendOk(res, sendJson, "兑换成功", {
-      redeem_id: record.id,
-      item_id: itemId,
-      points_spent: pointsRequired,
-      remaining_points: account.available_points,
+      redeem_id:        result.redeemId,
+      item_id:          result.itemId,
+      points_spent:     result.pointsRequired,
+      remaining_points: result.remainingPoints,
     });
   } catch (err) {
     return sendError(res, sendJson, 500, "REDEEM_FAILED", err.message || "兑换失败");
   }
 }
 
-// GET /api/growth/mall/redeems  — 用户兑换记录
-export function handleGetMallRedeems(req, res, sendJson, url) {
-  const userId = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
-  const page = parseInt(url.searchParams.get("pageNum") || "1", 10);
-  const pageSize = parseInt(url.searchParams.get("pageSize") || "20", 10);
-  let list = loadJsonArray(MALL_REDEEMS_FILE);
-  if (userId) list = list.filter(r => r.user_id === userId);
-  list = list.slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const total = list.length;
-  const paged = list.slice((page - 1) * pageSize, page * pageSize);
-  return sendOk(res, sendJson, "ok", { list: paged, total });
+// ── GET /api/growth/mall/redeems  — 用户兑换记录 ─────────────────────────────
+export async function handleGetMallRedeems(req, res, sendJson, url) {
+  try {
+    const userId   = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
+    const page     = Math.max(1, parseInt(url.searchParams.get("pageNum")  || "1",  10));
+    const pageSize = Math.max(1, parseInt(url.searchParams.get("pageSize") || "20", 10));
+    const offset   = (page - 1) * pageSize;
+
+    // 为 count 和 data 分别构建参数，避免参数索引混乱
+    const userFilter = userId ? "WHERE (user_id = $1 OR line_user_id = $1)" : "";
+
+    const countRes = await query(
+      `SELECT COUNT(*) AS total FROM mall_redeems ${userFilter}`,
+      userId ? [userId] : []
+    );
+    const total = Number(countRes.rows[0].total);
+
+    const dataWhere  = userId ? "WHERE (user_id = $3 OR line_user_id = $3)" : "";
+    const dataParams = userId ? [pageSize, offset, userId] : [pageSize, offset];
+
+    const dataRes = await query(
+      `SELECT * FROM mall_redeems ${dataWhere} ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      dataParams
+    );
+
+    return sendOk(res, sendJson, "ok", {
+      list:  dataRes.rows.map(redeemRow),
+      total,
+    });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
 }
