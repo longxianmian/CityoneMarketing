@@ -1,0 +1,17 @@
+[Unit]
+Description=CityOne API Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/docker/CityoneMarketing/artifacts/api-server
+ExecStart=/usr/bin/env bash -lc 'exec env PORT=3200 node dist/index.mjs'
+Restart=always
+RestartSec=3
+User=root
+Environment=NODE_ENV=production
+StandardOutput=append:/home/docker/CityoneMarketing/api-server.log
+StandardError=append:/home/docker/CityoneMarketing/api-server.log
+
+[Install]
+WantedBy=multi-user.target

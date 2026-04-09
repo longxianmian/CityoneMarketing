@@ -1,0 +1,17 @@
+[Unit]
+Description=CityOne Growth Backend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/docker/CityoneMarketing/artifacts/cityone-growth-backend/backend
+ExecStart=/usr/bin/env bash -lc 'set -a; source /root/.cityone-growth-backend.env; set +a; exec node src/index.js'
+Restart=always
+RestartSec=3
+User=root
+Environment=NODE_ENV=production
+StandardOutput=append:/home/docker/CityoneMarketing/backend.log
+StandardError=append:/home/docker/CityoneMarketing/backend.log
+
+[Install]
+WantedBy=multi-user.target
