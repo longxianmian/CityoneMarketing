@@ -24,3 +24,9 @@ id = "NGyByxkqKyMkRxE9GTvAT"
 uri = "file://docs/CityOne-卡券操作说明书.md"
 type = "text"
 title = "CityOne 卡券操作说明书 v1.0"
+
+[[outputs]]
+id = "EOzhuMX6wruAxaA4q5VRX"
+uri = "file://cityone-growth-20260409.tar.gz"
+type = "unspecified"
+title = "CityOne Growth 源码包 2026-04-09"
