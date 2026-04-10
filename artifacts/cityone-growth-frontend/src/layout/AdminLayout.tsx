@@ -131,7 +131,8 @@ export default function AdminLayout() {
         icon: <EnvironmentOutlined />,
         label: lt('siteManageGroup'),
         children: [
-          { key: '/admin/growth/stations', label: lt('siteList') },
+          { key: '/admin/growth/stations',      label: lt('siteList') },
+          { key: '/admin/growth/station-promo', label: lt('stationPromo') },
         ],
       },
       // === 4. 福利中心 ===
@@ -172,15 +173,6 @@ export default function AdminLayout() {
               { key: '/admin/welfare/coupon-stats',    label: lt('couponStats') },
             ],
           },
-        ],
-      },
-      // === 3. 入口与分发 ===
-      {
-        key: 'entry',
-        icon: <NodeIndexOutlined />,
-        label: lt('entryDistrib'),
-        children: [
-          { key: '/admin/growth/station-promo', label: lt('stationPromo') },
         ],
       },
       // === 4. 激励与归因 ===
