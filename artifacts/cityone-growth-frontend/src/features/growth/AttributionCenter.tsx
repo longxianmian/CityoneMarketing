@@ -219,148 +219,85 @@ function SourceConfigSection() {
 export default function AttributionCenter() {
   const { t } = useI18n()
   const at = (key: string) => t(`admin.attribution.${key}`)
+
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
   const [channel, setChannel] = useState<string>('all')
   const [unitType, setUnitType] = useState<string>('all')
   const [keyword, setKeyword] = useState<string>('')
+  const [loading, setLoading] = useState(false)
+  const [loadingDetail, setLoadingDetail] = useState(false)
 
-  const overview = {
-    pageViews: 28630,
-    clicks: 13280,
-    follows: 5218,
-    users: 2480,
-    members: 1126,
-    attributedOrders: 1392,
+  const [overview, setOverview] = useState({
+    pageViews: 0, clicks: 0, follows: 0, users: 0, members: 0, attributedOrders: 0,
+    pageToClick: 0, clickToFollow: 0, followToUser: 0, userToMember: 0,
+  })
+  const [objectRows, setObjectRows] = useState<any[]>([])
+  const [channelRows, setChannelRows] = useState<any[]>([])
+  const [sourceRows, setSourceRows] = useState<any[]>([])
+
+  const buildParams = () => {
+    const p: Record<string, string> = {}
+    if (dateRange?.[0]) p.dateFrom = dateRange[0].format('YYYY-MM-DD')
+    if (dateRange?.[1]) p.dateTo   = dateRange[1].format('YYYY-MM-DD')
+    if (channel !== 'all') p.channel = channel
+    if (unitType !== 'all') p.unitType = unitType
+    if (keyword.trim()) p.keyword = keyword.trim()
+    return p
   }
 
-  const attributionRows = [
-    {
-      key: '1',
-      objectType: '活动',
-      objectName: '扫码抽奖赢免费时长',
-      channel: 'line',
-      sourceType: 'online',
-      sourceId: 'LINE-H5-001',
-      pageViews: 12680,
-      clicks: 6320,
-      follows: 2110,
-      users: 980,
-      members: 456,
-      attributedOrders: 688,
-      ownerDept: '互联网推广部',
-      partnerDept: '--',
-    },
-    {
-      key: '2',
-      objectType: '卡券',
-      objectName: '关注 LINE 领 15 分钟券',
-      channel: 'facebook',
-      sourceType: 'online',
-      sourceId: 'FB-AD-008',
-      pageViews: 8230,
-      clicks: 3880,
-      follows: 1620,
-      users: 762,
-      members: 318,
-      attributedOrders: 356,
-      ownerDept: '互联网推广部',
-      partnerDept: '--',
-    },
-    {
-      key: '3',
-      objectType: '活动',
-      objectName: '站点首借免单',
-      channel: 'direct',
-      sourceType: 'device',
-      sourceId: 'CTO20251125011',
-      pageViews: 4210,
-      clicks: 1850,
-      follows: 920,
-      users: 612,
-      members: 252,
-      attributedOrders: 208,
-      ownerDept: '运营部',
-      partnerDept: '--',
-    },
-    {
-      key: '4',
-      objectType: '卡券',
-      objectName: '线上领券 + 到站核销券',
-      channel: 'tiktok',
-      sourceType: 'social',
-      sourceId: 'TK-SHARE-020',
-      pageViews: 3510,
-      clicks: 1230,
-      follows: 568,
-      users: 314,
-      members: 100,
-      attributedOrders: 140,
-      ownerDept: '互联网推广部',
-      partnerDept: '运营部',
-    },
-  ]
+  const loadOverview = async () => {
+    setLoading(true)
+    try {
+      const res: any = await request.get('/attribution/overview', { params: buildParams() })
+      const d = res?.data?.data || res?.data || {}
+      setOverview({
+        pageViews:        d.pageViews        || 0,
+        clicks:           d.clicks           || 0,
+        follows:          d.follows          || 0,
+        users:            d.users            || 0,
+        members:          d.members          || 0,
+        attributedOrders: d.attributedOrders || 0,
+        pageToClick:      d.pageToClick      || 0,
+        clickToFollow:    d.clickToFollow    || 0,
+        followToUser:     d.followToUser     || 0,
+        userToMember:     d.userToMember     || 0,
+      })
+    } catch { }
+    setLoading(false)
+  }
 
-  const filteredRows = useMemo(() => {
-    return attributionRows.filter((item) => {
-      const okChannel = channel === 'all' || item.channel === channel
-      const okType = unitType === 'all' || item.objectType === unitType
-      const okKeyword = !keyword.trim() || item.objectName.includes(keyword.trim()) || item.sourceId.includes(keyword.trim())
-      return okChannel && okType && okKeyword
-    })
-  }, [channel, unitType, keyword])
+  const loadDetail = async () => {
+    setLoadingDetail(true)
+    try {
+      const [objRes, chanRes, srcRes]: any[] = await Promise.all([
+        request.get('/attribution/by-object',  { params: buildParams() }),
+        request.get('/attribution/by-channel', { params: buildParams() }),
+        request.get('/attribution/by-source',  { params: buildParams() }),
+      ])
+      setObjectRows((objRes?.data?.data?.list || []).map((r: any, i: number) => ({ ...r, key: r.id || String(i) })))
+      setChannelRows((chanRes?.data?.data?.list || []).map((r: any, i: number) => ({ ...r, key: r.channel || String(i) })))
+      setSourceRows((srcRes?.data?.data?.list  || []).map((r: any, i: number) => ({ ...r, key: r.key || String(i) })))
+    } catch { }
+    setLoadingDetail(false)
+  }
 
-  const activityRows = filteredRows.filter((item) => item.objectType === '活动')
-  const couponRows = filteredRows.filter((item) => item.objectType === '卡券')
+  const handleRefresh = () => { loadOverview(); loadDetail() }
 
-  const channelRows = useMemo(() => {
-    const grouped: Record<string, any> = {}
-    filteredRows.forEach((item) => {
-      if (!grouped[item.channel]) {
-        grouped[item.channel] = {
-          key: item.channel,
-          channel: item.channel,
-          pageViews: 0,
-          clicks: 0,
-          follows: 0,
-          users: 0,
-          members: 0,
-          attributedOrders: 0,
-        }
-      }
-      grouped[item.channel].pageViews += item.pageViews
-      grouped[item.channel].clicks += item.clicks
-      grouped[item.channel].follows += item.follows
-      grouped[item.channel].users += item.users
-      grouped[item.channel].members += item.members
-      grouped[item.channel].attributedOrders += item.attributedOrders
-    })
-    return Object.values(grouped)
-  }, [filteredRows])
+  useEffect(() => { handleRefresh() }, [])
 
-  const sourceRows = filteredRows.map((item) => ({
-    key: item.key,
-    sourceType: item.sourceType,
-    sourceId: item.sourceId,
-    channel: item.channel,
-    objectName: item.objectName,
-    pageViews: item.pageViews,
-    clicks: item.clicks,
-    follows: item.follows,
-    users: item.users,
-    members: item.members,
-    attributedOrders: item.attributedOrders,
-  }))
+  const activityRows = useMemo(() => objectRows.filter(r => r.objectType === '活动'), [objectRows])
+  const couponRows   = useMemo(() => objectRows.filter(r => r.objectType === '卡券'),  [objectRows])
 
   const overviewStats = [
     { title: at('overview.pageViews'), value: overview.pageViews, icon: <EyeOutlined /> },
-    { title: at('overview.clicks'), value: overview.clicks, icon: <FunnelPlotOutlined /> },
-    { title: at('overview.follows'), value: overview.follows, icon: <UserAddOutlined /> },
-    { title: at('overview.users'), value: overview.users, icon: <TeamOutlined /> },
-    { title: at('overview.members'), value: overview.members, icon: <CrownOutlined /> },
-    { title: at('overview.orders'), value: overview.attributedOrders, icon: <ShoppingCartOutlined /> },
+    { title: at('overview.clicks'),    value: overview.clicks,    icon: <FunnelPlotOutlined /> },
+    { title: at('overview.follows'),   value: overview.follows,   icon: <UserAddOutlined /> },
+    { title: at('overview.users'),     value: overview.users,     icon: <TeamOutlined /> },
+    { title: at('overview.members'),   value: overview.members,   icon: <CrownOutlined /> },
+    { title: at('overview.orders'),    value: overview.attributedOrders, icon: <ShoppingCartOutlined /> },
   ]
 
-  const overviewCols = [
+  const objCols = [
     {
       title: at('detail.colObject'),
       dataIndex: 'objectName',
@@ -375,54 +312,43 @@ export default function AttributionCenter() {
         </div>
       ),
     },
-    { title: at('detail.colSourceType'), dataIndex: 'sourceType', key: 'sourceType', render: (v: string) => <Tag>{v}</Tag> },
-    { title: at('detail.colSourcePoint'), dataIndex: 'sourceId', key: 'sourceId' },
-    { title: at('detail.colOwnerDept'), dataIndex: 'ownerDept', key: 'ownerDept' },
+    { title: at('detail.colOwnerDept'),   dataIndex: 'ownerDept',   key: 'ownerDept' },
     { title: at('detail.colPartnerDept'), dataIndex: 'partnerDept', key: 'partnerDept' },
-    { title: at('detail.colPageViews'), dataIndex: 'pageViews', key: 'pageViews' },
-    { title: at('detail.colClicks'), dataIndex: 'clicks', key: 'clicks' },
-    { title: at('detail.colFollows'), dataIndex: 'follows', key: 'follows' },
-    { title: at('detail.colUsers'), dataIndex: 'users', key: 'users' },
-    { title: at('detail.colMembers'), dataIndex: 'members', key: 'members' },
-    { title: at('detail.colOrders'), dataIndex: 'attributedOrders', key: 'attributedOrders' },
+    { title: at('detail.colPageViews'),   dataIndex: 'pageViews',   key: 'pageViews' },
+    { title: at('detail.colClicks'),      dataIndex: 'clicks',      key: 'clicks' },
+    { title: at('detail.colFollows'),     dataIndex: 'follows',     key: 'follows' },
+    { title: at('detail.colUsers'),       dataIndex: 'users',       key: 'users' },
+    { title: at('detail.colMembers'),     dataIndex: 'members',     key: 'members' },
+    { title: at('detail.colOrders'),      dataIndex: 'attributedOrders', key: 'attributedOrders' },
   ]
 
   const channelCols = [
-    {
-      title: at('detail.colChannel'),
-      dataIndex: 'channel',
-      key: 'channel',
-      render: (v: string) => channelTag(v, at),
-    },
+    { title: at('detail.colChannel'), dataIndex: 'channel', key: 'channel', render: (v: string) => channelTag(v, at) },
     { title: at('detail.colPageViews'), dataIndex: 'pageViews', key: 'pageViews' },
-    { title: at('detail.colClicks'), dataIndex: 'clicks', key: 'clicks' },
-    { title: at('detail.colFollows'), dataIndex: 'follows', key: 'follows' },
-    { title: at('detail.colUsers'), dataIndex: 'users', key: 'users' },
-    { title: at('detail.colMembers'), dataIndex: 'members', key: 'members' },
-    { title: at('detail.colOrders'), dataIndex: 'attributedOrders', key: 'attributedOrders' },
+    { title: at('detail.colClicks'),    dataIndex: 'clicks',    key: 'clicks' },
+    { title: at('detail.colFollows'),   dataIndex: 'follows',   key: 'follows' },
+    { title: at('detail.colUsers'),     dataIndex: 'users',     key: 'users' },
+    { title: at('detail.colMembers'),   dataIndex: 'members',   key: 'members' },
+    { title: at('detail.colOrders'),    dataIndex: 'attributedOrders', key: 'attributedOrders' },
   ]
 
   const sourceCols = [
     { title: at('detail.colSourceType'), dataIndex: 'sourceType', key: 'sourceType', render: (v: string) => <Tag>{v}</Tag> },
     { title: at('detail.colSourcePointCode'), dataIndex: 'sourceId', key: 'sourceId' },
-    { title: at('detail.colObject'), dataIndex: 'objectName', key: 'objectName' },
-    { title: at('detail.colChannel'), dataIndex: 'channel', key: 'channel', render: (v: string) => channelTag(v, at) },
+    { title: at('detail.colObject'),  dataIndex: 'objectName', key: 'objectName' },
+    { title: at('detail.colChannel'), dataIndex: 'channel',    key: 'channel', render: (v: string) => channelTag(v, at) },
     { title: at('detail.colPageViews'), dataIndex: 'pageViews', key: 'pageViews' },
-    { title: at('detail.colClicks'), dataIndex: 'clicks', key: 'clicks' },
-    { title: at('detail.colFollows'), dataIndex: 'follows', key: 'follows' },
-    { title: at('detail.colUsers'), dataIndex: 'users', key: 'users' },
-    { title: at('detail.colMembers'), dataIndex: 'members', key: 'members' },
-    { title: at('detail.colOrders'), dataIndex: 'attributedOrders', key: 'attributedOrders' },
+    { title: at('detail.colClicks'),    dataIndex: 'clicks',    key: 'clicks' },
+    { title: at('detail.colFollows'),   dataIndex: 'follows',   key: 'follows' },
+    { title: at('detail.colUsers'),     dataIndex: 'users',     key: 'users' },
+    { title: at('detail.colMembers'),   dataIndex: 'members',   key: 'members' },
+    { title: at('detail.colOrders'),    dataIndex: 'attributedOrders', key: 'attributedOrders' },
   ]
-
-  const pageToClick = Number(((overview.clicks / overview.pageViews) * 100).toFixed(2))
-  const clickToFollow = Number(((overview.follows / overview.clicks) * 100).toFixed(2))
-  const followToUser = Number(((overview.users / overview.follows) * 100).toFixed(2))
-  const userToMember = Number(((overview.members / overview.users) * 100).toFixed(2))
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      {/* ── 过滤栏 ── */}
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>{at('page.title')}</h2>
         <RangePicker onChange={(v: any) => setDateRange(v)} />
         <Select
@@ -431,7 +357,7 @@ export default function AttributionCenter() {
           style={{ width: 160 }}
           options={[
             { value: 'all', label: at('page.channelAll') },
-            { value: 'line', label: 'LINE' },
+            { value: 'LINE OA', label: 'LINE OA' },
             { value: 'tiktok', label: 'TikTok' },
             { value: 'facebook', label: 'Facebook' },
             { value: 'direct', label: at('channelMeta.direct') },
@@ -452,55 +378,46 @@ export default function AttributionCenter() {
           onChange={(e) => setKeyword(e.target.value)}
           placeholder={at('page.searchPlaceholder')}
           prefix={<SearchOutlined />}
-          style={{ width: 240 }}
+          style={{ width: 220 }}
+          onPressEnter={handleRefresh}
         />
-        <Button type="primary" icon={<BarChartOutlined />}>{at('page.refresh')}</Button>
+        <Button type="primary" icon={<BarChartOutlined />} loading={loading} onClick={handleRefresh}>
+          {at('page.refresh')}
+        </Button>
       </div>
 
+      {/* ── 归因总览 ── */}
       <Card title={at('overview.cardTitle')} style={{ marginBottom: 16 }}>
         <Row gutter={[16, 16]}>
           {overviewStats.map((item, idx) => (
             <Col xs={12} sm={8} md={4} key={idx}>
               <Card>
-                <Statistic title={item.title} value={item.value} prefix={item.icon} />
+                <Statistic title={item.title} value={item.value} prefix={item.icon} loading={loading} />
               </Card>
             </Col>
           ))}
         </Row>
       </Card>
 
+      {/* ── 归因链路漏斗 ── */}
       <Card title={at('funnel.cardTitle')} style={{ marginBottom: 16 }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={12}>
             <div style={{ display: 'grid', gap: 16 }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span>{at('funnel.pvToClick')}</span>
-                  <span>{pageToClick}%</span>
+              {[
+                { label: at('funnel.pvToClick'),    pct: overview.pageToClick  },
+                { label: at('funnel.clickToFollow'), pct: overview.clickToFollow },
+                { label: at('funnel.followToUser'),  pct: overview.followToUser  },
+                { label: at('funnel.userToMember'),  pct: overview.userToMember  },
+              ].map(({ label, pct }) => (
+                <div key={label}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span>{label}</span>
+                    <span>{pct}%</span>
+                  </div>
+                  <Progress percent={Math.min(pct, 100)} showInfo={false} />
                 </div>
-                <Progress percent={pageToClick} showInfo={false} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span>{at('funnel.clickToFollow')}</span>
-                  <span>{clickToFollow}%</span>
-                </div>
-                <Progress percent={clickToFollow} showInfo={false} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span>{at('funnel.followToUser')}</span>
-                  <span>{followToUser}%</span>
-                </div>
-                <Progress percent={followToUser} showInfo={false} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span>{at('funnel.userToMember')}</span>
-                  <span>{userToMember}%</span>
-                </div>
-                <Progress percent={userToMember} showInfo={false} />
-              </div>
+              ))}
             </div>
           </Col>
           <Col xs={24} md={12}>
@@ -515,28 +432,29 @@ export default function AttributionCenter() {
         </Row>
       </Card>
 
+      {/* ── 归因对象明细 ── */}
       <Card title={at('detail.cardTitle')} style={{ marginBottom: 16 }}>
         <Tabs
           items={[
             {
               key: 'activity',
               label: <span><ApartmentOutlined /> {at('detail.tabActivity')}</span>,
-              children: <Table rowKey="key" columns={overviewCols} dataSource={activityRows} pagination={false} />,
+              children: <Table rowKey="key" columns={objCols} dataSource={activityRows} loading={loadingDetail} pagination={{ pageSize: 10 }} />,
             },
             {
               key: 'coupon',
               label: <span><LinkOutlined /> {at('detail.tabCoupon')}</span>,
-              children: <Table rowKey="key" columns={overviewCols} dataSource={couponRows} pagination={false} />,
+              children: <Table rowKey="key" columns={objCols} dataSource={couponRows} loading={loadingDetail} pagination={{ pageSize: 10 }} />,
             },
             {
               key: 'channel',
               label: <span><FunnelPlotOutlined /> {at('detail.tabChannel')}</span>,
-              children: <Table rowKey="key" columns={channelCols} dataSource={channelRows} pagination={false} />,
+              children: <Table rowKey="key" columns={channelCols} dataSource={channelRows} loading={loadingDetail} pagination={false} />,
             },
             {
               key: 'source',
               label: <span><SettingOutlined /> {at('detail.tabSource')}</span>,
-              children: <Table rowKey="key" columns={sourceCols} dataSource={sourceRows} pagination={false} />,
+              children: <Table rowKey="key" columns={sourceCols} dataSource={sourceRows} loading={loadingDetail} pagination={{ pageSize: 10 }} />,
             },
           ]}
         />

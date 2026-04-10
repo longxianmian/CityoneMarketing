@@ -128,6 +128,12 @@ import {
   handleGrowthReport,
 } from "./routes/dashboard.js";
 import {
+  handleAttributionOverview,
+  handleAttributionByObject,
+  handleAttributionByChannel,
+  handleAttributionBySource,
+} from "./routes/attribution.js";
+import {
   requireAuth,
   handleAdminLogin,
   handleAdminLogout,
@@ -788,7 +794,21 @@ const server = http.createServer(async (req, res) => {
       return handleDashboardStats(req, res, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/dashboard/growth-report") {
-      return handleGrowthReport(req, res, sendJson);
+      return handleGrowthReport(req, res, url, sendJson);
+    }
+
+    // ── 归因中心 ─────────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/attribution/overview") {
+      return handleAttributionOverview(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/attribution/by-object") {
+      return handleAttributionByObject(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/attribution/by-channel") {
+      return handleAttributionByChannel(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/attribution/by-source") {
+      return handleAttributionBySource(req, res, url, sendJson);
     }
 
     // ── 站点管理 ─────────────────────────────────────────────────────────────
