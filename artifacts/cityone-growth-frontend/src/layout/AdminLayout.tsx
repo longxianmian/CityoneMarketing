@@ -116,44 +116,60 @@ export default function AdminLayout() {
           { key: '/admin/overview/order-attr', label: lt('orderAttrib') },
         ],
       },
-      // === 2. 福利中心 ===
+      // === 2. 广告管理 ===
+      {
+        key: 'ad-manage',
+        icon: <PictureOutlined />,
+        label: lt('adManageGroup'),
+        children: [
+          { key: '/admin/welfare/banners', label: lt('bannerManage') },
+        ],
+      },
+      // === 3. 站点管理 ===
+      {
+        key: 'site-manage',
+        icon: <EnvironmentOutlined />,
+        label: lt('siteManageGroup'),
+        children: [
+          { key: '/admin/growth/stations', label: lt('siteList') },
+        ],
+      },
+      // === 4. 福利中心 ===
       {
         key: 'welfare',
         icon: <GiftOutlined />,
         label: lt('welfareGroup'),
         children: [
-          {
-            key: '/admin/welfare/banners',
-            icon: <PictureOutlined />,
-            label: lt('bannerManage'),
-          },
+          // —— 活动中心 ——
           {
             key: 'welfare-activity',
             icon: <TrophyOutlined />,
             label: lt('activityGroup'),
             children: [
-              { key: '/admin/growth/activity', label: lt('activityInstances') },
-              { key: '/admin/growth/stations', label: '站点管理', icon: <EnvironmentOutlined /> },
-              { key: '/admin/welfare/game', label: lt('gamePrograms') },
-              { key: '/admin/growth/interaction-records', label: lt('interactiveResources') },
+              { key: '/admin/growth/activity',             label: lt('activityInstances') },
+              { key: '/admin/welfare/game',                label: lt('gamePrograms') },
+              { key: '/admin/growth/interaction-records',  label: lt('interactiveResources') },
             ],
           },
-          {
-            key: 'welfare-coupon',
-            icon: <CreditCardOutlined />,
-            label: lt('couponGroup'),
-            children: [
-              { key: '/admin/growth/coupon', label: lt('couponItems') },
-              { key: '/admin/welfare/coupon-stats', label: lt('couponStats') },
-            ],
-          },
+          // —— 积分商城 ——
           {
             key: 'welfare-benefit',
             icon: <TagsOutlined />,
             label: lt('benefitGroup'),
             children: [
-              { key: '/admin/growth/points/mall', label: lt('benefitItems') },
-              { key: '/admin/welfare/redeem-stats', label: lt('redeemStats') },
+              { key: '/admin/growth/points/mall',      label: lt('benefitItems') },
+              { key: '/admin/welfare/redeem-stats',    label: lt('redeemStats') },
+            ],
+          },
+          // —— 卡券中心 ——
+          {
+            key: 'welfare-coupon',
+            icon: <CreditCardOutlined />,
+            label: lt('couponGroup'),
+            children: [
+              { key: '/admin/growth/coupon',           label: lt('couponItems') },
+              { key: '/admin/growth/coupon/verify',    label: lt('couponVerify') },
+              { key: '/admin/welfare/coupon-stats',    label: lt('couponStats') },
             ],
           },
         ],

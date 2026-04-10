@@ -224,7 +224,7 @@ export default function WelfareHomePage() {
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
-  const [tab, setTab] = useState<'recommend' | 'activity' | 'coupon' | 'redeem' | 'nearby'>('recommend')
+  const [tab, setTab] = useState<'recommend' | 'activity' | 'mall'>('recommend')
   const [cityCode, setCityCode] = useState('bangkok')
 
   useEffect(() => {
@@ -237,9 +237,9 @@ export default function WelfareHomePage() {
 
   const pageText = useMemo(() => {
     const map = {
-      zh: { recommend: '推荐', activity: '活动', coupon: '卡券', redeem: '可兑换', nearby: '附近站点', city: '城市', autoLocate: '自动定位' },
-      th: { recommend: 'แนะนำ', activity: 'กิจกรรม', coupon: 'คูปอง', redeem: 'แลกได้', nearby: 'สถานีใกล้เคียง', city: 'เมือง', autoLocate: 'ระบุตำแหน่งอัตโนมัติ' },
-      en: { recommend: 'Recommended', activity: 'Activities', coupon: 'Coupons', redeem: 'Redeem', nearby: 'Nearby Stations', city: 'City', autoLocate: 'Auto Location' },
+      zh: { recommend: '推荐', activity: '活动中心', mall: '积分商城', nearby: '附近站点', city: '城市', autoLocate: '自动定位' },
+      th: { recommend: 'แนะนำ', activity: 'ศูนย์กิจกรรม', mall: 'ร้านแลกคะแนน', nearby: 'สถานีใกล้เคียง', city: 'เมือง', autoLocate: 'ระบุตำแหน่งอัตโนมัติ' },
+      en: { recommend: 'Recommended', activity: 'Activities', mall: 'Points Mall', nearby: 'Nearby', city: 'City', autoLocate: 'Auto Location' },
     } as const
     return map[language]
   }, [language])
@@ -383,11 +383,9 @@ export default function WelfareHomePage() {
   )
 
   const filteredCards = useMemo(() => {
-    if (tab === 'recommend') return allCards
     if (tab === 'activity') return allCards.filter((c) => c.type === 'activity')
-    if (tab === 'coupon') return allCards.filter((c) => c.type === 'coupon')
-    if (tab === 'redeem') return allCards.filter((c) => c.type === 'redeem')
-    return allCards.filter((c) => c.id.startsWith('n'))
+    if (tab === 'mall') return allCards.filter((c) => c.type === 'coupon' || c.type === 'redeem')
+    return allCards
   }, [allCards, tab])
 
   const langButtonStyle = (lang: AppLanguage): React.CSSProperties => ({
@@ -427,11 +425,14 @@ export default function WelfareHomePage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
-            {(['recommend', 'activity', 'coupon', 'redeem', 'nearby'] as const).map((k) => (
+            {(['recommend', 'activity', 'mall'] as const).map((k) => (
               <button key={k} style={tabStyle(tab === k)} onClick={() => setTab(k)}>
                 {pageText[k]}
               </button>
             ))}
+            <button style={tabStyle(false)} onClick={() => navigate('/nearby')}>
+              {pageText.nearby}
+            </button>
           </div>
         </div>
 
