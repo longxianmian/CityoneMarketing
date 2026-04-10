@@ -58,11 +58,11 @@ function getCityLabel(cityCode: string, lang: AppLanguage) {
 // cover 可能是 CSS 渐变字符串，也可能是真实图片 URL
 // 图片 URL 须用 backgroundImage + url() 才能正确显示
 function coverBgStyle(cover: string, position = 'center'): React.CSSProperties {
+  if (cover && cover.includes('gradient')) {
+    return { backgroundImage: cover, backgroundSize: '100% 100%' }
+  }
   if (cover && /^(https?:\/\/|\/)/.test(cover)) {
     return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: position, backgroundColor: '#f0f0f0' }
-  }
-  if (cover && cover.includes('gradient')) {
-    return { background: cover }
   }
   return { backgroundColor: '#f0f0f0' }
 }

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
+import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
 
 const VALID_ACTIVITY_TYPES = [
   "general", "sos", "lightning_coupon", "lucky_wheel", "scratch_card", "thai_fortune_draw", "invite_reward",
@@ -57,8 +58,8 @@ function rowToActivity(r) {
     participation_guide: r.participation_guide || "",
     reward_guide: r.reward_guide || "",
     notice_text: r.notice_text || "",
-    cover_image: r.cover_image || "",
-    cover_video: r.cover_video || "",
+    cover_image: resolveOssUrl(r.cover_image || ""),
+    cover_video: resolveOssUrl(r.cover_video || ""),
     reward_points: r.reward_points || 0,
     landing_code: r.landing_code || "",
     entry_ref_code: r.entry_ref_code || "",
@@ -269,7 +270,7 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
         body.goal || "", body.department || "", body.owner_dept || "", body.partner_dept || "",
         body.coupon_name || "", body.highlights || "", body.participation_guide || "",
         body.reward_guide || "", body.notice_text || "",
-        body.cover_image || "", body.cover_video || "",
+        revertOssUrl(body.cover_image) || "", revertOssUrl(body.cover_video) || "",
         Number(body.reward_points) || 0, Number(body.sort_order) || 0, !!body.is_featured,
         body.landing_code || "", body.entry_ref_code || "", body.banner_code || "",
         body.source_entry_id || "", body.source_banner_id || "", body.source_channel_id || "",
@@ -306,7 +307,7 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       partner_dept: (v) => String(v), coupon_name: (v) => String(v),
       highlights: (v) => String(v), participation_guide: (v) => String(v),
       reward_guide: (v) => String(v), notice_text: (v) => String(v),
-      cover_image: (v) => String(v), cover_video: (v) => String(v),
+      cover_image: (v) => revertOssUrl(String(v)), cover_video: (v) => revertOssUrl(String(v)),
       reward_points: (v) => Number(v) || 0,
       landing_code: (v) => String(v), entry_ref_code: (v) => String(v), banner_code: (v) => String(v),
       sort_order: (v) => Number(v) || 0, is_featured: (v) => !!v,

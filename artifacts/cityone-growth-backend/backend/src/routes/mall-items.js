@@ -4,6 +4,7 @@
  */
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
+import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,8 @@ function sendError(res, sendJson, statusCode, errorCode, msg) {
 function itemRow(row) {
   return {
     ...row,
+    cover_image:     resolveOssUrl(row.cover_image),
+    cover_video:     resolveOssUrl(row.cover_video),
     price_thb:       row.price_thb       != null ? Number(row.price_thb)       : null,
     points_required: row.points_required != null ? Number(row.points_required) : 0,
     stock:           row.stock           != null ? Number(row.stock)           : -1,
@@ -113,8 +116,8 @@ export async function handleCreateMallItem(req, res, sendJson, body) {
       body.points_required != null ? Number(body.points_required) : null,
       body.stock         == null  ? -1 : Number(body.stock),
       body.on_shelf      !== false,
-      body.cover_image   || "",
-      body.cover_video   || "",
+      revertOssUrl(body.cover_image) || "",
+      revertOssUrl(body.cover_video) || "",
       toJsonb(body.description),
       toJsonb(body.detail_title || body.detailTitle),
       toJsonb(body.highlights),
@@ -150,8 +153,8 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
     if (body.points_required  != null) addSet("points_required", Number(body.points_required));
     if (body.stock             != null) addSet("stock",            Number(body.stock));
     if (body.on_shelf          != null) addSet("on_shelf",         Boolean(body.on_shelf));
-    if (body.cover_image       != null) addSet("cover_image",      body.cover_image);
-    if (body.cover_video       != null) addSet("cover_video",      body.cover_video);
+    if (body.cover_image       != null) addSet("cover_image",      revertOssUrl(body.cover_image));
+    if (body.cover_video       != null) addSet("cover_video",      revertOssUrl(body.cover_video));
     if (body.description       != null) addSet("description",      toJsonb(body.description));
     if (body.detail_title      != null) addSet("detail_title",     toJsonb(body.detail_title));
     if (body.detailTitle       != null) addSet("detail_title",     toJsonb(body.detailTitle));

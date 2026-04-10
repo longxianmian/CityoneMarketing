@@ -4,6 +4,7 @@
  */
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
+import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,8 @@ function sendError(res, sendJson, statusCode, code, msg) {
 function couponRow(row) {
   return {
     ...row,
+    cover_image:    resolveOssUrl(row.cover_image),
+    cover_video:    resolveOssUrl(row.cover_video),
     status:         Number(row.status),
     discount_value: Number(row.discount_value ?? 0),
     min_amount:     Number(row.min_amount ?? 0),
@@ -148,8 +151,8 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
       status        != null ? Number(status)        : 1,
       validFrom     || null,
       validTo       || null,
-      coverImage    || "",
-      coverVideo    || "",
+      revertOssUrl(coverImage) || "",
+      revertOssUrl(coverVideo) || "",
     ]);
 
     return sendOk(res, sendJson, "创建成功", couponRow(result.rows[0]));
@@ -189,8 +192,8 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
     if (status        != null) addSet("status",         Number(status));
     if (validFrom     != null) addSet("valid_from",     validFrom || null);
     if (validTo       != null) addSet("valid_to",       validTo   || null);
-    if (coverImage    != null) addSet("cover_image",    coverImage);
-    if (coverVideo    != null) addSet("cover_video",    coverVideo);
+    if (coverImage    != null) addSet("cover_image",    revertOssUrl(coverImage));
+    if (coverVideo    != null) addSet("cover_video",    revertOssUrl(coverVideo));
     addSet("updated_at", new Date().toISOString());
 
     params.push(id);

@@ -67,6 +67,33 @@ export function signedUrl(objectKey, expires = URL_EXPIRES) {
 }
 
 /**
+ * 将字段值解析为可直接访问的 URL（用于 GET 响应）
+ * - 空值 / 已是 http(s):// / 以 / 开头（本地文件）→ 原样返回
+ * - 其他（OSS 对象 Key）→ 生成 HMAC 签名 URL（纯本地计算，无网络调用）
+ */
+export function resolveOssUrl(value) {
+  if (!value) return value || "";
+  if (value.startsWith("http") || value.startsWith("/")) return value;
+  if (!OSS_CONFIGURED) return value;
+  try { return signedUrl(value); } catch { return value; }
+}
+
+/**
+ * 将字段值还原为 OSS 对象 Key（用于 POST/PUT 存库前处理）
+ * - 若传入的是 aliyuncs.com 签名 URL → 提取路径作为 object key
+ * - 本地 /uploads/... 或已是 object key → 原样返回
+ */
+export function revertOssUrl(value) {
+  if (!value) return value || "";
+  if (!value.startsWith("http")) return value;
+  try {
+    const u = new URL(value);
+    if (u.hostname.includes("aliyuncs.com")) return u.pathname.slice(1);
+  } catch {}
+  return value;
+}
+
+/**
  * 删除 OSS 对象
  */
 export async function deleteObject(objectKey) {

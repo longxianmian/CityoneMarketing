@@ -1,4 +1,5 @@
 import { query } from "../db/pool.js";
+import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
 
 function sendOk(res, sendJson, msg, data) {
   return sendJson(res, 200, { code: 200, msg, data });
@@ -24,7 +25,7 @@ function rowToClient(r) {
     id: r.banner_code,
     title: r.title || { zh: "", th: "", en: "" },
     sub_title: r.sub_title || { zh: "", th: "", en: "" },
-    image_url: r.image_url,
+    image_url: resolveOssUrl(r.image_url),
     position_key: r.position_key,
     jump_type: r.jump_type,
     jump_target_id: r.jump_target_id,
@@ -101,7 +102,7 @@ export async function handleCreateBanner(req, res, sendJson, body) {
         bannerCode,
         JSON.stringify(toML(body.title)),
         JSON.stringify(toML(body.sub_title)),
-        body.image_url || "",
+        revertOssUrl(body.image_url) || "",
         body.position_key || "home_top",
         body.jump_type || body.link_type || "external",
         body.jump_target_id || "",
@@ -159,7 +160,7 @@ export async function handleUpdateBanner(req, res, sendJson, body, bannerId) {
       [
         body.title !== undefined ? JSON.stringify(toML(body.title)) : null,
         body.sub_title !== undefined ? JSON.stringify(toML(body.sub_title)) : null,
-        body.image_url !== undefined ? body.image_url : null,
+        body.image_url !== undefined ? revertOssUrl(body.image_url) : null,
         body.position_key !== undefined ? body.position_key : null,
         body.jump_type !== undefined ? body.jump_type : null,
         body.jump_target_id !== undefined ? body.jump_target_id : null,
