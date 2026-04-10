@@ -19,6 +19,20 @@ const LINK_TYPE_OPTIONS = [
   { value: 'external', label: '站外链接' },
 ]
 
+const AD_SLOT_OPTIONS = [
+  { value: 'home_top',      label: '首页 · 顶部轮播' },
+  { value: 'home_middle',   label: '首页 · 中部插屏' },
+  { value: 'charge_top',    label: '充电页 · 顶部' },
+  { value: 'activity_top',  label: '活动中心页 · 顶部' },
+  { value: 'mall_top',      label: '积分商城页 · 顶部' },
+  { value: 'mine_top',      label: '我的页面 · 顶部' },
+  { value: 'other',         label: '其他（自定义）' },
+]
+
+function getSlotLabel(key: string) {
+  return AD_SLOT_OPTIONS.find(o => o.value === key)?.label ?? key ?? '—'
+}
+
 function pickText(v: any, lang = 'zh'): string {
   if (!v) return ''
   if (typeof v === 'string') return v
@@ -54,6 +68,7 @@ export default function BannerManage() {
     form.resetFields()
     form.setFieldsValue({
       _sourceLang: language || 'zh',
+      position_key: 'home_top',
       link_type: 'internal',
       sort_order: items.length,
       enabled: true,
@@ -158,6 +173,12 @@ export default function BannerManage() {
       ),
     },
     {
+      title: bm('colSlot'), dataIndex: 'position_key', key: 'position_key', width: 140,
+      render: (v: string) => (
+        <Tag color="geekblue" style={{ fontSize: 11 }}>{getSlotLabel(v)}</Tag>
+      ),
+    },
+    {
       title: bm('colLink'), key: 'link', width: 220,
       render: (_: any, r: any) => (
         <Space size={4}>
@@ -216,6 +237,14 @@ export default function BannerManage() {
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
           <Form.Item name="_sourceLang" label={bm('formInputLang')} initialValue="zh">
             <Select options={LANG_OPTIONS} style={{ width: 160 }} />
+          </Form.Item>
+
+          <Form.Item
+            name="position_key"
+            label={bm('formSlot')}
+            rules={[{ required: true, message: bm('formSlotRequired') }]}
+          >
+            <Select options={AD_SLOT_OPTIONS} placeholder={bm('formSlotHint')} />
           </Form.Item>
 
           <Form.Item label={bm('formImage')}>

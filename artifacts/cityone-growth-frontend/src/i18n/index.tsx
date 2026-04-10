@@ -276,6 +276,10 @@ const messages = {
         deleteFail: '删除失败',
         saveFail: '保存失败',
         confirmDelete: '确认删除此广告位？',
+        colSlot: '展示位置',
+        formSlot: '展示位置',
+        formSlotHint: '请选择广告展示的页面位置',
+        formSlotRequired: '请选择展示位置',
       },
       attribution: {
         channelMeta: {
@@ -2326,6 +2330,10 @@ const messages = {
         deleteFail: 'ลบล้มเหลว',
         saveFail: 'บันทึกล้มเหลว',
         confirmDelete: 'ยืนยันการลบแบนเนอร์นี้?',
+        colSlot: 'ตำแหน่งแสดงผล',
+        formSlot: 'ตำแหน่งแสดงผล',
+        formSlotHint: 'เลือกหน้าที่ต้องการแสดงแบนเนอร์',
+        formSlotRequired: 'กรุณาเลือกตำแหน่งแสดงผล',
       },
       attribution: {
         channelMeta: {
@@ -4350,6 +4358,10 @@ const messages = {
         deleteFail: 'Delete failed',
         saveFail: 'Save failed',
         confirmDelete: 'Confirm delete this banner?',
+        colSlot: 'Display Slot',
+        formSlot: 'Display Slot',
+        formSlotHint: 'Select the page where this banner will appear',
+        formSlotRequired: 'Please select a display slot',
       },
       attribution: {
         channelMeta: {
