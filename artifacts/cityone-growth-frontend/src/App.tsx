@@ -44,6 +44,7 @@ const LineConfig = lazy(() => import('./features/growth/LineConfig'))
 const EntryCenter = lazy(() => import('./features/growth/EntryCenter'))
 const RouteCenter = lazy(() => import('./features/growth/RouteCenter'))
 const StationPromoPage = lazy(() => import('./features/growth/StationPromoPage'))
+const CouponVerifyPage = lazy(() => import('./features/growth/CouponVerifyPage'))
 const AgentConfigManage = lazy(() => import('./features/growth/AgentConfigManage'))
 const AgentIntentManage = lazy(() => import('./features/growth/AgentIntentManage'))
 const AgentToolManage = lazy(() => import('./features/growth/AgentToolManage'))
@@ -142,6 +143,9 @@ export default function App() {
           <Route path="growth/points/mall" element={<PointsMallManage />} />
           <Route path="welfare/redeem-stats" element={<RedeemStatsPage />} />
           <Route path="growth/product-templates" element={<ProductTemplateManage />} />
+
+          {/* 卡券核销 */}
+          <Route path="growth/coupon/verify" element={<CouponVerifyPage />} />
 
           {/* 入口与分发 */}
           <Route path="growth/station-promo" element={<StationPromoPage />} />

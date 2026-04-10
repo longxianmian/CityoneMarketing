@@ -248,6 +248,9 @@ import {
   handleCouponUpdate,
   handleCouponDelete,
   handleCouponStats,
+  handleVerifyLookup,
+  handleVerifyUse,
+  handleVerifyList,
 } from "./routes/coupons.js";
 import {
   handleMessageList,
@@ -708,6 +711,15 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/growth/coupon/stats") {
       return handleCouponStats(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/growth/coupon/verify/lookup") {
+      return handleVerifyLookup(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/growth/coupon/verify/list") {
+      return handleVerifyList(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/coupon/verify/use") {
+      return handleVerifyUse(req, res, url, sendJson, readBody);
     }
     if (req.method === "POST" && url.pathname === "/api/growth/coupon/add") {
       return handleCouponAdd(req, res, url, sendJson, readBody);

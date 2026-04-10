@@ -366,6 +366,128 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
   }
 }
 
+// ── 管理端：核销 — 查询用户券 ────────────────────────────────────────────────
+// GET /api/growth/coupon/verify/lookup?uc_id=xxx
+export async function handleVerifyLookup(req, res, url, sendJson) {
+  try {
+    const ucId = (url.searchParams.get("uc_id") || "").trim();
+    if (!ucId) return sendError(res, sendJson, 400, "MISSING_ID", "缺少用户券ID");
+
+    const ucRes = await query(
+      `SELECT uc.*, c.name AS coupon_name, c.coupon_type, c.discount_type, c.discount_value,
+              c.valid_from, c.valid_to
+       FROM user_coupons uc
+       JOIN coupons c ON c.id = uc.coupon_id
+       WHERE uc.id = $1`,
+      [ucId]
+    );
+    if (!ucRes.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到该用户券");
+    const row = ucRes.rows[0];
+    return sendOk(res, sendJson, "ok", userCouponRow(row));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ── 管理端：核销 — 核销用户券 ─────────────────────────────────────────────────
+// POST /api/growth/coupon/verify/use  body: { uc_id, operator }
+export async function handleVerifyUse(req, res, url, sendJson, readBody) {
+  try {
+    let body;
+    try { body = await readBody(req); } catch { return sendError(res, sendJson, 400, "BAD_BODY", "请求体解析失败"); }
+
+    const ucId    = String(body.uc_id    || "").trim();
+    const operator = String(body.operator || "").trim();
+    if (!ucId) return sendError(res, sendJson, 400, "MISSING_ID", "缺少用户券ID");
+
+    const now = new Date().toISOString();
+
+    // 先查状态
+    const checkRes = await query(
+      `SELECT uc.*, c.name AS coupon_name, c.discount_type, c.discount_value,
+              c.valid_from, c.valid_to
+       FROM user_coupons uc
+       JOIN coupons c ON c.id = uc.coupon_id
+       WHERE uc.id = $1`,
+      [ucId]
+    );
+    if (!checkRes.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到该用户券");
+    const uc = checkRes.rows[0];
+
+    if (uc.product_status === 'used') return sendError(res, sendJson, 400, "ALREADY_USED", "该券已核销");
+    if (uc.product_status === 'expired') return sendError(res, sendJson, 400, "EXPIRED", "该券已过期");
+    if (uc.product_status === 'cancelled') return sendError(res, sendJson, 400, "CANCELLED", "该券已作废");
+
+    // 检查有效期
+    if (uc.valid_to && new Date(uc.valid_to) < new Date()) {
+      return sendError(res, sendJson, 400, "EXPIRED", "该券已超过有效期");
+    }
+
+    const upRes = await query(
+      `UPDATE user_coupons
+          SET product_status = 'used', used_at = $2, updated_at = $2
+        WHERE id = $1
+        RETURNING *`,
+      [ucId, now]
+    );
+    return sendOk(res, sendJson, "核销成功", userCouponRow(upRes.rows[0]));
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ── 管理端：核销 — 用户券列表 ─────────────────────────────────────────────────
+// GET /api/growth/coupon/verify/list?pageNum=1&pageSize=20&status=all&keyword=
+export async function handleVerifyList(req, res, url, sendJson) {
+  try {
+    const pageNum  = Math.max(1, Number(url.searchParams.get("pageNum")  || 1));
+    const pageSize = Math.max(1, Math.min(100, Number(url.searchParams.get("pageSize") || 20)));
+    const offset   = (pageNum - 1) * pageSize;
+    const status   = url.searchParams.get("status") || "all";
+    const keyword  = (url.searchParams.get("keyword") || "").trim();
+
+    const conditions = [];
+    const params     = [];
+    let   pi         = 1;
+
+    if (status && status !== "all") {
+      conditions.push(`uc.product_status = $${pi++}`);
+      params.push(status);
+    }
+    if (keyword) {
+      conditions.push(`(uc.id ILIKE $${pi} OR uc.user_id ILIKE $${pi} OR uc.line_user_id ILIKE $${pi})`);
+      params.push(`%${keyword}%`);
+      pi++;
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const countRes = await query(
+      `SELECT COUNT(*) AS total FROM user_coupons uc ${where}`,
+      params
+    );
+    const total = Number(countRes.rows[0].total);
+
+    const dataRes = await query(
+      `SELECT uc.*, c.name AS coupon_name, c.coupon_type, c.discount_type,
+              c.discount_value, c.valid_from, c.valid_to
+       FROM user_coupons uc
+       JOIN coupons c ON c.id = uc.coupon_id
+       ${where}
+       ORDER BY uc.created_at DESC
+       LIMIT $${pi} OFFSET $${pi + 1}`,
+      [...params, pageSize, offset]
+    );
+
+    return sendOk(res, sendJson, "ok", {
+      rows: dataRes.rows.map(userCouponRow),
+      total,
+    });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
 // ── 管理端：卡券统计（含已使用/已过期数） ───────────────────────────────────
 // GET /api/growth/coupon/stats
 export async function handleCouponStats(req, res, url, sendJson) {
