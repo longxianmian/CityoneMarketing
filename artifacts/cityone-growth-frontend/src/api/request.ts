@@ -50,11 +50,17 @@ request.interceptors.response.use(
     if (err.response?.status === 401) {
       removeToken()
       window.location.href = '/admin/login'
+      return Promise.reject(new Error('登录已过期'))
     }
+    // 优先使用后端返回的业务错误信息（如 409 A_SYSTEM_FIELD_DUPLICATE 等）
+    const apiMsg = err.response?.data?.msg || err.response?.data?.message
+    const displayMsg = apiMsg || err.message || '网络错误'
     if (!(err.config as any)?.silentError) {
-      message.error(err.message || '网络错误')
+      message.error(displayMsg)
     }
-    return Promise.reject(err)
+    // 将业务消息挂到 error 上，方便 catch 块取用
+    const enhancedErr = Object.assign(err, { displayMsg })
+    return Promise.reject(enhancedErr)
   }
 )
 

@@ -118,6 +118,7 @@ export async function handleEntryInstanceList(req, res, url, sendJson) {
     entry_id: r.entry_code,
     site_id: r.site_id,
     site_name: r.site_name,
+    station_code: r.station_code || "",   // 新规范字段，与 stations 表对齐
     entry_type: r.entry_type,
     entry_code: r.entry_qr_code,
     current_feature_name: r.current_feature_name,

@@ -154,7 +154,8 @@ export default function StationManage() {
       loadList()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error('保存失败')
+      // request.ts 拦截器已自动弹出后端返回的具体错误信息（含 409 A_SYSTEM_FIELD_DUPLICATE 等）
+      // 此处无需重复 message.error，避免双重 toast
     } finally {
       setSaving(false)
     }
@@ -168,7 +169,9 @@ export default function StationManage() {
         <div>
           <div style={{ fontWeight: 700 }}>{name.zh}</div>
           <div style={{ fontSize: 12, color: '#999' }}>{name.en}</div>
-          <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>{row.id}</div>
+          <div style={{ fontSize: 11, color: '#2CDBCE', marginTop: 2 }}>
+            站点码：{row.station_code || row.id}
+          </div>
         </div>
       ),
     },

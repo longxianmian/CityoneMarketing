@@ -5,7 +5,7 @@ import request from '../api/request'
 
 interface District { code: string; zh: string; th: string; en: string }
 interface CityItem { code: string; zh: string; th: string; en: string; districts: District[] }
-interface Station { id: string; name: { zh: string; th: string; en: string }; city: string; district: string; status?: string }
+interface Station { id: string; station_code?: string; name: { zh: string; th: string; en: string }; city: string; district: string; status?: string }
 
 export interface StationScope {
   type: 'all' | 'selected'
@@ -49,7 +49,8 @@ export default function StationScopeSelect({ value, onChange }: Props) {
   const districtOptions = (cityDistricts.find(c => c.code === scope.city)?.districts || [])
     .map(d => ({ value: d.code, label: `${d.zh} / ${d.en}` }))
 
-  const stationOptions = stations.map(s => ({ value: s.id, label: s.name.zh }))
+  // station_code 为正式业务标识，id 仅做兼容兜底（后端 rowToStation 已将 id 设为 station_code）
+  const stationOptions = stations.map(s => ({ value: s.station_code || s.id, label: `${s.station_code || s.id}  ${s.name.zh}` }))
 
   const handleCityChange = (city: string) => {
     onChange?.({ type: 'selected', city, district: '', station_ids: [] })

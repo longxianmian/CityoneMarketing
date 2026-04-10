@@ -16,7 +16,9 @@ import {
   Select,
   message,
   Popconfirm,
+  Tooltip,
 } from 'antd'
+import { InfoCircleOutlined } from '@ant-design/icons'
 import {
   getEntryConfig,
   getEntryAllowedTypes,
@@ -31,6 +33,7 @@ import {
   disableEntryInstance,
   getQrAssetList,
 } from '../../api/growth'
+import request from '../../api/request'
 import QRCode from 'qrcode'
 import { useI18n } from '../../i18n'
 
@@ -64,10 +67,16 @@ type EntryInstance = {
   entry_id: string
   site_id: string
   site_name: string
+  station_code?: string
   entry_type: string
   entry_code: string
   current_feature_name: string
   status: string
+}
+
+type StationOption = {
+  value: string    // station_code
+  label: string    // station_code + 中文名
 }
 
 type QrAsset = {
@@ -120,6 +129,7 @@ export default function EntryCenter() {
   const [templates, setTemplates] = useState<EntryTemplate[]>([])
   const [entries, setEntries] = useState<EntryInstance[]>([])
   const [qrAssets, setQrAssets] = useState<QrAsset[]>([])
+  const [stationOptions, setStationOptions] = useState<StationOption[]>([])
   const [error, setError] = useState('')
   const [templateOpen, setTemplateOpen] = useState(false)
   const [templateEditOpen, setTemplateEditOpen] = useState(false)
@@ -143,13 +153,14 @@ export default function EntryCenter() {
       setLoading(true)
       setError('')
 
-      const [configRes, allowedRes, rulesRes, templateRes, entryRes, qrRes] = await Promise.all([
+      const [configRes, allowedRes, rulesRes, templateRes, entryRes, qrRes, stationRes] = await Promise.all([
         getEntryConfig(),
         getEntryAllowedTypes(),
         getEntryFeatureRules(),
         getEntryTemplateList(),
         getEntryInstanceList(),
         getQrAssetList(),
+        request.get('/stations', { params: { status: 'active', page: 1, page_size: 200 } }).catch(() => null),
       ])
 
       const configData = configRes?.data || {}
@@ -168,6 +179,14 @@ export default function EntryCenter() {
       setTemplates(templateRes?.data || [])
       setEntries(entryRes?.data || [])
       setQrAssets(qrRes?.data || [])
+      // 构建站点选择器选项（station_code 为正式业务标识）
+      const stList: any[] = stationRes?.data?.list || stationRes?.list || []
+      setStationOptions(
+        stList.map((s: any) => ({
+          value: s.station_code || s.id,
+          label: `${s.station_code || s.id}  ${s.name?.zh || ''}`,
+        }))
+      )
     } catch (err: any) {
       setError(err?.message || et('loadError'))
     } finally {
@@ -239,6 +258,7 @@ export default function EntryCenter() {
     entryEditForm.setFieldsValue({
       site_id: record.site_id,
       site_name: record.site_name,
+      station_code: record.station_code || undefined,
       entry_type: record.entry_type,
       entry_code: record.entry_code,
       current_feature_name: record.current_feature_name,
@@ -731,8 +751,14 @@ export default function EntryCenter() {
               dataSource={entries}
               columns={[
                 { title: et('entryId'), dataIndex: 'entry_id' },
-                { title: et('siteId'), dataIndex: 'site_id' },
-                { title: et('siteName'), dataIndex: 'site_name' },
+                { title: et('siteId'), dataIndex: 'site_id', render: (v: string) => <span style={{ color: '#aaa', fontSize: 12 }}>{v}</span> },
+                {
+                  title: '站点绑定',
+                  dataIndex: 'station_code',
+                  render: (v: string) => v
+                    ? <Tag color="cyan" style={{ fontSize: 11 }}>{v}</Tag>
+                    : <span style={{ color: '#d9d9d9', fontSize: 12 }}>未绑定</span>,
+                },
                 { title: et('entryType'), dataIndex: 'entry_type' },
                 { title: et('entryCode'), dataIndex: 'entry_code' },
                 { title: et('currentFeature'), dataIndex: 'current_feature_name', render: (v) => <Tag color="blue">{v}</Tag> },
@@ -773,12 +799,45 @@ export default function EntryCenter() {
             cancelText={et('cancel')}
           >
             <Form form={entryForm} layout="vertical" onFinish={handleCreateEntry}>
-              <Form.Item name="site_id" label={et('siteId')} rules={[{ required: true, message: et('siteIdRequired') }]}>
+              <Form.Item
+                name="site_id"
+                label={
+                  <span>
+                    {et('siteId')}&nbsp;
+                    <Tooltip title="旧字段，仅作兼容保留。新建入口请优先绑定下方「正式站点绑定」">
+                      <InfoCircleOutlined style={{ color: '#aaa' }} />
+                    </Tooltip>
+                  </span>
+                }
+                rules={[{ required: true, message: et('siteIdRequired') }]}
+              >
                 <Input placeholder={et('siteIdPlaceholder')} />
               </Form.Item>
 
               <Form.Item name="site_name" label={et('siteNameLabel')} rules={[{ required: true, message: et('siteNameRequired') }]}>
                 <Input placeholder={et('siteNamePlaceholder')} />
+              </Form.Item>
+
+              <Form.Item
+                name="station_code"
+                label={
+                  <span>
+                    正式站点绑定 (station_code)&nbsp;
+                    <Tooltip title="新规范字段，与站点管理中的站点一一对应。绑定后扫码参与活动将自动记录站点归因。">
+                      <InfoCircleOutlined style={{ color: '#2CDBCE' }} />
+                    </Tooltip>
+                  </span>
+                }
+              >
+                <Select
+                  allowClear
+                  showSearch
+                  placeholder="选择站点（可选）"
+                  options={stationOptions}
+                  filterOption={(input, opt) =>
+                    String(opt?.label || '').toLowerCase().includes(input.toLowerCase())
+                  }
+                />
               </Form.Item>
 
               <Form.Item name="entry_type" label="入口类型" rules={[{ required: true, message: et('entryTypeRequired') }]}>
@@ -804,12 +863,45 @@ export default function EntryCenter() {
             cancelText={et('cancel')}
           >
             <Form form={entryEditForm} layout="vertical" onFinish={handleEditEntry}>
-              <Form.Item name="site_id" label={et('siteId')} rules={[{ required: true, message: et('siteIdRequired') }]}>
+              <Form.Item
+                name="site_id"
+                label={
+                  <span>
+                    {et('siteId')}&nbsp;
+                    <Tooltip title="旧字段，仅作兼容保留。请优先绑定下方「正式站点绑定」">
+                      <InfoCircleOutlined style={{ color: '#aaa' }} />
+                    </Tooltip>
+                  </span>
+                }
+                rules={[{ required: true, message: et('siteIdRequired') }]}
+              >
                 <Input placeholder={et('siteIdPlaceholder')} />
               </Form.Item>
 
               <Form.Item name="site_name" label={et('siteNameLabel')} rules={[{ required: true, message: et('siteNameRequired') }]}>
                 <Input placeholder={et('siteNamePlaceholder')} />
+              </Form.Item>
+
+              <Form.Item
+                name="station_code"
+                label={
+                  <span>
+                    正式站点绑定 (station_code)&nbsp;
+                    <Tooltip title="新规范字段，绑定后扫码参与活动将自动记录站点归因（station_code / A系统站点ID / 设备编码）">
+                      <InfoCircleOutlined style={{ color: '#2CDBCE' }} />
+                    </Tooltip>
+                  </span>
+                }
+              >
+                <Select
+                  allowClear
+                  showSearch
+                  placeholder="选择站点（可选）"
+                  options={stationOptions}
+                  filterOption={(input, opt) =>
+                    String(opt?.label || '').toLowerCase().includes(input.toLowerCase())
+                  }
+                />
               </Form.Item>
 
               <Form.Item name="entry_type" label="入口类型" rules={[{ required: true, message: et('entryTypeRequired') }]}>

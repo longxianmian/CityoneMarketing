@@ -233,6 +233,10 @@ import {
   handleRepairActionsDelete,
 } from "./routes/agent-admin.js";
 import {
+  handleDeviceBorrowEventWebhook,
+  handleStationSyncWebhook,
+} from "./routes/a-system.js";
+import {
   handleUserCouponList,
   handleCouponClaim,
   handleCouponList,
@@ -1264,6 +1268,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/user/orders") {
       return handleUserOrders(req, res, url, sendJson);
+    }
+
+    // ─── A 系统旁路连接接口（占位，返回 501 直至联调启用）────────────────────
+    if (req.method === "POST" && url.pathname === "/api/a-system/webhook/device-borrow-event") {
+      return handleDeviceBorrowEventWebhook(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/a-system/webhook/station-sync") {
+      return handleStationSyncWebhook(req, res, url, sendJson, readBody);
     }
 
     return fail(res, 404, "Route not found", { error: "NOT_FOUND" });

@@ -1,0 +1,575 @@
+# CityOne 营销增长系统站点与 A 系统整改补充（按文件路径执行版）
+
+> 用途：
+> 本文件基于当前已确认的真实代码路径，明确告诉 ReplitAI：
+>
+> * 哪个文件要改
+> * 为什么改
+> * 具体改什么
+> * 哪些文件这轮不能动
+>
+> 适用范围：
+>
+> * 第二批第 3 份《站点与 A 系统旁路连接预留整改》后续压实
+> * 《A 系统旁路连接接口契约初稿》落地准备
+>
+> 注意：
+>
+> * 只基于当前已确认的真实路径写，不凭空猜目录
+> * 本轮仍然不接入 A 系统真实接口，只做“增长系统侧的代码落位准备”
+> * 不允许扩散去改 messages / biz-* / agent-* 主逻辑
+
+---
+
+## 一、当前已确认的真实文件路径
+
+以下路径已被执行回报确认存在，后续整改必须优先基于这些文件实施。
+
+### 后端
+
+* `backend/src/routes/stations.js`
+* `backend/src/routes/entries.js`
+* `backend/src/routes/activities.js`
+* `backend/src/index.js`
+* `backend/scripts/backfill-entry-station-code.js`
+* `backend/scripts/seed-stations.js`
+* `backend/data/stations.json`
+* `backend/migrations/005_stations.sql`
+* `backend/migrations/006_*.sql`（已用于 station 压实、防重、归因快照等）
+
+### 前端
+
+* `src/features/growth/StationManage.tsx`
+* `src/components/StationScopeSelect.tsx`
+* `src/pages/user/NearbyPage.tsx`
+* `src/features/growth/EntryCenter.tsx`
+
+### 当前不要动的文件（本轮仍不处理）
+
+* `backend/src/routes/routes.js`
+* `backend/src/routes/agent.js`
+* `backend/config/entry-routing-config.js`
+
+原因：这些文件中的 `site_id` 目前仍属于 legacy / 路由配置 / 会话上下文，不等于正式 `station_code` 体系，当前不在本轮强迁移范围。
+
+---
+
+## 二、本轮整改目标（明确版）
+
+本轮不是再写空泛方案，而是落实以下 4 个明确目标。
+
+### 目标 1：收口 `site_id` → `station_code`
+
+* `station_code` 成为增长系统里正式站点标识
+* `site_id` 保留为 legacy 兼容字段，不再作为新逻辑主字段
+* 入口模块逐步完成从 `site_id` 到 `station_code` 的过渡
+
+### 目标 2：压实 A 系统映射字段的唯一性与可用性
+
+* `a_system_station_id`
+* `a_system_device_id`
+* `device_code`
+  这些字段必须成为后续旁路连接的可靠映射位
+
+### 目标 3：把站点归因快照正式纳入结果表写入链路
+
+* `activity_participations`
+* `points_ledger`
+  要稳定写入站点快照
+
+### 目标 4：为 A 系统 webhook / 同步接口预留代码落点
+
+虽然这轮不真实对接 A 系统，但要把增长系统侧接入点准备好，避免后面又推倒重来。
+
+---
+
+## 三、按文件路径的具体修改要求
+
+# 模块 A：site_id → station_code 过渡收口
+
+## 1. 文件：`backend/src/routes/entries.js`
+
+### 这轮必须改什么
+
+1. 明确创建/更新入口时：
+
+   * `station_code` 为新正式字段
+   * `site_id` 为 legacy 兼容字段
+2. 创建/更新时如果传入 `station_code`：
+
+   * 必须查询 `stations` 表确认该 `station_code` 存在
+   * 不存在时返回明确错误（建议 422）
+3. API 响应中：
+
+   * 当前阶段仍可返回 `site_id`
+   * 但必须同时返回 `station_code`
+4. 所有新写入逻辑优先写 `station_code`
+5. 如果同时收到 `site_id + station_code`：
+
+   * 以 `station_code` 为准
+   * `site_id` 仅做兼容保留
+
+### 当前阶段不要做什么
+
+* 不要在这一轮删除 `site_id`
+* 不要强行修改 `entry-routing-config.js`
+* 不要把 `routes/routes.js` 里的 `site_id` 一起替换
+
+### 完成后的验证
+
+* `POST/PUT /api/entries/...` 传 `station_code` 可成功保存
+* 传不存在的 `station_code` 返回明确错误
+* 旧前端仍可展示 `site_id/site_name`
+* 新接口响应中已有 `station_code`
+
+---
+
+## 2. 文件：`backend/scripts/backfill-entry-station-code.js`
+
+### 这轮必须改什么
+
+1. 保留 `--dry-run` 模式
+2. 在脚本顶部明确维护映射表，例如：
+
+   * `site_001 -> st_xxx`
+   * `site_002 -> st_xxx`
+3. 执行逻辑必须输出：
+
+   * 总入口数
+   * 已有 `station_code` 数
+   * 待回填数
+   * 成功回填数
+   * 无法映射数
+4. 干跑时不能改 DB
+5. 正式执行时只更新 `station_code` 为空的记录
+
+### 这轮建议补充
+
+将日志输出更明确，例如：
+
+* `entry_002: site_001 -> st_00x`
+* `entry_003: site_002 -> 未配置映射，跳过`
+
+### 完成后的验证
+
+* `node backend/scripts/backfill-entry-station-code.js --dry-run` 输出清晰
+* 填入映射后执行，DB 中 `entry_instances.station_code` 被正确回填
+
+---
+
+## 3. 文件：`src/features/growth/EntryCenter.tsx`
+
+### 这轮必须改什么
+
+1. 在现有 `site_id/site_name` 表单区块旁，新增：
+
+   * `station_code` 选择器
+2. 选择器数据来源：
+
+   * 从 `GET /api/stations` 拉取
+3. 展示格式建议：
+
+   * `station_code + 站点名称`
+4. 提交时：
+
+   * 保留旧 `site_id` 字段
+   * 同时提交 `station_code`
+5. 页面上增加提示：
+
+   * `site_id` 为旧字段
+   * `station_code` 为正式站点绑定字段
+
+### 当前阶段不要做什么
+
+* 不要删旧 `site_id` 输入项
+* 不要让旧入口编辑页白屏
+
+### 完成后的验证
+
+* 入口管理页能拉到站点列表
+* 选中站点后可提交成功
+* 编辑已有入口不会因缺少 `station_code` 崩溃
+
+---
+
+# 模块 B：A 系统映射字段防重压实
+
+## 4. 文件：`backend/src/routes/stations.js`
+
+### 这轮必须确保已实现 / 如未完整实现则补齐
+
+1. 在创建站点与更新站点逻辑中，统一调用：
+
+   * `validateASystemFieldUniqueness()`
+2. 校验字段至少包括：
+
+   * `a_system_station_id`
+   * `a_system_device_id`
+   * `device_code`
+3. 校验规则：
+
+   * 空字符串不参与查重
+   * 非空值必须唯一
+   * 更新自身时排除自身
+4. 错误返回必须清晰中文化，例如：
+
+   * `A_SYSTEM_FIELD_DUPLICATE: A系统站点ID xxx 已被站点 st_001 使用`
+   * `A_SYSTEM_FIELD_DUPLICATE: 设备编码 xxx 已被站点 st_002 使用`
+5. 在 `rowToStation()` 或等价映射函数中，确保以下字段始终能回给前端：
+
+   * `station_code`
+   * `a_system_station_id`
+   * `device_code`
+   * `device_group_code`
+   * `a_system_device_id`
+
+### 当前阶段不要做什么
+
+* 不要把 A 系统字段迁到别的表
+* 不要因为想“更规范”而强拆 `station_devices` 表
+
+### 完成后的验证
+
+* 创建重复 `a_system_station_id` 报 409
+* 创建重复 `device_code` 报 409
+* 更新自身记录不误报冲突
+
+---
+
+## 5. 文件：`backend/migrations/006_*.sql`
+
+### 这轮必须确认 / 如不存在则补齐
+
+1. 为 `stations` 表建立部分唯一索引：
+
+   * `a_system_station_id <> ''`
+   * `device_code <> ''`
+   * `a_system_device_id <> ''`
+2. 索引命名要明确，例如：
+
+   * `uniq_stations_a_system_station_id`
+   * `uniq_stations_device_code`
+   * `uniq_stations_a_system_device_id`
+
+### 完成后的验证
+
+* DB 层直接插入重复非空值会失败
+* 空字符串仍允许多行
+
+---
+
+# 模块 C：站点归因快照落地
+
+## 6. 文件：`backend/src/routes/activities.js`
+
+### 这轮必须改什么
+
+针对 `handleActivityParticipate` 或等价参与函数，补齐站点归因快照写入。
+
+1. 接收可选字段：
+
+   * `source_station_code`
+   * `source_a_system_station_id`
+   * `source_device_code`
+2. 当请求体未传，但传了 `source_entry_id` 时：
+
+   * 先查 `entry_instances` 拿 `station_code`
+   * 再查 `stations` 拿 `a_system_station_id / device_code`
+3. 将三字段同时写入：
+
+   * `activity_participations`
+   * `points_ledger`
+4. 保持与已有的：
+
+   * `source_entry_id`
+   * `source_landing_id`
+   * `source_banner_id`
+   * `source_activity_id`
+   * `source_channel_id`
+     共同组成完整归因快照
+
+### 当前阶段不要做什么
+
+* 不要现在去改订单、领券、兑换所有表
+* 先把参与与积分两张结果表写稳
+
+### 完成后的验证
+
+* 通过 `entry_001 -> station st_001` 触发参与时
+* `activity_participations` 里能看到三字段
+* `points_ledger` 里也能看到三字段
+
+---
+
+## 7. 文件：`backend/migrations/006_*.sql`
+
+### 这轮必须确认 / 如不存在则补齐
+
+为以下表补字段：
+
+* `activity_participations`
+* `points_ledger`
+
+字段包括：
+
+* `source_station_code`
+* `source_a_system_station_id`
+* `source_device_code`
+
+### 完成后的验证
+
+* migration 可重复执行或幂等处理
+* 老数据不报错，新写入能带上字段
+
+---
+
+# 模块 D：站点链路与前端承接
+
+## 8. 文件：`backend/src/routes/stations.js`
+
+### 这轮必须改什么
+
+1. 保留或补齐 `handleGetStationChain` 接口
+2. 返回结构里至少包括：
+
+   * `station`
+   * `entry`
+   * `landing`
+   * `activity`
+3. 明确链路优先级：
+
+   * `station.entry_code` 或 `entry_instances.station_code`
+   * `entry -> landing`
+   * `landing -> activity`
+4. 如果链路缺一段，不要 500，应该返回局部信息 + 明确缺失项
+
+### 完成后的验证
+
+* `GET /api/stations/st_001/chain` 能返回完整链
+* 如果某站点还没绑定活动，也能返回 `station + entry`，而不是报错
+
+---
+
+## 9. 文件：`src/features/growth/StationManage.tsx`
+
+### 这轮必须改什么
+
+1. 保持已新增字段分区，并进一步明确为两组：
+
+   * 增长主链路绑定：`entry_code / landing_id / default_activity_id`
+   * A 系统旁路预留：`a_system_station_id / device_code / device_group_code / a_system_device_id`
+2. 在提交表单时，确保这两组字段都回传后端
+3. 在列表页上，增加一列或详情展开区：
+
+   * `station_code`
+   * `entry_code`
+   * `a_system_station_id`
+   * `device_code`
+4. 如果后端返回冲突 409，前端要展示清晰错误信息，不要只提示“保存失败”
+
+### 完成后的验证
+
+* 站点管理页可编辑 A 系统字段
+* 重复映射时前端能正确提示
+* 编辑后刷新列表仍能看到新值
+
+---
+
+## 10. 文件：`src/components/StationScopeSelect.tsx`
+
+### 这轮必须改什么
+
+1. 保持 `id/name` 向后兼容
+2. 但内部 option value 优先使用：
+
+   * `station_code`
+3. 如果后端返回 `id` 与 `station_code`，以 `station_code` 作为正式业务值，`id` 仅做兼容兜底
+
+### 完成后的验证
+
+* 旧页面不崩
+* 新页面可以正式选 `station_code`
+
+---
+
+## 11. 文件：`src/pages/user/NearbyPage.tsx`
+
+### 这轮建议补什么
+
+1. 保持现有接口结构不变
+2. 如果后端已返回 `station_code / entry_code`，可在内部保留，不强制展示
+3. 不要在这轮新增复杂 UI，只要保证附近站点接口继续可用
+
+### 当前阶段不要做什么
+
+* 不要因为想展示更多字段而改坏用户端附近站点页
+
+---
+
+# 模块 E：A 系统 webhook / 接口预留代码落点
+
+## 12. 文件：`backend/src/index.js`
+
+### 这轮建议新增路由占位
+
+只做路由占位和 handler 注册，不做真实业务对接。
+
+建议新增：
+
+* `POST /api/a-system/webhook/device-borrow-event`
+* `POST /api/a-system/webhook/station-sync`
+
+当前返回可以是：
+
+* `501 NOT_IMPLEMENTED`
+* 或 `code: 501, msg: 'A-system webhook not enabled yet'`
+
+目的是先把路由位置固定下来，后面不会乱改入口。
+
+### 完成后的验证
+
+* 路由存在
+* 未启用时返回明确占位响应
+* 不影响现有系统路由
+
+---
+
+## 13. 文件：`backend/src/routes/a-system.js`（如当前没有，请新增）
+
+### 这轮建议新增的最小内容
+
+1. 新建独立文件承接 A 系统接口，不要把逻辑塞进 `stations.js`
+2. 先只导出占位 handler：
+
+   * `handleDeviceBorrowEventWebhook`
+   * `handleStationSyncWebhook`
+3. 文件顶部注释写清楚：
+
+   * 当前仅为接口预留
+   * 真实签名校验、幂等处理、奖励触发待后续联调启用
+
+### 当前阶段不要做什么
+
+* 不要现在就把活动发奖逻辑直接接到 webhook
+* 不要现在就硬写 A 系统 token
+
+---
+
+## 14. 文件：`backend/src/middleware/a-system-signature.js`（如当前没有，请新增）
+
+### 这轮建议新增的最小内容
+
+1. 新建签名校验中间件文件
+2. 当前可以只写函数壳和注释，不强行启用
+3. 文件中明确约定未来使用：
+
+   * `X-A-System-Sign`
+   * `t=timestamp,v1=signature`
+   * HMAC-SHA256
+4. 环境变量名先固定：
+
+   * `A_SYSTEM_WEBHOOK_SECRET`
+
+### 当前阶段不要做什么
+
+* 不要因为 A 系统还没给正式签名规则，就乱写最终校验逻辑
+
+---
+
+## 15. 文件：`.env.example` 或后端环境变量模板文件
+
+### 这轮建议补充
+
+新增占位变量说明：
+
+* `A_SYSTEM_WEBHOOK_SECRET=`
+* `A_SYSTEM_API_TOKEN=`
+* `A_SYSTEM_API_BASE_URL=`
+
+并在注释里写清楚：
+
+* 当前为预留
+* 未配置时 webhook 路由只返回未启用
+
+---
+
+## 四、这轮不要改的边界
+
+以下文件或模块，这轮明确不要动。
+
+### 不动的文件
+
+* `backend/src/routes/routes.js`
+* `backend/src/routes/agent.js`
+* `backend/config/entry-routing-config.js`
+* `messages / biz-* / agent-*` 主逻辑
+
+### 不做的事
+
+* 不真实接入 A 系统接口
+* 不同步 A 系统订单
+* 不做设备实时状态同步
+* 不把 `site_id` 一次性删掉
+* 不强拆 `station_devices` 表
+
+---
+
+## 五、这轮完成后的回报格式
+
+完成后，ReplitAI 必须按下面格式回报。
+
+### 1. site_id 过渡收口
+
+* 改了哪些文件
+* `station_code` 如何进入 entries API
+* 哪些地方仍保留 `site_id`
+* 回填脚本执行结果如何
+
+### 2. A 系统映射字段防重
+
+* `stations.js` 如何校验唯一性
+* DB 层哪些唯一索引生效
+* 冲突时的接口返回是什么
+
+### 3. 站点归因快照
+
+* `activities.js` 如何回填三字段
+* `activity_participations / points_ledger` 的实测结果
+
+### 4. 前端承接
+
+* `EntryCenter.tsx` 是否已能选择 `station_code`
+* `StationManage.tsx` 是否可编辑并展示 A 系统字段
+* `StationScopeSelect.tsx` 是否仍兼容旧页面
+
+### 5. A 系统接口预留
+
+* 是否已新增 `a-system.js`
+* 是否已新增签名中间件壳文件
+* `index.js` 是否已注册占位路由
+* `.env.example` 是否已补预留变量
+
+---
+
+## 六、最终完成标准
+
+只有同时满足以下条件，才算这轮“按文件路径执行版整改”完成：
+
+1. `entries.js` 已正式引入 `station_code` 作为新字段
+2. `backfill-entry-station-code.js` 可用于真实回填
+3. `EntryCenter.tsx` 已能绑定 `station_code`
+4. `stations.js` 已完成 A 系统字段双层防重
+5. `activities.js` 已完成站点归因快照写入
+6. `StationManage.tsx` 已能编辑和展示 A 系统字段
+7. `a-system.js` / 签名中间件 / 路由占位已落位
+8. 不影响现有管理端与用户端页面可用性
+
+---
+
+## 七、给 ReplitAI 的执行原则
+
+* 先查看真实文件，再按本文件逐项改
+* 每改完一个文件，都要说明“为什么这样改”
+* 不允许整文件替换式胡改
+* 不允许超范围扩散
+* 不允许把“接口预留”直接写成“已联通 A 系统”
