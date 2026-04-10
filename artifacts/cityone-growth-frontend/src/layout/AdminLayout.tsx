@@ -144,7 +144,6 @@ export default function AdminLayout() {
             label: lt('couponGroup'),
             children: [
               { key: '/admin/growth/coupon', label: lt('couponItems') },
-              { key: '/admin/growth/prize-pool', label: lt('prizePool') },
               { key: '/admin/welfare/coupon-stats', label: lt('couponStats') },
             ],
           },
