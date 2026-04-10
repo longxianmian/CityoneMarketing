@@ -1621,6 +1621,9 @@ const messages = {
       deleteError: '删除失败',
       updateSuccess: '更新成功',
       addSuccess: '添加成功',
+      addThemeBtn: '添加主题',
+      addSignBtn: '添加签文',
+      noActivityHint: '请从活动列表进入签池管理，选择一个泰式抽签活动后操作',
     },
     pointsLedger: {
       statTotalEarned: '总发放',
@@ -3631,6 +3634,9 @@ const messages = {
       deleteError: 'ลบไม่สำเร็จ',
       updateSuccess: 'อัปเดตสำเร็จ',
       addSuccess: 'เพิ่มสำเร็จ',
+      addThemeBtn: 'เพิ่มธีม',
+      addSignBtn: 'เพิ่มสลาก',
+      noActivityHint: 'กรุณาเข้าจัดการสลากจากรายการกิจกรรม โดยเลือกกิจกรรมเสี่ยงสลากก่อน',
     },
     pointsLedger: {
       statTotalEarned: 'แจกทั้งหมด',
@@ -5628,6 +5634,9 @@ const messages = {
       deleteError: 'Delete failed',
       updateSuccess: 'Updated successfully',
       addSuccess: 'Added successfully',
+      addThemeBtn: 'Add Theme',
+      addSignBtn: 'Add Sign',
+      noActivityHint: 'Please enter from the activity list and select a Thai Fortune Draw activity to manage signs',
     },
     pointsLedger: {
       statTotalEarned: 'Total Earned',
