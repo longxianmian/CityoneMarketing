@@ -247,6 +247,7 @@ import {
   handleCouponAdd,
   handleCouponUpdate,
   handleCouponDelete,
+  handleCouponStats,
 } from "./routes/coupons.js";
 import {
   handleMessageList,
@@ -704,6 +705,9 @@ const server = http.createServer(async (req, res) => {
     // ── 卡券管理 ──────────────────────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/growth/coupon/list") {
       return handleCouponList(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/growth/coupon/stats") {
+      return handleCouponStats(req, res, url, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/growth/coupon/add") {
       return handleCouponAdd(req, res, url, sendJson, readBody);

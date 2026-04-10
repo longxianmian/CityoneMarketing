@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Segmented, Table, Tag, Card, Row, Col, Statistic, DatePicker, Space, Button, Input } from 'antd'
-import { SearchOutlined, ReloadOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { Segmented, Table, Tag, Card, Row, Col, Statistic, Space, Button, Input, Progress } from 'antd'
+import { SearchOutlined, ReloadOutlined, FileTextOutlined, CheckCircleOutlined, GiftOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import dayjs from 'dayjs'
 
@@ -12,100 +12,123 @@ function pickML(field: any): string {
   return '-'
 }
 
-const { RangePicker } = DatePicker
+const couponTypeMap: Record<string, string> = {
+  newbie: '新人券', channel: '渠道券', general: '通用券', activity: '活动券',
+}
+const discountTypeMap: Record<string, string> = {
+  fixed: '固定减免', percent: '折扣', free_time: '免费时长', free_order: '免单',
+}
 
 type ViewMode = 'issue' | 'usage'
 
 export default function CouponStatsPage() {
   const [mode, setMode] = useState<ViewMode>('issue')
   const [loading, setLoading] = useState(false)
-  const [issueData, setIssueData] = useState<any[]>([])
-  const [usageData, setUsageData] = useState<any[]>([])
-  const [couponItems, setCouponItems] = useState<any[]>([])
+  const [rows, setRows] = useState<any[]>([])
   const [search, setSearch] = useState('')
-  const [dateRange, setDateRange] = useState<any>(null)
 
-  const fetchCoupons = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res: any = await request.get('/growth/coupon/items', { params: { pageSize: 200 } })
-      const items = (res.data?.items || res.data || []) as any[]
-      setCouponItems(items)
-
-      const issueRows: any[] = []
-      const usageRows: any[] = []
-
-      for (const item of items) {
-        issueRows.push({
-          key: `issue_${item.id}`,
-          couponId: item.id,
-          couponName: pickML(item.name || item.title),
-          couponType: item.type || item.coupon_type || '-',
-          batchCount: item.total_quantity || item.stock || 0,
-          issuedCount: item.issued_count || 0,
-          remainCount: (item.total_quantity || item.stock || 0) - (item.issued_count || 0),
-          status: item.status || 'active',
-          createdAt: item.created_at || item.createdAt || '-',
-        })
-
-        const used = item.used_count || 0
-        const issued = item.issued_count || 0
-        usageRows.push({
-          key: `usage_${item.id}`,
-          couponId: item.id,
-          couponName: pickML(item.name || item.title),
-          couponType: item.type || item.coupon_type || '-',
-          issuedCount: issued,
-          usedCount: used,
-          unusedCount: issued - used,
-          usageRate: issued > 0 ? ((used / issued) * 100).toFixed(1) + '%' : '0%',
-          expiredCount: item.expired_count || 0,
-        })
-      }
-      setIssueData(issueRows)
-      setUsageData(usageRows)
+      const res: any = await request.get('/growth/coupon/stats')
+      const list = Array.isArray(res.data) ? res.data : (res.data?.data || [])
+      setRows(list)
     } catch {
-      setIssueData([])
-      setUsageData([])
+      setRows([])
     }
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchCoupons() }, [fetchCoupons])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  const totalIssued = issueData.reduce((s, r) => s + r.issuedCount, 0)
-  const totalBatch = issueData.reduce((s, r) => s + r.batchCount, 0)
-  const totalUsed = usageData.reduce((s, r) => s + r.usedCount, 0)
-  const overallRate = totalIssued > 0 ? ((totalUsed / totalIssued) * 100).toFixed(1) : '0'
+  // 汇总统计
+  const totalKinds    = rows.length
+  const totalStock    = rows.reduce((s, r) => s + (r.total_count   || 0), 0)
+  const totalIssued   = rows.reduce((s, r) => s + (r.claimed_count || 0), 0)
+  const totalUsed     = rows.reduce((s, r) => s + (r.used_count    || 0), 0)
 
-  const filterFn = (row: any) => {
-    if (!search) return true
-    return (row.couponName || '').toLowerCase().includes(search.toLowerCase())
-  }
+  const filterFn = (row: any) =>
+    !search || pickML(row.name).toLowerCase().includes(search.toLowerCase())
 
+  const filtered = rows.filter(filterFn)
+
+  // ── 发放数据列 ──
   const issueColumns = [
-    { title: '卡券名称', dataIndex: 'couponName', key: 'couponName', ellipsis: true },
-    { title: '类型', dataIndex: 'couponType', key: 'couponType', render: (v: string) => <Tag>{v}</Tag> },
-    { title: '库存数量', dataIndex: 'batchCount', key: 'batchCount', align: 'right' as const },
-    { title: '已发放', dataIndex: 'issuedCount', key: 'issuedCount', align: 'right' as const,
-      render: (v: number) => <span style={{ color: '#1677ff', fontWeight: 600 }}>{v}</span> },
-    { title: '剩余库存', dataIndex: 'remainCount', key: 'remainCount', align: 'right' as const },
-    { title: '状态', dataIndex: 'status', key: 'status',
-      render: (v: string) => <Tag color={v === 'active' ? 'green' : 'default'}>{v === 'active' ? '活跃' : v}</Tag> },
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', ellipsis: true,
-      render: (v: string) => v && v !== '-' ? dayjs(v).format('YYYY-MM-DD') : '-' },
+    {
+      title: '卡券名称', dataIndex: 'name', key: 'name', ellipsis: true,
+      render: (v: any) => <span style={{ fontWeight: 600 }}>{pickML(v)}</span>,
+    },
+    {
+      title: '类型', dataIndex: 'coupon_type', key: 'coupon_type', width: 90,
+      render: (v: string) => <Tag color="blue">{couponTypeMap[v] || v}</Tag>,
+    },
+    {
+      title: '折扣方式', dataIndex: 'discount_type', key: 'discount_type', width: 100,
+      render: (v: string) => <Tag>{discountTypeMap[v] || v}</Tag>,
+    },
+    {
+      title: '总库存', dataIndex: 'total_count', key: 'total_count', align: 'right' as const, width: 90,
+    },
+    {
+      title: '已领取', dataIndex: 'claimed_count', key: 'claimed_count', align: 'right' as const, width: 90,
+      render: (v: number) => <span style={{ color: '#1677ff', fontWeight: 700 }}>{v}</span>,
+    },
+    {
+      title: '剩余库存', key: 'remain', align: 'right' as const, width: 90,
+      render: (_: any, r: any) => {
+        const remain = (r.total_count || 0) - (r.claimed_count || 0)
+        return <span style={{ color: remain <= 0 ? '#ff4d4f' : '#333' }}>{remain}</span>
+      },
+    },
+    {
+      title: '领取率', key: 'claim_rate', width: 140,
+      render: (_: any, r: any) => {
+        const pct = r.total_count > 0 ? Math.round((r.claimed_count / r.total_count) * 100) : 0
+        return <Progress percent={pct} size="small" strokeColor="#1677ff" />
+      },
+    },
+    {
+      title: '状态', dataIndex: 'status', key: 'status', width: 80,
+      render: (v: number) => <Tag color={v === 1 ? 'green' : 'default'}>{v === 1 ? '启用' : '停用'}</Tag>,
+    },
+    {
+      title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 110,
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD') : '-',
+    },
   ]
 
+  // ── 使用数据列 ──
   const usageColumns = [
-    { title: '卡券名称', dataIndex: 'couponName', key: 'couponName', ellipsis: true },
-    { title: '类型', dataIndex: 'couponType', key: 'couponType', render: (v: string) => <Tag>{v}</Tag> },
-    { title: '已发放', dataIndex: 'issuedCount', key: 'issuedCount', align: 'right' as const },
-    { title: '已使用', dataIndex: 'usedCount', key: 'usedCount', align: 'right' as const,
-      render: (v: number) => <span style={{ color: '#52c41a', fontWeight: 600 }}>{v}</span> },
-    { title: '未使用', dataIndex: 'unusedCount', key: 'unusedCount', align: 'right' as const },
-    { title: '使用率', dataIndex: 'usageRate', key: 'usageRate',
-      render: (v: string) => <Tag color="blue">{v}</Tag> },
-    { title: '已过期', dataIndex: 'expiredCount', key: 'expiredCount', align: 'right' as const },
+    {
+      title: '卡券名称', dataIndex: 'name', key: 'name', ellipsis: true,
+      render: (v: any) => <span style={{ fontWeight: 600 }}>{pickML(v)}</span>,
+    },
+    {
+      title: '类型', dataIndex: 'coupon_type', key: 'coupon_type', width: 90,
+      render: (v: string) => <Tag color="blue">{couponTypeMap[v] || v}</Tag>,
+    },
+    {
+      title: '已领取', dataIndex: 'claimed_count', key: 'claimed_count', align: 'right' as const, width: 90,
+    },
+    {
+      title: '已使用', dataIndex: 'used_count', key: 'used_count', align: 'right' as const, width: 90,
+      render: (v: number) => <span style={{ color: '#52c41a', fontWeight: 700 }}>{v}</span>,
+    },
+    {
+      title: '未使用', key: 'unused', align: 'right' as const, width: 90,
+      render: (_: any, r: any) => (r.claimed_count || 0) - (r.used_count || 0),
+    },
+    {
+      title: '使用率', key: 'usage_rate', width: 140,
+      render: (_: any, r: any) => {
+        const pct = r.claimed_count > 0 ? Math.round((r.used_count / r.claimed_count) * 100) : 0
+        return <Progress percent={pct} size="small" strokeColor="#52c41a" />
+      },
+    },
+    {
+      title: '已过期', dataIndex: 'expired_count', key: 'expired_count', align: 'right' as const, width: 90,
+      render: (v: number) => v > 0 ? <span style={{ color: '#faad14' }}>{v}</span> : <span style={{ color: '#ccc' }}>0</span>,
+    },
   ]
 
   return (
@@ -117,25 +140,29 @@ export default function CouponStatsPage() {
 
       {/* 汇总指标卡 */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="卡券种类" value={couponItems.length} prefix={<FileTextOutlined />} />
+            <Statistic title="卡券种类" value={totalKinds} prefix={<FileTextOutlined />} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="总库存量" value={totalBatch} />
+            <Statistic title="总库存" value={totalStock} prefix={<GiftOutlined />} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="总发放量" value={totalIssued} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="总领取量" value={totalIssued} valueStyle={{ color: '#1677ff' }} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="总使用量" value={totalUsed}
-              suffix={<span style={{ fontSize: 14, color: '#52c41a' }}> ({overallRate}%)</span>}
+            <Statistic
+              title="总使用量"
+              value={totalUsed}
+              suffix={totalIssued > 0
+                ? <span style={{ fontSize: 13, color: '#52c41a' }}>（{Math.round(totalUsed / totalIssued * 100)}%）</span>
+                : undefined}
               valueStyle={{ color: '#52c41a' }}
               prefix={<CheckCircleOutlined />}
             />
@@ -143,7 +170,7 @@ export default function CouponStatsPage() {
         </Col>
       </Row>
 
-      {/* 切换按钮 + 工具栏 */}
+      {/* 切换 + 工具栏 */}
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
           <Segmented
@@ -164,26 +191,27 @@ export default function CouponStatsPage() {
               style={{ width: 200 }}
               allowClear
             />
-            <RangePicker value={dateRange} onChange={setDateRange} />
-            <Button icon={<ReloadOutlined />} onClick={fetchCoupons}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
           </Space>
         </div>
 
         {mode === 'issue' ? (
           <Table
             loading={loading}
-            dataSource={issueData.filter(filterFn)}
+            dataSource={filtered}
             columns={issueColumns}
-            rowKey="key"
+            rowKey="id"
+            scroll={{ x: 800 }}
             pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
             size="middle"
           />
         ) : (
           <Table
             loading={loading}
-            dataSource={usageData.filter(filterFn)}
+            dataSource={filtered}
             columns={usageColumns}
-            rowKey="key"
+            rowKey="id"
+            scroll={{ x: 700 }}
             pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
             size="middle"
           />

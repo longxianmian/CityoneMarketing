@@ -365,3 +365,59 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
     return sendError(res, sendJson, 500, "SERVER_ERROR", err.message || "领取失败");
   }
 }
+
+// ── 管理端：卡券统计（含已使用/已过期数） ───────────────────────────────────
+// GET /api/growth/coupon/stats
+export async function handleCouponStats(req, res, url, sendJson) {
+  try {
+    const now = new Date().toISOString();
+
+    // 所有卡券基本信息
+    const couponsRes = await query(
+      `SELECT id, name, coupon_type, discount_type, discount_value,
+              total_count, claimed_count, status, created_at
+       FROM coupons ORDER BY created_at DESC`
+    );
+    const coupons = couponsRes.rows;
+    if (!coupons.length) return sendOk(res, sendJson, "ok", []);
+
+    const ids = coupons.map(c => c.id);
+
+    // 从 user_coupons 查各券的使用数和过期数
+    const ucRes = await query(
+      `SELECT coupon_id,
+              COUNT(*) FILTER (WHERE product_status = 'used')                          AS used_count,
+              COUNT(*) FILTER (WHERE product_status = 'expired'
+                               OR (expired_at IS NOT NULL AND expired_at < $2)) AS expired_count
+       FROM user_coupons
+       WHERE coupon_id = ANY($1::text[])
+       GROUP BY coupon_id`,
+      [ids, now]
+    );
+    const ucMap = {};
+    for (const r of ucRes.rows) {
+      ucMap[r.coupon_id] = {
+        used_count:    Number(r.used_count),
+        expired_count: Number(r.expired_count),
+      };
+    }
+
+    const rows = coupons.map(c => ({
+      id:            c.id,
+      name:          c.name,
+      coupon_type:   c.coupon_type,
+      discount_type: c.discount_type,
+      discount_value: Number(c.discount_value ?? 0),
+      total_count:   Number(c.total_count ?? 0),
+      claimed_count: Number(c.claimed_count ?? 0),
+      used_count:    ucMap[c.id]?.used_count    ?? 0,
+      expired_count: ucMap[c.id]?.expired_count ?? 0,
+      status:        Number(c.status),
+      created_at:    c.created_at ? new Date(c.created_at).toISOString() : null,
+    }));
+
+    return sendOk(res, sendJson, "ok", rows);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
