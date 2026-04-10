@@ -102,9 +102,13 @@ export default function CouponUserPage() {
     if (!coupon || claiming) return
     setClaiming(true)
     try {
+      const entryCode = searchParams.get('entry_code') || ''
+      const utmSource = searchParams.get('utm_source') || ''
       const res: any = await (request.post('/user/coupons/claim', {
         user_id: getDeviceUserId(),
         coupon_id: coupon.id,
+        ...(entryCode && { source_landing_id: entryCode }),
+        ...(utmSource && { source_channel_id: utmSource }),
       }) as any)
       const data = res?.data || {}
       setAlreadyClaimed(!!data.already_claimed)
@@ -125,7 +129,18 @@ export default function CouponUserPage() {
       if (isFan) {
         await doClaim()
       } else {
-        const redirectTo = `/coupon/${id}?auto=claim`
+        // 透传归因参数，确保关注后回跳时仍有 entry_code + UTM
+        const entryCode = searchParams.get('entry_code') || ''
+        const utmParts = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']
+          .filter(k => searchParams.get(k))
+          .map(k => `${k}=${encodeURIComponent(searchParams.get(k)!)}`)
+          .join('&')
+        const attrSuffix = [
+          entryCode ? `entry_code=${encodeURIComponent(entryCode)}` : '',
+          utmParts,
+        ].filter(Boolean).join('&')
+        const baseTarget = `/coupon/${id}?auto=claim`
+        const redirectTo = attrSuffix ? `${baseTarget}&${attrSuffix}` : baseTarget
         navigate(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(name)}&back=${encodeURIComponent(`/coupon/${id}`)}`)
       }
     } finally {

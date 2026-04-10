@@ -1,42 +1,64 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { useI18n, type AppLanguage } from '../../i18n'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-
-const ACTION_ROUTES: Record<string, string> = {
-  open_welfare: '/welfare',
-  open_nearby: '/nearby',
-}
+const LINE_OA_URL = 'https://line.me/R/ti/p/@cityone'
 
 const UI = {
   zh: {
     defaultButton: '立即关注 LINE OA',
-    processing: '✓ 处理中...',
+    processing: '✓ 正在跳转...',
     noRegister: '无需注册 · 通过 LINE 直接加入',
   },
   th: {
     defaultButton: 'ติดตาม LINE OA เลย',
-    processing: '✓ กำลังดำเนินการ...',
+    processing: '✓ กำลังนำทาง...',
     noRegister: 'ไม่ต้องลงทะเบียน · เข้าร่วมผ่าน LINE ได้เลย',
   },
   en: {
     defaultButton: 'Follow LINE OA Now',
-    processing: '✓ Processing...',
+    processing: '✓ Redirecting...',
     noRegister: 'No registration needed · Join via LINE',
   },
+}
+
+// 从目标 action 推导出目标路径 + auto 触发参数
+function buildTargetPath(tpl: any, landingId: string, utmParams: string): string {
+  const action = tpl.autoAction || tpl.primary_cta_action || ''
+  let base = ''
+  if (action === 'open_activity' && tpl.targetActivityId) {
+    base = `/activity/${tpl.targetActivityId}?auto=participate`
+  } else if (action === 'open_product' && tpl.targetProductId) {
+    base = `/redeem/${tpl.targetProductId}?auto=redeem`
+  } else if (action === 'open_nearby') {
+    base = '/nearby'
+  } else {
+    base = '/welfare'
+  }
+  // 拼接归因参数
+  const sep = base.includes('?') ? '&' : '?'
+  const attribution = `entry_code=${encodeURIComponent(landingId)}${utmParams ? '&' + utmParams : ''}`
+  return base + sep + attribution
 }
 
 export default function LandingTemplatePage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
   const { language } = useI18n()
   const lang = language as AppLanguage
   const ui = UI[lang] || UI.en
   const [tpl, setTpl] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [following, setFollowing] = useState(false)
+
+  // 提取并透传来自广告平台的 UTM 参数
+  const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
+    .filter(k => searchParams.get(k))
+    .map(k => `${k}=${encodeURIComponent(searchParams.get(k)!)}`)
+    .join('&')
 
   useEffect(() => {
     const fetchTpl = async () => {
@@ -54,20 +76,16 @@ export default function LandingTemplatePage() {
   }, [id])
 
   const handleFollow = () => {
-    if (!tpl) return
+    if (!tpl || following) return
     setFollowing(true)
+
+    // 1. 打开 LINE OA（新标签）
+    window.open(LINE_OA_URL, '_blank')
+
+    // 2. 800ms 后跳转到目标详情页（携带归因参数 + auto 触发）
     setTimeout(() => {
-      setFollowing(false)
-      const action = tpl.autoAction
-      if (action === 'open_activity' && tpl.targetActivityId) {
-        nav(`/activity/${tpl.targetActivityId}`)
-      } else if (action === 'open_product' && tpl.targetProductId) {
-        nav(`/redeem/${tpl.targetProductId}`)
-      } else if (ACTION_ROUTES[action]) {
-        nav(ACTION_ROUTES[action])
-      } else {
-        nav('/welfare')
-      }
+      const targetPath = buildTargetPath(tpl, id!, utmParams)
+      nav(targetPath)
     }, 800)
   }
 

@@ -106,10 +106,16 @@ export default function ActivityDetailPage() {
     setParticipating(true)
     try {
       const userId = getDeviceUserId()
+      const entryCode = searchParams.get('entry_code') || ''
+      const utmSource = searchParams.get('utm_source') || ''
       const res = await fetch(`${API_BASE}/api/activities/${id}/participate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId }),
+        body: JSON.stringify({
+          user_id: userId,
+          ...(entryCode && { source_landing_id: entryCode }),
+          ...(utmSource && { source_channel_id: utmSource }),
+        }),
       })
       const json = await res.json()
       setPointsAwarded(json.data?.points_awarded ?? 0)
@@ -137,10 +143,23 @@ export default function ActivityDetailPage() {
           await doParticipate()
         }
       } else {
-        // 未关注：跳到关注页，回跳目标根据类型决定
-        const redirectTo = isInteractive && typeInfoML.route
+        // 未关注：跳到关注页，回跳目标携带归因参数透传
+        const entryCode = searchParams.get('entry_code') || ''
+        const utmParts = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']
+          .filter(k => searchParams.get(k))
+          .map(k => `${k}=${encodeURIComponent(searchParams.get(k)!)}`)
+          .join('&')
+        const attrSuffix = [
+          entryCode ? `entry_code=${encodeURIComponent(entryCode)}` : '',
+          utmParts,
+        ].filter(Boolean).join('&')
+
+        const baseTarget = isInteractive && typeInfoML.route
           ? `${typeInfoML.route}${id}`
           : `/activity/${id}?auto=participate`
+        const redirectTo = attrSuffix
+          ? `${baseTarget}${baseTarget.includes('?') ? '&' : '?'}${attrSuffix}`
+          : baseTarget
         nav(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(title)}&back=${encodeURIComponent(`/activity/${id}`)}`)
       }
     } finally {

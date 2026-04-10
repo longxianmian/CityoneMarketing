@@ -279,13 +279,16 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
         }
       }
 
-      // 4. 写领取记录
+      // 4. 写领取记录（含落地页/渠道归因）
       const ucId = `up_coupon_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+      const srcLandingId = body.source_landing_id || "";
+      const srcChannelId = body.source_channel_id || "";
       const ucRes = await client.query(`
         INSERT INTO user_coupons
           (id, user_id, line_user_id, coupon_id, product_status, source_type, source_id,
+           source_landing_id, source_channel_id,
            a_system_user_id, claimed_at, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, 'claimed', 'coupon_claim', $5, $6, $7, $7, $7)
+        VALUES ($1, $2, $3, $4, 'claimed', 'coupon_claim', $5, $6, $7, $8, $9, $9, $9)
         RETURNING *
       `, [
         ucId,
@@ -293,6 +296,8 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
         body.line_user_id || userId,
         couponId,
         couponId,
+        srcLandingId,
+        srcChannelId,
         body.a_system_user_id || null,
         now,
       ]);
