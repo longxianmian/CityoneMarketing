@@ -40,8 +40,8 @@ export default function RedeemStatsPage() {
         request.get('/growth/mall/items', { params: { pageSize: 500 } }),
         request.get('/growth/mall/orders', { params: { pageSize: 500 } }),
       ])
-      const itemList = itemsRes.data?.items || itemsRes.data || []
-      const orderList = ordersRes.data?.items || ordersRes.data || []
+      const itemList = itemsRes.data?.list || itemsRes.data?.items || (Array.isArray(itemsRes.data) ? itemsRes.data : [])
+      const orderList = ordersRes.data?.list || ordersRes.data?.items || (Array.isArray(ordersRes.data) ? ordersRes.data : [])
       setItems(itemList)
       setOrders(orderList)
     } catch {
