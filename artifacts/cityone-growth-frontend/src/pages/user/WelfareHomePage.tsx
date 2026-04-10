@@ -59,12 +59,12 @@ function getCityLabel(cityCode: string, lang: AppLanguage) {
 // 图片 URL 须用 backgroundImage + url() 才能正确显示
 function coverBgStyle(cover: string, position = 'center'): React.CSSProperties {
   if (cover && /^(https?:\/\/|\/)/.test(cover)) {
-    return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: position }
+    return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: position, backgroundColor: '#f0f0f0' }
   }
   if (cover && cover.includes('gradient')) {
     return { background: cover }
   }
-  return {}
+  return { backgroundColor: '#f0f0f0' }
 }
 
 // ---------- 卡片组件 ----------
@@ -130,7 +130,6 @@ function WaterfallCard({
             flex: '0 0 55%',
             ...coverBgStyle(resolvedCover || '', 'center'),
             position: 'relative',
-            background: resolvedCover ? undefined : '#f5f5f5',
           }}
         >
           {null}
