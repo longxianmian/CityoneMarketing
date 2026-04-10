@@ -35,6 +35,13 @@ import {
   handleQrAssetList
 } from "./routes/entries.js";
 import {
+  handlePromoList,
+  handlePromoStats,
+  handlePromoCreate,
+  handlePromoUpdate,
+  handlePromoDelete,
+} from "./routes/station-promo.js";
+import {
   handleGameProgramList,
   handleGameProgramCreate,
   handleGameProgramUpdate,
@@ -653,6 +660,18 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/entries/qrs") {
       return handleQrAssetList(req, res, url, sendJson);
     }
+
+    // ── 站点推广码（桌贴/海报/店员）──────────────────────────────────────────
+    if (req.method === "GET"  && url.pathname === "/api/growth/station-promo/list")
+      return handlePromoList(req, res, url, sendJson);
+    if (req.method === "GET"  && url.pathname === "/api/growth/station-promo/stats")
+      return handlePromoStats(req, res, url, sendJson);
+    if (req.method === "POST" && url.pathname === "/api/growth/station-promo/create")
+      return handlePromoCreate(req, res, url, sendJson, readBody);
+    if (req.method === "POST" && url.pathname === "/api/growth/station-promo/update")
+      return handlePromoUpdate(req, res, url, sendJson, readBody);
+    if (req.method === "POST" && url.pathname === "/api/growth/station-promo/delete")
+      return handlePromoDelete(req, res, url, sendJson, readBody);
 
     if (req.method === "POST" && url.pathname === "/api/routes") {
       return handleRouteCreate(req, res, url, sendJson, readBody);

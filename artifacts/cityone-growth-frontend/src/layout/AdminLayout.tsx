@@ -180,10 +180,7 @@ export default function AdminLayout() {
         icon: <NodeIndexOutlined />,
         label: lt('entryDistrib'),
         children: [
-          { key: '/admin/growth/entry-center', label: lt('entryCenter') },
-          { key: '/admin/growth/route-center', label: lt('routeCenter') },
-          { key: '/admin/entry/qrcode', label: lt('qrcodeAssets') },
-          { key: '/admin/entry/oa-guide', label: lt('oaGuide') },
+          { key: '/admin/growth/station-promo', label: lt('stationPromo') },
         ],
       },
       // === 4. 激励与归因 ===

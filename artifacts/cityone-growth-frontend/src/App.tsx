@@ -43,6 +43,7 @@ const GrowthReport = lazy(() => import('./features/growth/GrowthReport'))
 const LineConfig = lazy(() => import('./features/growth/LineConfig'))
 const EntryCenter = lazy(() => import('./features/growth/EntryCenter'))
 const RouteCenter = lazy(() => import('./features/growth/RouteCenter'))
+const StationPromoPage = lazy(() => import('./features/growth/StationPromoPage'))
 const AgentConfigManage = lazy(() => import('./features/growth/AgentConfigManage'))
 const AgentIntentManage = lazy(() => import('./features/growth/AgentIntentManage'))
 const AgentToolManage = lazy(() => import('./features/growth/AgentToolManage'))
@@ -143,6 +144,7 @@ export default function App() {
           <Route path="growth/product-templates" element={<ProductTemplateManage />} />
 
           {/* 入口与分发 */}
+          <Route path="growth/station-promo" element={<StationPromoPage />} />
           <Route path="growth/entry-center" element={<EntryCenter />} />
           <Route path="growth/route-center" element={<RouteCenter />} />
           <Route path="entry/qrcode" element={<CS title="二维码资产" description="QR Code 批次管理与资产库，阶段二实现" />} />
