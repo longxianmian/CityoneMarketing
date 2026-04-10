@@ -101,16 +101,18 @@ export async function handleCreateMallItem(req, res, sendJson, body) {
 
     const result = await query(`
       INSERT INTO mall_items
-        (id, name, item_type, exchange_mode, price_thb, points_required, stock,
+        (id, name, item_type, sub_type, is_flash_sale, exchange_mode, price_thb, points_required, stock,
          on_shelf, cover_image, cover_video, description, detail_title, highlights,
          rules, tag, badge, sort_order, created_at, updated_at)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),NOW())
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
       RETURNING *
     `, [
       generateId(),
       toJsonb(body.name) || "",
       body.item_type     || "digital",
+      body.sub_type      || null,
+      body.is_flash_sale === true || body.is_flash_sale === "true",
       body.exchange_mode || "points",
       body.price_thb     != null ? Number(body.price_thb)     : null,
       body.points_required != null ? Number(body.points_required) : null,
@@ -148,6 +150,8 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
 
     if (body.name             != null) addSet("name",            toJsonb(body.name));
     if (body.item_type        != null) addSet("item_type",       body.item_type);
+    if (body.sub_type         !== undefined) addSet("sub_type",  body.sub_type || null);
+    if (body.is_flash_sale    != null) addSet("is_flash_sale",   body.is_flash_sale === true || body.is_flash_sale === "true");
     if (body.exchange_mode    != null) addSet("exchange_mode",   body.exchange_mode);
     if (body.price_thb        != null) addSet("price_thb",       Number(body.price_thb));
     if (body.points_required  != null) addSet("points_required", Number(body.points_required));

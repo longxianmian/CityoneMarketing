@@ -23,10 +23,17 @@ export default function PointsMallManage() {
   const pm = (key: string) => t(`pointsMall.${key}`)
 
   const typeOptions = [
-    { label: pm('typeCoupon'), value: 'voucher' },
-    { label: pm('typeAI'), value: 'ai' },
+    { label: pm('typeDigital'), value: 'digital' },
     { label: pm('typePhysical'), value: 'physical' },
-    { label: pm('typeFlash'), value: 'flash' },
+  ]
+
+  const subTypeOptions = [
+    { label: pm('subTypeCoupon'),      value: 'coupon_code' },
+    { label: pm('subTypeMembership'),  value: 'membership' },
+    { label: pm('subTypeMedia'),       value: 'media' },
+    { label: pm('subTypePlatformCard'),value: 'platform_card' },
+    { label: pm('subTypeAiBenefit'),   value: 'ai_benefit' },
+    { label: pm('subTypeOther'),       value: 'other' },
   ]
 
   const modeOptions = [
@@ -43,8 +50,11 @@ export default function PointsMallManage() {
   ]
 
   const typeColor: Record<string, string> = {
-    voucher: 'orange', ai: 'blue', physical: 'green', flash: 'red',
+    digital: 'blue', physical: 'green',
+    voucher: 'blue', ai: 'blue', flash: 'blue',
   }
+
+  const [itemType, setItemType] = useState<string>('digital')
 
   const getOrderStatusInfo = (status: string): { text: string; color: string } => ({
     pending: { text: pm('orderPending'), color: 'orange' },
@@ -112,7 +122,8 @@ export default function PointsMallManage() {
   const handleAdd = () => {
     setEditItem(null)
     form.resetFields()
-    form.setFieldsValue({ item_type: 'voucher', exchange_mode: 'points', thumbTone: 'slate', on_shelf: true, stock: 100, points_required: 1000, price_thb: 0, valueBaht: 0, heat: 0, sort_order: 0, _sourceLang: language || 'zh' })
+    form.setFieldsValue({ item_type: 'digital', sub_type: 'coupon_code', is_flash_sale: false, exchange_mode: 'points', thumbTone: 'slate', on_shelf: true, stock: 100, points_required: 1000, price_thb: 0, valueBaht: 0, heat: 0, sort_order: 0, _sourceLang: language || 'zh' })
+    setItemType('digital')
     setCoverImage('')
     setModalOpen(true)
   }
@@ -120,8 +131,13 @@ export default function PointsMallManage() {
   const handleEdit = (record: any) => {
     setEditItem(record)
     const sl = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
+    const resolvedType = ['digital','physical'].includes(record.item_type) ? record.item_type : 'digital'
+    setItemType(resolvedType)
     form.setFieldsValue({
       ...record,
+      item_type: resolvedType,
+      sub_type: record.sub_type || undefined,
+      is_flash_sale: !!record.is_flash_sale,
       _sourceLang: sl,
       name: pickText(record.name, sl),
       highlights: pickText(record.highlights, sl),
@@ -219,8 +235,18 @@ export default function PointsMallManage() {
       },
     },
     {
-      title: pm('colType'), dataIndex: 'item_type', key: 'item_type', width: 90,
-      render: (v: string) => <Tag color={typeColor[v] || 'default'}>{typeOptions.find(x => x.value === v)?.label || v}</Tag>,
+      title: pm('colType'), key: 'item_type', width: 130,
+      render: (_: any, r: any) => {
+        const typeLabel = typeOptions.find(x => x.value === r.item_type)?.label || r.item_type
+        const subLabel  = r.sub_type ? subTypeOptions.find(x => x.value === r.sub_type)?.label : null
+        return (
+          <Space direction="vertical" size={2}>
+            <Tag color={typeColor[r.item_type] || 'default'} style={{ marginBottom: 0 }}>{typeLabel}</Tag>
+            {subLabel && <Tag color="default" style={{ fontSize: 11, marginTop: 2 }}>{subLabel}</Tag>}
+            {r.is_flash_sale && <Tag color="red" style={{ fontSize: 11, marginTop: 2 }}>限时促销</Tag>}
+          </Space>
+        )
+      },
     },
     {
       title: pm('colMode'), dataIndex: 'exchange_mode', key: 'exchange_mode', width: 100,
@@ -293,12 +319,26 @@ export default function PointsMallManage() {
                   <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
                     <div style={{ display: 'flex', gap: 16 }}>
                       <Form.Item name="item_type" label={pm('formType')} style={{ flex: 1 }} rules={[{ required: true }]}>
-                        <Select options={typeOptions} />
+                        <Select
+                          options={typeOptions}
+                          onChange={(v: string) => {
+                            setItemType(v)
+                            if (v === 'physical') form.setFieldsValue({ sub_type: undefined })
+                          }}
+                        />
                       </Form.Item>
                       <Form.Item name="exchange_mode" label={pm('formMode')} style={{ flex: 1 }}>
                         <Select options={modeOptions} />
                       </Form.Item>
                     </div>
+                    {itemType === 'digital' && (
+                      <Form.Item name="sub_type" label={pm('formSubType')}>
+                        <Select options={subTypeOptions} allowClear placeholder="选择数字商品小类（可选）" />
+                      </Form.Item>
+                    )}
+                    <Form.Item name="is_flash_sale" label={pm('formIsFlashSale')} valuePropName="checked" initialValue={false}>
+                      <Switch checkedChildren="限时促销" unCheckedChildren="普通" />
+                    </Form.Item>
                     <Form.Item name="name" label={pm('formTitle')} rules={[{ required: true }]}>
                       <Input placeholder="商品名称 / ชื่อสินค้า / Product name" />
                     </Form.Item>
