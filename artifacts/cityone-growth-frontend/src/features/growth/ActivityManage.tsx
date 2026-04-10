@@ -8,7 +8,7 @@ import {
   SearchOutlined, ReloadOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
   ShareAltOutlined, TrophyOutlined, TeamOutlined, UserOutlined,
   CrownOutlined, PictureOutlined, VideoCameraOutlined,
-  FireOutlined, GiftOutlined, StarOutlined,
+  FireOutlined, GiftOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import SharePromoModal from '../../components/SharePromoModal'
@@ -53,7 +53,6 @@ export default function ActivityManage() {
     { value: 'general', label: am('typeGeneral'), color: 'default' },
     { value: 'lucky_wheel', label: am('typeWheel'), color: 'orange' },
     { value: 'scratch_card', label: am('typeScratch'), color: 'blue' },
-    { value: 'thai_fortune_draw', label: am('typeFortune'), color: 'purple' },
   ]
 
   const modeOptions = [
@@ -139,7 +138,7 @@ export default function ActivityManage() {
   const [gameProgramLoading, setGameProgramLoading] = useState(false)
   const activityTypeInForm = Form.useWatch('activityType', form)
 
-  const GAME_TYPES_SET = new Set(['lucky_wheel', 'scratch_card', 'thai_fortune_draw'])
+  const GAME_TYPES_SET = new Set(['lucky_wheel', 'scratch_card'])
 
   useEffect(() => {
     if (activityTypeInForm && GAME_TYPES_SET.has(activityTypeInForm)) {
@@ -379,8 +378,7 @@ export default function ActivityManage() {
       title: am('colAction'), key: 'action', width: 300, fixed: 'right' as const,
       render: (_: any, record: any) => {
         const aType = record.activityType || 'general'
-        const isInteractive = ['lucky_wheel', 'scratch_card', 'thai_fortune_draw'].includes(aType)
-        const isFortune = aType === 'thai_fortune_draw'
+        const isInteractive = ['lucky_wheel', 'scratch_card'].includes(aType)
         return (
           <Space size="small" wrap>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>{am('btnEdit')}</Button>
@@ -406,7 +404,7 @@ export default function ActivityManage() {
               {record.status === 'active' ? am('btnOffline') : am('btnOnline')}
             </Button>
             <Button type="link" size="small" icon={<ShareAltOutlined />} onClick={() => setShareRecord(record)} style={{ color: '#06C755' }}>{am('btnPromo')}</Button>
-            {isInteractive && !isFortune && (
+            {isInteractive && (
               <Tooltip title={am('tipPrizePool')}>
                 <Button
                   type="link" size="small" icon={<GiftOutlined />}
@@ -417,11 +415,6 @@ export default function ActivityManage() {
                   }}
                   style={{ color: '#fa8c16' }}
                 >{am('btnPrizePool')}</Button>
-              </Tooltip>
-            )}
-            {isFortune && (
-              <Tooltip title={am('tipFortunePool')}>
-                <Button type="link" size="small" icon={<StarOutlined />} onClick={() => nav(`/admin/growth/fortune-sign?activityId=${record.id}`)} style={{ color: '#722ed1' }}>{am('btnFortunePool')}</Button>
               </Tooltip>
             )}
             {isInteractive && (
@@ -715,26 +708,6 @@ export default function ActivityManage() {
                       </Form.Item>
                     </Col>
                   </Row>
-                </>
-              )
-              if (aType === 'thai_fortune_draw') return (
-                <>
-                  <Divider orientation="left" orientationMargin={0}><span style={{ fontSize: 13, color: '#722ed1' }}>🏮 {am('sectionFortune')}</span></Divider>
-                  <Row gutter={16}>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="defaultChances" label={am('formDefaultChances')}>
-                        <InputNumber min={1} max={99} style={{ width: '100%' }} placeholder={am('formDefaultChancesHint')} />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="allowMultipleDraws" label={am('formMultiDraws')} valuePropName="checked" initialValue={false}>
-                        <Switch />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Form.Item name="defaultThemeId" label={am('formDefaultTheme')}>
-                    <Input placeholder={am('formDefaultThemeHint')} />
-                  </Form.Item>
                 </>
               )
               return null

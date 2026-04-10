@@ -87,18 +87,12 @@ import {
   handlePrizeCreate,
   handlePrizeUpdate,
   handlePrizeDelete,
-  handleFortuneThemeList,
-  handleFortuneThemeCreate,
-  handleSignList,
-  handleSignCreate,
   handleGrantChance,
   handleGetUserChances,
   handleWheelStart,
   handleWheelDraw,
   handleScratchStart,
-  handleScratchReveal,
-  handleFortuneStart,
-  handleFortuneDraw
+  handleScratchReveal
 } from "./routes/interactions.js";
 import {
   handleUserPointsSummary,
@@ -934,18 +928,6 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "DELETE" && /^\/api\/activity-prizes\/[^/]+$/.test(url.pathname)) {
       return handlePrizeDelete(req, res, url, sendJson);
     }
-    if (req.method === "GET" && url.pathname === "/api/activity-fortune-themes") {
-      return handleFortuneThemeList(req, res, url, sendJson);
-    }
-    if (req.method === "POST" && url.pathname === "/api/activity-fortune-themes") {
-      return handleFortuneThemeCreate(req, res, url, sendJson, readBody);
-    }
-    if (req.method === "GET" && url.pathname === "/api/activity-signs") {
-      return handleSignList(req, res, url, sendJson);
-    }
-    if (req.method === "POST" && url.pathname === "/api/activity-signs") {
-      return handleSignCreate(req, res, url, sendJson, readBody);
-    }
     if (req.method === "POST" && url.pathname === "/api/activity-chances/grant") {
       return handleGrantChance(req, res, url, sendJson, readBody);
     }
@@ -983,13 +965,6 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/activity/scratch/reveal") {
       return handleScratchReveal(req, res, url, sendJson, readBody);
     }
-    if (req.method === "POST" && url.pathname === "/api/activity/fortune/start") {
-      return handleFortuneStart(req, res, url, sendJson, readBody);
-    }
-    if (req.method === "POST" && url.pathname === "/api/activity/fortune/draw") {
-      return handleFortuneDraw(req, res, url, sendJson, readBody);
-    }
-
     // ── AI Agent 用户端 ──────────────────────────────────────────────────────
     if (req.method === "POST" && url.pathname === "/api/agent/session/init") {
       return handleAgentSessionInit(req, res, url, sendJson, readBody);

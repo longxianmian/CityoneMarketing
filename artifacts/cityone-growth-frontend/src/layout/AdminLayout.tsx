@@ -135,7 +135,6 @@ export default function AdminLayout() {
               { key: '/admin/growth/activity', label: lt('activityInstances') },
               { key: '/admin/growth/stations', label: '站点管理', icon: <EnvironmentOutlined /> },
               { key: '/admin/welfare/game', label: lt('gamePrograms') },
-              { key: '/admin/growth/fortune-sign', label: lt('fortuneSign') },
               { key: '/admin/growth/interaction-records', label: lt('interactiveResources') },
             ],
           },

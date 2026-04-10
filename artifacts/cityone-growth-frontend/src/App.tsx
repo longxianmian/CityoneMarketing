@@ -48,7 +48,6 @@ const AgentToolManage = lazy(() => import('./features/growth/AgentToolManage'))
 const AgentLogManage = lazy(() => import('./features/growth/AgentLogManage'))
 const AgentMetrics = lazy(() => import('./features/growth/AgentMetrics'))
 const PrizePoolManage = lazy(() => import('./features/growth/PrizePoolManage'))
-const FortuneSignManage = lazy(() => import('./features/growth/FortuneSignManage'))
 const InteractionRecords = lazy(() => import('./features/growth/InteractionRecords'))
 const UserChancesManage = lazy(() => import('./features/growth/UserChancesManage'))
 const CouponStatsPage = lazy(() => import('./features/growth/CouponStatsPage'))
@@ -138,7 +137,6 @@ export default function App() {
           <Route path="welfare/coupon-stats" element={<CouponStatsPage />} />
           <Route path="welfare/banners" element={<BannerManage />} />
           <Route path="growth/points/mall" element={<PointsMallManage />} />
-          <Route path="growth/fortune-sign" element={<FortuneSignManage />} />
           <Route path="welfare/redeem-stats" element={<RedeemStatsPage />} />
           <Route path="growth/product-templates" element={<ProductTemplateManage />} />
 
