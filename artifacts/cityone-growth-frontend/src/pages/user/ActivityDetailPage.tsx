@@ -44,6 +44,12 @@ export default function ActivityDetailPage() {
   const [alreadyJoined, setAlreadyJoined] = useState(false)
   const [participating, setParticipating] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [fanChecked, setFanChecked] = useState<boolean | null>(null)
+
+  // 页面加载时就预查 fan 状态，消除按钮点击时的等待延迟
+  useEffect(() => {
+    checkFanStatus(getDeviceUserId()).then(setFanChecked)
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -128,12 +134,13 @@ export default function ActivityDetailPage() {
     }
   }
 
-  // 核心：点击操作按钮 → 先检查粉丝身份，再决定路径
+  // 核心：点击操作按钮 → 使用预加载结果（或按需查询）决定路径
   const handleAction = async () => {
     setChecking(true)
     try {
       const userId = getDeviceUserId()
-      const isFan = await checkFanStatus(userId)
+      // 优先使用页面加载时已预查的结果，避免点击延迟
+      const isFan = fanChecked !== null ? fanChecked : await checkFanStatus(userId)
 
       if (isFan) {
         // 已关注：直接执行

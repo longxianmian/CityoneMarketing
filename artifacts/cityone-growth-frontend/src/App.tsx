@@ -21,7 +21,6 @@ const SystemDescPage = lazy(() => import('./pages/user/SystemDescPage'))
 const UserAgreementPage = lazy(() => import('./pages/user/UserAgreementPage'))
 const PrivacyPolicyPage = lazy(() => import('./pages/user/PrivacyPolicyPage'))
 const AboutUsPage = lazy(() => import('./pages/user/AboutUsPage'))
-const LandingTemplatePage = lazy(() => import('./pages/user/LandingTemplatePage'))
 const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
 const FollowOAPage = lazy(() => import('./pages/user/FollowOAPage'))
 const ScratchCardPage = lazy(() => import('./pages/user/ScratchCardPage'))
@@ -55,7 +54,6 @@ const UserChancesManage = lazy(() => import('./features/growth/UserChancesManage
 const CouponStatsPage = lazy(() => import('./features/growth/CouponStatsPage'))
 const RedeemStatsPage = lazy(() => import('./features/growth/RedeemStatsPage'))
 const BannerManage = lazy(() => import('./features/growth/BannerManage'))
-const LandingTemplateManage = lazy(() => import('./features/growth/LandingTemplateManage'))
 const ProductTemplateManage = lazy(() => import('./features/growth/ProductTemplateManage'))
 const GameProgram = lazy(() => import('./features/growth/GameProgram'))
 const ComingSoon = lazy(() => import('./features/growth/ComingSoon'))
@@ -102,7 +100,6 @@ export default function App() {
         <Route path="/my-points" element={<Navigate to="/mine?tab=member" replace />} />
         <Route path="/redeem/:id" element={<ProductDetailPage />} />
         <Route path="/follow-oa" element={<FollowOAPage />} />
-        <Route path="/landing/:id" element={<LandingTemplatePage />} />
         <Route path="/system-desc" element={<SystemDescPage />} />
         <Route path="/user-agreement" element={<UserAgreementPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -146,7 +143,6 @@ export default function App() {
           <Route path="growth/product-templates" element={<ProductTemplateManage />} />
 
           {/* 入口与分发 */}
-          <Route path="growth/landing-templates" element={<LandingTemplateManage />} />
           <Route path="growth/entry-center" element={<EntryCenter />} />
           <Route path="growth/route-center" element={<RouteCenter />} />
           <Route path="entry/qrcode" element={<CS title="二维码资产" description="QR Code 批次管理与资产库，阶段二实现" />} />

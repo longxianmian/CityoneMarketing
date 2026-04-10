@@ -66,7 +66,13 @@ export default function RedeemUserPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [checking, setChecking] = useState(false)
   const [acting, setActing] = useState(false)
+  const [fanChecked, setFanChecked] = useState<boolean | null>(null)
   const resolvedCoverImage = useOssUrl(item?.cover_image)
+
+  // 页面加载时就预查 fan 状态，消除点击延迟
+  useEffect(() => {
+    checkFanStatus(getDeviceUserId()).then(setFanChecked)
+  }, [])
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -120,9 +126,17 @@ export default function RedeemUserPage() {
     setChecking(true)
     try {
       const userId = getDeviceUserId()
-      const isFan = await checkFanStatus(userId)
+      // 优先使用页面加载时已预查的结果，避免点击延迟
+      const isFan = fanChecked !== null ? fanChecked : await checkFanStatus(userId)
       if (!isFan) {
-        const redirectTo = `/redeem/${id}?auto=redeem`
+        const entryCode = searchParams.get('entry_code') || ''
+        const utmParts = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']
+          .filter(k => searchParams.get(k))
+          .map(k => `${k}=${encodeURIComponent(searchParams.get(k)!)}`)
+          .join('&')
+        const attrSuffix = [entryCode ? `entry_code=${encodeURIComponent(entryCode)}` : '', utmParts].filter(Boolean).join('&')
+        const baseTarget = `/redeem/${id}?auto=redeem`
+        const redirectTo = attrSuffix ? `${baseTarget}&${attrSuffix}` : baseTarget
         navigate(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(itemName)}&back=${encodeURIComponent(`/redeem/${id}`)}`)
         return
       }

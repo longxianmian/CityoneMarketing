@@ -35,16 +35,6 @@ import {
   handleQrAssetList
 } from "./routes/entries.js";
 import {
-  handleLandingTemplateList,
-  handleLandingTemplateGet,
-  handleLandingTemplateCreate,
-  handleLandingTemplateUpdate,
-  handleLandingTemplateDelete,
-  handleCreativeBindingList,
-  handleCreativeBindingCreate,
-  handleFollowSuccessDispatch
-} from "./routes/landing.js";
-import {
   handleGameProgramList,
   handleGameProgramCreate,
   handleGameProgramUpdate,
@@ -752,32 +742,6 @@ const server = http.createServer(async (req, res) => {
         hasChannelSecret: !!nextConfig.channelSecret,
         hasChannelAccessToken: !!nextConfig.channelAccessToken
       }, "保存成功");
-    }
-
-    // ── 落地页模板层 ─────────────────────────────────────────────────────────
-    if (req.method === "GET" && url.pathname === "/api/landing-templates") {
-      return handleLandingTemplateList(req, res, url, sendJson);
-    }
-    if (req.method === "GET" && /^\/api\/landing-templates\/[^/]+$/.test(url.pathname)) {
-      return handleLandingTemplateGet(req, res, url, sendJson);
-    }
-    if (req.method === "POST" && url.pathname === "/api/landing-templates") {
-      return handleLandingTemplateCreate(req, res, url, sendJson, readBody);
-    }
-    if (req.method === "PUT" && /^\/api\/landing-templates\/[^/]+$/.test(url.pathname)) {
-      return handleLandingTemplateUpdate(req, res, url, sendJson, readBody);
-    }
-    if (req.method === "DELETE" && /^\/api\/landing-templates\/[^/]+$/.test(url.pathname)) {
-      return handleLandingTemplateDelete(req, res, url, sendJson);
-    }
-    if (req.method === "GET" && url.pathname === "/api/creative-landing-bindings") {
-      return handleCreativeBindingList(req, res, url, sendJson);
-    }
-    if (req.method === "POST" && url.pathname === "/api/creative-landing-bindings") {
-      return handleCreativeBindingCreate(req, res, url, sendJson, readBody);
-    }
-    if (req.method === "POST" && url.pathname === "/api/follow/success-dispatch") {
-      return handleFollowSuccessDispatch(req, res, url, sendJson, readBody);
     }
 
     // ── 广告 Banner ──────────────────────────────────────────────────────────

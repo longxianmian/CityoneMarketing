@@ -74,6 +74,12 @@ export default function CouponUserPage() {
   const [step, setStep] = useState<Step>('detail')
   const [alreadyClaimed, setAlreadyClaimed] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [fanChecked, setFanChecked] = useState<boolean | null>(null)
+
+  // 页面加载时就预查 fan 状态，消除点击延迟
+  useEffect(() => {
+    checkFanStatus(getDeviceUserId()).then(setFanChecked)
+  }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -120,12 +126,12 @@ export default function CouponUserPage() {
     }
   }
 
-  // 核心：检查粉丝身份 → 已关注直接领，未关注跳关注页
+  // 核心：使用预加载 fan 结果 → 已关注直接领，未关注跳关注页
   const handleClaim = async () => {
     setChecking(true)
     try {
       const userId = getDeviceUserId()
-      const isFan = await checkFanStatus(userId)
+      const isFan = fanChecked !== null ? fanChecked : await checkFanStatus(userId)
       if (isFan) {
         await doClaim()
       } else {

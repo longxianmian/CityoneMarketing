@@ -166,7 +166,6 @@ export default function AdminLayout() {
         icon: <NodeIndexOutlined />,
         label: lt('entryDistrib'),
         children: [
-          { key: '/admin/growth/landing-templates', label: lt('entryTemplates') },
           { key: '/admin/growth/entry-center', label: lt('entryCenter') },
           { key: '/admin/growth/route-center', label: lt('routeCenter') },
           { key: '/admin/entry/qrcode', label: lt('qrcodeAssets') },
