@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
-import { Card, Table, Input, Button, Space, Tag, Row, Col, Modal, Form, message, InputNumber, Select, DatePicker, Divider } from 'antd'
-import { SearchOutlined, ReloadOutlined, PlusOutlined, ExclamationCircleOutlined, PictureOutlined, VideoCameraOutlined, ShareAltOutlined } from '@ant-design/icons'
+import { Card, Table, Input, Button, Space, Tag, Row, Col, Modal, Form, message, InputNumber, Select, DatePicker, Divider, Popconfirm } from 'antd'
+import { SearchOutlined, ReloadOutlined, PlusOutlined, PictureOutlined, VideoCameraOutlined, ShareAltOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import StationScopeSelect, { type StationScope } from '../../components/StationScopeSelect'
 import MediaUploadField from '../../components/MediaUploadField'
@@ -157,17 +157,13 @@ export default function CouponManage() {
     }
   }
 
-  const handleDelete = (record: any) => {
-    Modal.confirm({
-      title: t('couponManage.deleteTitle'),
-      icon: <ExclamationCircleOutlined />,
-      content: `确定要删除券「${pickML(record.name)}」吗？`,
-      onOk: async () => {
-        await request.post('/growth/coupon/delete', { id: record.id })
-        message.success(t('couponManage.msgDeleteOk'))
-        fetchData()
-      },
-    })
+  const handleDelete = async (record: any) => {
+    try {
+      await request.post('/growth/coupon/delete', { id: record.id })
+      message.success(t('couponManage.msgDeleteOk'))
+      setData(prev => prev.filter(d => d.id !== record.id))
+      setTotal(prev => Math.max(0, prev - 1))
+    } catch (e: any) {}
   }
 
   const columns = [
@@ -222,7 +218,9 @@ export default function CouponManage() {
         <Space size="small">
           <Button type="link" size="small" onClick={() => handleEdit(record)}>{t('couponManage.actionEdit')}</Button>
           <Button type="link" size="small" icon={<ShareAltOutlined />} onClick={() => setShareRecord(record)} style={{ color: '#06C755' }}>{t('couponManage.actionPromo')}</Button>
-          <Button type="link" size="small" danger onClick={() => handleDelete(record)}>{t('couponManage.actionDelete')}</Button>
+          <Popconfirm title={t('couponManage.deleteTitle')} onConfirm={() => handleDelete(record)} okText="确定" cancelText="取消">
+            <Button type="link" size="small" danger>{t('couponManage.actionDelete')}</Button>
+          </Popconfirm>
         </Space>
       ),
     },

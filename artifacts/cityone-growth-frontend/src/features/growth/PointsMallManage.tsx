@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, InputNumber,
-  Select, Switch, Tabs, message, Descriptions, Tooltip
+  Select, Switch, Tabs, message, Descriptions, Tooltip, Popconfirm
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, ShareAltOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons'
 import request from '../../api/request'
@@ -189,15 +189,14 @@ export default function PointsMallManage() {
   }
 
   const handleDelete = async (record: any) => {
-    Modal.confirm({
-      title: pm('confirmDelete'),
-      onOk: async () => {
-        try {
-          await request.delete(`/growth/mall/items/${record.id}`)
-          message.success(pm('deleteSuccess')); loadItems(1)
-        } catch { message.error(pm('deleteFail')) }
-      },
-    })
+    try {
+      await request.delete(`/growth/mall/items/${record.id}`)
+      message.success(pm('deleteSuccess'))
+      setItems(prev => prev.filter(i => i.id !== record.id))
+      setItemTotal(prev => Math.max(0, prev - 1))
+    } catch {
+      message.error(pm('deleteFail'))
+    }
   }
 
   const itemColumns = [
@@ -249,7 +248,9 @@ export default function PointsMallManage() {
           <Tooltip title={pm('btnShare')}>
             <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleShareItem(r)} />
           </Tooltip>
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)} />
+          <Popconfirm title={pm('confirmDelete')} onConfirm={() => handleDelete(r)} okText="确定" cancelText="取消">
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
         </Space>
       ),
     },

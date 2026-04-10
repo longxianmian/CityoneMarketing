@@ -2,6 +2,7 @@ import React, { useState, useId, useEffect, useRef } from 'react'
 import { Button, message } from 'antd'
 import { UploadOutlined, LoadingOutlined, VideoCameraOutlined } from '@ant-design/icons'
 import { isObjectKey, fetchSignedUrl } from './OssImage'
+import { getToken } from '../store/auth'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 

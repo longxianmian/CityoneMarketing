@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, InputNumber,
-  Select, Switch, message, Image
+  Select, Switch, message, Image, Popconfirm
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, LinkOutlined } from '@ant-design/icons'
 import request from '../../api/request'
@@ -131,17 +131,12 @@ export default function BannerManage() {
     }
   }
 
-  const handleDelete = (record: any) => {
-    Modal.confirm({
-      title: bm('confirmDelete'),
-      onOk: async () => {
-        try {
-          await request.delete(`/growth/banners/${record.id}`)
-          message.success(bm('deleteSuccess'))
-          loadItems()
-        } catch { message.error(bm('deleteFail')) }
-      },
-    })
+  const handleDelete = async (record: any) => {
+    try {
+      await request.delete(`/growth/banners/${record.id}`)
+      message.success(bm('deleteSuccess'))
+      loadItems()
+    } catch { message.error(bm('deleteFail')) }
   }
 
   const lang = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
@@ -188,7 +183,9 @@ export default function BannerManage() {
       render: (_: any, r: any) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>{bm('btnEdit')}</Button>
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)} />
+          <Popconfirm title={bm('confirmDelete')} onConfirm={() => handleDelete(r)} okText="确定" cancelText="取消">
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
         </Space>
       ),
     },
