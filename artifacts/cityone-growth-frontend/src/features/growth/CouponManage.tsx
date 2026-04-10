@@ -96,6 +96,7 @@ export default function CouponManage() {
       _sourceLang: sl,
       name: pickML(record.name, sl),
       couponType: record.coupon_type,
+      itemType: record.item_type || 'digital',
       discountType: record.discount_type,
       discountValue: Number(record.discount_value),
       minAmount: Number(record.min_amount) || 0,
@@ -282,12 +283,20 @@ export default function CouponManage() {
             <Select options={LANG_OPTIONS} style={{ width: 160 }} />
           </Form.Item>
           <Row gutter={16}>
-            <Col xs={24} sm={12}>
+            <Col xs={24} sm={8}>
               <Form.Item name="couponType" label={t('couponManage.formType')} rules={[{ required: true }]}>
                 <Select options={Object.entries(couponTypeMap).map(([k, v]) => ({ value: k, label: v }))} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col xs={24} sm={8}>
+              <Form.Item name="itemType" label="商品类型" initialValue="digital" rules={[{ required: true }]}>
+                <Select options={[
+                  { value: 'digital', label: '🎟 数字券（充电/折扣）' },
+                  { value: 'physical', label: '📦 实物礼品（需配送）' },
+                ]} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
               <Form.Item name="discountType" label={t('couponManage.formDiscountType')} rules={[{ required: true }]}>
                 <Select options={Object.entries(discountTypeMap).map(([k, v]) => ({ value: k, label: v }))} />
               </Form.Item>

@@ -124,7 +124,7 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
     let body;
     try { body = await readBody(req); } catch { return sendError(res, sendJson, 400, "BAD_BODY", "请求体解析失败"); }
 
-    const { name, couponType, discountType, discountValue, minAmount, totalCount,
+    const { name, couponType, itemType, discountType, discountValue, minAmount, totalCount,
             status, validFrom, validTo, coverImage, coverVideo } = body;
 
     if (!name)         return sendError(res, sendJson, 400, "MISSING_NAME",  "券名称不能为空");
@@ -135,15 +135,16 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
 
     const result = await query(`
       INSERT INTO coupons
-        (id, name, coupon_type, discount_type, discount_value, min_amount, total_count,
+        (id, name, coupon_type, item_type, discount_type, discount_value, min_amount, total_count,
          claimed_count, status, valid_from, valid_to, cover_image, cover_video, created_at, updated_at)
       VALUES
-        ($1, $2, $3, $4, $5, $6, $7, 0, $8, $9, $10, $11, $12, NOW(), NOW())
+        ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13, NOW(), NOW())
       RETURNING *
     `, [
       id,
       nameVal,
       couponType    || "general",
+      itemType      || "digital",
       discountType,
       discountValue != null ? Number(discountValue) : 0,
       minAmount     != null ? Number(minAmount)     : 0,
@@ -168,7 +169,7 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
     let body;
     try { body = await readBody(req); } catch { return sendError(res, sendJson, 400, "BAD_BODY", "请求体解析失败"); }
 
-    const { id, name, couponType, discountType, discountValue, minAmount, totalCount,
+    const { id, name, couponType, itemType, discountType, discountValue, minAmount, totalCount,
             status, validFrom, validTo, coverImage, coverVideo } = body;
 
     if (!id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少券ID");
@@ -185,6 +186,7 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
 
     if (name          != null) addSet("name",           JSON.stringify(name));
     if (couponType    != null) addSet("coupon_type",    couponType);
+    if (itemType      != null) addSet("item_type",      itemType);
     if (discountType  != null) addSet("discount_type",  discountType);
     if (discountValue != null) addSet("discount_value", Number(discountValue));
     if (minAmount     != null) addSet("min_amount",     Number(minAmount));
@@ -279,16 +281,43 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
         }
       }
 
-      // 4. 写领取记录（含落地页/渠道归因）
+      // 4. 写领取记录（含落地页/渠道归因 + 实物配送信息）
       const ucId = `up_coupon_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-      const srcLandingId = body.source_landing_id || "";
-      const srcChannelId = body.source_channel_id || "";
+      const srcLandingId  = body.source_landing_id  || "";
+      const srcChannelId  = body.source_channel_id  || "";
+      const deliveryType  = body.delivery_type   || null;
+      const deliveryName  = body.delivery_name   || null;
+      const deliveryPhone = body.delivery_phone  || null;
+      const deliveryAddr  = body.delivery_address|| null;
+      const pickupName    = body.pickup_name     || null;
+      const pickupPhone   = body.pickup_phone    || null;
+      // 实物卡券领取时，若无配送信息则拦截
+      if (coupon.item_type === 'physical') {
+        const isPickup  = deliveryType === 'pickup';
+        const isCourier = deliveryType === 'courier';
+        if (isPickup && (!pickupName || !pickupPhone)) {
+          return { error: { code: 400, key: "MISSING_PICKUP_INFO", msg: "请填写取货人信息" } };
+        }
+        if (isCourier && (!deliveryName || !deliveryPhone || !deliveryAddr)) {
+          return { error: { code: 400, key: "MISSING_DELIVERY_INFO", msg: "请填写完整配送信息" } };
+        }
+        if (!deliveryType) {
+          return { error: { code: 400, key: "MISSING_DELIVERY_TYPE", msg: "请选择配送方式" } };
+        }
+      }
+      const shippingStatus = coupon.item_type === 'physical' ? 'pending' : null;
+
       const ucRes = await client.query(`
         INSERT INTO user_coupons
           (id, user_id, line_user_id, coupon_id, product_status, source_type, source_id,
            source_landing_id, source_channel_id,
-           a_system_user_id, claimed_at, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, 'claimed', 'coupon_claim', $5, $6, $7, $8, $9, $9, $9)
+           a_system_user_id,
+           delivery_type, delivery_name, delivery_phone, delivery_address,
+           pickup_name, pickup_phone, shipping_status,
+           claimed_at, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, 'claimed', 'coupon_claim', $5, $6, $7, $8,
+                $9, $10, $11, $12, $13, $14, $15,
+                $16, $16, $16)
         RETURNING *
       `, [
         ucId,
@@ -299,6 +328,13 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
         srcLandingId,
         srcChannelId,
         body.a_system_user_id || null,
+        deliveryType,
+        deliveryName,
+        deliveryPhone,
+        deliveryAddr,
+        pickupName,
+        pickupPhone,
+        shippingStatus,
         now,
       ]);
 

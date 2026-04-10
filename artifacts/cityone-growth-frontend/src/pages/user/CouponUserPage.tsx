@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Card, Tag, Space, Spin, message } from 'antd'
-import { ShareAltOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { Button, Card, Tag, Space, Spin, message, Modal, Form, Input, Radio, Divider } from 'antd'
+import { ShareAltOutlined, ArrowLeftOutlined, CheckCircleOutlined, EnvironmentOutlined, CarOutlined, ShopOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
 import OssImage from '../../components/OssImage'
@@ -76,6 +76,13 @@ export default function CouponUserPage() {
   const [checking, setChecking] = useState(false)
   const [fanChecked, setFanChecked] = useState<boolean | null>(null)
 
+  // 实物卡券配送弹窗
+  const [deliveryOpen, setDeliveryOpen] = useState(false)
+  const [deliveryMode, setDeliveryMode] = useState<'courier' | 'pickup'>('courier')
+  const [deliveryForm] = Form.useForm()
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([])
+  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null)
+
   // 页面加载时就预查 fan 状态，消除点击延迟
   useEffect(() => {
     checkFanStatus(getDeviceUserId()).then(setFanChecked)
@@ -104,7 +111,31 @@ export default function CouponUserPage() {
     }
   }, [coupon, searchParams.get('auto')])
 
-  const doClaim = async () => {
+  // 加载已保存收货地址
+  const loadSavedAddresses = async () => {
+    try {
+      const userId = getDeviceUserId()
+      const res: any = await (request.get as any)(`/growth/user/addresses?user_id=${encodeURIComponent(userId)}`)
+      const list = res?.data || res || []
+      setSavedAddresses(list)
+      const def = list.find((a: any) => a.is_default) || list[0] || null
+      if (def) {
+        setSelectedAddrId(def.id)
+        deliveryForm.setFieldsValue({
+          delivery_name: def.contact_name,
+          delivery_phone: def.contact_phone,
+          delivery_address: def.address,
+        })
+      } else {
+        setSelectedAddrId(null)
+      }
+    } catch {
+      setSavedAddresses([])
+      setSelectedAddrId(null)
+    }
+  }
+
+  const doClaim = async (deliveryData?: Record<string, string>) => {
     if (!coupon || claiming) return
     setClaiming(true)
     try {
@@ -115,14 +146,29 @@ export default function CouponUserPage() {
         coupon_id: coupon.id,
         ...(entryCode && { source_landing_id: entryCode }),
         ...(utmSource && { source_channel_id: utmSource }),
+        ...(deliveryData || {}),
       }) as any)
       const data = res?.data || {}
       setAlreadyClaimed(!!data.already_claimed)
+      setDeliveryOpen(false)
       setStep('success')
     } catch {
       message.error({ zh: '领取失败，请稍后重试', th: 'รับล้มเหลว โปรดลองอีกครั้ง', en: 'Claim failed, please try again' }[language] || 'Claim failed')
     } finally {
       setClaiming(false)
+    }
+  }
+
+  // 实物卡券：配送弹窗确认后提交
+  const doPhysicalClaim = async () => {
+    try {
+      const vals = await deliveryForm.validateFields()
+      const deliveryData = deliveryMode === 'pickup'
+        ? { delivery_type: 'pickup', pickup_name: vals.pickup_name, pickup_phone: vals.pickup_phone }
+        : { delivery_type: 'courier', delivery_name: vals.delivery_name, delivery_phone: vals.delivery_phone, delivery_address: vals.delivery_address }
+      await doClaim(deliveryData)
+    } catch {
+      // form validation failed
     }
   }
 
@@ -133,6 +179,16 @@ export default function CouponUserPage() {
       const userId = getDeviceUserId()
       const isFan = fanChecked !== null ? fanChecked : await checkFanStatus(userId)
       if (isFan) {
+        // 实物卡券：弹出配送信息弹窗
+        if (coupon?.item_type === 'physical') {
+          setDeliveryMode('courier')
+          deliveryForm.resetFields()
+          setSavedAddresses([])
+          setSelectedAddrId(null)
+          await loadSavedAddresses()
+          setDeliveryOpen(true)
+          return
+        }
         await doClaim()
       } else {
         // 透传归因参数，确保关注后回跳时仍有 entry_code + UTM
@@ -270,6 +326,129 @@ export default function CouponUserPage() {
         id={coupon.id}
         name={name}
       />
+
+      {/* 实物卡券配送弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <EnvironmentOutlined style={{ color: '#fa8c16' }} />
+            <span>{language === 'zh' ? '填写配送信息' : language === 'th' ? 'ข้อมูลการจัดส่ง' : 'Delivery Info'}</span>
+          </div>
+        }
+        open={deliveryOpen}
+        onCancel={() => !claiming && setDeliveryOpen(false)}
+        onOk={doPhysicalClaim}
+        okText={language === 'zh' ? '确认领取' : language === 'th' ? 'ยืนยันรับ' : 'Confirm'}
+        cancelText={language === 'zh' ? '取消' : language === 'th' ? 'ยกเลิก' : 'Cancel'}
+        confirmLoading={claiming}
+        destroyOnHidden
+      >
+        <div style={{ paddingTop: 8 }}>
+          {/* 已保存地址选择区 */}
+          {deliveryMode !== 'pickup' && savedAddresses.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: '#888', fontWeight: 600, marginBottom: 8 }}>
+                {language === 'zh' ? '选择已保存的地址' : language === 'th' ? 'เลือกที่อยู่ที่บันทึกไว้' : 'Select a saved address'}
+              </div>
+              <div style={{ display: 'grid', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
+                {savedAddresses.map((addr: any) => (
+                  <div
+                    key={addr.id}
+                    onClick={() => {
+                      setSelectedAddrId(addr.id)
+                      deliveryForm.setFieldsValue({
+                        delivery_name: addr.contact_name,
+                        delivery_phone: addr.contact_phone,
+                        delivery_address: addr.address,
+                      })
+                    }}
+                    style={{
+                      border: selectedAddrId === addr.id ? '2px solid #fa8c16' : '1.5px solid #e8e8e8',
+                      borderRadius: 10,
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      background: selectedAddrId === addr.id ? '#fff7e6' : '#fafafa',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>{addr.contact_name}</span>
+                      <span style={{ fontSize: 12, color: '#888' }}>{addr.contact_phone}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>{addr.address}</div>
+                    {addr.is_default && (
+                      <span style={{ fontSize: 11, color: '#fa8c16', fontWeight: 600 }}>
+                        {language === 'zh' ? '默认' : language === 'th' ? 'ค่าเริ่มต้น' : 'Default'}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Divider style={{ margin: '12px 0 8px' }}>
+                <span style={{ fontSize: 12, color: '#bbb' }}>
+                  {language === 'zh' ? '或手动填写' : language === 'th' ? 'หรือกรอกเอง' : 'or enter manually'}
+                </span>
+              </Divider>
+            </div>
+          )}
+
+          {/* 配送方式选择 */}
+          <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 14 }}>
+            {language === 'zh' ? '选择配送方式' : language === 'th' ? 'เลือกวิธีจัดส่ง' : 'Delivery Method'}
+          </div>
+          <Radio.Group
+            value={deliveryMode}
+            onChange={e => { setDeliveryMode(e.target.value); deliveryForm.resetFields(); setSelectedAddrId(null) }}
+            style={{ width: '100%', marginBottom: 16 }}
+          >
+            <Radio.Button value="courier" style={{ width: '50%', textAlign: 'center' }}>
+              <CarOutlined /> {language === 'zh' ? '快递' : language === 'th' ? 'พัสดุ' : 'Courier'}
+            </Radio.Button>
+            <Radio.Button value="pickup" style={{ width: '50%', textAlign: 'center' }}>
+              <ShopOutlined /> {language === 'zh' ? '自取' : language === 'th' ? 'รับเอง' : 'Pickup'}
+            </Radio.Button>
+          </Radio.Group>
+
+          <Form form={deliveryForm} layout="vertical" size="middle">
+            {deliveryMode === 'courier' ? (
+              <>
+                <Form.Item name="delivery_name"
+                  label={language === 'zh' ? '收货人姓名' : language === 'th' ? 'ชื่อผู้รับ' : 'Recipient Name'}
+                  rules={[{ required: true, message: language === 'zh' ? '请填写收货人姓名' : 'Required' }]}>
+                  <Input placeholder={language === 'zh' ? '请输入姓名' : language === 'th' ? 'กรอกชื่อ' : 'Full name'} />
+                </Form.Item>
+                <Form.Item name="delivery_phone"
+                  label={language === 'zh' ? '手机号码' : language === 'th' ? 'เบอร์โทรศัพท์' : 'Phone'}
+                  rules={[{ required: true, message: language === 'zh' ? '请填写手机号' : 'Required' }]}>
+                  <Input placeholder={language === 'zh' ? '请输入手机号' : language === 'th' ? 'กรอกเบอร์โทร' : 'Phone'} />
+                </Form.Item>
+                <Form.Item name="delivery_address"
+                  label={language === 'zh' ? '收货地址' : language === 'th' ? 'ที่อยู่จัดส่ง' : 'Address'}
+                  rules={[{ required: true, message: language === 'zh' ? '请填写收货地址' : 'Required' }]}>
+                  <Input.TextArea rows={3} placeholder={language === 'zh' ? '请填写详细地址' : language === 'th' ? 'กรอกที่อยู่แบบละเอียด' : 'Full address'} />
+                </Form.Item>
+              </>
+            ) : (
+              <>
+                <Form.Item name="pickup_name"
+                  label={language === 'zh' ? '取货人姓名' : language === 'th' ? 'ชื่อผู้รับ' : 'Pickup Name'}
+                  rules={[{ required: true, message: language === 'zh' ? '请填写取货人姓名' : 'Required' }]}>
+                  <Input placeholder={language === 'zh' ? '请输入姓名' : language === 'th' ? 'กรอกชื่อ' : 'Full name'} />
+                </Form.Item>
+                <Form.Item name="pickup_phone"
+                  label={language === 'zh' ? '联系手机' : language === 'th' ? 'เบอร์โทร' : 'Phone'}
+                  rules={[{ required: true, message: language === 'zh' ? '请填写手机号' : 'Required' }]}>
+                  <Input placeholder={language === 'zh' ? '请输入手机号' : language === 'th' ? 'กรอกเบอร์โทร' : 'Phone'} />
+                </Form.Item>
+                <div style={{ fontSize: 13, color: '#888', background: '#f5f5f5', borderRadius: 8, padding: '10px 14px' }}>
+                  <ShopOutlined style={{ marginRight: 6, color: '#1677ff' }} />
+                  {language === 'zh' ? '工作人员会联系您确认取货站点及时间，请保持手机畅通。' : language === 'th' ? 'เจ้าหน้าที่จะติดต่อยืนยันจุดรับสินค้า' : 'Our team will contact you to confirm the pickup station.'}
+                </div>
+              </>
+            )}
+          </Form>
+        </div>
+      </Modal>
 
       {coverUrl ? (
         <OssImage src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
