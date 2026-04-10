@@ -2,7 +2,7 @@ import React, { useState, useId, useEffect, useRef } from 'react'
 import { Button, message } from 'antd'
 import { UploadOutlined, LoadingOutlined, VideoCameraOutlined } from '@ant-design/icons'
 import { isObjectKey, fetchSignedUrl } from './OssImage'
-import { getToken } from '../store/auth'
+import request from '../api/request'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -59,16 +59,11 @@ export default function MediaUploadField({ value, onChange, type, placeholder, m
       formData.append('file', file)
       formData.append('moduleType', moduleType)
 
-      const token = getToken() || ''
-      const res = await fetch(`${API_BASE}/api/media/upload`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      })
+      const json: any = await request.post('/media/upload', formData, {
+        timeout: type === 'video' ? 180000 : 30000,
+      } as any)
 
-      const json = await res.json()
-
-      if (json.code === 200 && json.data) {
+      if (json?.code === 200 && json?.data) {
         const { objectKey, url } = json.data
         const storeValue = objectKey || url
         setDisplayUrl(url)
@@ -76,11 +71,10 @@ export default function MediaUploadField({ value, onChange, type, placeholder, m
         onChange?.(storeValue)
         message.success('上传成功')
       } else {
-        message.error(json.msg || '上传失败')
+        message.error(json?.msg || '上传失败')
       }
     } catch (err: any) {
       console.error('Upload error:', err)
-      message.error('上传失败，请检查网络连接')
     } finally {
       setUploading(false)
     }
@@ -128,7 +122,7 @@ export default function MediaUploadField({ value, onChange, type, placeholder, m
         <img
           src={displayUrl || value} alt="cover"
           style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }}
-          onError={e => {
+          onError={() => {
             if (isObjectKey(value)) {
               fetchSignedUrl(value!).then(url => { if (url) setDisplayUrl(url) })
             }
