@@ -1,0 +1,88 @@
+请继续当前 CityOne 营销增长系统整改，当前阶段目标是：
+
+在 Replit 开发环境完成“增长系统侧 A 系统接入就绪 + 模拟联调闭环自测”，不是现在就做真实线上联调。
+
+本轮只做下面 3 件事：
+
+一、把增长系统侧 A 系统接收能力做完整
+请基于当前真实代码修改这些文件：
+- backend/src/routes/a-system.js
+- backend/src/middleware/a-system-signature.js
+- backend/src/index.js
+- .env.example
+- 新增：backend/migrations/007_a_system_webhook_events.sql
+
+要求：
+1. 将以下两条接口从 501 占位改为开发环境可执行：
+   - POST /api/a-system/webhook/device-borrow-event
+   - POST /api/a-system/webhook/station-sync
+2. 新建 webhook 事件表，至少包含：
+   - event_id（唯一）
+   - event_type
+   - payload_json
+   - process_status
+   - station_code
+   - entry_code
+   - activity_id
+   - error_message
+   - received_at
+   - processed_at
+3. a-system-signature.js 实现真实签名校验：
+   - Header: X-A-System-Sign
+   - HMAC-SHA256
+   - 300 秒时间窗口
+   - 使用稳定排序 JSON 字符串参与签名
+4. index.js 正式挂载这两条 webhook 路由，并接入签名中间件
+5. .env.example 补充：
+   - A_SYSTEM_WEBHOOK_SECRET=
+   - A_SYSTEM_API_TOKEN=
+   - A_SYSTEM_API_BASE_URL=
+   - A_SYSTEM_WEBHOOK_ENABLED=false
+
+二、做模拟联调闭环自测
+请新增：
+- backend/scripts/mock-a-system-device-borrow.js
+
+要求：
+1. 按当前《A系统旁路连接接口契约初稿》的 device-borrow-event 请求体生成模拟请求
+2. 本地生成签名，请求 Replit 后端接口
+3. 在增长系统内部跑通这条链路：
+   - webhook 请求进入
+   - 签名校验通过
+   - event_id 幂等防重
+   - 通过 a_system_station_id / a_system_device_id / device_code 反查 stations
+   - 通过 station_code 反查 entry_instances
+   - 通过 entry_code 反查 landing / activity
+   - 复用现有 activities.js 的参与/积分事务逻辑
+   - 写入 a_system_webhook_events
+   - 写入 activity_participations
+   - 写入 points_ledger
+4. 必须做 event_id 重放测试：
+   - 第一次成功处理
+   - 第二次相同 event_id 不重复发奖励
+   - 返回 clearly 标识 already_processed 或等价结果
+
+三、输出真实联调前置条件清单
+请整理一份简短清单，明确当前从“模拟联调”进入“真实联调”还缺什么，至少包括：
+- A 系统测试环境地址
+- 共享签名密钥
+- 最终 webhook 请求体确认
+- 双方测试环境可达性
+- 重试与幂等最终对齐
+
+执行边界：
+1. 不要扩散去改 messages / biz-* / agent-* 模块
+2. 不要改 backend/src/routes/routes.js
+3. 不要改 backend/src/routes/agent.js
+4. 不要改 backend/config/entry-routing-config.js
+5. 不要删除 site_id
+6. 不要对外表述为“已完成真实 A 系统联调”
+
+完成后请按下面结构回报：
+1. 改了哪些文件
+2. 每个文件改了什么
+3. webhook 事件表结构是什么
+4. mock-a-system-device-borrow.js 如何使用
+5. 模拟联调是如何跑通的
+6. event_id 重放测试结果
+7. 当前距离真实联调还差什么

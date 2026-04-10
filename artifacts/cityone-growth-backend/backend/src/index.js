@@ -402,7 +402,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": CORS_ORIGIN,
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With"
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, X-A-System-Sign"
 };
 
 function sendJson(res, statusCode, payload) {
@@ -1272,10 +1272,10 @@ const server = http.createServer(async (req, res) => {
 
     // ─── A 系统旁路连接接口（占位，返回 501 直至联调启用）────────────────────
     if (req.method === "POST" && url.pathname === "/api/a-system/webhook/device-borrow-event") {
-      return handleDeviceBorrowEventWebhook(req, res, url, sendJson, readBody);
+      return handleDeviceBorrowEventWebhook(req, res, url, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/a-system/webhook/station-sync") {
-      return handleStationSyncWebhook(req, res, url, sendJson, readBody);
+      return handleStationSyncWebhook(req, res, url, sendJson);
     }
 
     return fail(res, 404, "Route not found", { error: "NOT_FOUND" });
