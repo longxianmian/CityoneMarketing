@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Drawer, Button, Tag, Carousel } from 'antd'
 import {
   MenuOutlined,
@@ -220,11 +220,17 @@ function WaterfallCard({
 // ---------- 页面主体 ----------
 export default function WelfareHomePage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { t, language, setLanguage } = useI18n()
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
-  const [tab, setTab] = useState<'recommend' | 'activity' | 'mall'>('recommend')
+
+  const VALID_TABS = ['recommend', 'activity', 'mall'] as const
+  type TabKey = typeof VALID_TABS[number]
+  const rawTab = searchParams.get('tab') as TabKey | null
+  const tab: TabKey = VALID_TABS.includes(rawTab as TabKey) ? (rawTab as TabKey) : 'recommend'
+  const setTab = (k: TabKey) => setSearchParams({ tab: k }, { replace: true })
   const [cityCode, setCityCode] = useState('bangkok')
 
   useEffect(() => {
