@@ -24,6 +24,12 @@ function toML(v) {
     return { zh: v.zh || "", th: v.th || "", en: v.en || "" };
   return { zh: typeof v === "string" ? v : "", th: "", en: "" };
 }
+// 将多语言字段安全序列化为 JSON 字符串存入 text 列
+function mlStr(v) {
+  if (!v) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
 
 function rowToActivity(r) {
   return {
@@ -257,7 +263,7 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
        RETURNING *`,
       [
         activityId, activityType, JSON.stringify(actName),
-        body.activity_title || "", body.activity_subtitle || "", body.activity_desc || "",
+        body.activity_title || "", mlStr(body.activity_subtitle), mlStr(body.activity_desc),
         body.template_id || "", body.usage_mode || "public",
         body.start_time || "", body.end_time || "",
         ["draft", "active", "ended"].includes(body.status) ? body.status : "draft",
@@ -268,8 +274,8 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
         !!body.share_enabled, body.share_title || "", body.share_desc || "", body.share_cover || "",
         body.campaign_id || "", body.share_status || "disabled",
         body.goal || "", body.department || "", body.owner_dept || "", body.partner_dept || "",
-        body.coupon_name || "", body.highlights || "", body.participation_guide || "",
-        body.reward_guide || "", body.notice_text || "",
+        body.coupon_name || "", mlStr(body.highlights), mlStr(body.participation_guide),
+        mlStr(body.reward_guide), mlStr(body.notice_text),
         revertOssUrl(body.cover_image) || "", revertOssUrl(body.cover_video) || "",
         Number(body.reward_points) || 0, Number(body.sort_order) || 0, !!body.is_featured,
         body.landing_code || "", body.entry_ref_code || "", body.banner_code || "",
@@ -292,8 +298,9 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
 
     const fieldMap = {
       activity_name: (v) => JSON.stringify(typeof v === "object" ? v : { zh: String(v), th: "", en: "" }),
-      activity_title: (v) => String(v), activity_subtitle: (v) => String(v),
-      activity_desc: (v) => String(v),
+      activity_title: (v) => String(v),
+      activity_subtitle: (v) => mlStr(v),
+      activity_desc: (v) => mlStr(v),
       template_id: null,
       template_code: (v) => String(v),
       usage_mode: (v) => String(v), start_time: (v) => String(v), end_time: (v) => String(v),
@@ -305,8 +312,10 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       share_cover: (v) => String(v), campaign_id: (v) => String(v), share_status: (v) => String(v),
       goal: (v) => String(v), department: (v) => String(v), owner_dept: (v) => String(v),
       partner_dept: (v) => String(v), coupon_name: (v) => String(v),
-      highlights: (v) => String(v), participation_guide: (v) => String(v),
-      reward_guide: (v) => String(v), notice_text: (v) => String(v),
+      highlights: (v) => mlStr(v),
+      participation_guide: (v) => mlStr(v),
+      reward_guide: (v) => mlStr(v),
+      notice_text: (v) => mlStr(v),
       cover_image: (v) => revertOssUrl(String(v)), cover_video: (v) => revertOssUrl(String(v)),
       reward_points: (v) => Number(v) || 0,
       landing_code: (v) => String(v), entry_ref_code: (v) => String(v), banner_code: (v) => String(v),
