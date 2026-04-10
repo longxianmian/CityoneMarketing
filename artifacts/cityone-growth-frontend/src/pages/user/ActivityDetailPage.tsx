@@ -72,7 +72,13 @@ export default function ActivityDetailPage() {
 
   const pick = (field: any): string => {
     if (!field) return ''
-    if (typeof field === 'string') return field
+    if (typeof field === 'string') {
+      try {
+        const parsed = JSON.parse(field)
+        if (parsed && typeof parsed === 'object') return parsed[lang] || parsed.zh || parsed.en || parsed.th || ''
+      } catch {}
+      return field
+    }
     if (typeof field === 'object') return field[lang] || field.en || field.zh || field.th || ''
     return ''
   }

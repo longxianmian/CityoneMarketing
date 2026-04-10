@@ -25,6 +25,13 @@ type MultiLangValue = { zh: string; th: string; en: string }
 const toMlObj = (v: any): MultiLangValue => {
   if (!v) return { zh: '', th: '', en: '' }
   if (typeof v === 'object') return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
+  if (typeof v === 'string') {
+    try {
+      const parsed = JSON.parse(v)
+      if (parsed && typeof parsed === 'object') return { zh: parsed.zh || '', th: parsed.th || '', en: parsed.en || '' }
+    } catch {}
+    return { zh: v, th: '', en: '' }
+  }
   return { zh: String(v), th: '', en: '' }
 }
 
@@ -162,11 +169,13 @@ export default function ActivityManage() {
 
   const filteredData = useMemo(() => {
     return data.filter((item) => {
+      const kw = keyword.trim()
       const okKeyword =
-        !keyword.trim() ||
-        item.name.includes(keyword.trim()) ||
-        (item.couponName || '').includes(keyword.trim()) ||
-        (item.subTitle || '').includes(keyword.trim())
+        !kw ||
+        pickText(item.name, 'zh').includes(kw) ||
+        pickText(item.name, 'en').includes(kw) ||
+        (item.couponName || '').includes(kw) ||
+        pickText(item.subTitle, 'zh').includes(kw)
       const okStatus = !statusFilter || item.status === statusFilter
       const okGoal = goalFilter === 'all' || item.goal === goalFilter
       const okType = !typeFilter || (item.activityType || 'general') === typeFilter
