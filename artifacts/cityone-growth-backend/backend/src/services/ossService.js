@@ -24,6 +24,7 @@ function getClient() {
       bucket: OSS_BUCKET,
       accessKeyId: OSS_AK_ID,
       accessKeySecret: OSS_AK_SECRET,
+      secure: true,
     });
   }
   return _client;

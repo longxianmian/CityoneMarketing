@@ -21,15 +21,7 @@ import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
 import { getActivities } from '../../api/growth'
 import request from '../../api/request'
-import { isObjectKey, fetchSignedUrl } from '../../components/OssImage'
-
-async function resolveCover(cover: string): Promise<string> {
-  if (isObjectKey(cover)) {
-    const url = await fetchSignedUrl(cover)
-    return url || cover
-  }
-  return cover
-}
+import { isObjectKey, useOssUrl } from '../../components/OssImage'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -66,10 +58,13 @@ function getCityLabel(cityCode: string, lang: AppLanguage) {
 // cover 可能是 CSS 渐变字符串，也可能是真实图片 URL
 // 图片 URL 须用 backgroundImage + url() 才能正确显示
 function coverBgStyle(cover: string, position = 'center'): React.CSSProperties {
-  if (/^(https?:\/\/|\/)/.test(cover)) {
+  if (cover && /^(https?:\/\/|\/)/.test(cover)) {
     return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: position }
   }
-  return { background: cover }
+  if (cover && cover.includes('gradient')) {
+    return { background: cover }
+  }
+  return {}
 }
 
 // ---------- 卡片组件 ----------
@@ -102,6 +97,10 @@ function WaterfallCard({
 
   const ptLabel = lang === 'zh' ? '积分' : lang === 'th' ? 'คะแนน' : 'pts'
 
+  // Resolve OSS object keys to signed HTTPS URLs reactively
+  const ossUrl = useOssUrl(isObjectKey(cover) ? cover : undefined)
+  const resolvedCover = isObjectKey(cover) ? ossUrl : cover
+
   return (
     /* break-inside: avoid 防止 CSS columns 把卡片切断跨列
        总高 = 2 × 56.25% = 112.5% 宽度
@@ -129,8 +128,9 @@ function WaterfallCard({
         <div
           style={{
             flex: '0 0 55%',
-            ...coverBgStyle(cover, type === 'coupon' ? 'top center' : 'center'),
+            ...coverBgStyle(resolvedCover || '', 'center'),
             position: 'relative',
+            background: resolvedCover ? undefined : '#f5f5f5',
           }}
         >
           {null}
@@ -314,7 +314,7 @@ export default function WelfareHomePage() {
         route: `/coupon/${c.id}`,
         footerTone: '#2F80FF',
       }))
-      Promise.all(rawCards.map(async c => ({ ...c, cover: await resolveCover(c.cover) }))).then(setApiCoupons)
+      setApiCoupons(rawCards)
     }).catch(() => {})
   }, [])
 
@@ -348,7 +348,7 @@ export default function WelfareHomePage() {
         views: 0,
         route: `/activity/${a.activity_id}`,
       }))
-      Promise.all(rawCards.map(async c => ({ ...c, cover: await resolveCover(c.cover) }))).then(setApiActivities)
+      setApiActivities(rawCards)
     }).catch(() => {})
   }, [])
 
@@ -373,7 +373,7 @@ export default function WelfareHomePage() {
           route: `/redeem/${item.id}`,
           footerTone: '#7B61FF',
         }))
-        Promise.all(rawCards.map(async c => ({ ...c, cover: await resolveCover(c.cover) }))).then(setApiMallItems)
+        setApiMallItems(rawCards)
       })
       .catch(() => {})
   }, [])
