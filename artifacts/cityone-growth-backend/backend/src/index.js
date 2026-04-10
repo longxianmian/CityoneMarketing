@@ -117,6 +117,9 @@ import {
   handleAdminConsumeRelations,
   handlePointsRules,
   handlePointsAdjust,
+  handlePointsRuleUpdate,
+  handlePointsRuleToggle,
+  handleAdminAttribution,
 } from "./routes/growth-points.js";
 import {
   handleAgentSessionInit,
@@ -1269,8 +1272,17 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/growth/points/rules") {
       return handlePointsRules(req, res, url, sendJson);
     }
+    if (req.method === "POST" && url.pathname === "/api/growth/points/rules/update") {
+      return handlePointsRuleUpdate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/points/rules/toggle") {
+      return handlePointsRuleToggle(req, res, url, sendJson, readBody);
+    }
     if (req.method === "POST" && url.pathname === "/api/growth/points/adjust") {
       return handlePointsAdjust(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/growth/admin/points/attribution") {
+      return handleAdminAttribution(req, res, url, sendJson);
     }
 
     if (req.method === "POST" && url.pathname === "/api/translate") {

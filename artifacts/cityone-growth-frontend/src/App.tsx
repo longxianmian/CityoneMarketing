@@ -28,9 +28,6 @@ const ThaiFortuneDrawPage = lazy(() => import('./pages/user/ThaiFortuneDrawPage'
 const MyAddressPage = lazy(() => import('./pages/user/MyAddressPage'))
 
 const PointsAccounts = lazy(() => import('./features/growth/PointsAccounts'))
-const ShareRelations = lazy(() => import('./features/growth/ShareRelations'))
-const ConsumeRelations = lazy(() => import('./features/growth/ConsumeRelations'))
-const AttributionCenter = lazy(() => import('./features/growth/AttributionCenter'))
 const CouponManage = lazy(() => import('./features/growth/CouponManage'))
 const PointsRuleConfig = lazy(() => import('./features/growth/PointsRuleConfig'))
 const ActivityManage = lazy(() => import('./features/growth/ActivityManage'))
@@ -123,9 +120,6 @@ export default function App() {
           <Route index element={<Dashboard />} />
 
           {/* 增长总览 */}
-          <Route path="growth/attribution" element={<AttributionCenter />} />
-          <Route path="growth/traffic" element={<Navigate to="/admin/growth/attribution?tab=traffic" replace />} />
-          <Route path="growth/source" element={<Navigate to="/admin/growth/attribution?tab=source" replace />} />
           <Route path="growth/report" element={<GrowthReport />} />
           <Route path="overview/funnel" element={<CS title="转化漏斗" description="用户从入口到业务转化的全链路漏斗分析，阶段二实现" />} />
           <Route path="overview/order-attr" element={<CS title="订单归因" description="当前可先占位，阶段四对接 A 系统订单数据后实现" />} />
@@ -154,14 +148,11 @@ export default function App() {
           <Route path="entry/qrcode" element={<CS title="二维码资产" description="QR Code 批次管理与资产库，阶段二实现" />} />
           <Route path="entry/oa-guide" element={<CS title="OA 引导与入口测试" description="LINE OA 绑定引导配置与入口链路测试，阶段二实现" />} />
 
-          {/* 激励与归因 */}
-          <Route path="growth/points/rules" element={<PointsRuleConfig />} />
+          {/* 积分管理 */}
+          <Route path="growth/points/rules"    element={<PointsRuleConfig />} />
           <Route path="growth/points/accounts" element={<PointsAccounts />} />
-          <Route path="growth/points/ledger" element={<PointsLedger />} />
-          <Route path="growth/points/share-relations" element={<ShareRelations />} />
-          <Route path="growth/points/consume-relations" element={<ConsumeRelations />} />
-          <Route path="growth/invite" element={<InviteManage />} />
-          <Route path="incentive/reward-records" element={<CS title="奖励发放记录" description="积分/卡券/实物奖励发放汇总记录，阶段二实现" />} />
+          <Route path="growth/points/ledger"   element={<PointsLedger />} />
+          <Route path="growth/invite"          element={<InviteManage />} />
 
           {/* AI Agent */}
           <Route path="agent/wenwen" element={<AgentWenwenPage />} />

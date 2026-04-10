@@ -175,19 +175,16 @@ export default function AdminLayout() {
           },
         ],
       },
-      // === 4. 激励与归因 ===
+      // === 4. 积分管理 ===
       {
         key: 'incentive',
         icon: <RiseOutlined />,
-        label: lt('incentiveAttrib'),
+        label: '积分管理',
         children: [
-          { key: '/admin/growth/points/rules', label: lt('pointsRules') },
-          { key: '/admin/growth/points/accounts', label: lt('pointsAccounts') },
-          { key: '/admin/growth/points/ledger', label: lt('pointsLedger') },
-          { key: '/admin/growth/points/share-relations', label: lt('shareAttribution') },
-          { key: '/admin/growth/points/consume-relations', label: lt('consumeAttribution') },
-          { key: '/admin/growth/invite', label: lt('inviteFission') },
-          { key: '/admin/incentive/reward-records', label: lt('rewardRecords') },
+          { key: '/admin/growth/points/rules',    label: '积分规则' },
+          { key: '/admin/growth/points/accounts', label: '用户积分' },
+          { key: '/admin/growth/points/ledger',   label: '积分流水' },
+          { key: '/admin/growth/invite',          label: '邀请裂变' },
         ],
       },
       // === 5. AI Agent ===

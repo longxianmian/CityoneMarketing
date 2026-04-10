@@ -276,12 +276,129 @@ export async function handleAdminConsumeRelations(req, res, url, sendJson) {
   }
 }
 
-// ── 积分规则读取 ─────────────────────────────────────────────────────────────
+// ── 积分规则读取（全部，含禁用）─────────────────────────────────────────────
 // GET /growth/points/rules
 export async function handlePointsRules(req, res, url, sendJson) {
   try {
-    const result = await query("SELECT * FROM points_rules WHERE enabled = TRUE ORDER BY rule_id");
+    const result = await query("SELECT * FROM points_rules ORDER BY rule_id ASC");
     return sendOk(res, sendJson, "success", { rules: result.rows });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ── 积分规则更新（积分值/备注）────────────────────────────────────────────────
+// POST /growth/points/rules/update  body: { rule_id, points_value, memo }
+export async function handlePointsRuleUpdate(req, res, url, sendJson, readBody) {
+  try {
+    const body = await readBody(req);
+    const { rule_id, points_value, description } = body;
+    if (!rule_id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少 rule_id");
+    const pts = Number(points_value);
+    if (isNaN(pts) || pts < 0) return sendError(res, sendJson, 400, "INVALID_POINTS", "积分值须为非负数");
+    const result = await query(
+      `UPDATE points_rules SET points_value=$2, description=$3, updated_at=NOW() WHERE rule_id=$1 RETURNING *`,
+      [rule_id, pts, description ?? ""]
+    );
+    if (!result.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "规则不存在");
+    return sendOk(res, sendJson, "已保存", result.rows[0]);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ── 积分规则开/关 ──────────────────────────────────────────────────────────
+// POST /growth/points/rules/toggle  body: { rule_id, enabled }
+export async function handlePointsRuleToggle(req, res, url, sendJson, readBody) {
+  try {
+    const body = await readBody(req);
+    const { rule_id, enabled } = body;
+    if (!rule_id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少 rule_id");
+    const result = await query(
+      `UPDATE points_rules SET enabled=$2, updated_at=NOW() WHERE rule_id=$1 RETURNING *`,
+      [rule_id, !!enabled]
+    );
+    if (!result.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "规则不存在");
+    return sendOk(res, sendJson, "已更新", result.rows[0]);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ── 管理端：统一归因记录（分享+消费）──────────────────────────────────────────
+// GET /growth/admin/points/attribution?page=1&page_size=20&source_type=all&user_id=&status=
+export async function handleAdminAttribution(req, res, url, sendJson) {
+  try {
+    const page       = Math.max(1, parseInt(url.searchParams.get("page")      || "1",  10));
+    const pageSize   = Math.min(200, Math.max(1, parseInt(url.searchParams.get("page_size") || "20", 10)));
+    const sourceType = url.searchParams.get("source_type") || "all";
+    const userId     = url.searchParams.get("user_id") || "";
+    const status     = url.searchParams.get("status") || "";
+    const offset     = (page - 1) * pageSize;
+
+    let rows = [], total = 0;
+
+    // share_relations real columns: sharer_user_id, sharer_line_user_id, invitee_line_user_id
+    if (sourceType === "share" || sourceType === "all") {
+      const shareUserFilter = [];
+      const sharePrms = [];
+      let spi = 1;
+      if (userId) {
+        shareUserFilter.push(`(sharer_user_id=$${spi} OR sharer_line_user_id=$${spi} OR invitee_line_user_id=$${spi})`);
+        sharePrms.push(userId); spi++;
+      }
+      if (status) {
+        shareUserFilter.push(`points_status=$${spi}`);
+        sharePrms.push(status); spi++;
+      }
+      const shareWhere = shareUserFilter.length ? `WHERE ${shareUserFilter.join(" AND ")}` : "";
+
+      const r = await query(
+        `SELECT id::text, COALESCE(sharer_user_id,'') AS user_id, COALESCE(sharer_line_user_id,'') AS line_user_id,
+                'share' AS source_type, CAST(COALESCE(points_value,0) AS numeric) AS points_value,
+                points_status, campaign_id AS ref_id, created_at
+         FROM share_relations ${shareWhere} ORDER BY created_at DESC`,
+        sharePrms
+      );
+      if (sourceType === "share") {
+        const cnt = await query(`SELECT COUNT(*) AS total FROM share_relations ${shareWhere}`, sharePrms);
+        total = Number(cnt.rows[0].total);
+        const slice = r.rows.slice(offset, offset + pageSize);
+        return sendOk(res, sendJson, "success", { total, page, page_size: pageSize, items: slice });
+      }
+      rows.push(...r.rows.map(x => ({ ...x, points_value: Number(x.points_value ?? 0) })));
+    }
+
+    // consume_relations real columns: user_id, line_user_id, order_id, credited_points, points_status
+    if (sourceType === "consume" || sourceType === "all") {
+      const consumeUserFilter = [];
+      const consumePrms = [];
+      let cpi = 1;
+      if (userId) {
+        consumeUserFilter.push(`(user_id=$${cpi} OR line_user_id=$${cpi})`);
+        consumePrms.push(userId); cpi++;
+      }
+      if (status) {
+        consumeUserFilter.push(`points_status=$${cpi}`);
+        consumePrms.push(status); cpi++;
+      }
+      const consumeWhere = consumeUserFilter.length ? `WHERE ${consumeUserFilter.join(" AND ")}` : "";
+
+      const r = await query(
+        `SELECT id::text, COALESCE(user_id,'') AS user_id, COALESCE(line_user_id,'') AS line_user_id,
+                'consume' AS source_type, CAST(COALESCE(credited_points,0) AS numeric) AS points_value,
+                points_status, order_id AS ref_id, created_at
+         FROM consume_relations ${consumeWhere} ORDER BY created_at DESC`,
+        consumePrms
+      );
+      rows.push(...r.rows.map(x => ({ ...x, points_value: Number(x.points_value ?? 0) })));
+    }
+
+    // Sort merged result by created_at desc
+    rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    total = rows.length;
+    const items = rows.slice(offset, offset + pageSize);
+    return sendOk(res, sendJson, "success", { total, page, page_size: pageSize, items });
   } catch (err) {
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
