@@ -1149,10 +1149,10 @@
     "identity_tier": "oa_fan",
     "scene": "agent_main",
     "status": "active",
-    "message_count": 111,
+    "message_count": 115,
     "created_at": "2026-04-04T10:32:28.003Z",
-    "last_active_at": "2026-04-10T07:21:24.555Z",
-    "updated_at": "2026-04-10T07:21:24.555Z"
+    "last_active_at": "2026-04-10T08:06:24.912Z",
+    "updated_at": "2026-04-10T08:06:24.912Z"
   },
   {
     "session_id": "as_00083",

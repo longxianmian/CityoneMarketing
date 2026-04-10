@@ -1838,5 +1838,37 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-08T16:05:30.613Z"
+  },
+  {
+    "log_id": "al_00116",
+    "session_id": "as_00082",
+    "message_id": "am_00315",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "在吗",
+    "intent_code": "greeting",
+    "intent_confidence": 1,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-10T08:06:15.264Z"
+  },
+  {
+    "log_id": "al_00117",
+    "session_id": "as_00082",
+    "message_id": "am_00317",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "帮我看看有哪些券能用",
+    "intent_code": "benefit_claim_query",
+    "intent_confidence": 0.92,
+    "tool_code": "tool-claim-benefits",
+    "tool_result_status": "success",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-10T08:06:24.923Z"
   }
 ]
