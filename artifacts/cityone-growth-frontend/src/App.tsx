@@ -25,6 +25,7 @@ const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
 const FollowOAPage = lazy(() => import('./pages/user/FollowOAPage'))
 const ScratchCardPage = lazy(() => import('./pages/user/ScratchCardPage'))
 const ThaiFortuneDrawPage = lazy(() => import('./pages/user/ThaiFortuneDrawPage'))
+const MyAddressPage = lazy(() => import('./pages/user/MyAddressPage'))
 
 const PointsAccounts = lazy(() => import('./features/growth/PointsAccounts'))
 const ShareRelations = lazy(() => import('./features/growth/ShareRelations'))
@@ -97,6 +98,7 @@ export default function App() {
         <Route path="/coupon/:id" element={<CouponUserPage />} />
         <Route path="/my-coupons" element={<Navigate to="/mine?tab=benefits" replace />} />
         <Route path="/my-points" element={<Navigate to="/mine?tab=member" replace />} />
+        <Route path="/my-addresses" element={<MyAddressPage />} />
         <Route path="/redeem/:id" element={<ProductDetailPage />} />
         <Route path="/follow-oa" element={<FollowOAPage />} />
         <Route path="/system-desc" element={<SystemDescPage />} />

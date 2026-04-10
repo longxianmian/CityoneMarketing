@@ -42,6 +42,8 @@ export default function ProductDetailPage() {
   const [deliveryOpen, setDeliveryOpen] = useState(false)
   const [deliveryMode, setDeliveryMode] = useState<'courier' | 'pickup'>('courier')
   const [deliveryForm] = Form.useForm()
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([])
+  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null)
 
   const ACTION_MAP: Record<string, { text: string; color: string }> = {
     free_claim: { text: t('productDetail.actionFreeClaim'), color: 'linear-gradient(135deg, #52c41a, #73d13d)' },
@@ -166,15 +168,44 @@ export default function ProductDetailPage() {
     }
   }
 
+  // 加载已保存收货地址
+  const loadSavedAddresses = async () => {
+    try {
+      const userId = getDeviceUserId()
+      const res: any = await (request.get as any)(`/growth/user/addresses?user_id=${encodeURIComponent(userId)}`)
+      const list = res?.data || res || []
+      setSavedAddresses(list)
+      // 自动选中默认地址并填入表单
+      const def = list.find((a: any) => a.is_default) || list[0] || null
+      if (def) {
+        setSelectedAddrId(def.id)
+        deliveryForm.setFieldsValue({
+          delivery_name: def.contact_name,
+          delivery_phone: def.contact_phone,
+          delivery_address: def.address,
+        })
+      } else {
+        setSelectedAddrId(null)
+      }
+    } catch {
+      setSavedAddresses([])
+      setSelectedAddrId(null)
+    }
+  }
+
   // 点击按钮入口
   const handleAction = async () => {
     if (!product) return
     if (product.item_type === 'physical') {
-      // 实物商品：确定配送模式并重置表单
       const dt = product.delivery_type || 'courier'
       setDeliveryMode(dt === 'pickup' ? 'pickup' : 'courier')
       deliveryForm.resetFields()
-      await runPreChecks(() => setDeliveryOpen(true))
+      setSavedAddresses([])
+      setSelectedAddrId(null)
+      await runPreChecks(async () => {
+        await loadSavedAddresses()
+        setDeliveryOpen(true)
+      })
       return
     }
     await runPreChecks(() => setConfirmOpen(true))
@@ -474,6 +505,52 @@ export default function ProductDetailPage() {
                 : `Redeeming will use ${product?.points_required || 0} pts, deducted immediately`}
           </div>
 
+          {/* 已保存地址选择区（快递模式） */}
+          {deliveryMode !== 'pickup' && savedAddresses.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: '#888', fontWeight: 600, marginBottom: 8 }}>
+                {lang === 'zh' ? '选择已保存的地址' : lang === 'th' ? 'เลือกที่อยู่ที่บันทึกไว้' : 'Select a saved address'}
+              </div>
+              <div style={{ display: 'grid', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
+                {savedAddresses.map((addr: any) => (
+                  <div
+                    key={addr.id}
+                    onClick={() => {
+                      setSelectedAddrId(addr.id)
+                      deliveryForm.setFieldsValue({
+                        delivery_name: addr.contact_name,
+                        delivery_phone: addr.contact_phone,
+                        delivery_address: addr.address,
+                      })
+                    }}
+                    style={{
+                      border: selectedAddrId === addr.id ? '2px solid #fa8c16' : '1.5px solid #e8e8e8',
+                      borderRadius: 10,
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      background: selectedAddrId === addr.id ? '#fff7e6' : '#fafafa',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>{addr.contact_name}</span>
+                      <span style={{ fontSize: 12, color: '#888' }}>{addr.contact_phone}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>{addr.address}</div>
+                    {addr.is_default && <span style={{ fontSize: 11, color: '#fa8c16', fontWeight: 600 }}>
+                      {lang === 'zh' ? '默认' : lang === 'th' ? 'ค่าเริ่มต้น' : 'Default'}
+                    </span>}
+                  </div>
+                ))}
+              </div>
+              <Divider style={{ margin: '12px 0 8px' }}>
+                <span style={{ fontSize: 12, color: '#bbb' }}>
+                  {lang === 'zh' ? '或手动填写' : lang === 'th' ? 'หรือกรอกเอง' : 'or enter manually'}
+                </span>
+              </Divider>
+            </div>
+          )}
+
           {/* 配送方式选择（both 时显示） */}
           {deliveryType === 'both' && (
             <>
@@ -482,7 +559,7 @@ export default function ProductDetailPage() {
               </div>
               <Radio.Group
                 value={deliveryMode}
-                onChange={e => { setDeliveryMode(e.target.value); deliveryForm.resetFields() }}
+                onChange={e => { setDeliveryMode(e.target.value); deliveryForm.resetFields(); setSelectedAddrId(null) }}
                 style={{ width: '100%', marginBottom: 16 }}
               >
                 <Radio.Button value="courier" style={{ width: '50%', textAlign: 'center' }}>

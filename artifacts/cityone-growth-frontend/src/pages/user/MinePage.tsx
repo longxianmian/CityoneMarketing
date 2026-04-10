@@ -10,6 +10,8 @@ import {
   ThunderboltOutlined,
   DownOutlined,
   GiftOutlined,
+  EnvironmentOutlined,
+  RightOutlined,
 } from '@ant-design/icons'
 import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
 import UserBottomNav from '../../components/user/UserBottomNav'
@@ -1044,6 +1046,38 @@ export default function MinePage() {
                 )}
                 {pointsSub === 'earn' && <EarnGuideCard />}
               </>
+            )}
+
+            {/* ─── 订单 tab — 收货地址入口 ────────────────────────────────────── */}
+            {mainTab === 'order' && (
+              <div
+                onClick={() => navigate('/my-addresses')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  background: 'linear-gradient(135deg, #EAF2FF 0%, #F0F7FF 100%)',
+                  border: '1.5px solid #BAD9FF',
+                  borderRadius: 14,
+                  padding: '13px 16px',
+                  cursor: 'pointer',
+                  marginBottom: 2,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <div style={{ width: 38, height: 38, borderRadius: 12, background: '#2F80FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <EnvironmentOutlined style={{ fontSize: 18, color: '#fff' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#1D3860' }}>
+                    {language === 'zh' ? '我的收货地址' : language === 'th' ? 'ที่อยู่จัดส่งของฉัน' : 'My Shipping Addresses'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6B9DCF', marginTop: 2 }}>
+                    {language === 'zh' ? '管理收货地址，兑换实物商品时快速选用' : language === 'th' ? 'จัดการที่อยู่จัดส่ง เพื่อแลกสินค้าจริงได้รวดเร็ว' : 'Manage addresses for fast physical item checkout'}
+                  </div>
+                </div>
+                <RightOutlined style={{ fontSize: 14, color: '#6B9DCF' }} />
+              </div>
             )}
 
             {/* ─── 订单 tab（阶段三：真实接口，当前返回空列表） ───────────────── */}

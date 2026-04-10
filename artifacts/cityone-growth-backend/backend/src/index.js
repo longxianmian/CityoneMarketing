@@ -51,6 +51,13 @@ import {
   handleGetMallRedeems,
 } from "./routes/mall-items.js";
 import {
+  handleGetAddresses,
+  handleCreateAddress,
+  handleUpdateAddress,
+  handleDeleteAddress,
+  handleSetDefaultAddress,
+} from "./routes/address.js";
+import {
   handleGetBanners,
   handleCreateBanner,
   handleUpdateBanner,
@@ -787,6 +794,29 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/growth/mall/redeems") {
       return handleGetMallRedeems(req, res, sendJson, url);
+    }
+
+    // ── 收货地址 ─────────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/growth/user/addresses") {
+      return handleGetAddresses(req, res, sendJson, url);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/user/addresses") {
+      const body = await readBody(req);
+      return handleCreateAddress(req, res, sendJson, body);
+    }
+    if (req.method === "PUT" && /^\/api\/growth\/user\/addresses\/[^/]+$/.test(url.pathname)) {
+      const addrId = url.pathname.split("/").pop();
+      const body = await readBody(req);
+      return handleUpdateAddress(req, res, sendJson, body, addrId);
+    }
+    if (req.method === "DELETE" && /^\/api\/growth\/user\/addresses\/[^/]+$/.test(url.pathname)) {
+      const addrId = url.pathname.split("/").pop();
+      return handleDeleteAddress(req, res, sendJson, url, addrId);
+    }
+    if (req.method === "POST" && /^\/api\/growth\/user\/addresses\/[^/]+\/default$/.test(url.pathname)) {
+      const addrId = url.pathname.split("/").at(-2);
+      const body = await readBody(req);
+      return handleSetDefaultAddress(req, res, sendJson, body, addrId);
     }
 
     // ── 仪表板 ───────────────────────────────────────────────────────────────
