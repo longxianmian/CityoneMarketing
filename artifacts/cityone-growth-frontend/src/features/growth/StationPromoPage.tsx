@@ -39,6 +39,12 @@ type StaffStat = {
 }
 
 /* ─── 工具 ────────────────────────────────────────────────────────────────── */
+function pickML(v: any): string {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  return v.zh || v.en || v.th || ''
+}
+
 const TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string; desc: string }> = {
   device_qr:     { label: '设备码',   icon: <ThunderboltOutlined />, color: '#1677ff', desc: '设备自带，A系统管理' },
   table_sticker: { label: '桌贴码',   icon: <QrcodeOutlined />,      color: '#52c41a', desc: '桌面/台卡贴纸' },
@@ -206,11 +212,12 @@ export default function StationPromoPage() {
   // 加载站点列表
   useEffect(() => {
     ;(request.get('/stations') as any).then((res: any) => {
-      const list: any[] = res?.data || []
-      setStations(list.map(s => ({
-        station_code: s.station_code,
-        station_name: s.station_name || s.station_code,
-        city_name: s.city_name || '',
+      // /stations 返回 { data: { list: [...] } }
+      const list: any[] = res?.data?.list || res?.data || []
+      setStations(list.map((s: any) => ({
+        station_code: s.station_code || s.id || '',
+        station_name: pickML(s.name) || s.station_name || s.station_code || s.id || '',
+        city_name: s.city_name || s.city || '',
       })))
     }).catch(() => {})
   }, [])
