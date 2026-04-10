@@ -187,7 +187,87 @@ export async function handleGetNearbyStations(req, res, url, sendJson) {
       .filter(s => s.distance_km <= radius)
       .sort((a, b) => a.distance_km - b.distance_km);
 
-    return sendOk(res, sendJson, "success", { list: nearby, total: nearby.length, located: true, lat, lng, radius });
+    // ── 批量查询各站点绑定的活动（default_activity_id + site_scope 反查）──────
+    const activityIds = [...new Set(
+      nearby.map(s => s.default_activity_id).filter(Boolean)
+    )];
+    const stationCodes = nearby.map(s => s.station_code).filter(Boolean);
+
+    let activityMap = {};  // activity_id → activity row
+
+    // 1. 按 default_activity_id 批量取
+    if (activityIds.length > 0) {
+      const { rows: actRows } = await query(
+        `SELECT activity_id, activity_name, activity_subtitle, activity_type, status, cover_image, start_time, end_time, goal
+           FROM activities
+          WHERE activity_id = ANY($1) AND status = 'active'`,
+        [activityIds]
+      );
+      actRows.forEach(r => { activityMap[r.activity_id] = r; });
+    }
+
+    // 2. 反查 site_scope_json 中包含这些站点的活动（取每个站点最多1条）
+    let scopeActivities = [];
+    if (stationCodes.length > 0) {
+      const { rows: scopeRows } = await query(
+        `SELECT activity_id, activity_name, activity_subtitle, activity_type, status, cover_image, start_time, end_time, goal, site_scope_json
+           FROM activities
+          WHERE status = 'active'
+            AND site_scope_json IS NOT NULL
+          ORDER BY created_at DESC
+          LIMIT 100`
+      );
+      scopeActivities = scopeRows.filter(r => {
+        try {
+          const scope = typeof r.site_scope_json === "string" ? JSON.parse(r.site_scope_json) : r.site_scope_json;
+          if (!scope) return false;
+          if (scope.type === "all") return true;
+          const codes = scope.station_codes || [];
+          return stationCodes.some(c => codes.includes(c));
+        } catch { return false; }
+      });
+    }
+
+    // ── 把活动附加到对应站点 ───────────────────────────────────────────────
+    const pickML = (v, lang = "zh") => {
+      if (!v) return "";
+      let obj = v;
+      if (typeof v === "string") { try { obj = JSON.parse(v); } catch { return v; } }
+      if (typeof obj === "object") return obj[lang] || obj.zh || obj.en || obj.th || "";
+      return String(v);
+    };
+
+    const toActivitySummary = (r) => r ? {
+      id: r.activity_id,
+      name:     { zh: pickML(r.activity_name, "zh"), th: pickML(r.activity_name, "th"), en: pickML(r.activity_name, "en") },
+      subtitle: { zh: pickML(r.activity_subtitle, "zh"), th: pickML(r.activity_subtitle, "th"), en: pickML(r.activity_subtitle, "en") },
+      type:  r.activity_type,
+      cover: r.cover_image || "",
+      goal:  r.goal || "",
+      start_time: r.start_time,
+      end_time:   r.end_time,
+    } : null;
+
+    const enriched = nearby.map(s => {
+      // 优先用 default_activity_id 绑定的活动，否则用 site_scope 反查第一条
+      const directActivity = s.default_activity_id ? activityMap[s.default_activity_id] : null;
+      const scopeActivity  = !directActivity
+        ? scopeActivities.find(r => {
+            try {
+              const scope = typeof r.site_scope_json === "string" ? JSON.parse(r.site_scope_json) : r.site_scope_json;
+              if (!scope) return false;
+              if (scope.type === "all") return true;
+              return (scope.station_codes || []).includes(s.station_code);
+            } catch { return false; }
+          })
+        : null;
+      return {
+        ...s,
+        activity: toActivitySummary(directActivity || scopeActivity || null),
+      };
+    });
+
+    return sendOk(res, sendJson, "success", { list: enriched, total: enriched.length, located: true, lat, lng, radius });
   } catch (err) {
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
