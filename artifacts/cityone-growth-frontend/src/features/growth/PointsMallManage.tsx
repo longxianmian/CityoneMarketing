@@ -336,6 +336,15 @@ export default function PointsMallManage() {
                         <Select options={subTypeOptions} allowClear placeholder="选择数字商品小类（可选）" />
                       </Form.Item>
                     )}
+                    {itemType === 'physical' && (
+                      <Form.Item name="delivery_type" label="配送方式 / Delivery Type" initialValue="courier">
+                        <Select options={[
+                          { value: 'courier', label: '快递配送 / Courier' },
+                          { value: 'pickup',  label: '站点自取 / Station Pickup' },
+                          { value: 'both',    label: '快递/自取均可 / Both' },
+                        ]} />
+                      </Form.Item>
+                    )}
                     <Form.Item name="is_flash_sale" label={pm('formIsFlashSale')} valuePropName="checked" initialValue={false}>
                       <Switch checkedChildren="限时促销" unCheckedChildren="普通" />
                     </Form.Item>

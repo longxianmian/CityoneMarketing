@@ -24,6 +24,7 @@ function itemRow(row) {
     price_thb:       row.price_thb       != null ? Number(row.price_thb)       : null,
     points_required: row.points_required != null ? Number(row.points_required) : 0,
     stock:           row.stock           != null ? Number(row.stock)           : -1,
+    delivery_type:   row.delivery_type   || "courier",
     sort_order:      Number(row.sort_order ?? 0),
     created_at:      row.created_at  ? new Date(row.created_at).toISOString()  : null,
     updated_at:      row.updated_at  ? new Date(row.updated_at).toISOString()  : null,
@@ -103,9 +104,9 @@ export async function handleCreateMallItem(req, res, sendJson, body) {
       INSERT INTO mall_items
         (id, name, item_type, sub_type, is_flash_sale, exchange_mode, price_thb, points_required, stock,
          on_shelf, cover_image, cover_video, description, detail_title, highlights,
-         rules, tag, badge, sort_order, created_at, updated_at)
+         rules, tag, badge, sort_order, delivery_type, created_at, updated_at)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW())
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW(),NOW())
       RETURNING *
     `, [
       generateId(),
@@ -124,9 +125,10 @@ export async function handleCreateMallItem(req, res, sendJson, body) {
       toJsonb(body.detail_title || body.detailTitle),
       toJsonb(body.highlights),
       toJsonb(body.rules),
-      body.tag   || null,
-      body.badge || null,
+      body.tag           || null,
+      body.badge         || null,
       sortOrder,
+      body.delivery_type || "courier",
     ]);
 
     return sendOk(res, sendJson, "created", itemRow(result.rows[0]));
@@ -167,6 +169,7 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
     if (body.tag               != null) addSet("tag",              body.tag);
     if (body.badge             != null) addSet("badge",            body.badge);
     if (body.sort_order        != null) addSet("sort_order",       Number(body.sort_order));
+    if (body.delivery_type     != null) addSet("delivery_type",    body.delivery_type);
     addSet("updated_at", new Date().toISOString());
 
     params.push(itemId);
@@ -227,16 +230,35 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
     if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "user_id 必填");
     if (!itemId) return sendError(res, sendJson, 400, "MISSING_ITEM_ID", "item_id 必填");
 
+    // 实物商品配送信息
+    const deliveryType      = body.delivery_type      || null;
+    const deliveryName      = body.delivery_name      || null;
+    const deliveryPhone     = body.delivery_phone     || null;
+    const deliveryAddress   = body.delivery_address   || null;
+    const deliveryStationId = body.delivery_station_id || null;
+
     const result = await withTransaction(async (client) => {
       // 1. 获取商品（行锁）
       const itemRes = await client.query(
         "SELECT * FROM mall_items WHERE id = $1 FOR UPDATE",
         [itemId]
       );
-      if (!itemRes.rows.length) return { error: { code: 404, key: "ITEM_NOT_FOUND",         msg: "商品不存在" } };
+      if (!itemRes.rows.length) return { error: { code: 404, key: "ITEM_NOT_FOUND", msg: "商品不存在" } };
       const item = itemRes.rows[0];
-      if (!item.on_shelf)           return { error: { code: 400, key: "ITEM_OFF_SHELF",       msg: "商品已下架" } };
-      if (item.item_type === "physical") return { error: { code: 400, key: "PHYSICAL_NOT_SUPPORTED", msg: "实物商品暂不支持积分兑换" } };
+      if (!item.on_shelf) return { error: { code: 400, key: "ITEM_OFF_SHELF", msg: "商品已下架" } };
+
+      // 实物商品：验证配送信息
+      if (item.item_type === "physical") {
+        const dt = deliveryType || item.delivery_type || "courier";
+        if (dt === "courier" || dt === "both") {
+          if (!deliveryName  || String(deliveryName).trim()  === "") return { error: { code: 400, key: "MISSING_DELIVERY_NAME",    msg: "请填写收货人姓名" } };
+          if (!deliveryPhone || String(deliveryPhone).trim() === "") return { error: { code: 400, key: "MISSING_DELIVERY_PHONE",   msg: "请填写收货人手机号" } };
+          if (!deliveryAddress || String(deliveryAddress).trim() === "") return { error: { code: 400, key: "MISSING_DELIVERY_ADDRESS", msg: "请填写收货地址" } };
+        }
+        if ((dt === "pickup" || dt === "both") && !deliveryName) {
+          // pickup 模式最少需要姓名
+        }
+      }
 
       const pointsRequired = Number(item.points_required) || 0;
       if (pointsRequired <= 0) return { error: { code: 400, key: "NO_POINTS_PRICE", msg: "该商品无积分兑换价格" } };
@@ -258,25 +280,22 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
         [userId]
       );
       const available = accRes.rows.length ? Number(accRes.rows[0].available_points) : 0;
-
       if (available < pointsRequired) {
         return {
           error: {
-            code: 400,
-            key:  "INSUFFICIENT_POINTS",
-            msg:  `积分不足，当前可用 ${available} 积分，兑换需 ${pointsRequired} 积分`,
+            code: 400, key: "INSUFFICIENT_POINTS",
+            msg: `积分不足，当前可用 ${available} 积分，兑换需 ${pointsRequired} 积分`,
           },
         };
       }
 
       const now = new Date().toISOString();
-
-      // 4. 写积分流水（debit）
       const ledgerId = `ledger_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
       const itemNameDisplay = typeof item.name === "object"
         ? (item.name.zh || item.name.en || item.name.th || itemId)
         : (item.name || itemId);
 
+      // 4. 写积分流水（debit）
       await client.query(`
         INSERT INTO points_ledger
           (id, user_id, line_user_id, type, points, ref_type, ref_id, reason, created_at)
@@ -293,12 +312,24 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
           updated_at       = NOW()
       `, [userId, userId, pointsRequired]);
 
-      // 6. 写兑换记录
+      // 6. 写兑换记录（数字商品: status=success; 实物: status=processing/待配送）
       const redeemId = `mr_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+      const isPhysical = item.item_type === "physical";
+      const redeemStatus = isPhysical ? "processing" : "success";
+      const effectiveDeliveryType = deliveryType || item.delivery_type || "courier";
       await client.query(`
-        INSERT INTO mall_redeems (id, user_id, line_user_id, item_id, item_name, points_spent, status, ledger_id, created_at, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,'success',$7,$8,$8)
-      `, [redeemId, userId, userId, itemId, toJsonb(item.name), pointsRequired, ledgerId, now]);
+        INSERT INTO mall_redeems
+          (id, user_id, line_user_id, item_id, item_name, points_spent, status, ledger_id,
+           delivery_type, delivery_name, delivery_phone, delivery_address, delivery_station_id,
+           shipping_status, created_at, updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15)
+      `, [
+        redeemId, userId, userId, itemId, toJsonb(item.name), pointsRequired,
+        redeemStatus, ledgerId,
+        isPhysical ? effectiveDeliveryType : null,
+        deliveryName, deliveryPhone, deliveryAddress, deliveryStationId,
+        isPhysical ? "pending" : null, now,
+      ]);
 
       // 7. 读取最新余额
       const newAccRes = await client.query(
@@ -307,7 +338,11 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
       );
       const remainingPoints = newAccRes.rows.length ? Number(newAccRes.rows[0].available_points) : 0;
 
-      return { redeemId, itemId, pointsRequired, remainingPoints };
+      return {
+        redeemId, itemId, pointsRequired, remainingPoints,
+        isPhysical,
+        deliveryType: isPhysical ? effectiveDeliveryType : null,
+      };
     });
 
     if (result.error) {
@@ -319,6 +354,8 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
       item_id:          result.itemId,
       points_spent:     result.pointsRequired,
       remaining_points: result.remainingPoints,
+      is_physical:      result.isPhysical,
+      delivery_type:    result.deliveryType,
     });
   } catch (err) {
     return sendError(res, sendJson, 500, "REDEEM_FAILED", err.message || "兑换失败");
