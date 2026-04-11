@@ -25,6 +25,16 @@ import { isObjectKey, useOssUrl } from '../../components/OssImage'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
+// ─── 模块级 SWR 缓存 ────────────────────────────────────────────
+// 组件 unmount 后数据依然驻留内存，重新挂载时直接使用旧数据展示，
+// 同时在后台静默刷新，用户感知不到任何"全页刷新"闪烁。
+const _pageCache: {
+  banners: any[]
+  activities: ContentCard[]
+  coupons: ContentCard[]
+  mallItems: ContentCard[]
+} = { banners: [], activities: [], coupons: [], mallItems: [] }
+
 type ContentCard = {
   id: string
   type: 'activity' | 'coupon' | 'redeem' | 'station'
@@ -258,11 +268,11 @@ export default function WelfareHomePage() {
     ],
     [t]
   )
-  const [apiBanners, setApiBanners] = useState<any[]>([])
+  const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
   useEffect(() => {
     request.get('/growth/banners', { params: { enabled: 'true' } }).then((res: any) => {
       const list = res.data?.list || []
-      if (list.length > 0) setApiBanners(list)
+      if (list.length > 0) { _pageCache.banners = list; setApiBanners(list) }
     }).catch(() => {})
   }, [])
   const bannerItems = apiBanners.length > 0 ? apiBanners : fallbackBanners
@@ -287,9 +297,9 @@ export default function WelfareHomePage() {
     }
   }
 
-  const [apiActivities, setApiActivities] = useState<ContentCard[]>([])
-  const [apiCoupons, setApiCoupons] = useState<ContentCard[]>([])
-  const [apiMallItems, setApiMallItems] = useState<ContentCard[]>([])
+  const [apiActivities, setApiActivities] = useState<ContentCard[]>(_pageCache.activities)
+  const [apiCoupons, setApiCoupons] = useState<ContentCard[]>(_pageCache.coupons)
+  const [apiMallItems, setApiMallItems] = useState<ContentCard[]>(_pageCache.mallItems)
 
   useEffect(() => {
     const DISCOUNT_COVERS: Record<string, string> = {
@@ -319,6 +329,7 @@ export default function WelfareHomePage() {
         route: `/coupon/${c.id}`,
         footerTone: '#2F80FF',
       }))
+      _pageCache.coupons = rawCards
       setApiCoupons(rawCards)
     }).catch(() => {})
   }, [])
@@ -353,6 +364,7 @@ export default function WelfareHomePage() {
         views: 0,
         route: `/activity/${a.activity_id}`,
       }))
+      _pageCache.activities = rawCards
       setApiActivities(rawCards)
     }).catch(() => {})
   }, [])
@@ -378,6 +390,7 @@ export default function WelfareHomePage() {
           route: `/redeem/${item.id}`,
           footerTone: '#7B61FF',
         }))
+        _pageCache.mallItems = rawCards
         setApiMallItems(rawCards)
       })
       .catch(() => {})
