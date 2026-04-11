@@ -59,11 +59,26 @@ export async function putObject(buffer, objectKey, contentType) {
 }
 
 /**
- * 生成签名访问 URL
+ * 服务端签名 URL 缓存
+ * 同一 objectKey 在 TTL 内始终返回相同 URL，让浏览器 HTTP 缓存正常生效。
+ * 阿里云 / AWS 官方最佳实践：Presigned URL 应在服务端缓存，避免每次生成
+ * 导致浏览器无法复用缓存（签名参数变化 → 浏览器视为新资源 → 重新下载）。
+ */
+const _signedUrlCache = new Map(); // objectKey → { url, generatedAt }
+const SIGNED_URL_CACHE_TTL_MS = 50 * 60 * 1000; // 50 min（URL 有效期 24h，提前刷新留余量）
+
+/**
+ * 生成签名访问 URL（带服务端缓存）
  */
 export function signedUrl(objectKey, expires = URL_EXPIRES) {
+  const cached = _signedUrlCache.get(objectKey);
+  if (cached && (Date.now() - cached.generatedAt) < SIGNED_URL_CACHE_TTL_MS) {
+    return cached.url;
+  }
   const client = getClient();
-  return client.signatureUrl(objectKey, { expires });
+  const url = client.signatureUrl(objectKey, { expires });
+  _signedUrlCache.set(objectKey, { url, generatedAt: Date.now() });
+  return url;
 }
 
 /**
