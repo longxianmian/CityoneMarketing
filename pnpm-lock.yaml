@@ -16,7 +16,7 @@ catalogs:
       specifier: ^4.1.14
       version: 4.2.1
     '@tanstack/react-query':
-      specifier: ^5.90.21
+      specifier: 5.90.21
       version: 5.90.21
     '@types/node':
       specifier: ^25.3.3
@@ -294,6 +294,9 @@ importers:
       '@line/liff':
         specifier: ^2.28.0
         version: 2.28.0
+      '@tanstack/react-query':
+        specifier: 'catalog:'
+        version: 5.90.21(react@19.1.0)
       antd:
         specifier: ^5.25.4
         version: 5.29.3(date-fns@4.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)

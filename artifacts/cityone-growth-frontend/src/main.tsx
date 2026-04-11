@@ -2,10 +2,12 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ConfigProvider, App as AntdApp } from 'antd'
+import { QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './styles/global.css'
 import { I18nProvider, useI18n } from './i18n'
 import { LiffProvider } from './providers/LiffProvider'
+import queryClient from './lib/queryClient'
 
 function AppWithI18n() {
   const { antdLocale } = useI18n()
@@ -32,7 +34,9 @@ function AppWithI18n() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <I18nProvider>
-    <AppWithI18n />
-  </I18nProvider>
+  <QueryClientProvider client={queryClient}>
+    <I18nProvider>
+      <AppWithI18n />
+    </I18nProvider>
+  </QueryClientProvider>
 )

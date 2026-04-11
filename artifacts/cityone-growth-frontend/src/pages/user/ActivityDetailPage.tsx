@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import { Spin, Tag, Button, Card, Space } from 'antd'
 import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { useQuery } from '@tanstack/react-query'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 import OssImage from '../../components/OssImage'
 import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useFollowGate } from '../../hooks/useFollowGate'
-import { getCachedActivity, setCachedActivity } from '../../cache/activityCache'
+import { activityQueryKey, fetchActivityById } from '../../cache/activityCache'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -29,9 +30,11 @@ export default function ActivityDetailPage() {
   const [searchParams] = useSearchParams()
   const { language, t } = useI18n()
   const lang = language as AppLanguage
-  const cached = id ? getCachedActivity(id) : null
-  const [activity, setActivity] = useState<any>(cached || null)
-  const [loading, setLoading] = useState(!cached)
+  const { data: activity, isLoading: loading } = useQuery({
+    queryKey: activityQueryKey(id!),
+    queryFn: () => fetchActivityById(id!),
+    enabled: !!id,
+  })
   const [shareVisible, setShareVisible] = useState(false)
   const [step, setStep] = useState<Step>('detail')
   const [pointsAwarded, setPointsAwarded] = useState<number>(0)
@@ -39,21 +42,6 @@ export default function ActivityDetailPage() {
   const [participating, setParticipating] = useState(false)
   const { guard, checking } = useFollowGate()
   const effectiveUserId = useEffectiveUserId()
-
-  useEffect(() => {
-    if (!id) return
-    const load = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/activities/${id}`)
-        const json = await res.json()
-        const data = json.data || json
-        setCachedActivity(id, data)
-        setActivity(data)
-      } catch { if (!getCachedActivity(id)) setActivity(null) }
-      finally { setLoading(false) }
-    }
-    load()
-  }, [id])
 
   // 来自 FollowOAPage 回跳：auto=participate → 自动参与
   useEffect(() => {
