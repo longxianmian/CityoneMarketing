@@ -173,7 +173,7 @@ export default function PointsMallManage() {
       })
       if (Object.keys(textsToTranslate).length > 0) {
         try {
-          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 8000, silentError: true } as any)
+          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 4000, silentError: true } as any)
           const result = res.data?.result ?? {}
           mlFields.forEach(f => { if (result[f]) mlValues[f] = { ...mlValues[f], ...result[f] } })
         } catch {

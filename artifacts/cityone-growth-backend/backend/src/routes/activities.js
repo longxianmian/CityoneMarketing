@@ -41,6 +41,8 @@ function rowToActivity(r) {
     activity_desc: r.activity_desc || "",
     template_id: r.template_code || "",
     usage_mode: r.usage_mode || "public",
+    game_program_id: r.game_program_id || "",
+    game_config: r.game_config || {},
     start_time: r.start_time || "",
     end_time: r.end_time || "",
     status: r.status || "draft",
@@ -250,7 +252,7 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
     const { rows } = await query(
       `INSERT INTO activities
          (activity_id, activity_type, activity_name, activity_title, activity_subtitle, activity_desc,
-          template_code, usage_mode, start_time, end_time, status,
+          template_code, usage_mode, game_program_id, game_config, start_time, end_time, status,
           require_oa_follow, auto_join_after_follow,
           entry_scope_json, site_scope_json, channel_scope_json,
           share_enabled, share_title, share_desc, share_cover, campaign_id, share_status,
@@ -259,12 +261,14 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
           cover_image, cover_video, reward_points, sort_order, is_featured,
           landing_code, entry_ref_code, banner_code,
           source_entry_id, source_banner_id, source_channel_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44)
        RETURNING *`,
       [
         activityId, activityType, JSON.stringify(actName),
         body.activity_title || "", mlStr(body.activity_subtitle), mlStr(body.activity_desc),
         body.template_id || "", body.usage_mode || "public",
+        body.game_program_id || "",
+        body.game_config ? JSON.stringify(body.game_config) : "{}",
         body.start_time || "", body.end_time || "",
         ["draft", "active", "ended"].includes(body.status) ? body.status : "draft",
         !!body.require_oa_follow, !!body.auto_join_after_follow,
@@ -303,6 +307,8 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       activity_desc: (v) => mlStr(v),
       template_id: null,
       template_code: (v) => String(v),
+      game_program_id: (v) => String(v || ""),
+      game_config: (v) => v ? JSON.stringify(v) : "{}",
       usage_mode: (v) => String(v), start_time: (v) => String(v), end_time: (v) => String(v),
       status: (v) => String(v),
       require_oa_follow: (v) => !!v, auto_join_after_follow: (v) => !!v,

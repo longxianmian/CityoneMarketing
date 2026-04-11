@@ -133,12 +133,14 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
     const id = await nextCouponId();
     const nameVal = JSON.stringify(name); // 确保 JSONB 合法（字符串自动加引号）
 
+    const stationScope = body.station_scope ? JSON.stringify(body.station_scope) : "{}";
+
     const result = await query(`
       INSERT INTO coupons
         (id, name, coupon_type, item_type, discount_type, discount_value, min_amount, total_count,
-         claimed_count, status, valid_from, valid_to, cover_image, cover_video, created_at, updated_at)
+         claimed_count, status, valid_from, valid_to, cover_image, cover_video, station_scope, created_at, updated_at)
       VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13, NOW(), NOW())
+        ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13, $14, NOW(), NOW())
       RETURNING *
     `, [
       id,
@@ -154,6 +156,7 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
       validTo       || null,
       revertOssUrl(coverImage) || "",
       revertOssUrl(coverVideo) || "",
+      stationScope,
     ]);
 
     return sendOk(res, sendJson, "创建成功", couponRow(result.rows[0]));
@@ -196,6 +199,7 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
     if (validTo       != null) addSet("valid_to",       validTo   || null);
     if (coverImage    != null) addSet("cover_image",    revertOssUrl(coverImage));
     if (coverVideo    != null) addSet("cover_video",    revertOssUrl(coverVideo));
+    if (body.station_scope != null) addSet("station_scope", JSON.stringify(body.station_scope));
     addSet("updated_at", new Date().toISOString());
 
     params.push(id);

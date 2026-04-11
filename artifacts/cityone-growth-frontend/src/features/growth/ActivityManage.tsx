@@ -89,6 +89,7 @@ export default function ActivityManage() {
     name: toMlObj(a.activity_name || a.activity_title),
     subTitle: toMlObj(a.activity_subtitle),
     activityType: a.activity_type || 'general',
+    mode: a.usage_mode || '',
     description: toMlObj(a.activity_desc),
     start_at: a.start_time || '',
     end_at: a.end_time || '',
@@ -107,6 +108,9 @@ export default function ActivityManage() {
     requireFollow: !!a.require_oa_follow,
     autoJoin: !!a.auto_join_after_follow,
     template_id: a.template_id || '',
+    gameProgramId: a.game_program_id || '',
+    gameConfig: a.game_config || {},
+    game_program_id: a.game_program_id || '',
     followCount: 0,
     userCount: 0,
     memberCount: 0,
@@ -220,6 +224,7 @@ export default function ActivityManage() {
     setIsEdit(true); setEditingRecord(record)
     setStationScope(record.station_scope || { type: 'all' })
     const lang = 'zh'
+    const gc = record.gameConfig || {}
     form.setFieldsValue({
       ...record,
       _sourceLang: lang,
@@ -231,6 +236,12 @@ export default function ActivityManage() {
       rewardGuide:        pickText(record.rewardGuide, lang),
       noticeText:         pickText(record.noticeText, lang),
       dateRange: record.start_at && record.end_at ? [dayjs(record.start_at), dayjs(record.end_at)] : undefined,
+      gameProgramId: record.gameProgramId || record.game_program_id || undefined,
+      mode: record.mode || undefined,
+      wheelSegments: gc.wheelSegments ?? undefined,
+      defaultChances: gc.defaultChances ?? undefined,
+      spinResultDelay: gc.spinResultDelay ?? undefined,
+      scratchRevealThreshold: gc.scratchRevealThreshold ?? undefined,
     })
     setCoverImage(record.coverImage || ''); setCoverVideo(record.coverVideo || '')
     setFormVisible(true)
@@ -279,7 +290,7 @@ export default function ActivityManage() {
         try {
           const texts: Record<string, string> = {}
           needsTranslation.forEach(f => { texts[f] = mlValues[f][sourceLang as keyof MultiLangValue] || '' })
-          const res: any = await request.post('/translate', { texts, sourceLang }, { timeout: 8000, silentError: true } as any)
+          const res: any = await request.post('/translate', { texts, sourceLang }, { timeout: 4000, silentError: true } as any)
           const result: Record<string, MultiLangValue> = res.data?.result ?? {}
           needsTranslation.forEach(f => { if (result[f]) mlValues[f] = result[f] })
         } catch {
@@ -287,11 +298,20 @@ export default function ActivityManage() {
         }
       }
 
+      const gameConfig: Record<string, any> = {}
+      if (values.wheelSegments != null)         gameConfig.wheelSegments = values.wheelSegments
+      if (values.defaultChances != null)        gameConfig.defaultChances = values.defaultChances
+      if (values.spinResultDelay != null)       gameConfig.spinResultDelay = values.spinResultDelay
+      if (values.scratchRevealThreshold != null) gameConfig.scratchRevealThreshold = values.scratchRevealThreshold
+
       const backendPayload: Record<string, unknown> = {
         activity_name: mlValues.name,
         activity_subtitle: mlValues.subTitle,
         activity_desc: mlValues.description,
         activity_type: values.activityType || 'general',
+        usage_mode: values.mode || 'public',
+        game_program_id: values.gameProgramId || '',
+        game_config: gameConfig,
         start_time: values.dateRange?.[0]?.format('YYYY-MM-DD HH:mm:ss') || '',
         end_time: values.dateRange?.[1]?.format('YYYY-MM-DD HH:mm:ss') || '',
         require_oa_follow: !!values.requireFollow,
