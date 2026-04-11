@@ -66,7 +66,7 @@ export async function handlePromoStats(req, res, url, sendJson) {
        SELECT source_entry_id AS ec, user_id FROM mall_redeems
          WHERE source_entry_id = ANY($1::text[])
        UNION ALL
-       SELECT source_entry_id AS ec, user_id FROM activity_participants
+       SELECT source_entry_id AS ec, user_id FROM activity_participations
          WHERE source_entry_id = ANY($1::text[])
      )
      SELECT ec,
