@@ -8,6 +8,7 @@ import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
 import OssImage from '../../components/OssImage'
 import { useI18n } from '../../i18n'
+import { useMLPick } from '../../lib/ml'
 
 const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
 
@@ -20,6 +21,7 @@ function pickText(v: any, lang = 'zh'): string {
 
 export default function PointsMallManage() {
   const { t, language } = useI18n()
+  const pick = useMLPick()
   const pm = (key: string) => t(`pointsMall.${key}`)
 
   const typeOptions = [
@@ -224,15 +226,12 @@ export default function PointsMallManage() {
     },
     {
       title: pm('colTitle'), dataIndex: 'name', key: 'name', width: 180,
-      render: (v: any, r: any) => {
-        const displayName = v && typeof v === 'object' ? (v.zh || v.th || v.en || '') : (v || '')
-        return (
-          <div>
-            <div style={{ fontWeight: 600 }}>{displayName}</div>
-            {r.tag && <Tag style={{ marginTop: 4, fontSize: 11 }}>{r.tag}</Tag>}
-          </div>
-        )
-      },
+      render: (v: any, r: any) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{pick(v) || '—'}</div>
+          {r.tag && <Tag style={{ marginTop: 4, fontSize: 11 }}>{r.tag}</Tag>}
+        </div>
+      ),
     },
     {
       title: pm('colType'), key: 'item_type', width: 130,

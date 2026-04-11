@@ -15,6 +15,8 @@ import {
 } from '@ant-design/icons'
 import QRCode from 'qrcode'
 import request from '../../api/request'
+import { useI18n } from '../../i18n'
+import { pickML, useMLPick } from '../../lib/ml'
 
 /* ─── 类型 ────────────────────────────────────────────────────────────────── */
 type Station = { station_code: string; station_name: string; city_name?: string }
@@ -38,12 +40,6 @@ type StaffStat = {
   total_events: number
 }
 
-/* ─── 工具 ────────────────────────────────────────────────────────────────── */
-function pickML(v: any): string {
-  if (!v) return ''
-  if (typeof v === 'string') return v
-  return v.zh || v.en || v.th || ''
-}
 
 const TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string; desc: string }> = {
   device_qr:     { label: '设备码',   icon: <ThunderboltOutlined />, color: '#1677ff', desc: '设备自带，A系统管理' },
@@ -230,6 +226,7 @@ function fetchStationsList(): Promise<Station[]> {
 
 /* ─── 主页面 ─────────────────────────────────────────────────────────────── */
 export default function StationPromoPage() {
+  const pick = useMLPick()
   const [stations, setStations] = useState<Station[]>([])
   const [selectedStation, setSelectedStation] = useState<Station | null>(null)
   const [entries, setEntries] = useState<PromoEntry[]>([])

@@ -3,14 +3,8 @@ import { Segmented, Table, Tag, Card, Row, Col, Statistic, Space, Button, Input,
 import { SearchOutlined, ReloadOutlined, FileTextOutlined, CheckCircleOutlined, GiftOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import dayjs from 'dayjs'
-
-function pickML(field: any): string {
-  if (!field) return '-'
-  if (typeof field === 'string') return field
-  if (typeof field === 'object' && !Array.isArray(field))
-    return field.zh || field.en || field.th || '-'
-  return '-'
-}
+import { useI18n } from '../../i18n'
+import { pickML, useMLPick } from '../../lib/ml'
 
 const couponTypeMap: Record<string, string> = {
   newbie: '新人券', channel: '渠道券', general: '通用券', activity: '活动券',
@@ -22,6 +16,7 @@ const discountTypeMap: Record<string, string> = {
 type ViewMode = 'issue' | 'usage'
 
 export default function CouponStatsPage() {
+  const pick = useMLPick()
   const [mode, setMode] = useState<ViewMode>('issue')
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<any[]>([])
@@ -48,7 +43,7 @@ export default function CouponStatsPage() {
   const totalUsed     = rows.reduce((s, r) => s + (r.used_count    || 0), 0)
 
   const filterFn = (row: any) =>
-    !search || pickML(row.name).toLowerCase().includes(search.toLowerCase())
+    !search || pick(row.name).toLowerCase().includes(search.toLowerCase())
 
   const filtered = rows.filter(filterFn)
 
@@ -56,7 +51,7 @@ export default function CouponStatsPage() {
   const issueColumns = [
     {
       title: '卡券名称', dataIndex: 'name', key: 'name', ellipsis: true,
-      render: (v: any) => <span style={{ fontWeight: 600 }}>{pickML(v)}</span>,
+      render: (v: any) => <span style={{ fontWeight: 600 }}>{pick(v)}</span>,
     },
     {
       title: '类型', dataIndex: 'coupon_type', key: 'coupon_type', width: 90,
@@ -101,7 +96,7 @@ export default function CouponStatsPage() {
   const usageColumns = [
     {
       title: '卡券名称', dataIndex: 'name', key: 'name', ellipsis: true,
-      render: (v: any) => <span style={{ fontWeight: 600 }}>{pickML(v)}</span>,
+      render: (v: any) => <span style={{ fontWeight: 600 }}>{pick(v)}</span>,
     },
     {
       title: '类型', dataIndex: 'coupon_type', key: 'coupon_type', width: 90,

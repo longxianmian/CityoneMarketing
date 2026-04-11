@@ -15,15 +15,8 @@ import {
 } from '@ant-design/icons'
 import request from '../../api/request'
 import dayjs from 'dayjs'
-
-/* ─── 工具 ──────────────────────────────────────────────────────────────── */
-function pickML(field: any): string {
-  if (!field) return '-'
-  if (typeof field === 'string') return field
-  if (typeof field === 'object' && !Array.isArray(field))
-    return field.zh || field.en || field.th || '-'
-  return '-'
-}
+import { useI18n } from '../../i18n'
+import { useMLPick } from '../../lib/ml'
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   claimed:   { label: '未使用',  color: 'blue',    icon: <ClockCircleOutlined /> },
@@ -57,6 +50,7 @@ function VerifyCard({
   onVerify: () => void
   verifying: boolean
 }) {
+  const pick = useMLPick()
   const canVerify = uc.product_status === 'claimed'
   return (
     <Card
@@ -65,7 +59,7 @@ function VerifyCard({
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{pickML(uc.coupon_name)}</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{pick(uc.coupon_name)}</div>
           <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{uc.id}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -92,7 +86,7 @@ function VerifyCard({
         <div style={{ marginTop: 20, textAlign: 'right' }}>
           <Popconfirm
             title="确认核销此券？"
-            description={`将核销「${pickML(uc.coupon_name)}」，操作不可撤销。`}
+            description={`将核销「${pick(uc.coupon_name)}」，操作不可撤销。`}
             onConfirm={onVerify}
             okText="确认核销"
             cancelText="取消"
@@ -194,6 +188,7 @@ function QuickVerify() {
 
 /* ─── Tab2：核销记录 ──────────────────────────────────────────────────────── */
 function VerifyList() {
+  const pick = useMLPick()
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<any[]>([])
   const [total, setTotal] = useState(0)
@@ -251,7 +246,7 @@ function VerifyList() {
     },
     {
       title: '卡券', dataIndex: 'coupon_name', key: 'coupon_name', ellipsis: true,
-      render: (v: any) => pickML(v),
+      render: (v: any) => pick(v),
     },
     {
       title: '用户', dataIndex: 'user_id', key: 'user_id', width: 120, ellipsis: true,
@@ -274,7 +269,7 @@ function VerifyList() {
       render: (_: any, r: any) =>
         r.product_status === 'claimed' ? (
           <Popconfirm
-            title={`确认核销「${pickML(r.coupon_name)}」？`}
+            title={`确认核销「${pick(r.coupon_name)}」？`}
             onConfirm={() => handleVerifyRow(r.id)}
             okText="核销" cancelText="取消"
           >

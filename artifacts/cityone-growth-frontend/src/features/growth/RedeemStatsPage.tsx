@@ -2,14 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Table, Card, Row, Col, Statistic, Input, Space, Button, Tag, Progress, Spin } from 'antd'
 import { SearchOutlined, ReloadOutlined, ShoppingOutlined, PercentageOutlined, TrophyOutlined } from '@ant-design/icons'
 import request from '../../api/request'
-
-function pickML(field: any): string {
-  if (!field) return '-'
-  if (typeof field === 'string') return field
-  if (typeof field === 'object' && !Array.isArray(field))
-    return field.zh || field.en || field.th || '-'
-  return '-'
-}
+import { useI18n } from '../../i18n'
+import { pickML, useMLPick } from '../../lib/ml'
 
 const ITEM_TYPE_LABEL: Record<string, string> = {
   digital: '数字商品',
@@ -28,6 +22,7 @@ const ITEM_TYPE_COLOR: Record<string, string> = {
 }
 
 export default function RedeemStatsPage() {
+  const pick = useMLPick()
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
@@ -75,7 +70,7 @@ export default function RedeemStatsPage() {
     ? Object.values(itemStatsMap).map(({ item, count, points }) => ({
         key: item.id,
         id: item.id,
-        name: pickML(item.name),
+        name: pick(item.name),
         itemType: item.item_type || 'digital',
         redeemCount: count,
         pointsSpent: points,
@@ -84,7 +79,7 @@ export default function RedeemStatsPage() {
     : items.map(item => ({
         key: item.id,
         id: item.id,
-        name: pickML(item.name),
+        name: pick(item.name),
         itemType: item.item_type || 'digital',
         redeemCount: 0,
         pointsSpent: 0,

@@ -14,7 +14,8 @@ import { useNavigate } from 'react-router-dom'
 import SharePromoModal from '../../components/SharePromoModal'
 import MediaUploadField from '../../components/MediaUploadField'
 import dayjs from 'dayjs'
-import { useI18n, pickLocalizedText } from '../../i18n'
+import { useI18n } from '../../i18n'
+import { toMLObj, pickML, useMLPick } from '../../lib/ml'
 
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
 import request from '../../api/request'
@@ -22,27 +23,13 @@ import StationScopeSelect, { type StationScope } from '../../components/StationS
 
 type MultiLangValue = { zh: string; th: string; en: string }
 
-const toMlObj = (v: any): MultiLangValue => {
-  if (!v) return { zh: '', th: '', en: '' }
-  if (typeof v === 'object') return { zh: v.zh || '', th: v.th || '', en: v.en || '' }
-  if (typeof v === 'string') {
-    try {
-      const parsed = JSON.parse(v)
-      if (parsed && typeof parsed === 'object') return { zh: parsed.zh || '', th: parsed.th || '', en: parsed.en || '' }
-    } catch {}
-    return { zh: v, th: '', en: '' }
-  }
-  return { zh: String(v), th: '', en: '' }
-}
+const toMlObj = toMLObj
 
-const pickText = (v: any, lang = 'zh'): string => {
-  if (!v) return ''
-  if (typeof v === 'string') return v
-  return v[lang] || v.zh || v.en || v.th || ''
-}
+const pickText = (v: any, lang = 'zh'): string => pickML(v, lang)
 
 export default function ActivityManage() {
   const { t } = useI18n()
+  const pick = useMLPick()
   const am = (key: string) => t(`admin.activity.${key}`)
   const nav = useNavigate()
 
@@ -350,16 +337,12 @@ export default function ActivityManage() {
   const columns = [
     {
       title: am('colName'), dataIndex: 'name', key: 'name', width: 220,
-      render: (v: any, row: any) => {
-        const displayName = typeof v === 'object' ? (v?.zh || v?.en || v?.th || '—') : (v || '—')
-        const displaySub = typeof row.subTitle === 'object' ? (row.subTitle?.zh || '') : (row.subTitle || '')
-        return (
-          <div>
-            <div style={{ fontWeight: 600 }}>{displayName}</div>
-            <div style={{ marginTop: 4, color: '#888', fontSize: 12 }}>{displaySub || '--'}</div>
-          </div>
-        )
-      },
+      render: (v: any, row: any) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{pick(v) || '—'}</div>
+          <div style={{ marginTop: 4, color: '#888', fontSize: 12 }}>{pick(row.subTitle) || '--'}</div>
+        </div>
+      ),
     },
     {
       title: am('colType'), dataIndex: 'activityType', key: 'activityType', width: 120,

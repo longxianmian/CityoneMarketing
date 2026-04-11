@@ -7,18 +7,10 @@ import MediaUploadField from '../../components/MediaUploadField'
 import SharePromoModal from '../../components/SharePromoModal'
 import OssImage from '../../components/OssImage'
 import { useI18n } from '../../i18n'
+import { pickML, useMLPick } from '../../lib/ml'
 import dayjs from 'dayjs'
 
 const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
-
-// 多语字段 pick（降级：当前语言 → en → zh → th）
-function pickML(field: any, lang = 'zh'): string {
-  if (!field) return ''
-  if (typeof field === 'string') return field
-  if (typeof field === 'object' && !Array.isArray(field))
-    return field[lang] || field.en || field.zh || field.th || ''
-  return ''
-}
 
 const discountTypeColors: Record<string, string> = {
   fixed: 'blue', percent: 'purple', free_time: 'green', free_order: 'orange',
@@ -26,6 +18,7 @@ const discountTypeColors: Record<string, string> = {
 
 export default function CouponManage() {
   const { t, language } = useI18n()
+  const pick = useMLPick()
 
   const couponTypeMap: Record<string, string> = {
     newbie: t('couponManage.couponTypeNewbie'),
@@ -176,7 +169,7 @@ export default function CouponManage() {
     },
     {
       title: t('couponManage.colName'), dataIndex: 'name', key: 'name', width: 180, ellipsis: true,
-      render: (v: any) => pickML(v),
+      render: (v: any) => pick(v),
     },
     {
       title: t('couponManage.colType'), dataIndex: 'coupon_type', key: 'coupon_type', width: 100,
@@ -265,7 +258,7 @@ export default function CouponManage() {
         onClose={() => setShareRecord(null)}
         type="coupon"
         id={shareRecord?.id}
-        name={pickML(shareRecord?.name)}
+        name={pick(shareRecord?.name)}
       />
 
       <Modal
