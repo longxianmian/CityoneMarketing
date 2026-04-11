@@ -46,16 +46,36 @@ function resolveIdentityTag(account, depositPaid) {
 export async function handleUserProfile(req, res, url, sendJson) {
   const userId = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
 
+  // ── 非积分字段来自 JSON 文件（押金/会员级别/昵称头像，阶段四接 A 系统后迁 DB）──
   const accounts = loadJsonArray(dataFile("points-accounts.json"));
-  const account = accounts.find(
+  const jsonAccount = accounts.find(
     (a) => userId && (a.user_id === userId || a.line_user_id === userId)
   ) || null;
 
-  const depositPaid = account?.deposit_paid ?? false;
-  const depositAmount = account?.deposit_amount ?? 0;
-  const identityTag = resolveIdentityTag(account, depositPaid);
+  const depositPaid   = jsonAccount?.deposit_paid   ?? false;
+  const depositAmount = jsonAccount?.deposit_amount  ?? 0;
+  const memberLevel   = jsonAccount?.member_level    || "standard";
+  const displayName   = jsonAccount?.line_display_name || "";
+  const pictureUrl    = jsonAccount?.line_picture_url   || "";
 
-  // 可用卡券数：从 user_coupons DB 表查（与领取写入路径一致）
+  // ── 积分字段读 DB points_accounts（与 mall_redeem / points_adjust 写入同源）──
+  let availablePoints = 0;
+  let totalPoints     = 0;
+  try {
+    if (userId) {
+      const pRes = await query(
+        `SELECT available_points, total_points FROM points_accounts
+         WHERE user_id = $1 OR line_user_id = $1 LIMIT 1`,
+        [userId]
+      );
+      if (pRes.rows.length) {
+        availablePoints = Number(pRes.rows[0].available_points || 0);
+        totalPoints     = Number(pRes.rows[0].total_points     || 0);
+      }
+    }
+  } catch { /* DB 不可用时降级为 0 */ }
+
+  // ── 可用卡券数读 DB user_coupons（与领取写入同源）──
   let couponCount = 0;
   try {
     if (userId) {
@@ -68,20 +88,24 @@ export async function handleUserProfile(req, res, url, sendJson) {
     }
   } catch { /* DB 不可用时降级为 0 */ }
 
+  // identity_tag 由积分账户是否存在推断
+  const hasAccount = availablePoints > 0 || totalPoints > 0 || !!jsonAccount;
+  const identityTag = resolveIdentityTag(hasAccount ? { ...jsonAccount } : null, depositPaid);
+
   const profile = {
-    user_id: userId,
-    line_user_id: userId,
-    line_display_name: account?.line_display_name || "",
-    line_picture_url: account?.line_picture_url || "",
-    identity_tag: identityTag,
-    deposit_paid: depositPaid,
-    deposit_amount: depositAmount,
-    member_level: account?.member_level || "standard",
-    available_points: account?.available_points ?? 0,
-    total_points: account?.total_points ?? 0,
-    coupon_count: couponCount,
-    data_source: "system_derived",
-    updated_at: account?.updated_at || new Date().toISOString(),
+    user_id:           userId,
+    line_user_id:      userId,
+    line_display_name: displayName,
+    line_picture_url:  pictureUrl,
+    identity_tag:      identityTag,
+    deposit_paid:      depositPaid,
+    deposit_amount:    depositAmount,
+    member_level:      memberLevel,
+    available_points:  availablePoints,   // ✅ 来自 DB
+    total_points:      totalPoints,       // ✅ 来自 DB
+    coupon_count:      couponCount,       // ✅ 来自 DB
+    data_source:       "db_primary",
+    updated_at:        new Date().toISOString(),
   };
 
   return sendOk(res, sendJson, "user profile loaded", profile);
