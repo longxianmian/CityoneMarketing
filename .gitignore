@@ -59,3 +59,11 @@ coverage/
 
 # macOS
 *.DS_Store
+
+# LINE 密钥与运行时数据（不提交到 git）
+artifacts/cityone-growth-backend/backend/data/line-config.json
+artifacts/cityone-growth-backend/backend/data/fans.json
+artifacts/cityone-growth-backend/backend/data/points-accounts.json
+artifacts/cityone-growth-backend/backend/data/points-ledger.json
+artifacts/cityone-growth-backend/backend/data/agent-sessions.json
+artifacts/cityone-growth-backend/backend/data/agent-messages.json
