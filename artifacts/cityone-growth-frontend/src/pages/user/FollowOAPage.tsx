@@ -13,6 +13,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import useLineUserStore from '../../store/lineUser'
 import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
+import { useLiff } from '../../providers/LiffProvider'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const SESSION_KEY = 'follow_oa_clicked'
@@ -23,6 +24,7 @@ export default function FollowOAPage() {
   const { language } = useI18n()
   const lineProfile = useLineUserStore((s) => s.profile)
   const effectiveUserId = useEffectiveUserId()
+  const { liffReady } = useLiff()
 
   const to   = params.get('to')   || '/welfare'
   const name = params.get('name') || ''
@@ -30,6 +32,14 @@ export default function FollowOAPage() {
 
   const [oaId, setOaId] = useState('')
   const clickedRef = useRef(!!sessionStorage.getItem(SESSION_KEY))
+
+  // 若 LIFF 确认用户已关注（包括通过 A 系统关注的），直接跳目标页，无需再显示引导
+  useEffect(() => {
+    if (liffReady && lineProfile?.isFriend === true) {
+      sessionStorage.removeItem(SESSION_KEY)
+      navigate(to, { replace: true })
+    }
+  }, [liffReady, lineProfile?.isFriend, navigate, to])
 
   // 从后端拉取真实 OA ID
   useEffect(() => {

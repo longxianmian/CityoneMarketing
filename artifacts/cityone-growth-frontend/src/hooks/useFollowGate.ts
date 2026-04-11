@@ -1,17 +1,15 @@
 /**
  * useFollowGate — 关注门控统一 Hook
  *
- * 粉丝验证逻辑集中管理：
- * - 优先使用 LIFF 登录后的真实 LINE User ID（lineUser store）
- * - 未登录时 fallback 到 deviceUserId（浏览器本地 UUID）
- * - 页面挂载时异步预查粉丝状态，消除点击延迟
- * - guard(action, opts) 包裹任何互动操作
- *   - 已关注 → 直接执行 action
- *   - 未关注 → 跳转关注引导页，关注后自动回跳并触发操作
+ * 粉丝验证优先级：
+ *   1. LIFF getFriendship()（最权威）— 用户无论通过哪个系统关注 OA 都有效
+ *      同事已通过 A 系统关注同一 OA → LIFF 返回 friendFlag:true → 直接放行
+ *   2. 后端 fans.json（LIFF 未初始化/不在 LINE 内时的降级）
  *
- * 归因参数（entry_code + UTM）在未关注跳转时自动透传
+ * LIFF 确认为粉丝时自动调用 set-fan，将用户写入 fans.json，
+ * 消除增长系统与 A 系统粉丝数据的裂缝。
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getDeviceUserId } from '../utils/deviceUserId'
 import useLineUserStore from '../store/lineUser'
@@ -31,6 +29,21 @@ async function fetchFanStatus(userId: string): Promise<boolean> {
   }
 }
 
+/** 当 LIFF 确认是粉丝时，顺手同步到 fans.json，避免后端数据裂缝 */
+function syncFanToBackend(lineUserId: string, displayName: string, pictureUrl: string) {
+  const userId = lineUserId || getDeviceUserId()
+  fetch(`${API_BASE}/api/user/set-fan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      line_user_id: lineUserId || userId,
+      line_display_name: displayName,
+      line_picture_url: pictureUrl,
+    }),
+  }).catch(() => {})
+}
+
 interface GuardOptions {
   label?: string
   returnPath: string
@@ -43,17 +56,45 @@ export function useFollowGate() {
   const lineProfile = useLineUserStore((s) => s.profile)
   const [isFan, setIsFan] = useState<boolean | null>(null)
   const [checking, setChecking] = useState(false)
+  const syncedRef = useRef(false)  // 避免重复触发 set-fan
 
-  /**
-   * 优先使用真实 LINE User ID（LIFF 登录后），否则用设备 UUID
-   */
   const getEffectiveUserId = useCallback((): string => {
     return lineProfile?.lineUserId || getDeviceUserId()
   }, [lineProfile?.lineUserId])
 
   useEffect(() => {
+    const liffIsFriend = lineProfile?.isFriend
+
+    // ① LIFF 官方 getFriendship() 返回 true → 直接认定为粉丝（最权威）
+    if (liffIsFriend === true) {
+      setIsFan(true)
+      // 顺手同步到 fans.json（消除两套系统数据裂缝，幂等安全）
+      if (!syncedRef.current) {
+        syncedRef.current = true
+        syncFanToBackend(
+          lineProfile?.lineUserId || '',
+          lineProfile?.lineDisplayName || '',
+          lineProfile?.linePictureUrl || '',
+        )
+      }
+      return
+    }
+
+    // ② LIFF 明确返回 false（在 LINE 内但未关注）
+    if (liffIsFriend === false) {
+      setIsFan(false)
+      return
+    }
+
+    // ③ LIFF 未初始化 / 不在 LINE 内（isFriend === undefined）→ 查后端 fans.json
     fetchFanStatus(getEffectiveUserId()).then(setIsFan)
-  }, [getEffectiveUserId])
+  }, [
+    getEffectiveUserId,
+    lineProfile?.isFriend,
+    lineProfile?.lineUserId,
+    lineProfile?.lineDisplayName,
+    lineProfile?.linePictureUrl,
+  ])
 
   /**
    * 构建带归因参数的完整回跳 URL
@@ -88,9 +129,20 @@ export function useFollowGate() {
       const { label = '', returnPath, back } = opts
       setChecking(true)
       try {
-        const userId = getEffectiveUserId()
-        const fan = isFan !== null ? isFan : await fetchFanStatus(userId)
-        if (isFan === null) setIsFan(fan)
+        const liffIsFriend = lineProfile?.isFriend
+        let fan: boolean
+
+        if (liffIsFriend === true) {
+          // LIFF 官方确认：已关注（A 系统关注的也算）
+          fan = true
+        } else if (liffIsFriend === false) {
+          // LIFF 官方确认：未关注
+          fan = false
+        } else {
+          // LIFF 未初始化降级
+          fan = isFan !== null ? isFan : await fetchFanStatus(getEffectiveUserId())
+          if (isFan === null) setIsFan(fan)
+        }
 
         if (fan) {
           await action()
@@ -107,7 +159,7 @@ export function useFollowGate() {
         setChecking(false)
       }
     },
-    [isFan, navigate, buildReturnPath, getEffectiveUserId]
+    [isFan, navigate, buildReturnPath, getEffectiveUserId, lineProfile?.isFriend]
   )
 
   return { isFan, guard, checking }
