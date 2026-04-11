@@ -22,6 +22,7 @@ import UserBottomNav from '../../components/user/UserBottomNav'
 import { getActivities } from '../../api/growth'
 import request from '../../api/request'
 import { isObjectKey, useOssUrl } from '../../components/OssImage'
+import { prefetchActivity } from '../../cache/activityCache'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -279,7 +280,13 @@ export default function WelfareHomePage() {
     if (Date.now() - _pageCache.bannersAt < CACHE_TTL_MS) return
     request.get('/growth/banners', { params: { enabled: 'true' } }).then((res: any) => {
       const list = res.data?.list || []
-      if (list.length > 0) { _pageCache.banners = list; _pageCache.bannersAt = Date.now(); setApiBanners(list) }
+      if (list.length > 0) {
+        _pageCache.banners = list; _pageCache.bannersAt = Date.now(); setApiBanners(list)
+        list.forEach((b: any) => {
+          const m = typeof b.link_url === 'string' && b.link_url.match(/\/activity\/([^/?]+)/)
+          if (m) prefetchActivity(m[1])
+        })
+      }
     }).catch(() => {})
   }, [])
   const bannerItems = apiBanners.length > 0 ? apiBanners : fallbackBanners
@@ -375,6 +382,7 @@ export default function WelfareHomePage() {
       }))
       _pageCache.activities = rawCards; _pageCache.activitiesAt = Date.now()
       setApiActivities(rawCards)
+      rawCards.forEach(c => prefetchActivity(c.id))
     }).catch(() => {})
   }, [])
 
