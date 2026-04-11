@@ -231,6 +231,7 @@ export async function handleUserBenefits(req, res, url, sendJson) {
         uc.coupon_id                  AS product_id,
         c.name                        AS product_name,
         c.coupon_type                 AS product_type,
+        c.item_type,
         c.discount_type,
         c.discount_value,
         uc.product_status,
@@ -270,6 +271,7 @@ export async function handleUserBenefits(req, res, url, sendJson) {
       product_id:         row.product_id  || "",
       product_name:       row.product_name || "权益卡券",   // JSONB {zh,th,en} 或 null
       product_type:       row.product_type || "coupon",
+      item_type:          row.item_type    || "digital",
       product_subtitle:   "",
       short_benefit_text: buildBenefitText(row.discount_type, row.discount_value),
       status:             mapStatus(row.product_status),

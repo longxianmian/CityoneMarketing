@@ -238,6 +238,7 @@ export default function MinePage() {
   const [redeemLoading, setRedeemLoading] = useState(false)
   const [summaryLoaded, setSummaryLoaded] = useState(false)
   const [borrowModalOpen, setBorrowModalOpen] = useState(false)
+  const [physicalGiftModalOpen, setPhysicalGiftModalOpen] = useState(false)
 
   // ── 阶段三：奖品真实接口 ──────────────────────────────────────────────────
   const [prizeItems, setPrizeItems] = useState<any[]>([])
@@ -900,13 +901,17 @@ export default function MinePage() {
                       </div>
                       {couponSub === 'available' && (
                         <button
-                          onClick={() => setBorrowModalOpen(true)}
+                          onClick={() =>
+                            item.item_type === 'physical'
+                              ? setPhysicalGiftModalOpen(true)
+                              : setBorrowModalOpen(true)
+                          }
                           style={{
-                            border: `1.5px solid #2CDBCE`,
+                            border: `1.5px solid ${item.item_type === 'physical' ? '#7C3AED' : '#2CDBCE'}`,
                             borderRadius: 20,
                             padding: '6px 14px',
                             background: 'transparent',
-                            color: '#2CDBCE',
+                            color: item.item_type === 'physical' ? '#7C3AED' : '#2CDBCE',
                             fontWeight: 700,
                             fontSize: 13,
                             cursor: 'pointer',
@@ -1230,6 +1235,24 @@ export default function MinePage() {
       >
         <p style={{ color: '#555', lineHeight: 1.7, margin: '12px 0 4px' }}>
           {t('mine.borrowModalDesc')}
+        </p>
+      </Modal>
+
+      <Modal
+        open={physicalGiftModalOpen}
+        onOk={() => setPhysicalGiftModalOpen(false)}
+        onCancel={() => setPhysicalGiftModalOpen(false)}
+        okText={t('mine.physicalGiftModalOk')}
+        cancelButtonProps={{ style: { display: 'none' } }}
+        centered
+        title={
+          <span style={{ color: '#7C3AED', fontWeight: 700 }}>
+            🎁 {t('mine.physicalGiftModalTitle')}
+          </span>
+        }
+      >
+        <p style={{ color: '#555', lineHeight: 1.7, margin: '12px 0 4px' }}>
+          {t('mine.physicalGiftModalDesc')}
         </p>
       </Modal>
 
