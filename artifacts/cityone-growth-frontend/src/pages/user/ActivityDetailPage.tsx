@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import { Spin, Tag, Button, Card, Space } from 'antd'
 import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
@@ -33,6 +33,7 @@ async function checkFanStatus(userId: string): Promise<boolean> {
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { language, t } = useI18n()
   const lang = language as AppLanguage
@@ -240,7 +241,7 @@ export default function ActivityDetailPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 100 }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
-        <button onClick={() => nav('/welfare')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
+        <button onClick={() => location.key !== 'default' ? nav(-1) : nav('/welfare')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
           <ArrowLeftOutlined style={{ fontSize: 20 }} />
         </button>
         <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>{t('detail.detail')}</span>
