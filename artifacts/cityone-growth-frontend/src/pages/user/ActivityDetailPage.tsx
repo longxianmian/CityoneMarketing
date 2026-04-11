@@ -6,6 +6,7 @@ import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 import OssImage from '../../components/OssImage'
 import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useFollowGate } from '../../hooks/useFollowGate'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -19,16 +20,6 @@ const TYPE_LABELS_ML: Record<string, { label: ML; color: string; btnText: ML; ro
 }
 
 type Step = 'detail' | 'success'
-
-async function checkFanStatus(userId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
-    const json = await res.json()
-    return json?.data?.is_fan === true
-  } catch {
-    return false
-  }
-}
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -44,13 +35,7 @@ export default function ActivityDetailPage() {
   const [pointsAwarded, setPointsAwarded] = useState<number>(0)
   const [alreadyJoined, setAlreadyJoined] = useState(false)
   const [participating, setParticipating] = useState(false)
-  const [checking, setChecking] = useState(false)
-  const [fanChecked, setFanChecked] = useState<boolean | null>(null)
-
-  // 页面加载时就预查 fan 状态，消除按钮点击时的等待延迟
-  useEffect(() => {
-    checkFanStatus(getDeviceUserId()).then(setFanChecked)
-  }, [])
+  const { guard, checking } = useFollowGate()
 
   useEffect(() => {
     const load = async () => {
@@ -142,43 +127,24 @@ export default function ActivityDetailPage() {
   }
 
   // 核心：点击操作按钮 → 使用预加载结果（或按需查询）决定路径
-  const handleAction = async () => {
-    setChecking(true)
-    try {
-      const userId = getDeviceUserId()
-      // 优先使用页面加载时已预查的结果，避免点击延迟
-      const isFan = fanChecked !== null ? fanChecked : await checkFanStatus(userId)
-
-      if (isFan) {
-        // 已关注：直接执行
+  const handleAction = () => {
+    const baseTarget = isInteractive && typeInfoML.route
+      ? `${typeInfoML.route}${id}`
+      : `/activity/${id}?auto=participate`
+    guard(
+      async () => {
         if (isInteractive && typeInfoML.route) {
           nav(`${typeInfoML.route}${id}`)
         } else {
           await doParticipate()
         }
-      } else {
-        // 未关注：跳到关注页，回跳目标携带归因参数透传
-        const entryCode = searchParams.get('entry_code') || ''
-        const utmParts = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']
-          .filter(k => searchParams.get(k))
-          .map(k => `${k}=${encodeURIComponent(searchParams.get(k)!)}`)
-          .join('&')
-        const attrSuffix = [
-          entryCode ? `entry_code=${encodeURIComponent(entryCode)}` : '',
-          utmParts,
-        ].filter(Boolean).join('&')
-
-        const baseTarget = isInteractive && typeInfoML.route
-          ? `${typeInfoML.route}${id}`
-          : `/activity/${id}?auto=participate`
-        const redirectTo = attrSuffix
-          ? `${baseTarget}${baseTarget.includes('?') ? '&' : '?'}${attrSuffix}`
-          : baseTarget
-        nav(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(title)}&back=${encodeURIComponent(`/activity/${id}`)}`)
+      },
+      {
+        label: title,
+        returnPath: baseTarget,
+        back: `/activity/${id}`,
       }
-    } finally {
-      setChecking(false)
-    }
+    )
   }
 
   // ── 参与中 loading ────────────────────────────────────────────────────────

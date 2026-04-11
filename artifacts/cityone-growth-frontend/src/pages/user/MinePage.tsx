@@ -551,6 +551,50 @@ export default function MinePage() {
               </div>
             </div>
           </div>
+
+          {/* 身份等级说明 */}
+          <div style={{ marginBottom: 14, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[
+              {
+                tag: 'fan' as const,
+                icon: '⭐',
+                desc: { zh: '关注 LINE OA', th: 'ติดตาม LINE OA', en: 'Followed LINE OA' }[language]!,
+                active: true,
+              },
+              {
+                tag: 'user' as const,
+                icon: '👤',
+                desc: { zh: '使用过充电服务', th: 'ใช้บริการชาร์จแล้ว', en: 'Used charging service' }[language]!,
+                active: identityTag === 'user' || identityTag === 'member',
+              },
+              {
+                tag: 'member' as const,
+                icon: '💎',
+                desc: { zh: '已缴押金 · 充电 9 折', th: 'วางเงินมัดจำ · ลด 10% ชาร์จ', en: 'Deposit paid · 10% off charging' }[language]!,
+                active: identityTag === 'member',
+              },
+            ].map((tier) => (
+              <div
+                key={tier.tag}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                  background: tier.active ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
+                  border: tier.active ? '1px solid rgba(255,255,255,0.35)' : '1px solid rgba(255,255,255,0.12)',
+                  opacity: tier.active ? 1 : 0.45,
+                  fontSize: 12,
+                  color: '#fff',
+                }}
+              >
+                <span style={{ fontSize: 12 }}>{tier.icon}</span>
+                <span style={{ fontWeight: tier.active ? 700 : 400 }}>{tier.desc}</span>
+              </div>
+            ))}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             {[
               {

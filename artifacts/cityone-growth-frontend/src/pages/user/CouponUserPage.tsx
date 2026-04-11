@@ -8,6 +8,7 @@ import OssImage from '../../components/OssImage'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useFollowGate } from '../../hooks/useFollowGate'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -51,16 +52,6 @@ function formatDate(iso: string, language: string) {
   return d.format('YYYY-MM-DD HH:mm')
 }
 
-async function checkFanStatus(userId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
-    const json = await res.json()
-    return json?.data?.is_fan === true
-  } catch {
-    return false
-  }
-}
-
 export default function CouponUserPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -73,8 +64,7 @@ export default function CouponUserPage() {
   const [claiming, setClaiming] = useState(false)
   const [step, setStep] = useState<Step>('detail')
   const [alreadyClaimed, setAlreadyClaimed] = useState(false)
-  const [checking, setChecking] = useState(false)
-  const [fanChecked, setFanChecked] = useState<boolean | null>(null)
+  const { guard, checking } = useFollowGate()
 
   // 实物卡券配送弹窗
   const [deliveryOpen, setDeliveryOpen] = useState(false)
@@ -82,11 +72,6 @@ export default function CouponUserPage() {
   const [deliveryForm] = Form.useForm()
   const [savedAddresses, setSavedAddresses] = useState<any[]>([])
   const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null)
-
-  // 页面加载时就预查 fan 状态，消除点击延迟
-  useEffect(() => {
-    checkFanStatus(getDeviceUserId()).then(setFanChecked)
-  }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -172,14 +157,10 @@ export default function CouponUserPage() {
     }
   }
 
-  // 核心：使用预加载 fan 结果 → 已关注直接领，未关注跳关注页
-  const handleClaim = async () => {
-    setChecking(true)
-    try {
-      const userId = getDeviceUserId()
-      const isFan = fanChecked !== null ? fanChecked : await checkFanStatus(userId)
-      if (isFan) {
-        // 实物卡券：弹出配送信息弹窗
+  // 核心：通过 useFollowGate hook 统一关注检查
+  const handleClaim = () => {
+    guard(
+      async () => {
         if (coupon?.item_type === 'physical') {
           setDeliveryMode('courier')
           deliveryForm.resetFields()
@@ -190,24 +171,13 @@ export default function CouponUserPage() {
           return
         }
         await doClaim()
-      } else {
-        // 透传归因参数，确保关注后回跳时仍有 entry_code + UTM
-        const entryCode = searchParams.get('entry_code') || ''
-        const utmParts = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']
-          .filter(k => searchParams.get(k))
-          .map(k => `${k}=${encodeURIComponent(searchParams.get(k)!)}`)
-          .join('&')
-        const attrSuffix = [
-          entryCode ? `entry_code=${encodeURIComponent(entryCode)}` : '',
-          utmParts,
-        ].filter(Boolean).join('&')
-        const baseTarget = `/coupon/${id}?auto=claim`
-        const redirectTo = attrSuffix ? `${baseTarget}&${attrSuffix}` : baseTarget
-        navigate(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(name)}&back=${encodeURIComponent(`/coupon/${id}`)}`)
+      },
+      {
+        label: name,
+        returnPath: `/coupon/${id}?auto=claim`,
+        back: `/coupon/${id}`,
       }
-    } finally {
-      setChecking(false)
-    }
+    )
   }
 
   // ── i18n ────────────────────────────────────────────────────────────────────

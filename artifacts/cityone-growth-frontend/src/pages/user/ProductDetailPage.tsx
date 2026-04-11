@@ -10,18 +10,9 @@ import OssImage from '../../components/OssImage'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useFollowGate } from '../../hooks/useFollowGate'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-
-async function checkFanStatus(userId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
-    const json = await res.json()
-    return json?.data?.is_fan === true
-  } catch {
-    return false
-  }
-}
 
 export default function ProductDetailPage() {
   const { message, modal } = App.useApp()
@@ -34,7 +25,7 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
-  const [checking, setChecking] = useState(false)
+  const { guard, checking } = useFollowGate()
   const [shareVisible, setShareVisible] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [redeemSuccess, setRedeemSuccess] = useState(false)
@@ -130,42 +121,40 @@ export default function ProductDetailPage() {
   }
 
   // 公共前置检查（fan + 积分），通过后 openModal 回调
-  const runPreChecks = async (openModal: () => void) => {
-    setChecking(true)
-    try {
-      const userId = getDeviceUserId()
-      const isFan = await checkFanStatus(userId)
-      if (!isFan) {
-        const redirectTo = `/redeem/${id}?auto=redeem`
-        const name = pick(product.name)
-        nav(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(name)}&back=${encodeURIComponent(`/redeem/${id}`)}`)
-        return
+  const runPreChecks = (openModal: () => void) => {
+    const productName = pick(product?.name) || ''
+    guard(
+      async () => {
+        const userId = getDeviceUserId()
+        const pointsRequired = Number(product.points_required) || 0
+        if (pointsRequired > 0) {
+          try {
+            const summaryRes: any = await (request.get as any)(`/growth/user/points/summary?user_id=${encodeURIComponent(userId)}`)
+            const summaryData = summaryRes?.data || summaryRes
+            const available = Number(summaryData?.available_points) || 0
+            if (available < pointsRequired) {
+              modal.warning({
+                title: lang === 'zh' ? '积分不足' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
+                content: lang === 'zh'
+                  ? `当前可用积分 ${available} 分，兑换此商品需要 ${pointsRequired} 分，差 ${pointsRequired - available} 分。`
+                  : lang === 'th'
+                    ? `คะแนนปัจจุบัน ${available} คะแนน ต้องการ ${pointsRequired} คะแนน ขาด ${pointsRequired - available} คะแนน`
+                    : `You have ${available} pts but need ${pointsRequired} pts (short by ${pointsRequired - available} pts).`,
+                okText: lang === 'zh' ? '知道了' : lang === 'th' ? 'ตกลง' : 'OK',
+                centered: true,
+              })
+              return
+            }
+          } catch { /* 查询失败时让后端做最终验证 */ }
+        }
+        openModal()
+      },
+      {
+        label: productName,
+        returnPath: `/redeem/${id}?auto=redeem`,
+        back: `/redeem/${id}`,
       }
-      const pointsRequired = Number(product.points_required) || 0
-      if (pointsRequired > 0) {
-        try {
-          const summaryRes: any = await (request.get as any)(`/growth/user/points/summary?user_id=${encodeURIComponent(userId)}`)
-          const summaryData = summaryRes?.data || summaryRes
-          const available = Number(summaryData?.available_points) || 0
-          if (available < pointsRequired) {
-            modal.warning({
-              title: lang === 'zh' ? '积分不足' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
-              content: lang === 'zh'
-                ? `当前可用积分 ${available} 分，兑换此商品需要 ${pointsRequired} 分，差 ${pointsRequired - available} 分。`
-                : lang === 'th'
-                  ? `คะแนนปัจจุบัน ${available} คะแนน ต้องการ ${pointsRequired} คะแนน ขาด ${pointsRequired - available} คะแนน`
-                  : `You have ${available} pts but need ${pointsRequired} pts (short by ${pointsRequired - available} pts).`,
-              okText: lang === 'zh' ? '知道了' : lang === 'th' ? 'ตกลง' : 'OK',
-              centered: true,
-            })
-            return
-          }
-        } catch { /* 查询失败时让后端做最终验证 */ }
-      }
-      openModal()
-    } finally {
-      setChecking(false)
-    }
+    )
   }
 
   // 加载已保存收货地址
