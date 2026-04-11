@@ -26,14 +26,20 @@ import { isObjectKey, useOssUrl } from '../../components/OssImage'
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
 // ─── 模块级 SWR 缓存 ────────────────────────────────────────────
-// 组件 unmount 后数据依然驻留内存，重新挂载时直接使用旧数据展示，
-// 同时在后台静默刷新，用户感知不到任何"全页刷新"闪烁。
+// 组件 unmount 后数据依然驻留内存，重新挂载时直接使用旧数据，跳过重复请求。
+// 2 分钟内不重新请求（避免后端每次生成新签名 URL 导致图片重新加载闪烁）。
+const CACHE_TTL_MS = 2 * 60 * 1000
 const _pageCache: {
-  banners: any[]
-  activities: ContentCard[]
-  coupons: ContentCard[]
-  mallItems: ContentCard[]
-} = { banners: [], activities: [], coupons: [], mallItems: [] }
+  banners: any[];     bannersAt: number
+  activities: ContentCard[]; activitiesAt: number
+  coupons: ContentCard[];    couponsAt: number
+  mallItems: ContentCard[];  mallItemsAt: number
+} = {
+  banners: [],     bannersAt: 0,
+  activities: [], activitiesAt: 0,
+  coupons: [],    couponsAt: 0,
+  mallItems: [],  mallItemsAt: 0,
+}
 
 type ContentCard = {
   id: string
@@ -270,9 +276,10 @@ export default function WelfareHomePage() {
   )
   const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
   useEffect(() => {
+    if (Date.now() - _pageCache.bannersAt < CACHE_TTL_MS) return
     request.get('/growth/banners', { params: { enabled: 'true' } }).then((res: any) => {
       const list = res.data?.list || []
-      if (list.length > 0) { _pageCache.banners = list; setApiBanners(list) }
+      if (list.length > 0) { _pageCache.banners = list; _pageCache.bannersAt = Date.now(); setApiBanners(list) }
     }).catch(() => {})
   }, [])
   const bannerItems = apiBanners.length > 0 ? apiBanners : fallbackBanners
@@ -302,6 +309,7 @@ export default function WelfareHomePage() {
   const [apiMallItems, setApiMallItems] = useState<ContentCard[]>(_pageCache.mallItems)
 
   useEffect(() => {
+    if (Date.now() - _pageCache.couponsAt < CACHE_TTL_MS) return
     const DISCOUNT_COVERS: Record<string, string> = {
       free_time:  'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
       free_order: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
@@ -329,12 +337,13 @@ export default function WelfareHomePage() {
         route: `/coupon/${c.id}`,
         footerTone: '#2F80FF',
       }))
-      _pageCache.coupons = rawCards
+      _pageCache.coupons = rawCards; _pageCache.couponsAt = Date.now()
       setApiCoupons(rawCards)
     }).catch(() => {})
   }, [])
 
   useEffect(() => {
+    if (Date.now() - _pageCache.activitiesAt < CACHE_TTL_MS) return
     getActivities({ status: 'active' }).then(res => {
       const COVER_GRADIENTS = [
         'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)',
@@ -364,12 +373,13 @@ export default function WelfareHomePage() {
         views: 0,
         route: `/activity/${a.activity_id}`,
       }))
-      _pageCache.activities = rawCards
+      _pageCache.activities = rawCards; _pageCache.activitiesAt = Date.now()
       setApiActivities(rawCards)
     }).catch(() => {})
   }, [])
 
   useEffect(() => {
+    if (Date.now() - _pageCache.mallItemsAt < CACHE_TTL_MS) return
     const ITEM_TYPE_COVERS: Record<string, string> = {
       digital:  'linear-gradient(135deg, #7B61FF 0%, #2CDBCE 100%)',
       physical: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
@@ -390,7 +400,7 @@ export default function WelfareHomePage() {
           route: `/redeem/${item.id}`,
           footerTone: '#7B61FF',
         }))
-        _pageCache.mallItems = rawCards
+        _pageCache.mallItems = rawCards; _pageCache.mallItemsAt = Date.now()
         setApiMallItems(rawCards)
       })
       .catch(() => {})
