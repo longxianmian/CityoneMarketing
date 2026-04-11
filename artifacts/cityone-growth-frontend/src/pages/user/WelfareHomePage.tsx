@@ -26,20 +26,49 @@ import { prefetchActivity } from '../../cache/activityCache'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
-// ─── 模块级 SWR 缓存 ────────────────────────────────────────────
-// 组件 unmount 后数据依然驻留内存，重新挂载时直接使用旧数据，跳过重复请求。
-// 2 分钟内不重新请求（避免后端每次生成新签名 URL 导致图片重新加载闪烁）。
-const CACHE_TTL_MS = 2 * 60 * 1000
+// ─── 双层 Stale-While-Revalidate 缓存 ────────────────────────────
+//
+// L1（内存）：组件 unmount 后驻留，重挂载 0ms 命中，同一 Session 内极速
+// L2（localStorage）：跨 Session 持久化，LINE 重启 WebView 后依然 0ms 显示
+//
+// 策略：
+//   1. 模块加载时立即从 localStorage 预热 L1
+//   2. L1 预热数据标记 stale（bannersAt=0），useEffect 仍触发后台刷新
+//   3. 新数据返回后同时写入 L1 + L2
+//   4. L2 TTL = 30 分钟（允许展示稍旧内容），内存 TTL = 2 分钟（控制请求频率）
+//
+// 效果：即使用户完全关闭 LINE 再打开，内容仍在 ~0ms 显示，刷新在背后静默完成
+const CACHE_TTL_MS = 2 * 60 * 1000           // 内存：2 分钟内不重复请求
+const LS_KEY = 'cityone_welfare_v2'
+const LS_TTL_MS = 30 * 60 * 1000             // localStorage：30 分钟有效
+
+function lsLoad(): { banners: any[]; activities: ContentCard[]; coupons: ContentCard[]; mallItems: ContentCard[] } | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (Date.now() - (parsed.savedAt || 0) > LS_TTL_MS) return null
+    return parsed
+  } catch { return null }
+}
+
+function lsSave(data: { banners: any[]; activities: ContentCard[]; coupons: ContentCard[]; mallItems: ContentCard[] }) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ ...data, savedAt: Date.now() })) } catch {}
+}
+
+// 模块加载时（在任何组件渲染之前）立刻从 localStorage 预热
+const _lsInit = lsLoad()
 const _pageCache: {
   banners: any[];     bannersAt: number
   activities: ContentCard[]; activitiesAt: number
   coupons: ContentCard[];    couponsAt: number
   mallItems: ContentCard[];  mallItemsAt: number
 } = {
-  banners: [],     bannersAt: 0,
-  activities: [], activitiesAt: 0,
-  coupons: [],    couponsAt: 0,
-  mallItems: [],  mallItemsAt: 0,
+  // 有 localStorage 数据则立即填入，bannersAt=0 让 useEffect 仍做后台刷新
+  banners:    _lsInit?.banners    ?? [],  bannersAt:    0,
+  activities: _lsInit?.activities ?? [],  activitiesAt: 0,
+  coupons:    _lsInit?.coupons    ?? [],  couponsAt:    0,
+  mallItems:  _lsInit?.mallItems  ?? [],  mallItemsAt:  0,
 }
 
 type ContentCard = {
@@ -290,6 +319,7 @@ export default function WelfareHomePage() {
           const m = typeof b.link_url === 'string' && b.link_url.match(/\/activity\/([^/?]+)/)
           if (m) prefetchActivity(m[1])
         })
+        lsSave({ banners: list, activities: _pageCache.activities, coupons: _pageCache.coupons, mallItems: _pageCache.mallItems })
       }
     }).catch(() => {})
   }, [])
@@ -359,6 +389,7 @@ export default function WelfareHomePage() {
       }))
       _pageCache.coupons = rawCards; _pageCache.couponsAt = Date.now()
       setApiCoupons(rawCards)
+      lsSave({ banners: _pageCache.banners, activities: _pageCache.activities, coupons: rawCards, mallItems: _pageCache.mallItems })
     }).catch(() => {})
   }, [])
 
@@ -396,6 +427,7 @@ export default function WelfareHomePage() {
       _pageCache.activities = rawCards; _pageCache.activitiesAt = Date.now()
       setApiActivities(rawCards)
       rawCards.forEach(c => prefetchActivity(c.id))
+      lsSave({ banners: _pageCache.banners, activities: rawCards, coupons: _pageCache.coupons, mallItems: _pageCache.mallItems })
     }).catch(() => {})
   }, [])
 
@@ -423,6 +455,7 @@ export default function WelfareHomePage() {
         }))
         _pageCache.mallItems = rawCards; _pageCache.mallItemsAt = Date.now()
         setApiMallItems(rawCards)
+        lsSave({ banners: _pageCache.banners, activities: _pageCache.activities, coupons: _pageCache.coupons, mallItems: rawCards })
       })
       .catch(() => {})
   }, [])
