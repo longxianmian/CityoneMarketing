@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import busboy from "busboy";
 import crypto from "node:crypto";
-import { testConnection } from "./db/pool.js";
+import { testConnection, warmupPool } from "./db/pool.js";
 import { runMigrations } from "./db/migrate.js";
 import {
   handleEntryResolve,
@@ -1326,6 +1326,7 @@ server.listen(PORT, "0.0.0.0", async () => {
     const dbInfo = await testConnection();
     console.log(`[DB] Connected to "${dbInfo.db}" at ${new Date(dbInfo.now).toISOString()}`);
     await runMigrations();
+    await warmupPool(3);
   } catch (err) {
     console.error("[DB] Startup error:", err.message);
     console.error("[DB] Backend will continue but DB-backed routes may fail until DB is available.");

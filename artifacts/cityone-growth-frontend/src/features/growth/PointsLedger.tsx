@@ -35,29 +35,34 @@ export default function PointsLedger() {
   const [adjustForm] = Form.useForm()
   const [adjustSaving, setAdjustSaving] = useState(false)
 
-  const fetchData = useCallback(async (p = page, ps = pageSize) => {
+  const filtersRef = React.useRef({ userId, typeFilter, refTypeFilter, dateRange })
+  filtersRef.current = { userId, typeFilter, refTypeFilter, dateRange }
+
+  const fetchData = useCallback(async (p: number, ps: number) => {
     setLoading(true)
     try {
+      const { userId: uid, typeFilter: tf, refTypeFilter: rf, dateRange: dr } = filtersRef.current
       const params: any = { page: p, page_size: ps }
-      if (userId) params.user_id = userId
-      if (typeFilter) params.type = typeFilter
-      if (refTypeFilter) params.ref_type = refTypeFilter
-      if (dateRange?.[0]) params.start_date = dateRange[0].toISOString()
-      if (dateRange?.[1]) params.end_date = dateRange[1].toISOString()
+      if (uid) params.user_id = uid
+      if (tf) params.type = tf
+      if (rf) params.ref_type = rf
+      if (dr?.[0]) params.start_date = dr[0].toISOString()
+      if (dr?.[1]) params.end_date = dr[1].toISOString()
       const res: any = await request.get('/growth/user/points/ledger', { params })
       setData(res.data?.items || [])
       setTotal(res.data?.total || 0)
       setPage(p)
     } catch { setData([]); setTotal(0) }
     setLoading(false)
-  }, [page, pageSize, userId, typeFilter, refTypeFilter, dateRange])
+  }, [])
 
-  React.useEffect(() => { fetchData() }, [])
+  React.useEffect(() => { fetchData(1, pageSize) }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setUserId(''); setTypeFilter(undefined); setRefTypeFilter(undefined); setDateRange(null)
-    setTimeout(() => fetchData(1, pageSize), 0)
-  }
+    filtersRef.current = { userId: '', typeFilter: undefined, refTypeFilter: undefined, dateRange: null }
+    fetchData(1, pageSize)
+  }, [fetchData, pageSize])
 
   const handleAdjustOk = async () => {
     const vals = await adjustForm.validateFields()
@@ -144,7 +149,7 @@ export default function PointsLedger() {
             placeholder="搜索用户ID"
             value={userId}
             onChange={e => setUserId(e.target.value)}
-            onPressEnter={() => fetchData(1)}
+            onPressEnter={() => fetchData(1, pageSize)}
             style={{ width: 200 }}
             allowClear
           />
@@ -164,7 +169,7 @@ export default function PointsLedger() {
           />
           <DatePicker.RangePicker value={dateRange} onChange={v => setDateRange(v)} style={{ width: 240 }} />
           <Space>
-            <Button type="primary" icon={<SearchOutlined />} onClick={() => fetchData(1)}>查询</Button>
+            <Button type="primary" icon={<SearchOutlined />} onClick={() => fetchData(1, pageSize)}>查询</Button>
             <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
           </Space>
         </div>

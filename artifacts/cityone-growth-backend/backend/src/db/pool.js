@@ -8,33 +8,32 @@ import pg from 'pg'
 const { Pool } = pg
 
 function buildConfig() {
-  if (process.env.DATABASE_URL) {
-    const ssl = process.env.DB_SSL === 'true'
-      ? { rejectUnauthorized: false }
-      : false
-    return {
-      connectionString: process.env.DATABASE_URL,
-      ssl,
-      max: 10,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 8000,
-    }
-  }
-
-  // 拆分变量模式（生产服务器推荐）
   const ssl = process.env.DB_SSL === 'true'
     ? { rejectUnauthorized: false }
     : false
+
+  const base = {
+    max: 20,
+    min: 2,
+    idleTimeoutMillis: 120000,
+    connectionTimeoutMillis: 8000,
+    allowExitOnIdle: false,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+  }
+
+  if (process.env.DATABASE_URL) {
+    return { ...base, connectionString: process.env.DATABASE_URL, ssl }
+  }
+
   return {
+    ...base,
     host:     process.env.DB_HOST,
     port:     parseInt(process.env.DB_PORT || '5432', 10),
     database: process.env.DB_NAME,
     user:     process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     ssl,
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 8000,
   }
 }
 
@@ -80,6 +79,23 @@ export async function withTransaction(fn) {
 export async function testConnection() {
   const res = await pool.query('SELECT NOW() AS now, current_database() AS db, version() AS ver')
   return res.rows[0]
+}
+
+/**
+ * 预热连接池 — 启动时提前建立 min 个物理连接，避免首批请求冷启动延迟
+ */
+export async function warmupPool(count = 2) {
+  const clients = []
+  try {
+    for (let i = 0; i < count; i++) {
+      clients.push(await pool.connect())
+    }
+    console.log(`[DB] Pool warmed up with ${count} connections`)
+  } catch (err) {
+    console.warn('[DB] Warmup partial failure:', err.message)
+  } finally {
+    clients.forEach(c => c.release())
+  }
 }
 
 export default pool

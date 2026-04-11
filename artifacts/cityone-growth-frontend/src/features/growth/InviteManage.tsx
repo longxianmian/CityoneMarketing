@@ -25,16 +25,21 @@ function InviteTab() {
   const [configSaving, setConfigSaving] = useState(false)
   const [configForm] = Form.useForm()
 
-  const fetchData = useCallback(async (p = page, ps = pageSize) => {
+  const keywordRef = React.useRef(keyword)
+  keywordRef.current = keyword
+
+  const fetchData = useCallback(async (p: number, ps: number) => {
     setLoading(true)
     try {
-      const res: any = await request.get('/growth/invite/relations', { params: { pageNum: p, pageSize: ps, keyword: keyword || undefined } })
+      const res: any = await request.get('/growth/invite/relations', {
+        params: { pageNum: p, pageSize: ps, keyword: keywordRef.current || undefined },
+      })
       setData(res.data?.list || [])
       setTotal(res.data?.total || 0)
       setPage(p)
     } catch {}
     setLoading(false)
-  }, [page, pageSize, keyword])
+  }, [])
 
   const fetchStats = useCallback(async () => {
     try { const res: any = await request.get('/growth/invite/stats'); setStats(res.data || {}) } catch {}
@@ -46,7 +51,9 @@ function InviteTab() {
     setConfigLoading(false)
   }, [])
 
-  React.useEffect(() => { fetchData(); fetchStats(); fetchConfig() }, [])
+  React.useEffect(() => {
+    Promise.all([fetchData(1, pageSize), fetchStats(), fetchConfig()])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConfigSave = async () => {
     const vals = await configForm.validateFields()
@@ -108,11 +115,11 @@ function InviteTab() {
             placeholder="搜索手机号 / 用户ID"
             value={keyword}
             onChange={e => setKeyword(e.target.value)}
-            onSearch={() => fetchData(1)}
+            onSearch={() => fetchData(1, pageSize)}
             style={{ width: 260 }}
             allowClear
           />
-          <Button icon={<ReloadOutlined />} onClick={() => fetchData(1)}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchData(page, pageSize)}>刷新</Button>
         </div>
         <Table
           rowKey={(r: any) => `${r.inviter_mobile}_${r.invitee_mobile}_${r.bound_at}`}

@@ -1,7 +1,7 @@
 /**
  * 用户积分 — 积分账户列表，展开行查看流水，行内手动调账
  */
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import {
   Card, Table, Input, Button, Space, Tag, Row, Col,
   Modal, Form, InputNumber, Select, message, Popconfirm,
@@ -141,25 +141,30 @@ export default function PointsAccounts() {
   const [adjustOpen, setAdjustOpen] = useState(false)
   const [adjustTarget, setAdjustTarget] = useState<any>(null)
 
-  const fetchData = useCallback(async (p = page, ps = pageSize, kw = keyword) => {
+  const kwRef = React.useRef(keyword)
+  kwRef.current = keyword
+
+  const fetchData = useCallback(async (p: number, ps: number) => {
     setLoading(true)
     try {
-      const res: any = await request.get('/growth/admin/points/accounts', { params: { page: p, page_size: ps, keyword: kw || undefined } })
+      const res: any = await request.get('/growth/admin/points/accounts', {
+        params: { page: p, page_size: ps, keyword: kwRef.current || undefined },
+      })
       setData(res.data?.items || [])
       setTotal(res.data?.total || 0)
       setPage(p)
     } catch { setData([]); setTotal(0) }
     setLoading(false)
-  }, [page, pageSize, keyword])
+  }, [])
 
-  React.useEffect(() => { fetchData() }, [])
+  React.useEffect(() => { fetchData(1, pageSize) }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const openAdjust = (record: any) => {
     setAdjustTarget(record)
     setAdjustOpen(true)
   }
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: '用户ID',
       dataIndex: 'user_id',
@@ -220,7 +225,7 @@ export default function PointsAccounts() {
         <Button size="small" type="primary" icon={<WalletOutlined />} onClick={() => openAdjust(r)}>调账</Button>
       ),
     },
-  ]
+  ], [openAdjust])
 
   const totalAvailable = data.reduce((s, r) => s + (r.available_points || 0), 0)
   const totalAll = data.reduce((s, r) => s + (r.total_points || 0), 0)
@@ -245,11 +250,11 @@ export default function PointsAccounts() {
           placeholder="搜索用户ID / LINE ID"
           value={keyword}
           onChange={e => setKeyword(e.target.value)}
-          onSearch={() => fetchData(1)}
+          onSearch={() => fetchData(1, pageSize)}
           style={{ width: 280 }}
           allowClear
         />
-        <Button icon={<ReloadOutlined />} onClick={() => fetchData(1)}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData(1, pageSize)}>刷新</Button>
       </div>
 
       <Card>
@@ -284,7 +289,7 @@ export default function PointsAccounts() {
           userId={adjustTarget.user_id}
           available={adjustTarget.available_points || 0}
           onClose={() => { setAdjustOpen(false); setAdjustTarget(null) }}
-          onSuccess={() => fetchData()}
+          onSuccess={() => fetchData(page, pageSize)}
         />
       )}
     </div>

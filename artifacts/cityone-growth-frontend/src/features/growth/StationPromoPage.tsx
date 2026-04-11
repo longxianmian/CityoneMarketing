@@ -189,6 +189,27 @@ function StatCard({ type, stat }: { type: string; stat?: { total_events: number;
   )
 }
 
+/* ─── 模块级缓存：避免重复拉取站点列表 ──────────────────────────────────── */
+let _stationsCache: Station[] | null = null
+let _stationsFetching: Promise<Station[]> | null = null
+function fetchStationsList(): Promise<Station[]> {
+  if (_stationsCache) return Promise.resolve(_stationsCache)
+  if (_stationsFetching) return _stationsFetching
+  _stationsFetching = (request.get('/stations') as any)
+    .then((res: any) => {
+      const list: any[] = res?.data?.list || res?.data || []
+      _stationsCache = list.map((s: any) => ({
+        station_code: s.station_code || s.id || '',
+        station_name: pickML(s.name) || s.station_name || s.station_code || s.id || '',
+        city_name: s.city_name || s.city || '',
+      }))
+      _stationsFetching = null
+      return _stationsCache as Station[]
+    })
+    .catch(() => { _stationsFetching = null; return [] })
+  return _stationsFetching
+}
+
 /* ─── 主页面 ─────────────────────────────────────────────────────────────── */
 export default function StationPromoPage() {
   const [stations, setStations] = useState<Station[]>([])
@@ -209,17 +230,9 @@ export default function StationPromoPage() {
   const [editForm] = Form.useForm()
   const [editOpen, setEditOpen] = useState(false)
 
-  // 加载站点列表
+  // 加载站点列表（带缓存，重复进入页面无需重新请求）
   useEffect(() => {
-    ;(request.get('/stations') as any).then((res: any) => {
-      // /stations 返回 { data: { list: [...] } }
-      const list: any[] = res?.data?.list || res?.data || []
-      setStations(list.map((s: any) => ({
-        station_code: s.station_code || s.id || '',
-        station_name: pickML(s.name) || s.station_name || s.station_code || s.id || '',
-        city_name: s.city_name || s.city || '',
-      })))
-    }).catch(() => {})
+    fetchStationsList().then(list => { if (list.length) setStations(list) })
   }, [])
 
   // 加载推广码和统计
