@@ -305,7 +305,16 @@ export default function WelfareHomePage() {
     if (!b.link_url) return
     const isAbsoluteUrl = /^https?:\/\//i.test(b.link_url)
     if (isAbsoluteUrl) {
-      window.location.href = b.link_url
+      try {
+        const url = new URL(b.link_url)
+        if (url.hostname === window.location.hostname) {
+          navigate(url.pathname + url.search + url.hash)
+        } else {
+          window.open(b.link_url, '_blank')
+        }
+      } catch {
+        window.location.href = b.link_url
+      }
     } else {
       navigate(b.link_url)
     }
