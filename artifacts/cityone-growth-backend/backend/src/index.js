@@ -1294,13 +1294,13 @@ const server = http.createServer(async (req, res) => {
 
     // ── 阶段三：用户端综合资料接口 ───────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/user/profile") {
-      return handleUserProfile(req, res, url, sendJson);
+      return await handleUserProfile(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/user/prizes") {
       return handleUserPrizes(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/user/benefits") {
-      return handleUserBenefits(req, res, url, sendJson);
+      return await handleUserBenefits(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/user/check-follow") {
       return handleCheckFollow(req, res, url, sendJson);

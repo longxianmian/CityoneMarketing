@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { query } from "../db/pool.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,7 +43,7 @@ function resolveIdentityTag(account, depositPaid) {
 // ─── GET /api/user/profile ────────────────────────────────────────────────────
 // 返回用户综合资料对象（积分账户 + 身份字段）
 // 阶段三：identityTag 由系统规则推断；depositPaid 目前固定 false（待阶段四 A 系统押金桥接）
-export function handleUserProfile(req, res, url, sendJson) {
+export async function handleUserProfile(req, res, url, sendJson) {
   const userId = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
 
   const accounts = loadJsonArray(dataFile("points-accounts.json"));
@@ -50,12 +51,22 @@ export function handleUserProfile(req, res, url, sendJson) {
     (a) => userId && (a.user_id === userId || a.line_user_id === userId)
   ) || null;
 
-  // 阶段三：押金状态来自 user-deposit 字段（若账户中存在），否则 false
-  // 阶段四会接 A 系统真实押金状态
   const depositPaid = account?.deposit_paid ?? false;
   const depositAmount = account?.deposit_amount ?? 0;
-
   const identityTag = resolveIdentityTag(account, depositPaid);
+
+  // 可用卡券数：从 user_coupons DB 表查（与领取写入路径一致）
+  let couponCount = 0;
+  try {
+    if (userId) {
+      const cRes = await query(
+        `SELECT COUNT(*) AS cnt FROM user_coupons
+         WHERE (user_id = $1 OR line_user_id = $1) AND product_status = 'claimed'`,
+        [userId]
+      );
+      couponCount = Number(cRes.rows[0]?.cnt || 0);
+    }
+  } catch { /* DB 不可用时降级为 0 */ }
 
   const profile = {
     user_id: userId,
@@ -68,20 +79,10 @@ export function handleUserProfile(req, res, url, sendJson) {
     member_level: account?.member_level || "standard",
     available_points: account?.available_points ?? 0,
     total_points: account?.total_points ?? 0,
-    coupon_count: 0,
+    coupon_count: couponCount,
     data_source: "system_derived",
-    data_note: "identity_tag 由系统规则推断；deposit_paid 阶段三为本系统内字段，阶段四接 A 系统",
     updated_at: account?.updated_at || new Date().toISOString(),
   };
-
-  // 计算可用卡券数
-  const userProducts = loadJsonArray(dataFile("user-products.json"));
-  const availableBenefits = userProducts.filter(
-    (up) =>
-      (up.line_user_id === userId || up.user_id === userId) &&
-      up.product_status === "claimed"
-  );
-  profile.coupon_count = availableBenefits.length;
 
   return sendOk(res, sendJson, "user profile loaded", profile);
 }
@@ -151,83 +152,123 @@ export function handleUserPrizes(req, res, url, sendJson) {
 }
 
 // ─── GET /api/user/benefits ───────────────────────────────────────────────────
-// 返回用户的权益/卡券记录（来自 user-products.json）
-// status 映射：claimed → available；used → used；expired → expired；cancelled/refunded → cancelled
-export function handleUserBenefits(req, res, url, sendJson) {
+// 返回用户已领取的卡券/权益（读取 user_coupons DB 表，与领取写入路径完全一致）
+// status 映射：claimed → available；used → used；expired/revoked → expired
+//
+// 数据来源：user_coupons JOIN coupons（PostgreSQL）
+// 不再读取 user-products.json（旧 JSON 文件，已废弃）
+export async function handleUserBenefits(req, res, url, sendJson) {
   const userId = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
-  const statusFilter = url.searchParams.get("status") || "";
+  const statusFilter = url.searchParams.get("status") || "";  // available | used | expired
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
   const pageSize = Math.min(50, Math.max(1, parseInt(url.searchParams.get("page_size") || "20", 10)));
 
   if (!userId) {
     return sendOk(res, sendJson, "no user_id", {
-      items: [],
-      total: 0,
-      page,
-      page_size: pageSize,
-      data_note: "请传入 user_id 或 line_user_id",
+      items: [], total: 0, page, page_size: pageSize,
     });
   }
 
-  const userProducts = loadJsonArray(dataFile("user-products.json"));
-  const digitalProducts = loadJsonArray(dataFile("digital-products.json"));
+  // 将前端 status 参数映射为 DB 中的 product_status 值
+  const dbStatusFilter = {
+    available: ["claimed"],
+    used:      ["used"],
+    expired:   ["expired", "revoked"],
+  }[statusFilter] || null;
 
-  const VALID_STATUSES = ["claimed", "used", "expired", "cancelled", "refunded"];
-
-  let userBenefits = userProducts.filter(
-    (up) => up.line_user_id === userId || up.user_id === userId
-  );
-
-  // 状态映射
-  function mapStatus(productStatus) {
-    if (productStatus === "claimed") return "available";
-    if (productStatus === "used") return "used";
-    if (productStatus === "expired") return "expired";
-    return "cancelled";
-  }
-
-  // 外部 status 过滤（available/used/expired）
-  if (statusFilter) {
-    userBenefits = userBenefits.filter(
-      (up) => mapStatus(up.product_status) === statusFilter
+  try {
+    // 统计总数
+    const countParams = [userId, userId];
+    let countWhere = "(uc.user_id = $1 OR uc.line_user_id = $2)";
+    if (dbStatusFilter) {
+      countWhere += ` AND uc.product_status = ANY($3::text[])`;
+      countParams.push(dbStatusFilter);
+    }
+    const countRes = await query(
+      `SELECT COUNT(*) AS cnt FROM user_coupons uc WHERE ${countWhere}`,
+      countParams
     );
+    const total = Number(countRes.rows[0]?.cnt || 0);
+
+    // 分页数据：JOIN coupons 获取名称/类型/到期时间
+    const dataParams = [userId, userId];
+    let dataWhere = "(uc.user_id = $1 OR uc.line_user_id = $2)";
+    if (dbStatusFilter) {
+      dataWhere += ` AND uc.product_status = ANY($3::text[])`;
+      dataParams.push(dbStatusFilter);
+    }
+    const limitIdx  = dataParams.length + 1;
+    const offsetIdx = dataParams.length + 2;
+    dataParams.push(pageSize, (page - 1) * pageSize);
+
+    const dataRes = await query(`
+      SELECT
+        uc.id                         AS user_product_id,
+        uc.coupon_id                  AS product_id,
+        c.name                        AS product_name,
+        c.coupon_type                 AS product_type,
+        c.discount_type,
+        c.discount_value,
+        uc.product_status,
+        uc.claimed_at                 AS issued_at,
+        uc.used_at,
+        c.valid_to                    AS expire_at,
+        uc.source_type                AS source,
+        uc.source_landing_id,
+        uc.source_channel_id,
+        uc.updated_at
+      FROM user_coupons uc
+      LEFT JOIN coupons c ON c.id = uc.coupon_id
+      WHERE ${dataWhere}
+      ORDER BY uc.claimed_at DESC NULLS LAST
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}
+    `, dataParams);
+
+    function mapStatus(ps) {
+      if (ps === "claimed") return "available";
+      if (ps === "used")    return "used";
+      return "expired";
+    }
+
+    // 将 discount_type + discount_value 构建简短权益文案（前端 short_benefit_text）
+    function buildBenefitText(discountType, discountValue) {
+      const val = Number(discountValue || 0);
+      if (discountType === "percentage_off")        return val ? `${val}% off` : "";
+      if (discountType === "free_minutes" ||
+          discountType === "free_time")             return val ? `免费充电 ${val} 分钟` : "";
+      if (discountType === "fixed_off")             return val ? `减 ฿${val}` : "";
+      if (discountType === "free_order")            return val ? `免费商品 (价值 ฿${val})` : "";
+      return "";
+    }
+
+    const items = dataRes.rows.map((row) => ({
+      user_product_id:    row.user_product_id,
+      product_id:         row.product_id  || "",
+      product_name:       row.product_name || "权益卡券",   // JSONB {zh,th,en} 或 null
+      product_type:       row.product_type || "coupon",
+      product_subtitle:   "",
+      short_benefit_text: buildBenefitText(row.discount_type, row.discount_value),
+      status:             mapStatus(row.product_status),
+      product_status:     row.product_status,
+      issued_at:          row.issued_at   ? new Date(row.issued_at).toISOString()  : "",
+      used_at:            row.used_at     ? new Date(row.used_at).toISOString()    : "",
+      expire_at:          row.expire_at   ? new Date(row.expire_at).toISOString()  : "",
+      source:             row.source      || "system",
+      source_landing_id:  row.source_landing_id  || "",
+      source_channel_id:  row.source_channel_id  || "",
+      bridge_status:      "",
+    }));
+
+    return sendOk(res, sendJson, "user benefits loaded", {
+      items,
+      total,
+      page,
+      page_size: pageSize,
+      data_source: "user_coupons_db",
+    });
+  } catch (err) {
+    return sendJson(res, 500, { code: 500, error: "DB_ERROR", msg: err.message });
   }
-
-  userBenefits = userBenefits
-    .sort((a, b) => new Date(b.issued_at || b.created_at || 0) - new Date(a.issued_at || a.created_at || 0));
-
-  const total = userBenefits.length;
-  const paged = userBenefits.slice((page - 1) * pageSize, page * pageSize);
-
-  const items = paged.map((up) => {
-    const product = digitalProducts.find((d) => d.product_id === up.product_id) || null;
-    const statusDisplay = mapStatus(up.product_status);
-
-    return {
-      user_product_id: up.user_product_id,
-      product_id: up.product_id || "",
-      product_name: up.product_name || product?.product_name || "权益卡券",
-      product_type: up.product_type || product?.product_type || "coupon",
-      product_subtitle: product?.product_subtitle || "",
-      short_benefit_text: product?.short_benefit_text || "",
-      status: statusDisplay,
-      product_status: up.product_status,
-      issued_at: up.issued_at || up.created_at || "",
-      used_at: up.used_at || "",
-      expire_at: up.expire_at || product?.expire_at || "",
-      source: up.grant_source || up.source || "system",
-      bridge_status: up.bridge_status || "",
-    };
-  });
-
-  return sendOk(res, sendJson, "user benefits loaded", {
-    items,
-    total,
-    page,
-    page_size: pageSize,
-    data_source: "user_products",
-    data_note: "来自本系统用户产品记录（卡券/权益），status=available/used/expired",
-  });
 }
 
 // ─── GET /api/user/check-follow ───────────────────────────────────────────────
