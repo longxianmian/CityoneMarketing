@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { ArrowLeftOutlined, TrophyOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -72,6 +72,7 @@ export default function ThaiFortuneDrawPage() {
   const { language } = useI18n()
   const lang = language as AppLanguage
   const ui = UI[lang] || UI.en
+  const effectiveUserId = useEffectiveUserId()
   const [activity, setActivity] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [chances, setChances] = useState<number | null>(null)
@@ -97,7 +98,7 @@ export default function ThaiFortuneDrawPage() {
           fetch(`${API_BASE}/api/activity/fortune/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+            body: JSON.stringify({ activity_id: id, line_user_id: effectiveUserId }),
           }).then(r => r.json()),
         ])
         setActivity(actJson.data || actJson)
@@ -125,7 +126,7 @@ export default function ThaiFortuneDrawPage() {
       const res = await fetch(`${API_BASE}/api/activity/fortune/draw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId(), theme_id: selectedTheme?.theme_id }),
+        body: JSON.stringify({ activity_id: id, line_user_id: effectiveUserId, theme_id: selectedTheme?.theme_id }),
       })
       const json = await res.json()
       if (json.code !== 200) {

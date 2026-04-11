@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Spin, message } from 'antd'
 import { ArrowLeftOutlined, TrophyOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -142,6 +142,7 @@ export default function LuckyWheelPage() {
   const [result, setResult] = useState<any>(null)
   const [resultVisible, setResultVisible] = useState(false)
   const rotRef = useRef(0)
+  const effectiveUserId = useEffectiveUserId()
 
   const pick = (field: any): string => {
     if (!field) return ''
@@ -174,7 +175,7 @@ export default function LuckyWheelPage() {
         const startRes = await fetch(`${API_BASE}/api/activity/wheel/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+          body: JSON.stringify({ activity_id: id, line_user_id: effectiveUserId }),
         })
         const startJson = await startRes.json()
         if (startJson.data?.remaining_chances !== undefined) {
@@ -205,7 +206,7 @@ export default function LuckyWheelPage() {
       const res = await fetch(`${API_BASE}/api/activity/wheel/draw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+        body: JSON.stringify({ activity_id: id, line_user_id: effectiveUserId }),
       })
       const json = await res.json()
       if (json.code !== 200) {

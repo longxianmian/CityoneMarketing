@@ -12,7 +12,7 @@ import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import useLineUserStore from '../../store/lineUser'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const SESSION_KEY = 'follow_oa_clicked'
@@ -22,6 +22,7 @@ export default function FollowOAPage() {
   const [params] = useSearchParams()
   const { language } = useI18n()
   const lineProfile = useLineUserStore((s) => s.profile)
+  const effectiveUserId = useEffectiveUserId()
 
   const to   = params.get('to')   || '/welfare'
   const name = params.get('name') || ''
@@ -59,7 +60,7 @@ export default function FollowOAPage() {
     clickedRef.current = true
 
     // 点击即视为即将关注 → 预写入 fans.json（无需等待 LINE webhook）
-    const userId = lineProfile?.lineUserId || getDeviceUserId()
+    const userId = effectiveUserId
     fetch(`${API_BASE}/api/user/set-fan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

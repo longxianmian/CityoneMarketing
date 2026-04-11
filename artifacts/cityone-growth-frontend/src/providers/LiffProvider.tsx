@@ -88,16 +88,32 @@ async function initLiff(
         isFriend,
       })
 
-      // 将 LINE 资料同步到后端（fire and forget）
-      fetch(`${API_BASE}/api/user/sync-profile`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          line_user_id: lineProfile.userId,
-          line_display_name: lineProfile.displayName,
-          line_picture_url: lineProfile.pictureUrl || '',
-        }),
-      }).catch(() => {})
+      // 调用 identify 接口：写入 users 表，获取 canonical user_id 和身份标签
+      try {
+        const idRes = await fetch(`${API_BASE}/api/user/identify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            line_user_id: lineProfile.userId,
+            display_name: lineProfile.displayName,
+            picture_url: lineProfile.pictureUrl || '',
+          }),
+        })
+        const idJson = await idRes.json()
+        const idData = idJson?.data || {}
+        if (idData.user_id) {
+          useLineUserStore.getState().setCanonicalUserId(idData.user_id)
+        }
+        if (idData.identity_tag) {
+          useLineUserStore.getState().setIdentityTag(idData.identity_tag)
+        }
+        if (typeof idData.is_fan === 'boolean') {
+          useLineUserStore.getState().setIsFriend(idData.is_fan)
+        }
+      } catch {
+        // identify 失败不阻塞用户，降级使用 LINE User ID 作为 canonical ID
+        useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
+      }
     } else if (!isInClient && !liff.isLoggedIn() && import.meta.env.PROD) {
       liff.login()
       return

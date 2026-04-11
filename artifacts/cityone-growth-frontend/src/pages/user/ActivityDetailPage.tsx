@@ -5,7 +5,7 @@ import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-d
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 import OssImage from '../../components/OssImage'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useFollowGate } from '../../hooks/useFollowGate'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -36,6 +36,7 @@ export default function ActivityDetailPage() {
   const [alreadyJoined, setAlreadyJoined] = useState(false)
   const [participating, setParticipating] = useState(false)
   const { guard, checking } = useFollowGate()
+  const effectiveUserId = useEffectiveUserId()
 
   useEffect(() => {
     const load = async () => {
@@ -103,7 +104,7 @@ export default function ActivityDetailPage() {
   const doParticipate = async () => {
     setParticipating(true)
     try {
-      const userId = getDeviceUserId()
+      const userId = effectiveUserId
       const entryCode = searchParams.get('entry_code') || ''
       const utmSource = searchParams.get('utm_source') || ''
       const res = await fetch(`${API_BASE}/api/activities/${id}/participate`, {

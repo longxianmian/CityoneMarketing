@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
 import request from '../../api/request'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 
 type Address = {
   id: string
@@ -38,7 +38,7 @@ export default function MyAddressPage() {
   const nav = useNavigate()
   const { language, t } = useI18n()
   const lang = language as AppLanguage
-  const userId = getDeviceUserId()
+  const userId = useEffectiveUserId()
 
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)

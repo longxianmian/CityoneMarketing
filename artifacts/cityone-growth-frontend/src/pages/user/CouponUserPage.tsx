@@ -7,8 +7,8 @@ import { useI18n } from '../../i18n'
 import OssImage from '../../components/OssImage'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
-import { getDeviceUserId } from '../../utils/deviceUserId'
 import { useFollowGate } from '../../hooks/useFollowGate'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -65,6 +65,7 @@ export default function CouponUserPage() {
   const [step, setStep] = useState<Step>('detail')
   const [alreadyClaimed, setAlreadyClaimed] = useState(false)
   const { guard, checking } = useFollowGate()
+  const effectiveUserId = useEffectiveUserId()
 
   // 实物卡券配送弹窗
   const [deliveryOpen, setDeliveryOpen] = useState(false)
@@ -99,7 +100,7 @@ export default function CouponUserPage() {
   // 加载已保存收货地址
   const loadSavedAddresses = async () => {
     try {
-      const userId = getDeviceUserId()
+      const userId = effectiveUserId
       const res: any = await (request.get as any)(`/growth/user/addresses?user_id=${encodeURIComponent(userId)}`)
       const list = res?.data || res || []
       setSavedAddresses(list)
@@ -127,7 +128,7 @@ export default function CouponUserPage() {
       const entryCode = searchParams.get('entry_code') || ''
       const utmSource = searchParams.get('utm_source') || ''
       const res: any = await (request.post('/user/coupons/claim', {
-        user_id: getDeviceUserId(),
+        user_id: effectiveUserId,
         coupon_id: coupon.id,
         ...(entryCode && { source_landing_id: entryCode }),
         ...(utmSource && { source_channel_id: utmSource }),

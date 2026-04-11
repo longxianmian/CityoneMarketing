@@ -9,7 +9,7 @@ import { useI18n, type AppLanguage } from '../../i18n'
 import OssImage from '../../components/OssImage'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useFollowGate } from '../../hooks/useFollowGate'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -26,6 +26,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
   const { guard, checking } = useFollowGate()
+  const effectiveUserId = useEffectiveUserId()
   const [shareVisible, setShareVisible] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [redeemSuccess, setRedeemSuccess] = useState(false)
@@ -70,7 +71,7 @@ export default function ProductDetailPage() {
   const doRedeem = async (extraFields?: Record<string, any>) => {
     setActing(true)
     try {
-      const userId = getDeviceUserId()
+      const userId = effectiveUserId
       const res: any = await (request.post as any)('/growth/mall/redeem', {
         user_id: userId,
         item_id: product.id,
@@ -125,7 +126,7 @@ export default function ProductDetailPage() {
     const productName = pick(product?.name) || ''
     guard(
       async () => {
-        const userId = getDeviceUserId()
+        const userId = effectiveUserId
         const pointsRequired = Number(product.points_required) || 0
         if (pointsRequired > 0) {
           try {
@@ -160,7 +161,7 @@ export default function ProductDetailPage() {
   // 加载已保存收货地址
   const loadSavedAddresses = async () => {
     try {
-      const userId = getDeviceUserId()
+      const userId = effectiveUserId
       const res: any = await (request.get as any)(`/growth/user/addresses?user_id=${encodeURIComponent(userId)}`)
       const list = res?.data || res || []
       setSavedAddresses(list)

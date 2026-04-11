@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -49,6 +49,7 @@ export default function ScratchCardPage() {
   const { language } = useI18n()
   const lang = language as AppLanguage
   const ui = T[lang] || T.en
+  const effectiveUserId = useEffectiveUserId()
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawing = useRef(false)
@@ -77,7 +78,7 @@ export default function ScratchCardPage() {
           fetch(`${API_BASE}/api/activity/scratch/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+            body: JSON.stringify({ activity_id: id, line_user_id: effectiveUserId }),
           }),
         ])
         const actJson = await actRes.json()
@@ -129,7 +130,7 @@ export default function ScratchCardPage() {
       const res = await fetch(`${API_BASE}/api/activity/scratch/reveal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activity_id: id, line_user_id: getDeviceUserId() }),
+        body: JSON.stringify({ activity_id: id, line_user_id: effectiveUserId }),
       })
       const json = await res.json()
       if (json.code === 200) {

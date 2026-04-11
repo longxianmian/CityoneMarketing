@@ -465,6 +465,129 @@ export function handleSetFan(req, res, body, sendJson) {
   return sendJson(res, 200, { code: 200, msg: "fan registered", user_id });
 }
 
+// ─── POST /api/user/identify ──────────────────────────────────────────────────
+// 全系统统一用户身份解析入口
+// LIFF 初始化后前端必须调用此接口，获取 canonical user_id
+//
+// 输入：{ line_user_id?, device_id?, display_name?, picture_url?, language? }
+// 输出：{ user_id, line_user_id, device_id, display_name, is_fan, identity_tag, is_new }
+//
+// 身份层级：
+//   fan    → is_fan = true（关注了 OA）
+//   user   → users 表中有记录（已识别）
+//   member → points_accounts.deposit_paid = true（押金会员）
+export async function handleUserIdentify(req, res, body, sendJson) {
+  const {
+    line_user_id = "",
+    device_id = "",
+    display_name = "",
+    picture_url = "",
+    language = "zh",
+  } = body || {};
+
+  if (!line_user_id && !device_id) {
+    return sendError(res, sendJson, 400, "MISSING_IDENTITY", "必须传入 line_user_id 或 device_id");
+  }
+
+  // 规范 user_id：LINE 用户 = line_user_id；设备用户 = device_id
+  const canonicalUserId = line_user_id || device_id;
+  const now = new Date().toISOString();
+
+  try {
+    // 检查 fans.json 确认关注状态
+    const fansFile = dataFile("fans.json");
+    const fans = loadJsonArray(fansFile);
+    const isFan = fans.some(
+      (f) => f.user_id === canonicalUserId || f.line_user_id === line_user_id
+    );
+
+    // Upsert users 表
+    const existing = await query(
+      "SELECT user_id FROM users WHERE user_id = $1 LIMIT 1",
+      [canonicalUserId]
+    ).catch(() => null);
+
+    const isNew = !existing || existing.rows.length === 0;
+
+    if (isNew) {
+      await query(
+        `INSERT INTO users (user_id, line_user_id, device_id, display_name, picture_url, language, is_fan, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [
+          canonicalUserId,
+          line_user_id || null,
+          device_id || null,
+          display_name || null,
+          picture_url || null,
+          language,
+          isFan,
+          now,
+        ]
+      ).catch(() => {});
+    } else {
+      // 更新资料和 is_fan
+      await query(
+        `UPDATE users
+         SET display_name = COALESCE(NULLIF($2, ''), display_name),
+             picture_url  = COALESCE(NULLIF($3, ''), picture_url),
+             language     = COALESCE(NULLIF($4, ''), language),
+             is_fan       = $5,
+             device_id    = COALESCE(NULLIF($6, ''), device_id),
+             updated_at   = $7
+         WHERE user_id = $1`,
+        [canonicalUserId, display_name, picture_url, language, isFan, device_id || null, now]
+      ).catch(() => {});
+    }
+
+    // 同步更新 fans.json 中的昵称/头像（如果存在）
+    if (line_user_id) {
+      const fansFile2 = dataFile("fans.json");
+      const fansArr = loadJsonArray(fansFile2);
+      const fi = fansArr.findIndex((f) => f.user_id === line_user_id || f.line_user_id === line_user_id);
+      if (fi >= 0) {
+        if (display_name) fansArr[fi].line_display_name = display_name;
+        if (picture_url)  fansArr[fi].line_picture_url  = picture_url;
+        fansArr[fi].updated_at = now;
+        try { fs.writeFileSync(fansFile2, JSON.stringify(fansArr, null, 2)); } catch {}
+      }
+    }
+
+    // 派生 identity_tag（与 resolveIdentityTag 逻辑保持一致）
+    let identityTag = "user";
+    if (isFan && isNew) identityTag = "fan"; // 首次识别且是粉丝
+    try {
+      const acc = await query(
+        "SELECT deposit_paid FROM points_accounts WHERE user_id = $1 OR line_user_id = $1 LIMIT 1",
+        [canonicalUserId]
+      );
+      if (acc.rows.length > 0 && acc.rows[0].deposit_paid) identityTag = "member";
+    } catch {}
+
+    return sendOk(res, sendJson, "identity resolved", {
+      user_id: canonicalUserId,
+      line_user_id: line_user_id || null,
+      device_id: device_id || null,
+      display_name: display_name || null,
+      picture_url: picture_url || null,
+      is_fan: isFan,
+      identity_tag: identityTag,
+      is_new: isNew,
+    });
+  } catch (err) {
+    console.error("[identify] error:", err);
+    // 降级：即使 DB 失败也返回基本信息（不阻塞用户）
+    return sendOk(res, sendJson, "identity resolved (degraded)", {
+      user_id: canonicalUserId,
+      line_user_id: line_user_id || null,
+      device_id: device_id || null,
+      is_fan: false,
+      identity_tag: "user",
+      is_new: false,
+    });
+  }
+}
+
 // ─── GET /api/user/orders ─────────────────────────────────────────────────────
 // 本系统内订单记录（当前阶段三：借电订单待阶段四 A 系统桥接）
 // 返回真实空列表 + 明确说明

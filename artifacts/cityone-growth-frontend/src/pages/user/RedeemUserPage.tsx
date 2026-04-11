@@ -4,7 +4,7 @@ import { Button, Card, Space, Tag, Spin, Modal, App } from 'antd'
 import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import request from '../../api/request'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useOssUrl } from '../../components/OssImage'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -59,6 +59,7 @@ export default function RedeemUserPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { language } = useI18n()
+  const effectiveUserId = useEffectiveUserId()
 
   const [item, setItem] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -71,7 +72,7 @@ export default function RedeemUserPage() {
 
   // 页面加载时就预查 fan 状态，消除点击延迟
   useEffect(() => {
-    checkFanStatus(getDeviceUserId()).then(setFanChecked)
+    checkFanStatus(effectiveUserId).then(setFanChecked)
   }, [])
 
   useEffect(() => {
@@ -97,7 +98,7 @@ export default function RedeemUserPage() {
     if (!item) return
     setActing(true)
     try {
-      const userId = getDeviceUserId()
+      const userId = effectiveUserId
       await (request.post as any)('/growth/mall/redeem', {
         user_id: userId,
         item_id: item.id,
@@ -125,7 +126,7 @@ export default function RedeemUserPage() {
     }
     setChecking(true)
     try {
-      const userId = getDeviceUserId()
+      const userId = effectiveUserId
       // 优先使用页面加载时已预查的结果，避免点击延迟
       const isFan = fanChecked !== null ? fanChecked : await checkFanStatus(userId)
       if (!isFan) {

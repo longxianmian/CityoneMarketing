@@ -26,7 +26,7 @@ import {
   getUserBenefits,
   getUserOrders,
 } from '../../api/growth'
-import { getDeviceUserId } from '../../utils/deviceUserId'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 
 // 将 UTC 时间戳转换为曼谷时间（UTC+7）显示
 function fmtBKK(iso?: string | null): string {
@@ -166,7 +166,7 @@ export default function MinePage() {
   const [profileLoaded, setProfileLoaded] = useState(false)
 
   const lineUserId = profile?.lineUserId || ''
-  const effectiveUserId = lineUserId || getDeviceUserId()
+  const effectiveUserId = useEffectiveUserId()
 
   // LIFF 拿到的 LINE 数据最权威，优先于服务端缓存
   const lineDisplayName =
