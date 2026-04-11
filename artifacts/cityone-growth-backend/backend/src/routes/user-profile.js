@@ -360,6 +360,46 @@ export async function handleLineWebhook(req, res, body, sendJson) {
   return sendJson(res, 200, { code: 200, msg: "ok", processed: events.length });
 }
 
+// ─── POST /api/user/set-fan ───────────────────────────────────────────────────
+// 用户点击「关注 LINE OA」按钮时前端主动调用，预写入 fans.json
+// 这样不需要等待 LINE webhook 配置即可让粉丝路径正常走通
+// body: { user_id, line_display_name?, line_picture_url? }
+export function handleSetFan(req, res, body, sendJson) {
+  const { user_id = "", line_display_name = "", line_picture_url = "" } = body || {};
+  if (!user_id) {
+    return sendJson(res, 400, { code: 400, error: "missing_user_id" });
+  }
+
+  const fansFile = dataFile("fans.json");
+  const fans = loadJsonArray(fansFile);
+  const exists = fans.findIndex((f) => f.user_id === user_id || f.line_user_id === user_id);
+
+  if (exists >= 0) {
+    // 已存在 → 更新资料
+    fans[exists].line_display_name = line_display_name || fans[exists].line_display_name;
+    fans[exists].line_picture_url  = line_picture_url  || fans[exists].line_picture_url;
+    fans[exists].updated_at = new Date().toISOString();
+  } else {
+    fans.push({
+      user_id,
+      line_user_id: user_id,
+      line_display_name,
+      line_picture_url,
+      followed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      source: "follow_button",   // 区分于 webhook 写入
+    });
+  }
+
+  try {
+    fs.writeFileSync(fansFile, JSON.stringify(fans, null, 2));
+  } catch (e) {
+    return sendJson(res, 500, { code: 500, error: "write_failed" });
+  }
+
+  return sendJson(res, 200, { code: 200, msg: "fan registered", user_id });
+}
+
 // ─── GET /api/user/orders ─────────────────────────────────────────────────────
 // 本系统内订单记录（当前阶段三：借电订单待阶段四 A 系统桥接）
 // 返回真实空列表 + 明确说明

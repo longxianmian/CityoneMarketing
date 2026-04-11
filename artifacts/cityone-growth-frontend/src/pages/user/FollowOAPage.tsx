@@ -1,12 +1,21 @@
-import React, { useEffect, useState } from 'react'
+/**
+ * FollowOAPage — 关注 OA 拦截页
+ *
+ * 转化最优流程（点击一次，自动跳转）：
+ *   1. 用户点「关注 LINE OA」→ 打开 LINE 原生加好友页
+ *   2. 用户返回 → 直接跳目标页（无任何验证步骤）
+ *   3. 目标页含 auto= 参数 → 自动执行领取/参与操作
+ */
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, message } from 'antd'
-import { ArrowLeftOutlined, CheckCircleFilled, LoadingOutlined } from '@ant-design/icons'
+import { Button } from 'antd'
+import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import useLineUserStore from '../../store/lineUser'
 import { getDeviceUserId } from '../../utils/deviceUserId'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const SESSION_KEY = 'follow_oa_clicked'
 
 export default function FollowOAPage() {
   const navigate = useNavigate()
@@ -18,11 +27,10 @@ export default function FollowOAPage() {
   const name = params.get('name') || ''
   const back = params.get('back') || '/welfare'
 
-  const [oaId, setOaId]         = useState('')
-  const [checking, setChecking] = useState(false)
-  const [opened, setOpened]     = useState(false)   // 用户已点击过关注按钮
+  const [oaId, setOaId] = useState('')
+  const clickedRef = useRef(!!sessionStorage.getItem(SESSION_KEY))
 
-  // 从后端配置拉取 OA ID
+  // 从后端拉取真实 OA ID
   useEffect(() => {
     fetch(`${API_BASE}/api/growth/line/config`)
       .then((r) => r.json())
@@ -33,58 +41,49 @@ export default function FollowOAPage() {
       .catch(() => {})
   }, [])
 
-  const L = {
-    pageTitle:    { zh: '关注 LINE OA', th: 'ติดตาม LINE OA', en: 'Follow LINE OA' }[language]!,
-    headline:     { zh: '需先关注 CityOne LINE OA', th: 'กรุณาติดตาม CityOne LINE OA ก่อน', en: 'Follow CityOne LINE OA First' }[language]!,
-    desc:         { zh: '关注后即可享受专属福利，领取卡券、参与活动、兑换积分礼品，全部畅享无阻。', th: 'หลังจากติดตามแล้ว คุณจะได้รับสิทธิพิเศษ รับคูปอง เข้าร่วมกิจกรรม แลกของรางวัล', en: 'Follow to enjoy exclusive benefits: coupons, activities, and rewards.' }[language]!,
-    step1:        { zh: '① 点击下方按钮，跳转到关注页面', th: '① กดปุ่มด้านล่างเพื่อไปหน้าติดตาม', en: '① Tap the button below to open the follow page' }[language]!,
-    step2:        { zh: '② 点击「加入好友」关注 CityOne 官方帐号', th: '② กด "เพิ่มเพื่อน" เพื่อติดตาม CityOne', en: '② Tap "Add Friend" to follow CityOne OA' }[language]!,
-    step3:        { zh: '③ 返回此页，点击「我已关注，继续」', th: '③ กลับมาหน้านี้ แล้วกด "ติดตามแล้ว ดำเนินการต่อ"', en: '③ Come back here and tap "Already Followed, Continue"' }[language]!,
-    followBtn:    { zh: '前往关注 LINE OA', th: 'ไปติดตาม LINE OA', en: 'Go Follow LINE OA' }[language]!,
-    confirmBtn:   { zh: '我已关注，立即继续', th: 'ติดตามแล้ว ดำเนินการต่อ', en: 'Already Followed, Continue' }[language]!,
-    verifying:    { zh: '验证中…', th: 'กำลังตรวจสอบ…', en: 'Verifying…' }[language]!,
-    notYet:       { zh: '暂未检测到关注，请先关注 OA 再继续', th: 'ยังไม่พบการติดตาม กรุณาติดตามก่อน', en: 'Not followed yet, please follow first' }[language]!,
-    backBtn:      { zh: '返回', th: 'กลับ', en: 'Back' }[language]!,
-    oaBadge:      { zh: '官方认证帐号', th: 'บัญชีที่ได้รับการยืนยัน', en: 'Verified Official Account' }[language]!,
-  }
-
-  // 构建 LINE OA 关注链接
-  // 在 LINE 内使用 line://ti/p/ 深链接直接打开原生关注弹窗（无 QR 码页）
-  const buildFollowUrl = () => {
-    const id = oaId || '@cityone'
-    const encoded = encodeURIComponent(id)           // %40cityonexxx
-    // line:// 深链接在 LINE App 内直接弹出「加入好友」页，不会跳到网页 QR 码
-    return `line://ti/p/${encoded}`
-  }
-
-  const handleOpenFollow = () => {
-    const url = buildFollowUrl()
-    // 在 LINE in-app browser 内 window.location.href 跳 line:// 深链接
-    // 会打开 LINE 原生加好友页面，用户关注后可用系统「返回」键回来
-    window.location.href = url
-    setOpened(true)
-  }
-
-  // 用户声称已关注 → 向后端验证
-  const handleConfirm = async () => {
-    setChecking(true)
-    try {
-      const userId = lineProfile?.lineUserId || getDeviceUserId()
-      const res  = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
-      const json = await res.json()
-      const isFan: boolean = json?.data?.is_fan === true
-
-      if (isFan) {
-        // 已是粉丝 → 跳回目标页（to 里含 auto=claim/participate 等参数，页面会自动触发操作）
-        navigate(to, { replace: true })
-      } else {
-        message.warning(L.notYet)
-      }
-    } catch {
-      message.error({ zh: '验证失败，请重试', th: 'ตรวจสอบล้มเหลว', en: 'Verification failed, please retry' }[language]!)
-    } finally {
-      setChecking(false)
+  // 用户从 LINE 返回后 → 直接跳目标页，无任何额外验证
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.hidden) return
+      if (!clickedRef.current) return
+      sessionStorage.removeItem(SESSION_KEY)
+      navigate(to, { replace: true })
     }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [to, navigate])
+
+  const handleFollow = () => {
+    const id = oaId || '@cityone'
+    sessionStorage.setItem(SESSION_KEY, '1')
+    clickedRef.current = true
+
+    // 点击即视为即将关注 → 预写入 fans.json（无需等待 LINE webhook）
+    const userId = lineProfile?.lineUserId || getDeviceUserId()
+    fetch(`${API_BASE}/api/user/set-fan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        line_display_name: lineProfile?.lineDisplayName || '',
+        line_picture_url:  lineProfile?.linePictureUrl  || '',
+      }),
+    }).catch(() => {})
+
+    // line:// 深链接在 LINE App 内打开原生加好友弹窗（无 QR 码页）
+    window.location.href = `line://ti/p/${encodeURIComponent(id)}`
+  }
+
+  const L = {
+    pageTitle: { zh: '关注 LINE OA', th: 'ติดตาม LINE OA',   en: 'Follow LINE OA' }[language]!,
+    headline:  { zh: '需先关注 CityOne LINE OA', th: 'กรุณาติดตาม CityOne LINE OA ก่อน', en: 'Follow CityOne LINE OA First' }[language]!,
+    desc:      { zh: '关注后即可享受专属福利，领取卡券、参与活动、兑换积分礼品，全部畅享无阻。', th: 'หลังจากติดตาม คุณจะได้รับสิทธิพิเศษ รับคูปอง เข้าร่วมกิจกรรม แลกของรางวัล', en: 'Follow to enjoy exclusive benefits: coupons, activities, and rewards.' }[language]!,
+    step1:     { zh: '① 点击下方按钮，跳转关注页面', th: '① กดปุ่มด้านล่างเพื่อไปหน้าติดตาม', en: '① Tap below to go to the follow page' }[language]!,
+    step2:     { zh: '② 点击「加入好友」关注 CityOne', th: '② กด "เพิ่มเพื่อน" เพื่อติดตาม CityOne', en: '② Tap "Add Friend" to follow CityOne' }[language]!,
+    step3:     { zh: '③ 返回后自动进入目标页面', th: '③ กลับมาจะเข้าสู่หน้าเป้าหมายอัตโนมัติ', en: '③ Return and you\'ll land on the target page automatically' }[language]!,
+    followBtn: { zh: '关注 LINE OA 并继续', th: 'ติดตาม LINE OA แล้วดำเนินการต่อ', en: 'Follow LINE OA & Continue' }[language]!,
+    backBtn:   { zh: '返回', th: 'กลับ', en: 'Back' }[language]!,
+    oaBadge:   { zh: '官方认证帐号', th: 'บัญชีที่ได้รับการยืนยัน', en: 'Verified Official Account' }[language]!,
   }
 
   return (
@@ -115,6 +114,7 @@ export default function FollowOAPage() {
           boxShadow: '0 2px 16px rgba(6,199,85,0.12)',
           border: '1px solid #d9f7be',
         }}>
+          {/* 品牌头部 */}
           <div style={{
             background: 'linear-gradient(135deg, #06c755 0%, #00a84e 100%)',
             padding: '28px 24px',
@@ -156,12 +156,12 @@ export default function FollowOAPage() {
               ))}
             </div>
 
-            {/* 主按钮：前往关注（line:// 深链接）*/}
+            {/* 唯一按钮：点击即跳转，返回自动进入目标页 */}
             <Button
               type="primary"
               size="large"
               block
-              onClick={handleOpenFollow}
+              onClick={handleFollow}
               style={{
                 height: 52,
                 borderRadius: 50,
@@ -170,33 +170,10 @@ export default function FollowOAPage() {
                 background: 'linear-gradient(135deg, #06c755, #00a84e)',
                 border: 'none',
                 boxShadow: '0 4px 16px rgba(6,199,85,0.35)',
-                marginBottom: opened ? 12 : 0,
               }}
             >
               {L.followBtn}
             </Button>
-
-            {/* 已关注确认按钮：只在用户点击过关注后出现 */}
-            {opened && (
-              <Button
-                size="large"
-                block
-                onClick={handleConfirm}
-                disabled={checking}
-                icon={checking ? <LoadingOutlined /> : <CheckCircleFilled style={{ color: '#06c755' }} />}
-                style={{
-                  height: 52,
-                  borderRadius: 50,
-                  fontSize: 15,
-                  fontWeight: 700,
-                  border: '2px solid #06c755',
-                  color: '#06c755',
-                  background: '#fff',
-                }}
-              >
-                {checking ? L.verifying : L.confirmBtn}
-              </Button>
-            )}
           </div>
         </div>
       </div>

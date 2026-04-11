@@ -4,7 +4,7 @@
  * 使用非 hook 方式初始化（避免 @line/liff 内置 React 与应用 React 版本冲突）：
  *   - initLiff() 作为普通 async 函数在组件外执行
  *   - 通过 useLineUserStore.getState().setProfile() 更新 store（无需 hook）
- *   - LiffProvider 组件仅作挂载触发，无 hook 调用
+ *   - 暴露 getLiff() 让页面可以直接调用 liff.getFriendship() 等 API
  */
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import useLineUserStore from '../store/lineUser'
@@ -25,7 +25,14 @@ export function useLiff() {
   return useContext(LiffContext)
 }
 
+// 模块级缓存，页面组件可通过 getLiff() 直接调用 LIFF API
+let _liffInstance: import('@line/liff').default | null = null
 let _liffInitiated = false
+
+/** 获取已初始化的 liff 实例（可能为 null，需判断）*/
+export function getLiff() {
+  return _liffInstance
+}
 
 async function initLiff(
   onReady: (ctx: LiffContextValue) => void,
@@ -41,7 +48,6 @@ async function initLiff(
     const liffId: string = json?.data?.liffId || ''
 
     if (!liffId) {
-      // 未配置 LIFF ID，静默跳过
       onReady({ liffReady: false, inLineClient: false })
       return
     }
@@ -51,6 +57,7 @@ async function initLiff(
     await liff.init({ liffId })
     if (signal.cancelled) return
 
+    _liffInstance = liff
     const isInClient = liff.isInClient()
 
     // 3. 获取真实 LINE 用户资料
@@ -58,7 +65,16 @@ async function initLiff(
       const lineProfile = await liff.getProfile()
       if (signal.cancelled) return
 
-      // 通过 getState() 更新 store（不使用 hook，避免 React 版本冲突）
+      // 4. 检查是否已关注 OA（用于 useFollowGate 快速判断）
+      let isFriend: boolean | undefined
+      try {
+        const friendship = await liff.getFriendship()
+        isFriend = friendship.friendFlag
+      } catch {
+        // getFriendship 需要 chat_message.write scope，不支持时静默忽略
+      }
+
+      // 写入 store（不使用 hook，避免 React 版本冲突）
       useLineUserStore.getState().setProfile({
         lineUserId: lineProfile.userId,
         lineDisplayName: lineProfile.displayName,
@@ -69,6 +85,7 @@ async function initLiff(
         couponCount: 0,
         deposit: 0,
         depositPaid: false,
+        isFriend,
       })
 
       // 将 LINE 资料同步到后端（fire and forget）
@@ -82,7 +99,6 @@ async function initLiff(
         }),
       }).catch(() => {})
     } else if (!isInClient && !liff.isLoggedIn() && import.meta.env.PROD) {
-      // 生产环境在外部浏览器触发 LINE 登录
       liff.login()
       return
     }
@@ -91,7 +107,6 @@ async function initLiff(
       onReady({ liffReady: true, inLineClient: isInClient })
     }
   } catch (err) {
-    // LIFF 初始化失败（不支持的浏览器、未配置等）—— 静默降级
     console.warn('[LIFF] init failed, falling back to device user:', err)
     onReady({ liffReady: false, inLineClient: false })
   }
