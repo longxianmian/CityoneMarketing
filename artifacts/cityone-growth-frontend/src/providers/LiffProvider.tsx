@@ -26,7 +26,8 @@ export function useLiff() {
 }
 
 // 模块级缓存，页面组件可通过 getLiff() 直接调用 LIFF API
-let _liffInstance: import('@line/liff').default | null = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _liffInstance: any = null
 let _liffInitiated = false
 
 /** 获取已初始化的 liff 实例（可能为 null，需判断）*/

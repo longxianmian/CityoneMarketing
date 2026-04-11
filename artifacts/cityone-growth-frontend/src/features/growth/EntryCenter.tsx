@@ -180,7 +180,7 @@ export default function EntryCenter() {
       setEntries(entryRes?.data || [])
       setQrAssets(qrRes?.data || [])
       // 构建站点选择器选项（station_code 为正式业务标识）
-      const stList: any[] = stationRes?.data?.list || stationRes?.list || []
+      const stList: any[] = stationRes?.data?.list || (stationRes as any)?.list || []
       setStationOptions(
         stList.map((s: any) => ({
           value: s.station_code || s.id,

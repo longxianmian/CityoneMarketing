@@ -77,7 +77,7 @@ export default function PointsLedger() {
       })
       message.success('调账成功')
       setAdjustOpen(false)
-      fetchData()
+      fetchData(1, pageSize)
     } catch (e: any) { message.error(e?.response?.data?.msg || '调账失败') }
     setAdjustSaving(false)
   }

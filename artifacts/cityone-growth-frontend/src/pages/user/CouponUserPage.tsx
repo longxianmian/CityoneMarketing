@@ -152,7 +152,7 @@ export default function CouponUserPage() {
       const deliveryData = deliveryMode === 'pickup'
         ? { delivery_type: 'pickup', pickup_name: vals.pickup_name, pickup_phone: vals.pickup_phone }
         : { delivery_type: 'courier', delivery_name: vals.delivery_name, delivery_phone: vals.delivery_phone, delivery_address: vals.delivery_address }
-      await doClaim(deliveryData)
+      await doClaim(deliveryData as unknown as Record<string, string>)
     } catch {
       // form validation failed
     }

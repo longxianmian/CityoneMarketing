@@ -225,7 +225,7 @@ function fetchStationsList(): Promise<Station[]> {
       return _stationsCache as Station[]
     })
     .catch(() => { _stationsFetching = null; return [] })
-  return _stationsFetching
+  return _stationsFetching as Promise<Station[]>
 }
 
 /* ─── 主页面 ─────────────────────────────────────────────────────────────── */

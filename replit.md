@@ -68,6 +68,13 @@ The project is structured as a pnpm workspace monorepo, with distinct `artifacts
 - **AdminLayout:** Features 6 main menu groups (Growth Overview, Welfare Center, Entry & Distribution, Incentive & Attribution, AI Agent, System Configuration).
 - **MinePage:** Implements a four-button structure (Prizes, Benefits, Orders, Membership) with deep linking support (`/mine?tab=...`). Identity tags (fan/user/member) and membership levels are displayed distinctly.
 - **Multi-language Input:** The `MultiLangInput` component has been refactored to support single-language input with a language selector, AI translation button, and foldable preview for other languages, ensuring adherence to the multi-language specification. Dynamic content uses `pickLocalizedText` for display based on the current UI language.
+- **Physical vs Digital Coupons:** `item_type='physical'` coupons show a purple delivery info modal; `item_type='digital'` coupons show the teal scan-to-charge modal.
+- **Banner SPA Navigation:** `handleBannerClick` in WelfareHomePage detects same-domain absolute URLs (e.g. `https://domain.com/coupon/xxx`) and routes them via React Router `navigate()` instead of `window.location.href`, eliminating full-page reloads on banner clicks.
+
+**Client-Side Caching:**
+- **TanStack Query:** `@tanstack/react-query` singleton QueryClient at `src/lib/queryClient.ts` (staleTime=5min, gcTime=10min, refetchOnWindowFocus=false). Wrapped in `QueryClientProvider` in `main.tsx`. Vite `dedupe: ['react','react-dom']` prevents monorepo multi-instance conflicts.
+- **Activity Prefetch:** `src/cache/activityCache.ts` prefetches activity detail data when WelfareHomePage loads its activity list, so clicking an activity card renders instantly from cache.
+- **useEffectiveUserId Hook:** `src/hooks/useEffectiveUserId.ts` — priority chain: `canonicalUserId > lineUserId > getDeviceUserId()`. Used in MinePage, FollowOAPage, and all user-identity-dependent pages.
 
 **API Architecture & Routing:**
 - A three-layer proxy architecture: `Browser → Vite → api-server → growth-backend`.
