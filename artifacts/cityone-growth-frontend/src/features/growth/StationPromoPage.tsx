@@ -67,29 +67,47 @@ async function downloadQr(entryCode: string, stationCode: string, entryType: str
 }
 
 async function printQr(entryCode: string, stationCode: string, entryType: string, label: string, subLabel: string) {
+  // ⚠️ window.open 必须在用户手势的同步调用栈内执行，不能放在 await 之后，
+  // 否则浏览器弹窗拦截会导致打印无响应。先开窗口，再异步生成二维码。
+  const pw = window.open('', '_blank', 'width=640,height=780')
+  if (!pw) {
+    message.warning('打印窗口被浏览器拦截，请在地址栏右侧允许弹出窗口后重试')
+    return
+  }
+  // 先写入加载中页面，防止白屏
+  pw.document.write('<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#888">正在生成二维码...</body></html>')
+
   const url = buildQrUrl(entryCode, stationCode, entryType)
   const dataUrl = await QRCode.toDataURL(url, { width: 500, margin: 2 })
-  const pw = window.open('', '_blank', 'width=600,height=700')
-  if (!pw) return
+
+  pw.document.open()
   pw.document.write(`
-    <html><head><title>二维码打印</title>
+    <html><head><title>二维码打印 · ${label}</title>
     <style>
+      * { box-sizing:border-box; margin:0; padding:0; }
       body { display:flex; flex-direction:column; align-items:center; justify-content:center;
-             font-family:sans-serif; padding:32px; }
-      img { width:280px; height:280px; }
-      .label { font-size:22px; font-weight:700; margin-top:16px; }
-      .sub   { font-size:14px; color:#666; margin-top:6px; }
-      .code  { font-size:11px; color:#aaa; margin-top:4px; }
-      @media print { button { display:none } }
-    </style></head><body>
-    <img src="${dataUrl}" />
-    <div class="label">${label}</div>
-    <div class="sub">${subLabel}</div>
-    <div class="code">${entryCode}</div>
-    <button onclick="window.print()" style="margin-top:24px;padding:10px 28px;font-size:15px;cursor:pointer">打印</button>
+             min-height:100vh; font-family:sans-serif; padding:40px 32px; background:#fff; }
+      img  { width:260px; height:260px; border:1px solid #eee; border-radius:12px; }
+      .label { font-size:20px; font-weight:700; margin-top:18px; color:#111; }
+      .sub   { font-size:14px; color:#555; margin-top:6px; }
+      .code  { font-size:11px; color:#bbb; margin-top:6px; letter-spacing:0.5px; }
+      .hint  { font-size:12px; color:#aaa; margin-top:10px; }
+      .btn   { margin-top:28px; padding:10px 36px; font-size:15px; cursor:pointer;
+               background:#2CDBCE; color:#fff; border:none; border-radius:8px; font-weight:700; }
+      .btn:hover { background:#1bbdb1; }
+      @media print { .btn,.hint { display:none } }
+    </style></head>
+    <body>
+      <img src="${dataUrl}" />
+      <div class="label">${label}</div>
+      <div class="sub">${subLabel}</div>
+      <div class="code">${entryCode}</div>
+      <div class="hint">请确保打印尺寸 ≥ 3cm × 3cm 以保证可扫码识别</div>
+      <button class="btn" onclick="window.print()">🖨️ 打印</button>
     </body></html>
   `)
   pw.document.close()
+  pw.focus()
 }
 
 /* ─── 单张推广码卡片 ─────────────────────────────────────────────────────── */
