@@ -8,6 +8,7 @@ import SharePromoModal from '../../components/SharePromoModal'
 import OssImage from '../../components/OssImage'
 import { useI18n } from '../../i18n'
 import { pickML, useMLPick } from '../../lib/ml'
+import TranslateBatchButton, { asyncTranslateItem } from '../../components/TranslateBatchButton'
 import dayjs from 'dayjs'
 
 const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
@@ -115,16 +116,7 @@ export default function CouponManage() {
     try {
       const sourceLang = values._sourceLang || 'zh'
       const rawName: string = values.name || ''
-      let mlName: any = { zh: '', th: '', en: '', [sourceLang]: rawName }
-      if (rawName.trim() && ['zh', 'th', 'en'].some(l => l !== sourceLang && !mlName[l])) {
-        try {
-          const res: any = await request.post('/translate', { texts: { name: rawName }, sourceLang }, { timeout: 8000, silentError: true } as any)
-          const result = res.data?.result ?? {}
-          if (result.name) mlName = { ...mlName, ...result.name }
-        } catch {
-          // 翻译失败静默降级
-        }
-      }
+      const mlName: any = { zh: '', th: '', en: '', [sourceLang]: rawName }
       const payload = {
         ...values,
         name: mlName,
@@ -138,9 +130,12 @@ export default function CouponManage() {
       if (isEdit) {
         await request.post('/growth/coupon/update', payload)
         message.success(t('couponManage.msgUpdateOk'))
+        asyncTranslateItem('coupon', String(values.id))
       } else {
-        await request.post('/growth/coupon/add', payload)
+        const res: any = await request.post('/growth/coupon/add', payload)
         message.success(t('couponManage.msgCreateOk'))
+        const newId = res?.data?.data?.id || res?.data?.id
+        if (newId) asyncTranslateItem('coupon', String(newId))
       }
       setFormVisible(false)
       fetchData()
@@ -237,6 +232,7 @@ export default function CouponManage() {
               <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>{t('couponManage.btnSearch')}</Button>
               <Button icon={<ReloadOutlined />} onClick={() => { setKeyword(''); fetchData(1, pageSize) }}>{t('couponManage.btnReset')}</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>{t('couponManage.btnCreate')}</Button>
+              <TranslateBatchButton type="coupon" onDone={() => fetchData(page, pageSize)} />
             </Space>
           </Col>
         </Row>

@@ -441,10 +441,12 @@ export default function WelfareHomePage() {
     ;(request.get('/growth/mall/items', { params: { onShelf: 'true', pageSize: 50 } }) as any)
       .then((res: any) => {
         const list: any[] = (res.data || res)?.list || []
+        const toML = (v: any, fb: Record<string, string>) =>
+          (v && typeof v === 'object' && !Array.isArray(v)) ? v : (v ? { zh: v, th: v, en: v } : fb)
         const rawCards: ContentCard[] = list.map(item => ({
           id: item.id,
           type: 'redeem' as const,
-          title: item.name,
+          title: toML(item.name, { zh: '商品', th: 'สินค้า', en: 'Item' }),
           badge: { zh: '积分兑换', th: 'แลกพอยต์', en: 'Redeem' },
           cover: item.cover_image || ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital,
           views: 0,

@@ -139,7 +139,7 @@ import {
   handleAdminAgentMetricsGet,
   handleAgentLLMHealth
 } from "./routes/agent.js";
-import { handleTranslate } from "./routes/translate.js";
+import { handleTranslate, handleTranslateBatch, handleTranslateItem } from "./routes/translate.js";
 import {
   handleDashboardStats,
   handleGrowthReport,
@@ -1291,6 +1291,12 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/translate") {
       return handleTranslate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/translate-batch") {
+      return handleTranslateBatch(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/translate-item") {
+      return handleTranslateItem(req, res, url, sendJson, readBody);
     }
 
     // ── 阶段三：用户端综合资料接口 ───────────────────────────────────────────

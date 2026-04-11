@@ -9,6 +9,7 @@ import MediaUploadField from '../../components/MediaUploadField'
 import OssImage from '../../components/OssImage'
 import { useI18n } from '../../i18n'
 import { useMLPick } from '../../lib/ml'
+import TranslateBatchButton, { asyncTranslateItem } from '../../components/TranslateBatchButton'
 
 const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: 'ภาษาไทย' }, { value: 'en', label: 'English' }]
 
@@ -167,21 +168,6 @@ export default function PointsMallManage() {
           ? { zh: '', th: '', en: '', [sourceLang]: raw }
           : (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : { zh: '', th: '', en: '', [sourceLang]: String(raw || '') })
       })
-      const textsToTranslate: Record<string, string> = {}
-      mlFields.forEach(f => {
-        const v = mlValues[f]
-        const src = v[sourceLang]?.trim()
-        if (src && ['zh', 'th', 'en'].some(l => l !== sourceLang && !v[l]?.trim())) textsToTranslate[f] = src
-      })
-      if (Object.keys(textsToTranslate).length > 0) {
-        try {
-          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 4000, silentError: true } as any)
-          const result = res.data?.result ?? {}
-          mlFields.forEach(f => { if (result[f]) mlValues[f] = { ...mlValues[f], ...result[f] } })
-        } catch {
-          // 翻译失败静默降级
-        }
-      }
       const payload = {
         ...values,
         cover_image: coverImage,
@@ -193,9 +179,12 @@ export default function PointsMallManage() {
       if (editItem) {
         await request.put(`/growth/mall/items/${editItem.id}`, payload)
         message.success(pm('updateSuccess'))
+        asyncTranslateItem('mall_item', String(editItem.id))
       } else {
-        await request.post('/growth/mall/items', payload)
+        const res: any = await request.post('/growth/mall/items', payload)
         message.success(pm('addSuccess'))
+        const newId = res?.data?.data?.id || res?.data?.id
+        if (newId) asyncTranslateItem('mall_item', String(newId))
       }
       setModalOpen(false)
       loadItems(itemPage)
@@ -304,7 +293,8 @@ export default function PointsMallManage() {
             key: 'items', label: pm('tabItems'),
             children: (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+                  <TranslateBatchButton type="mall_item" onDone={() => loadItems(itemPage)} />
                   <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>{pm('btnAdd')}</Button>
                 </div>
                 <Table

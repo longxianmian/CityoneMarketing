@@ -20,6 +20,7 @@ import { toMLObj, pickML, useMLPick } from '../../lib/ml'
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
 import request from '../../api/request'
 import StationScopeSelect, { type StationScope } from '../../components/StationScopeSelect'
+import TranslateBatchButton, { asyncTranslateItem } from '../../components/TranslateBatchButton'
 
 type MultiLangValue = { zh: string; th: string; en: string }
 
@@ -321,9 +322,12 @@ export default function ActivityManage() {
       if (isEdit && editingRecord) {
         await updateActivity(editingRecord.id, backendPayload)
         message.success(am('editSuccess'))
+        asyncTranslateItem('activity', editingRecord.id)
       } else {
-        await createActivity(backendPayload)
+        const res: any = await createActivity(backendPayload)
         message.success(am('createSuccess'))
+        const newId = res?.data?.data?.activity_id || res?.data?.activity_id
+        if (newId) asyncTranslateItem('activity', newId)
       }
       setFormVisible(false)
       loadList()
@@ -507,6 +511,7 @@ export default function ActivityManage() {
               <Button type="primary" icon={<SearchOutlined />} onClick={() => {}}>{am('btnSearch')}</Button>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>{am('btnReset')}</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>{am('btnCreate')}</Button>
+              <TranslateBatchButton type="activity" onDone={loadList} />
             </Space>
           </Col>
         </Row>
