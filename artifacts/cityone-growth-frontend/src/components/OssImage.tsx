@@ -3,6 +3,10 @@ import { getToken } from '../store/auth'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
+// 模块级缓存：OSS object key → 已获取的签名 URL
+// 导航来回不会重新请求，直接命中内存
+const ossUrlCache = new Map<string, string>()
+
 export function isObjectKey(v?: string): boolean {
   if (!v) return false
   if (v.startsWith('http') || v.startsWith('/')) return false
@@ -10,13 +14,17 @@ export function isObjectKey(v?: string): boolean {
 }
 
 export async function fetchSignedUrl(objectKey: string): Promise<string | null> {
+  if (ossUrlCache.has(objectKey)) return ossUrlCache.get(objectKey)!
   try {
     const token = getToken() || ''
     const res = await fetch(`${API_BASE}/api/media/view-url?key=${encodeURIComponent(objectKey)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
     const json = await res.json()
-    if (json.code === 200 && json.data?.previewUrl) return json.data.previewUrl
+    if (json.code === 200 && json.data?.previewUrl) {
+      ossUrlCache.set(objectKey, json.data.previewUrl)
+      return json.data.previewUrl
+    }
     return null
   } catch {
     return null
@@ -24,13 +32,17 @@ export async function fetchSignedUrl(objectKey: string): Promise<string | null> 
 }
 
 /** 返回 { url, loading }
- *  loading=true  → OSS key 正在异步获取签名 URL
- *  loading=false → 已有 URL 或 src 为空
+ *  loading=true  → OSS key 正在异步获取签名 URL（首次，无缓存）
+ *  loading=false → 已有 URL（直接地址或已缓存的 OSS URL）或 src 为空
  */
 function useOssUrlFull(src?: string | null): { url: string; loading: boolean } {
   const isKey = isObjectKey(src || '')
-  const [url, setUrl] = useState<string>(isKey ? '' : (src || ''))
-  const [loading, setLoading] = useState<boolean>(isKey)
+  const cachedUrl = isKey ? (ossUrlCache.get(src!) ?? '') : ''
+
+  const [url, setUrl] = useState<string>(
+    isKey ? cachedUrl : (src || '')
+  )
+  const [loading, setLoading] = useState<boolean>(isKey && !cachedUrl)
 
   useEffect(() => {
     if (!src) {
@@ -40,6 +52,12 @@ function useOssUrlFull(src?: string | null): { url: string; loading: boolean } {
     }
     if (!isObjectKey(src)) {
       setUrl(src)
+      setLoading(false)
+      return
+    }
+    // 有缓存直接用，不重新请求
+    if (ossUrlCache.has(src)) {
+      setUrl(ossUrlCache.get(src)!)
       setLoading(false)
       return
     }
@@ -62,27 +80,26 @@ export function useOssUrl(src?: string): string {
   return url
 }
 
-const SHIMMER_CSS = `@keyframes ossShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`
-
 interface OssImageProps {
   src?: string | null
   alt?: string
   style?: CSSProperties
   className?: string
   fallback?: React.ReactNode
-  /** 骨架屏额外样式（仅当 OSS URL 正在获取时显示） */
   placeholderStyle?: CSSProperties
 }
+
+const SHIMMER_CSS = `@keyframes ossShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`
 
 export default function OssImage({ src, alt = '', style, className, fallback, placeholderStyle }: OssImageProps) {
   const { url, loading } = useOssUrlFull(src)
 
-  // src 为空 → 不渲染任何东西（或 fallback）
+  // src 为空 → 不渲染（或 fallback）
   if (!src) {
     return fallback ? <>{fallback}</> : null
   }
 
-  // OSS key 还在异步获取签名 URL → 显示骨架屏占位
+  // OSS key 首次获取中（无缓存）→ 骨架屏占位
   if (loading) {
     return (
       <>
@@ -99,11 +116,11 @@ export default function OssImage({ src, alt = '', style, className, fallback, pl
     )
   }
 
-  // URL 获取失败或 OSS key 解析后为空 → fallback 或不渲染
+  // URL 获取失败 → fallback 或不渲染
   if (!url) {
     return fallback ? <>{fallback}</> : null
   }
 
-  // 正常渲染，浏览器缓存/加载由浏览器自行处理
+  // 正常渲染，浏览器缓存由浏览器自行处理
   return <img src={url} alt={alt} style={style} className={className} />
 }
