@@ -47,14 +47,58 @@ interface OssImageProps {
   style?: CSSProperties
   className?: string
   fallback?: React.ReactNode
+  placeholderStyle?: CSSProperties
 }
 
-export default function OssImage({ src, alt = '', style, className, fallback }: OssImageProps) {
+export default function OssImage({ src, alt = '', style, className, fallback, placeholderStyle }: OssImageProps) {
   const resolvedSrc = useOssUrl(src)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    setLoaded(false)
+  }, [resolvedSrc])
 
   if (!resolvedSrc) {
-    return fallback ? <>{fallback}</> : null
+    if (fallback) return <>{fallback}</>
+    const ph: CSSProperties = {
+      background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)',
+      backgroundSize: '200% 100%',
+      animation: 'ossShimmer 1.4s infinite',
+      display: 'block',
+      ...style,
+      ...placeholderStyle,
+    }
+    return (
+      <>
+        <style>{`@keyframes ossShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+        <div style={ph} />
+      </>
+    )
   }
 
-  return <img src={resolvedSrc} alt={alt} style={style} className={className} />
+  return (
+    <>
+      {!loaded && (
+        <>
+          <style>{`@keyframes ossShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+          <div style={{
+            background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)',
+            backgroundSize: '200% 100%',
+            animation: 'ossShimmer 1.4s infinite',
+            display: 'block',
+            ...style,
+            ...placeholderStyle,
+          }} />
+        </>
+      )}
+      <img
+        src={resolvedSrc}
+        alt={alt}
+        style={{ ...style, display: loaded ? 'block' : 'none' }}
+        className={className}
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+      />
+    </>
+  )
 }

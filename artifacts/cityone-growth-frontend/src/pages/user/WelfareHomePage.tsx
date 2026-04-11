@@ -486,7 +486,14 @@ export default function WelfareHomePage() {
                 points={item.points}
                 footerTone={item.footerTone}
                 lang={language}
-                onClick={() => { if (item.route) navigate(item.route) }}
+                onClick={() => {
+                  if (item.route) {
+                    const backTo = tab === 'mall' ? '/welfare?tab=mall'
+                      : tab === 'activity' ? '/welfare?tab=activity'
+                      : '/welfare'
+                    navigate(item.route, { state: { backTo } })
+                  }
+                }}
               />
             ))}
           </div>

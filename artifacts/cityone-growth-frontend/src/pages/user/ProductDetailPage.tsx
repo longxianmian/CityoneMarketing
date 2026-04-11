@@ -323,7 +323,7 @@ export default function ProductDetailPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 100 }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
-        <button onClick={() => location.key !== 'default' ? nav(-1) : nav('/welfare')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
+        <button onClick={() => { const b = (location.state as any)?.backTo; b ? nav(b) : location.key !== 'default' ? nav(-1) : nav('/welfare') }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
           <ArrowLeftOutlined style={{ fontSize: 20 }} />
         </button>
         <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>{t('productDetail.pageTitle')}</span>
@@ -344,15 +344,17 @@ export default function ProductDetailPage() {
         campaignId={product?.campaign_id}
       />
 
-      {coverVideo ? (
-        <video src={coverVideo} autoPlay muted loop playsInline style={{ width: '100%', maxHeight: 260, objectFit: 'cover', display: 'block' }} />
-      ) : coverImage ? (
-        <OssImage src={coverImage} alt={title} style={{ width: '100%', maxHeight: 260, objectFit: 'cover', display: 'block' }} />
-      ) : (
-        <div style={{ height: 200, background: 'linear-gradient(135deg, #52c41a20, #52c41a40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 64 }}>🎫</span>
-        </div>
-      )}
+      <div style={{ height: 220, background: '#f0f0f0', overflow: 'hidden', flexShrink: 0 }}>
+        {coverVideo ? (
+          <video src={coverVideo} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        ) : coverImage ? (
+          <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} placeholderStyle={{ width: '100%', height: 220 }} />
+        ) : (
+          <div style={{ height: '100%', background: 'linear-gradient(135deg, #52c41a20, #52c41a40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 64 }}>🎫</span>
+          </div>
+        )}
+      </div>
 
       <div style={{ padding: '20px 16px 0' }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 12 }}>
