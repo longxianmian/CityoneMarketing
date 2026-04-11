@@ -1,9 +1,9 @@
 {
-  "channelId": "YOUR_LINE_CHANNEL_ID",
+  "channelId": "2008619065",
   "officialAccountId": "@YOUR_OA_ID",
   "liffId": "",
   "requireFollow": false,
-  "channelSecret": "YOUR_LINE_CHANNEL_SECRET",
-  "channelAccessToken": "YOUR_LINE_CHANNEL_ACCESS_TOKEN",
-  "updatedAt": "2026-01-01T00:00:00.000Z"
+  "channelSecret": "e0010704d13ecb3b955af74d373c972f",
+  "channelAccessToken": "OxDuZtXQ03bIG/eb8ufDvvU2374XE/In9VIURV/J1iyPxcOF+1IiqvFg5Ud145ZigBRTIqAnHvy3DPIqj0jqZ0qlkwvxurQ8NQV8qSwcDqw99ZMPEXOFvdDvabwN7RAIu/k8nN5SLDIAcswrRp8GiQdB04t89/1O/w1cDnyilFU=",
+  "updatedAt": "2026-04-11T10:05:16.850Z"
 }
