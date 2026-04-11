@@ -29,6 +29,7 @@ export function useLiff() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _liffInstance: any = null
 let _liffInitiated = false
+let _liffId = ''  // 缓存已拉取的 LIFF ID，catch 块中也可访问
 
 /** 获取已初始化的 liff 实例（可能为 null，需判断）*/
 export function getLiff() {
@@ -47,6 +48,7 @@ async function initLiff(
     const res = await fetch(`${API_BASE}/api/growth/line/config`)
     const json = await res.json()
     const liffId: string = json?.data?.liffId || ''
+    _liffId = liffId  // 供 catch 块使用
 
     if (!liffId) {
       onReady({ liffReady: false, inLineClient: false })
@@ -124,6 +126,16 @@ async function initLiff(
       onReady({ liffReady: true, inLineClient: isInClient })
     }
   } catch (err) {
+    // 若在 LINE 内置浏览器但当前 URL 不在 LIFF 端点 (/welfare) 下，重定向到正确端点
+    // 这解决了同事从根链接 / 或其他路径进入时 LIFF 初始化失败的问题
+    const isInLineApp = /Line\/\d/i.test(navigator.userAgent)
+    const notAtEndpoint = !window.location.pathname.startsWith('/welfare')
+    if (isInLineApp && notAtEndpoint && _liffId) {
+      const current = window.location.pathname + window.location.search + window.location.hash
+      sessionStorage.setItem('liff_redirect', current)
+      window.location.replace('/welfare')
+      return
+    }
     console.warn('[LIFF] init failed, falling back to device user:', err)
     onReady({ liffReady: false, inLineClient: false })
   }

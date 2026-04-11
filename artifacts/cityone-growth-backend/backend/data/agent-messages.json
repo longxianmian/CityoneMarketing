@@ -6359,5 +6359,54 @@
     },
     "intent_code": "benefit_claim_query",
     "created_at": "2026-04-10T08:06:24.910Z"
+  },
+  {
+    "message_id": "am_00319",
+    "session_id": "as_00087",
+    "role": "agent",
+    "type": "welcome",
+    "text": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+    "payload": {
+      "reply_type": "welcome",
+      "text": "你好！我是小城 👋 有什么可以帮你的？直接问我，或从下面选择常见问题～",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？",
+        "如何邀请好友？"
+      ]
+    },
+    "intent_code": "session_init",
+    "created_at": "2026-04-11T13:57:59.520Z"
+  },
+  {
+    "message_id": "am_00320",
+    "session_id": "as_00087",
+    "role": "user",
+    "type": "text",
+    "text": "如何邀请好友？",
+    "payload": null,
+    "intent_code": "",
+    "created_at": "2026-04-11T13:58:06.524Z"
+  },
+  {
+    "message_id": "am_00321",
+    "session_id": "as_00087",
+    "role": "agent",
+    "type": "info_reply",
+    "text": "邀请好友步骤：点击「生成邀请链接」获取你的专属链接，分享给朋友即可。好友完成首借后，你和好友都能获得奖励！",
+    "payload": {
+      "reply_type": "info_reply",
+      "text": "邀请好友步骤：点击「生成邀请链接」获取你的专属链接，分享给朋友即可。好友完成首借后，你和好友都能获得奖励！",
+      "cards": [],
+      "suggestions": [
+        "帮我找附近站点",
+        "帮我看看有哪些券能用",
+        "积分怎么兑换？"
+      ]
+    },
+    "intent_code": "invite_help",
+    "created_at": "2026-04-11T13:58:11.931Z"
   }
 ]

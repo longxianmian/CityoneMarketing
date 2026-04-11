@@ -1870,5 +1870,21 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-10T08:06:24.923Z"
+  },
+  {
+    "log_id": "al_00118",
+    "session_id": "as_00087",
+    "message_id": "am_00320",
+    "line_user_id": "U1fbf13501a84a53002908a24bf93fc99",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "如何邀请好友？",
+    "intent_code": "invite_help",
+    "intent_confidence": 0.84,
+    "tool_code": "",
+    "tool_result_status": "info_only",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-11T13:58:11.937Z"
   }
 ]

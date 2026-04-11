@@ -430,26 +430,37 @@ export async function handleLineWebhook(req, res, body, sendJson) {
 // ─── POST /api/user/set-fan ───────────────────────────────────────────────────
 // 用户点击「关注 LINE OA」按钮时前端主动调用，预写入 fans.json
 // 这样不需要等待 LINE webhook 配置即可让粉丝路径正常走通
-// body: { user_id, line_display_name?, line_picture_url? }
+// body: { user_id, line_user_id?, line_display_name?, line_picture_url? }
+// line_user_id 是真实 LINE UID（U...），user_id 可能是 canonical UUID 或设备 ID
 export function handleSetFan(req, res, body, sendJson) {
-  const { user_id = "", line_display_name = "", line_picture_url = "" } = body || {};
+  const { user_id = "", line_user_id = "", line_display_name = "", line_picture_url = "" } = body || {};
   if (!user_id) {
     return sendJson(res, 400, { code: 400, error: "missing_user_id" });
   }
 
+  // 用于查找的有效 LINE UID（优先用显式传入的 line_user_id，否则回退到 user_id）
+  const effectiveLineId = line_user_id || user_id;
+
   const fansFile = dataFile("fans.json");
   const fans = loadJsonArray(fansFile);
-  const exists = fans.findIndex((f) => f.user_id === user_id || f.line_user_id === user_id);
+  // 同时按 user_id 和 line_user_id 查找，避免同一人因不同 ID 格式重复写入
+  const exists = fans.findIndex(
+    (f) => f.user_id === user_id || f.line_user_id === user_id ||
+           (effectiveLineId && (f.user_id === effectiveLineId || f.line_user_id === effectiveLineId))
+  );
 
   if (exists >= 0) {
-    // 已存在 → 更新资料
+    // 已存在 → 更新资料，同时补全 line_user_id 字段（如之前用设备ID存入的记录）
+    if (line_user_id && fans[exists].line_user_id !== line_user_id) {
+      fans[exists].line_user_id = line_user_id;
+    }
     fans[exists].line_display_name = line_display_name || fans[exists].line_display_name;
     fans[exists].line_picture_url  = line_picture_url  || fans[exists].line_picture_url;
     fans[exists].updated_at = new Date().toISOString();
   } else {
     fans.push({
       user_id,
-      line_user_id: user_id,
+      line_user_id: effectiveLineId,
       line_display_name,
       line_picture_url,
       followed_at: new Date().toISOString(),

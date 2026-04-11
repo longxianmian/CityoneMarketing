@@ -60,12 +60,14 @@ export default function FollowOAPage() {
     clickedRef.current = true
 
     // 点击即视为即将关注 → 预写入 fans.json（无需等待 LINE webhook）
+    // 同时传 user_id（canonical）和 line_user_id（LINE UID），确保两个维度都能命中 check-follow
     const userId = effectiveUserId
     fetch(`${API_BASE}/api/user/set-fan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user_id: userId,
+        user_id:          userId,
+        line_user_id:     lineProfile?.lineUserId || userId,
         line_display_name: lineProfile?.lineDisplayName || '',
         line_picture_url:  lineProfile?.linePictureUrl  || '',
       }),
