@@ -168,10 +168,11 @@ export default function MinePage() {
   const lineUserId = profile?.lineUserId || ''
   const effectiveUserId = lineUserId || getDeviceUserId()
 
+  // LIFF 拿到的 LINE 数据最权威，优先于服务端缓存
   const lineDisplayName =
-    serverProfile?.line_display_name || profile?.lineDisplayName || 'CityOne LINE User'
+    profile?.lineDisplayName || serverProfile?.line_display_name || 'CityOne LINE User'
   const linePictureUrl =
-    serverProfile?.line_picture_url || profile?.linePictureUrl || ''
+    profile?.linePictureUrl || serverProfile?.line_picture_url || ''
 
   // identityTag：优先从服务器 profile 接口的 identity_tag 字段取（规则推断）
   // fallback：本地 store 的 identityTag（LINE 登录后写入）

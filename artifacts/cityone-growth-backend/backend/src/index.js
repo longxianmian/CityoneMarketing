@@ -197,6 +197,8 @@ import {
   handleUserPrizes,
   handleUserBenefits,
   handleUserOrders,
+  handleSyncProfile,
+  handleLineWebhook,
 } from "./routes/user-profile.js";
 import {
   handleAgentsList,
@@ -1304,6 +1306,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/user/orders") {
       return handleUserOrders(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/user/sync-profile") {
+      const body = await readBody(req);
+      return handleSyncProfile(req, res, body, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/line/webhook") {
+      const body = await readBody(req);
+      return handleLineWebhook(req, res, body, sendJson);
     }
 
     // ─── A 系统旁路连接接口（占位，返回 501 直至联调启用）────────────────────

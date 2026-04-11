@@ -5,6 +5,7 @@ import { ConfigProvider, App as AntdApp } from 'antd'
 import App from './App'
 import './styles/global.css'
 import { I18nProvider, useI18n } from './i18n'
+import { LiffProvider } from './providers/LiffProvider'
 
 function AppWithI18n() {
   const { antdLocale } = useI18n()
@@ -21,7 +22,9 @@ function AppWithI18n() {
         }}
       >
         <AntdApp>
-          <App />
+          <LiffProvider>
+            <App />
+          </LiffProvider>
         </AntdApp>
       </ConfigProvider>
     </BrowserRouter>

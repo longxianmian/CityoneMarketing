@@ -231,14 +231,33 @@ export function handleUserBenefits(req, res, url, sendJson) {
 }
 
 // ─── GET /api/user/check-follow ───────────────────────────────────────────────
-// 判断用户是否已关注 LINE OA（是否为粉丝）
-// Mock 逻辑：points-accounts.json 中有记录 = 已关注；无记录 = 尚未关注
-// 生产阶段将对接 LINE Messaging API checkFollowStatus
+// 判断用户是否已关注 LINE OA
+//
+// 判断规则（按优先级）：
+//   1. userId 以 'U' 开头（真实 LINE User ID）→ 检查 fans.json（LINE webhook 写入）
+//   2. 其他（设备 UUID dev_xxx）→ 兼容旧逻辑：检查 points-accounts.json
+//
+// fans.json 由 LINE webhook follow 事件写入（见 handleLineWebhook）
 export function handleCheckFollow(req, res, url, sendJson) {
   const userId = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
   if (!userId) {
     return sendJson(res, 200, { code: 200, data: { is_fan: false, reason: "no_user_id" } });
   }
+
+  // 真实 LINE User ID（以大写 U 开头，长度约 33 位）
+  const isRealLineUser = /^U[0-9a-f]{32}$/i.test(userId);
+
+  if (isRealLineUser) {
+    // 检查粉丝专用列表（LINE webhook 写入）
+    const fans = loadJsonArray(dataFile("fans.json"));
+    const isFan = fans.some((f) => f.user_id === userId || f.line_user_id === userId);
+    return sendJson(res, 200, {
+      code: 200,
+      data: { is_fan: isFan, identity_tag: isFan ? "fan" : "visitor", source: "fans_list" },
+    });
+  }
+
+  // 设备 UUID：兼容旧逻辑，保持开发环境可测试
   const accounts = loadJsonArray(dataFile("points-accounts.json"));
   const account = accounts.find(
     (a) => a.user_id === userId || a.line_user_id === userId
@@ -246,8 +265,99 @@ export function handleCheckFollow(req, res, url, sendJson) {
   const isFan = !!account;
   return sendJson(res, 200, {
     code: 200,
-    data: { is_fan: isFan, identity_tag: isFan ? (account?.identity_tag || "fan") : "visitor" },
+    data: { is_fan: isFan, identity_tag: isFan ? (account?.identity_tag || "fan") : "visitor", source: "device_compat" },
   });
+}
+
+// ─── POST /api/user/sync-profile ──────────────────────────────────────────────
+// LIFF 初始化完成后，前端将 LINE 用户资料同步至后端
+// body: { line_user_id, line_display_name, line_picture_url }
+// 若 points-accounts.json 有该用户 → 更新 name/picture；无 → 不创建（关注门控负责）
+export function handleSyncProfile(req, res, body, sendJson) {
+  const {
+    line_user_id = "",
+    line_display_name = "",
+    line_picture_url = "",
+  } = body || {};
+
+  if (!line_user_id) {
+    return sendJson(res, 400, { code: 400, error: "missing_line_user_id" });
+  }
+
+  // 更新 fans.json 中的头像/昵称
+  const fansFile = dataFile("fans.json");
+  const fans = loadJsonArray(fansFile);
+  const fanIdx = fans.findIndex(
+    (f) => f.user_id === line_user_id || f.line_user_id === line_user_id
+  );
+  if (fanIdx >= 0) {
+    fans[fanIdx].line_display_name = line_display_name || fans[fanIdx].line_display_name;
+    fans[fanIdx].line_picture_url = line_picture_url || fans[fanIdx].line_picture_url;
+    fans[fanIdx].updated_at = new Date().toISOString();
+    try { fs.writeFileSync(fansFile, JSON.stringify(fans, null, 2)); } catch {}
+  }
+
+  // 同样更新 points-accounts.json（用于 user-profile 接口返回头像昵称）
+  const accountsFile = dataFile("points-accounts.json");
+  const accounts = loadJsonArray(accountsFile);
+  const accIdx = accounts.findIndex(
+    (a) => a.user_id === line_user_id || a.line_user_id === line_user_id
+  );
+  if (accIdx >= 0) {
+    accounts[accIdx].line_display_name = line_display_name || accounts[accIdx].line_display_name;
+    accounts[accIdx].line_picture_url = line_picture_url || accounts[accIdx].line_picture_url;
+    accounts[accIdx].updated_at = new Date().toISOString();
+    try { fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2)); } catch {}
+  }
+
+  return sendJson(res, 200, { code: 200, msg: "profile synced" });
+}
+
+// ─── POST /api/line/webhook ───────────────────────────────────────────────────
+// LINE Messaging API Webhook 接收端
+// 处理 follow 事件 → 写入 fans.json（粉丝列表）
+// 处理 unfollow 事件 → 从 fans.json 移除
+// 其他事件忽略
+export async function handleLineWebhook(req, res, body, sendJson) {
+  const events = body?.events || [];
+
+  const fansFile = dataFile("fans.json");
+  let fans = loadJsonArray(fansFile);
+  let changed = false;
+
+  for (const event of events) {
+    const lineUserId = event?.source?.userId;
+    if (!lineUserId) continue;
+
+    if (event.type === "follow") {
+      // 添加到粉丝列表（去重）
+      const exists = fans.some((f) => f.user_id === lineUserId || f.line_user_id === lineUserId);
+      if (!exists) {
+        fans.push({
+          user_id: lineUserId,
+          line_user_id: lineUserId,
+          line_display_name: "",
+          line_picture_url: "",
+          followed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        changed = true;
+      }
+    } else if (event.type === "unfollow") {
+      const before = fans.length;
+      fans = fans.filter((f) => f.user_id !== lineUserId && f.line_user_id !== lineUserId);
+      if (fans.length !== before) changed = true;
+    }
+  }
+
+  if (changed) {
+    try { fs.writeFileSync(fansFile, JSON.stringify(fans, null, 2)); } catch (e) {
+      console.error("[Webhook] Failed to write fans.json:", e);
+    }
+  }
+
+  // LINE 要求 webhook 返回 200
+  return sendJson(res, 200, { code: 200, msg: "ok", processed: events.length });
 }
 
 // ─── GET /api/user/orders ─────────────────────────────────────────────────────

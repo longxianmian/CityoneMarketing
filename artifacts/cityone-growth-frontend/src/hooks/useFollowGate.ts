@@ -2,6 +2,8 @@
  * useFollowGate — 关注门控统一 Hook
  *
  * 粉丝验证逻辑集中管理：
+ * - 优先使用 LIFF 登录后的真实 LINE User ID（lineUser store）
+ * - 未登录时 fallback 到 deviceUserId（浏览器本地 UUID）
  * - 页面挂载时异步预查粉丝状态，消除点击延迟
  * - guard(action, opts) 包裹任何互动操作
  *   - 已关注 → 直接执行 action
@@ -12,10 +14,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getDeviceUserId } from '../utils/deviceUserId'
+import useLineUserStore from '../store/lineUser'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 async function fetchFanStatus(userId: string): Promise<boolean> {
+  if (!userId) return false
   try {
     const res = await fetch(
       `${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`
@@ -36,16 +40,23 @@ interface GuardOptions {
 export function useFollowGate() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const lineProfile = useLineUserStore((s) => s.profile)
   const [isFan, setIsFan] = useState<boolean | null>(null)
   const [checking, setChecking] = useState(false)
 
+  /**
+   * 优先使用真实 LINE User ID（LIFF 登录后），否则用设备 UUID
+   */
+  const getEffectiveUserId = useCallback((): string => {
+    return lineProfile?.lineUserId || getDeviceUserId()
+  }, [lineProfile?.lineUserId])
+
   useEffect(() => {
-    fetchFanStatus(getDeviceUserId()).then(setIsFan)
-  }, [])
+    fetchFanStatus(getEffectiveUserId()).then(setIsFan)
+  }, [getEffectiveUserId])
 
   /**
    * 构建带归因参数的完整回跳 URL
-   * returnPath 例如 '/coupon/xxx?auto=claim'
    */
   const buildReturnPath = useCallback(
     (base: string) => {
@@ -77,7 +88,7 @@ export function useFollowGate() {
       const { label = '', returnPath, back } = opts
       setChecking(true)
       try {
-        const userId = getDeviceUserId()
+        const userId = getEffectiveUserId()
         const fan = isFan !== null ? isFan : await fetchFanStatus(userId)
         if (isFan === null) setIsFan(fan)
 
@@ -96,7 +107,7 @@ export function useFollowGate() {
         setChecking(false)
       }
     },
-    [isFan, navigate, buildReturnPath]
+    [isFan, navigate, buildReturnPath, getEffectiveUserId]
   )
 
   return { isFan, guard, checking }
