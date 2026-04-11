@@ -13,12 +13,16 @@ export interface LineUserProfile {
   couponCount: number
   deposit: number
   depositPaid?: boolean
+  /** liff.getFriendship() 结果：是否关注了 OA */
+  isFriend?: boolean
 }
 
 interface LineUserState {
   profile: LineUserProfile | null
   setProfile: (profile: LineUserProfile) => void
   clearProfile: () => void
+  /** 单独更新粉丝状态（关注后刷新用）*/
+  setIsFriend: (isFriend: boolean) => void
 }
 
 const useLineUserStore = create<LineUserState>()(
@@ -27,6 +31,8 @@ const useLineUserStore = create<LineUserState>()(
       profile: null,
       setProfile: (profile: LineUserProfile) => set({ profile }),
       clearProfile: () => set({ profile: null }),
+      setIsFriend: (isFriend: boolean) =>
+        set((s) => s.profile ? { profile: { ...s.profile, isFriend } } : s),
     }),
     {
       name: 'cityone-line-user',
