@@ -119,14 +119,9 @@ function WaterfallCard({
   const resolvedCover = isObjectKey(cover) ? ossUrl : cover
 
   return (
-    /* break-inside: avoid 防止 CSS columns 把卡片切断跨列
-       总高 = 2 × 56.25% = 112.5% 宽度
-       图片占上半（16:9）= 文字占下半，两区等高，卡片不会太矮 */
     <div
       onClick={onClick}
       style={{
-        breakInside: 'avoid',
-        marginBottom: 6,
         position: 'relative',
         width: '100%',
         paddingTop: '112.5%',
@@ -522,8 +517,8 @@ export default function WelfareHomePage() {
             </Carousel>
           </div>
 
-          {/* 瀑布流卡片 — 黄金比例 1:1.618 */}
-          <div style={{ columnCount: 2, columnGap: 6 }}>
+          {/* 双列网格卡片 — CSS Grid 保证各浏览器排列一致（行→列），避免 Safari/LINE 分栏错位 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, alignItems: 'start' }}>
             {filteredCards.map((item) => (
               <WaterfallCard
                 key={item.id}
