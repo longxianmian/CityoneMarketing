@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { chatCompletion } from "../services/agent-llm-service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +17,96 @@ function sendOk(res, sendJson, msg, data) {
 }
 function sendError(res, sendJson, statusCode, errorCode, msg) {
   return sendJson(res, statusCode, { code: statusCode, msg, error: errorCode });
+}
+
+/**
+ * 将任意值转为多语言对象 { zh, th, en }
+ * 已经是对象的直接返回；字符串视为 zh 源语言
+ */
+function toML(v, sourceLang = "zh") {
+  if (!v) return { zh: "", th: "", en: "" };
+  if (typeof v === "object" && !Array.isArray(v))
+    return { zh: v.zh || "", th: v.th || "", en: v.en || "" };
+  const s = String(v);
+  return { zh: sourceLang === "zh" ? s : "", th: sourceLang === "th" ? s : "", en: sourceLang === "en" ? s : "" };
+}
+
+/**
+ * 判断多语言对象是否需要补译（缺少 th 或 en）
+ */
+function needsML(v) {
+  if (!v || typeof v !== "object") return !!v;
+  return !v.th?.trim() || !v.en?.trim();
+}
+
+/**
+ * 调用 LLM 批量翻译若干文本字段，返回 result 对象
+ * 静默失败：出错时返回 {}
+ */
+async function translateTexts(texts, sourceLang = "zh") {
+  const entries = Object.entries(texts).filter(([, v]) => typeof v === "string" && v.trim());
+  if (!entries.length) return {};
+  const langLabel = { zh: "中文", th: "泰文", en: "英文" }[sourceLang] || "中文";
+  const textStr = entries.map(([k, v]) => `"${k}": ${JSON.stringify(v)}`).join(",\n  ");
+  const SYSTEM = `你是中泰英三语营销翻译专家。CityOne、LINE OA等专有名词保持原样。严格输出 JSON 对象（不含 markdown 代码块），格式：{"result":{"<key>":{"zh":"...","th":"...","en":"..."}}}`;
+  const USER = `以下${langLabel}文本需要翻译成中文(zh)/泰文(th)/英文(en)：\n\n{\n  ${textStr}\n}`;
+  try {
+    const raw = await chatCompletion(
+      [{ role: "system", content: SYSTEM }, { role: "user", content: USER }],
+      { maxTokens: 1024, jsonMode: true }
+    );
+    return JSON.parse(raw).result || {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * 后台静默补译单个数字商品的多语言字段
+ */
+async function backgroundTranslateProduct(productId) {
+  try {
+    const list = loadJsonArray(DIGITAL_PRODUCTS_FILE);
+    const idx = list.findIndex((p) => p.product_id === productId);
+    if (idx < 0) return;
+    const product = list[idx];
+    const ML_FIELDS = ["product_name", "product_subtitle", "short_benefit_text"];
+    const texts = {};
+    for (const f of ML_FIELDS) {
+      const v = product[f];
+      if (!v || typeof v !== "object") continue;
+      const src = v.zh?.trim() || v.en?.trim() || v.th?.trim();
+      if (src && (!v.th?.trim() || !v.en?.trim())) texts[f] = src;
+    }
+    if (!Object.keys(texts).length) return;
+    const result = await translateTexts(texts, "zh");
+    let changed = false;
+    for (const f of ML_FIELDS) {
+      if (result[f]) { list[idx][f] = result[f]; changed = true; }
+    }
+    if (changed) {
+      list[idx].updated_at = new Date().toISOString();
+      saveJsonArray(DIGITAL_PRODUCTS_FILE, list);
+    }
+  } catch { /* 静默失败 */ }
+}
+
+/**
+ * 批量补译所有缺翻译的数字商品
+ */
+export async function translateAllDigitalProducts() {
+  const list = loadJsonArray(DIGITAL_PRODUCTS_FILE);
+  const ML_FIELDS = ["product_name", "product_subtitle", "short_benefit_text"];
+  let done = 0, skipped = 0, failed = 0;
+  for (const product of list) {
+    const hasEmpty = ML_FIELDS.some(f => needsML(product[f]));
+    if (!hasEmpty) { skipped++; continue; }
+    try {
+      await backgroundTranslateProduct(product.product_id);
+      done++;
+    } catch { failed++; }
+  }
+  return { total: list.length, done, skipped, failed };
 }
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -151,9 +242,9 @@ export async function handleDigitalProductCreate(req, res, url, sendJson, readBo
     const item = {
       product_id: nextId(list, "dp", "product_id"),
       product_type: productType,
-      product_name: productName,
-      product_subtitle: body.product_subtitle || "",
-      short_benefit_text: body.short_benefit_text || "",
+      product_name: toML(body.product_name || productName),
+      product_subtitle: toML(body.product_subtitle || ""),
+      short_benefit_text: toML(body.short_benefit_text || ""),
       template_id: body.template_id || "",
       cover_image: body.cover_image || "",
       cover_video: body.cover_video || "",
@@ -186,6 +277,8 @@ export async function handleDigitalProductCreate(req, res, url, sendJson, readBo
     };
     list.push(item);
     saveJsonArray(DIGITAL_PRODUCTS_FILE, list);
+    // 后台静默补译，不阻塞响应
+    backgroundTranslateProduct(item.product_id).catch(() => {});
     return sendOk(res, sendJson, "digital product created", item);
   } catch (err) {
     return sendError(res, sendJson, 500, "CREATE_FAILED", err.message || "创建失败");
@@ -201,20 +294,26 @@ export async function handleDigitalProductUpdate(req, res, url, sendJson, readBo
     const idx = list.findIndex((p) => p.product_id === id);
     if (idx < 0) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到数字商品");
 
-    const updatableFields = [
-      "product_name","product_subtitle","short_benefit_text","template_id","cover_image","cover_video",
+    const ML_NAME_FIELDS = ["product_name", "product_subtitle", "short_benefit_text"];
+    const plainFields = [
+      "template_id","cover_image","cover_video",
       "source_mode","cash_enabled","cash_price","cash_currency","points_enabled","points_price",
       "stock_enabled","stock_qty","user_limit","valid_type","valid_days","valid_start_at","valid_end_at",
       "refundable","transferable","stackable","rule_text","status",
       "share_enabled","share_title","share_desc","share_cover","campaign_id",
     ];
     const updated = { ...list[idx] };
-    for (const f of updatableFields) {
+    for (const f of ML_NAME_FIELDS) {
+      if (body[f] !== undefined) updated[f] = toML(body[f]);
+    }
+    for (const f of plainFields) {
       if (body[f] !== undefined) updated[f] = body[f];
     }
     updated.updated_at = new Date().toISOString();
     list[idx] = updated;
     saveJsonArray(DIGITAL_PRODUCTS_FILE, list);
+    // 后台静默补译
+    backgroundTranslateProduct(id).catch(() => {});
     return sendOk(res, sendJson, "digital product updated", updated);
   } catch (err) {
     return sendError(res, sendJson, 500, "UPDATE_FAILED", err.message || "更新失败");

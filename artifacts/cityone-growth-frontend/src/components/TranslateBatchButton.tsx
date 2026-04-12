@@ -9,7 +9,7 @@ import { Button, Tooltip, message, Progress } from 'antd'
 import { TranslationOutlined, LoadingOutlined } from '@ant-design/icons'
 import request from '../api/request'
 
-type ItemType = 'coupon' | 'activity' | 'mall_item' | 'all'
+type ItemType = 'coupon' | 'activity' | 'mall_item' | 'digital_product' | 'all'
 
 interface Props {
   type: ItemType
@@ -87,7 +87,7 @@ export default function TranslateBatchButton({ type, label, onDone }: Props) {
  * 存储成功后，后台静默补译单条记录（非阻塞）
  * 用法：在 handleFormOk 里 saveSuccess 后调用即可
  */
-export function asyncTranslateItem(type: ItemType, id: string) {
+export function asyncTranslateItem(type: Exclude<ItemType, 'all' | 'digital_product'>, id: string) {
   if (!id) return
   request
     .post('/admin/translate-item', { type, id }, { timeout: 30000 } as any)

@@ -8,6 +8,7 @@
 
 import { query } from "../db/pool.js";
 import { chatCompletion } from "../services/agent-llm-service.js";
+import { translateAllDigitalProducts } from "./products.js";
 
 const SYSTEM_PROMPT = `你是具备双重专业背景的资深专家，负责将营销文案翻译成中文、泰文、英文三种语言。
 
@@ -125,13 +126,18 @@ export async function handleTranslateBatch(req, res, url, sendJson, readBody) {
     const body = await readBody(req);
     const { type = "all" } = body;
 
+    const pgTypes = ["coupon", "activity", "mall_item"];
     const types = type === "all"
-      ? ["coupon", "activity", "mall_item"]
+      ? [...pgTypes, "digital_product"]
       : [type];
 
     const summary = {};
     for (const t of types) {
-      summary[t] = await translateAllMissing(t);
+      if (t === "digital_product") {
+        summary[t] = await translateAllDigitalProducts();
+      } else {
+        summary[t] = await translateAllMissing(t);
+      }
     }
 
     return sendJson(res, 200, { code: 200, msg: "ok", data: summary });
