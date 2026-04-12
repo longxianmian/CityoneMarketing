@@ -117,6 +117,13 @@ export async function handleCouponList(req, res, url, sendJson) {
   }
 }
 
+// 安全数值转换：避免 NaN 写入数据库
+function safeNum(val, fallback = 0) {
+  if (val === null || val === undefined || val === "") return fallback;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 // ── 管理端：新增卡券 ─────────────────────────────────────────────────────────
 // POST /api/growth/coupon/add
 export async function handleCouponAdd(req, res, url, sendJson, readBody) {
@@ -148,10 +155,10 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
       couponType    || "general",
       itemType      || "digital",
       discountType,
-      discountValue != null ? Number(discountValue) : 0,
-      minAmount     != null ? Number(minAmount)     : 0,
-      totalCount    != null ? Number(totalCount)    : 0,
-      status        != null ? Number(status)        : 1,
+      safeNum(discountValue, 0),
+      safeNum(minAmount,     0),
+      safeNum(totalCount,    0),
+      safeNum(status,        1),
       validFrom     || null,
       validTo       || null,
       revertOssUrl(coverImage) || "",
@@ -191,10 +198,10 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
     if (couponType    != null) addSet("coupon_type",    couponType);
     if (itemType      != null) addSet("item_type",      itemType);
     if (discountType  != null) addSet("discount_type",  discountType);
-    if (discountValue != null) addSet("discount_value", Number(discountValue));
-    if (minAmount     != null) addSet("min_amount",     Number(minAmount));
-    if (totalCount    != null) addSet("total_count",    Number(totalCount));
-    if (status        != null) addSet("status",         Number(status));
+    if (discountValue != null) addSet("discount_value", safeNum(discountValue, 0));
+    if (minAmount     != null) addSet("min_amount",     safeNum(minAmount, 0));
+    if (totalCount    != null) addSet("total_count",    safeNum(totalCount, 0));
+    if (status        != null) addSet("status",         safeNum(status, 1));
     if (validFrom     != null) addSet("valid_from",     validFrom || null);
     if (validTo       != null) addSet("valid_to",       validTo   || null);
     if (coverImage    != null) addSet("cover_image",    revertOssUrl(coverImage));

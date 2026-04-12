@@ -420,11 +420,38 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, X-A-System-Sign"
 };
 
+// 安全响应头（防 XSS、点击劫持、MIME 嗅探）
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "SAMEORIGIN",
+  "X-XSS-Protection": "1; mode=block",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+};
+
+// ─── 简单内存限频器（登录接口防暴力破解）────────────────────────────────────
+const _rateBuckets = new Map(); // key → { count, resetAt }
+function checkRateLimit(key, maxPerMinute = 10) {
+  const now = Date.now();
+  let bucket = _rateBuckets.get(key);
+  if (!bucket || now > bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + 60_000 };
+    _rateBuckets.set(key, bucket);
+  }
+  bucket.count += 1;
+  return bucket.count <= maxPerMinute;
+}
+// 每小时清理过期 bucket
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of _rateBuckets) { if (now > v.resetAt) _rateBuckets.delete(k); }
+}, 3_600_000).unref();
+
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
-    ...CORS_HEADERS
+    ...CORS_HEADERS,
+    ...SECURITY_HEADERS,
   });
   res.end(JSON.stringify(payload, null, 2));
 }
@@ -485,6 +512,10 @@ const server = http.createServer(async (req, res) => {
   try {
     // ── 管理端认证 ────────────────────────────────────────────────────────
     if (req.method === "POST" && url.pathname === "/api/admin/login") {
+      const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+      if (!checkRateLimit(`login:${ip}`, 10)) {
+        return fail(res, 429, "请求过于频繁，请 1 分钟后再试", { error: "TOO_MANY_REQUESTS" });
+      }
       return await handleAdminLogin(req, await readBody(req), res, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/admin/logout") {
@@ -1357,4 +1388,13 @@ server.listen(PORT, "0.0.0.0", async () => {
     console.error("[DB] Startup error:", err.message);
     console.error("[DB] Backend will continue but DB-backed routes may fail until DB is available.");
   }
+});
+
+// ─── 全局进程异常保护（防止意外崩溃）───────────────────────────────────────
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] uncaughtException:", err.message, err.stack);
+  // 不退出进程，保持服务在线
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] unhandledRejection:", reason);
 });

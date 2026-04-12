@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import useAuthStore from './store/auth'
 import AdminLayout from './layout/AdminLayout'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -82,6 +83,7 @@ function CS({ title, description }: { title: string; description?: string }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <Suspense fallback={<Loading />}>
       <Routes>
         {/* 用户端路由 */}
@@ -194,5 +196,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/welfare" replace />} />
       </Routes>
     </Suspense>
+    </ErrorBoundary>
   )
 }

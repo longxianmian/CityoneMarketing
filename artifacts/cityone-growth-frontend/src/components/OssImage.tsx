@@ -86,7 +86,7 @@ function useOssUrlSWR(src?: string | null): { url: string; loading: boolean } {
       setLoading(false)
       // 已经 stale → 后台静默刷新，不影响当前显示
       if (old) {
-        doFetch(src).then(newUrl => { if (newUrl) setUrl(newUrl) })
+        doFetch(src).then(newUrl => { if (newUrl) setUrl(newUrl) }).catch(() => {})
       }
       return
     }
@@ -99,7 +99,7 @@ function useOssUrlSWR(src?: string | null): { url: string; loading: boolean } {
         setUrl(resolved || '')
         setLoading(false)
       }
-    })
+    }).catch(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [src])
 
