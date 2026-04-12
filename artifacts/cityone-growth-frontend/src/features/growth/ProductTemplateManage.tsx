@@ -101,6 +101,20 @@ export default function ProductTemplateManage() {
         if (srcText && hasEmpty) textsToTranslate[f] = srcText
       })
 
+      // 保存前同步翻译（失败则静默降级，继续保存）
+      if (Object.keys(textsToTranslate).length > 0) {
+        try {
+          const tr: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 8000, silentError: true } as any)
+          const result = tr?.data?.result ?? {}
+          const patch: any = {}
+          Object.entries(result).forEach(([key, translated]) => {
+            patch[key] = { ...values[key], ...(translated as any) }
+            values[key] = patch[key]
+          })
+          form.setFieldsValue(patch)
+        } catch {}
+      }
+
       const payload = { ...values, coverImage, coverVideo }
       delete payload._sourceLang
       if (isEdit) {

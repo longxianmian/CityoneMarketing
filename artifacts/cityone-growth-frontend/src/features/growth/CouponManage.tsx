@@ -117,6 +117,14 @@ export default function CouponManage() {
       const sourceLang = values._sourceLang || 'zh'
       const rawName: string = values.name || ''
       const mlName: any = { zh: '', th: '', en: '', [sourceLang]: rawName }
+      // 保存前同步翻译（失败则静默降级，继续保存）
+      if (rawName.trim()) {
+        try {
+          const tr: any = await request.post('/translate', { texts: { name: rawName }, sourceLang }, { timeout: 8000, silentError: true } as any)
+          const result = tr?.data?.result ?? {}
+          if (result.name) Object.assign(mlName, result.name)
+        } catch {}
+      }
       const payload = {
         ...values,
         name: mlName,

@@ -168,6 +168,16 @@ export default function PointsMallManage() {
           ? { zh: '', th: '', en: '', [sourceLang]: raw }
           : (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : { zh: '', th: '', en: '', [sourceLang]: String(raw || '') })
       })
+      // 保存前同步翻译（失败则静默降级，继续保存）
+      const textsToTranslate: Record<string, string> = {}
+      mlFields.forEach(f => { const src = mlValues[f][sourceLang]?.trim(); if (src) textsToTranslate[f] = src })
+      if (Object.keys(textsToTranslate).length > 0) {
+        try {
+          const tr: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 8000, silentError: true } as any)
+          const result = tr?.data?.result ?? {}
+          mlFields.forEach(f => { if (result[f]) Object.assign(mlValues[f], result[f]) })
+        } catch {}
+      }
       const payload = {
         ...values,
         cover_image: coverImage,
