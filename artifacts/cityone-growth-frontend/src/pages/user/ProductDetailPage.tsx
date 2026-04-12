@@ -349,11 +349,13 @@ export default function ProductDetailPage() {
           <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }} onClick={toggleVideoPlay}>
             <video ref={heroVideoRef} src={coverVideo} autoPlay loop playsInline
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: videoPaused ? 2 : 0 }}>{videoPaused ? '▶' : '⏸'}</span>
+            {videoPaused && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : coverImage ? (
           <div style={{ position: 'relative', width: '100%', height: '100%', cursor: coverVideo ? 'pointer' : 'default' }}

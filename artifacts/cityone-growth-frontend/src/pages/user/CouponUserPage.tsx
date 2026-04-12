@@ -436,11 +436,13 @@ export default function CouponUserPage() {
         <div style={{ position: 'relative', cursor: 'pointer' }} onClick={toggleVideoPlay}>
           <video ref={heroVideoRef} src={coverVideoUrl} autoPlay loop playsInline
             style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: videoPaused ? 2 : 0 }}>{videoPaused ? '▶' : '⏸'}</span>
+          {videoPaused && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : coverUrl ? (
         <div style={{ position: 'relative', cursor: coverVideoUrl ? 'pointer' : 'default' }}

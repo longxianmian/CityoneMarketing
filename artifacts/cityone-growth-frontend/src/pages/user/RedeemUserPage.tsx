@@ -34,11 +34,13 @@ function VideoClickPlay({ src, poster }: { src: string; poster?: string }) {
     return (
       <div style={{ position: 'relative', cursor: 'pointer', borderRadius: 12, overflow: 'hidden' }} onClick={togglePlay}>
         <video ref={ref} src={src} autoPlay loop playsInline style={{ width: '100%', display: 'block' }} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <div style={PLAY_ICON_STYLE}>
-            <span style={PLAY_ICON_SPAN(paused)}>{paused ? '▶' : '⏸'}</span>
+        {paused && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+            <div style={PLAY_ICON_STYLE}>
+              <span style={PLAY_ICON_SPAN(true)}>▶</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     )
   }
