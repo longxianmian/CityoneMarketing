@@ -268,24 +268,6 @@ export default function ActivityManage() {
       type MlKey = typeof ML_FIELDS[number]
       const mlValues: Record<MlKey, MultiLangValue> = {} as any
       ML_FIELDS.forEach(f => { mlValues[f] = ensureML(values[f]) })
-      const needsTranslation = ML_FIELDS.filter(f => {
-        const v = mlValues[f]
-        const src = v[sourceLang as keyof MultiLangValue]?.trim()
-        return src && ['zh','th','en'].some(l => l !== sourceLang && !v[l as keyof MultiLangValue]?.trim())
-      })
-
-      if (needsTranslation.length > 0) {
-        try {
-          const texts: Record<string, string> = {}
-          needsTranslation.forEach(f => { texts[f] = mlValues[f][sourceLang as keyof MultiLangValue] || '' })
-          const res: any = await request.post('/translate', { texts, sourceLang }, { timeout: 4000, silentError: true } as any)
-          const result: Record<string, MultiLangValue> = res.data?.result ?? {}
-          needsTranslation.forEach(f => { if (result[f]) mlValues[f] = result[f] })
-        } catch {
-          // 翻译失败静默降级，继续保存
-        }
-      }
-
       const gameConfig: Record<string, any> = {}
       if (values.wheelSegments != null)         gameConfig.wheelSegments = values.wheelSegments
       if (values.defaultChances != null)        gameConfig.defaultChances = values.defaultChances

@@ -1,32 +1,49 @@
 /**
  * agent-llm-service.js
  *
- * 基于 Replit OpenAI 集成的 LLM 服务层。
- * 使用 gpt-5-mini（性价比最高，适合高频意图识别和自然语言回复生成）。
- *
- * 对接方式：
- *   - 环境变量由 Replit 平台自动注入，无需手动配置
- *   - AI_INTEGRATIONS_OPENAI_BASE_URL
- *   - AI_INTEGRATIONS_OPENAI_API_KEY
+ * LLM 服务层，支持多种配置方式：
+ *   1. Replit 平台（自动注入）：
+ *      - AI_INTEGRATIONS_OPENAI_BASE_URL
+ *      - AI_INTEGRATIONS_OPENAI_API_KEY
+ *   2. 标准 OpenAI（自有服务器）：
+ *      - OPENAI_API_KEY（必填）
+ *      - OPENAI_BASE_URL（可选，默认 https://api.openai.com/v1）
+ *   3. 兼容 OpenAI 的第三方服务（如 Azure、Deepseek 等）：
+ *      - OPENAI_API_KEY + OPENAI_BASE_URL
  */
 
 import OpenAI from "openai";
 
-const MODEL = "gpt-5-mini";
+const DEFAULT_MODEL = "gpt-4o-mini";
 const MAX_TOKENS = 8192;
 
 let _client = null;
+let _model = DEFAULT_MODEL;
 
 function getClient() {
   if (!_client) {
-    const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-    const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    // 优先使用 Replit 专属集成变量
+    const replitBaseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+    const replitApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
 
-    if (!baseURL || !apiKey) {
-      throw new Error("OpenAI 集成未配置：AI_INTEGRATIONS_OPENAI_BASE_URL 或 AI_INTEGRATIONS_OPENAI_API_KEY 缺失");
+    // 其次使用标准 OpenAI 环境变量
+    const stdApiKey = process.env.OPENAI_API_KEY;
+    const stdBaseURL = process.env.OPENAI_BASE_URL;
+
+    if (replitBaseURL && replitApiKey) {
+      _client = new OpenAI({ apiKey: replitApiKey, baseURL: replitBaseURL });
+      _model = "gpt-5-mini"; // Replit 集成使用 gpt-5-mini
+    } else if (stdApiKey) {
+      _client = new OpenAI({
+        apiKey: stdApiKey,
+        ...(stdBaseURL ? { baseURL: stdBaseURL } : {})
+      });
+      _model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+    } else {
+      throw new Error(
+        "LLM 未配置：请设置 OPENAI_API_KEY（自有服务器）或 AI_INTEGRATIONS_OPENAI_API_KEY（Replit 平台）"
+      );
     }
-
-    _client = new OpenAI({ apiKey, baseURL });
   }
   return _client;
 }
@@ -40,7 +57,7 @@ function getClient() {
 export async function chatCompletion(messages, options = {}) {
   const client = getClient();
   const params = {
-    model: options.model || MODEL,
+    model: options.model || _model,
     messages,
     max_completion_tokens: options.maxTokens || MAX_TOKENS
   };
@@ -190,8 +207,8 @@ export async function generateReplyText(intentCode, toolResult, identityTier, la
 export async function checkLLMHealth() {
   try {
     const result = await chatCompletion([{ role: "user", content: "回复 OK" }], { maxTokens: 512 });
-    return { ok: true, model: MODEL, response: result };
+    return { ok: true, model: _model, response: result };
   } catch (err) {
-    return { ok: false, model: MODEL, error: err.message };
+    return { ok: false, model: _model || DEFAULT_MODEL, error: err.message };
   }
 }

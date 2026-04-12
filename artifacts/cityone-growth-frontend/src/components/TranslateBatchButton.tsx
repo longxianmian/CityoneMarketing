@@ -90,6 +90,6 @@ export default function TranslateBatchButton({ type, label, onDone }: Props) {
 export function asyncTranslateItem(type: Exclude<ItemType, 'all' | 'digital_product'>, id: string) {
   if (!id) return
   request
-    .post('/admin/translate-item', { type, id }, { timeout: 30000 } as any)
+    .post('/admin/translate-item', { type, id }, { timeout: 30000, silentError: true } as any)
     .catch(() => {})
 }

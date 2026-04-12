@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, ShopOutline
 import request from '../../api/request'
 import MediaUploadField from '../../components/MediaUploadField'
 import { useI18n } from '../../i18n'
+import TranslateBatchButton from '../../components/TranslateBatchButton'
 
 function pickText(v: any, lang = 'zh'): string {
   if (!v) return ''
@@ -100,21 +101,6 @@ export default function ProductTemplateManage() {
         if (srcText && hasEmpty) textsToTranslate[f] = srcText
       })
 
-      if (Object.keys(textsToTranslate).length > 0) {
-        try {
-          const res: any = await request.post('/translate', { texts: textsToTranslate, sourceLang }, { timeout: 8000, silentError: true } as any)
-          const result = res.data?.result ?? {}
-          const patch: any = {}
-          Object.entries(result).forEach(([key, translated]) => {
-            patch[key] = { ...values[key], ...(translated as any) }
-            values[key] = patch[key]
-          })
-          form.setFieldsValue(patch)
-        } catch {
-          // 翻译失败静默降级，继续保存
-        }
-      }
-
       const payload = { ...values, coverImage, coverVideo }
       delete payload._sourceLang
       if (isEdit) {
@@ -161,6 +147,7 @@ export default function ProductTemplateManage() {
       title={<Space><ShopOutlined />{t('adminTemplate.product.cardTitle')}</Space>}
       extra={
         <Space>
+          <TranslateBatchButton type="digital_product" onDone={() => fetchData()} />
           <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>{t('adminTemplate.common.refresh')}</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>{t('adminTemplate.common.newTemplate')}</Button>
         </Space>
