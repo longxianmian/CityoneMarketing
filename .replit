@@ -26,6 +26,14 @@ author = "agent"
 task = "workflow.run"
 args = "CityOne Growth Backend"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "backend-smoke"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "frontend-typecheck"
+
 [[workflows.workflow]]
 name = "CityOne Growth Backend"
 author = "agent"
@@ -37,6 +45,28 @@ outputType = "console"
 task = "shell.exec"
 args = "cd artifacts/cityone-growth-backend/backend && PORT=3100 node --watch src/index.js"
 waitForPort = 3100
+
+[[workflows.workflow]]
+name = "backend-smoke"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash artifacts/cityone-growth-backend/scripts/smoke-test.sh http://localhost:3100"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "frontend-typecheck"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/cityone-growth-frontend run typecheck 2>&1 || npx --prefix artifacts/cityone-growth-frontend tsc --noEmit 2>&1"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [agent]
 stack = "PNPM_WORKSPACE"
