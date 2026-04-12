@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Spin, App, Modal, Button, Space, Form, Input, Radio, Tag, Divider } from 'antd'
 import {
@@ -36,6 +36,15 @@ export default function ProductDetailPage() {
   const [deliveryForm] = Form.useForm()
   const [savedAddresses, setSavedAddresses] = useState<any[]>([])
   const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null)
+  const [videoMuted, setVideoMuted] = useState(true)
+  const heroVideoRef = useRef<HTMLVideoElement>(null)
+
+  const toggleVideoMute = () => {
+    const el = heroVideoRef.current
+    if (!el) return
+    el.muted = !el.muted
+    setVideoMuted(el.muted)
+  }
 
   const ACTION_MAP: Record<string, { text: string; color: string }> = {
     free_claim: { text: t('productDetail.actionFreeClaim'), color: 'linear-gradient(135deg, #52c41a, #73d13d)' },
@@ -334,9 +343,20 @@ export default function ProductDetailPage() {
         campaignId={product?.campaign_id}
       />
 
-      <div style={{ height: 220, background: '#f0f0f0', overflow: 'hidden', flexShrink: 0 }}>
+      <div style={{ height: 220, background: '#f0f0f0', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
         {coverVideo ? (
-          <video src={coverVideo} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <>
+            <video ref={heroVideoRef} src={coverVideo} autoPlay muted loop playsInline poster={coverImage || undefined}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <button onClick={toggleVideoMute} style={{
+              position: 'absolute', bottom: 8, right: 8,
+              background: 'rgba(0,0,0,0.45)', border: 'none', borderRadius: '50%',
+              width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, color: '#fff',
+            }}>
+              {videoMuted ? '🔇' : '🔊'}
+            </button>
+          </>
         ) : coverImage ? (
           <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} placeholderStyle={{ width: '100%', height: 220 }} />
         ) : (

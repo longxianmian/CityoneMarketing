@@ -252,7 +252,7 @@ export default function RedeemUserPage() {
               <div style={{ fontWeight: 700, marginBottom: 10 }}>
                 <PlayCircleOutlined style={{ marginRight: 8 }} />Video
               </div>
-              <video src={item.coverVideo} controls style={{ width: '100%', borderRadius: 12 }} />
+              <video src={item.coverVideo} controls poster={resolvedCoverImage || undefined} style={{ width: '100%', borderRadius: 12 }} />
             </Card>
           ) : null}
 

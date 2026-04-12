@@ -360,6 +360,7 @@ export default function CouponManage() {
                   value={coverVideo}
                   onChange={setCoverVideo}
                   placeholder={t('couponManage.placeholderCoverVideo')}
+                  poster={coverImage}
                 />
               </Form.Item>
             </Col>

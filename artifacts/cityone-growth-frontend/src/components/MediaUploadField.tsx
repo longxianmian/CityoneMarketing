@@ -12,9 +12,10 @@ interface Props {
   type: 'image' | 'video'
   placeholder?: string
   moduleType?: string
+  poster?: string
 }
 
-export default function MediaUploadField({ value, onChange, type, placeholder, moduleType = 'uploads' }: Props) {
+export default function MediaUploadField({ value, onChange, type, placeholder, moduleType = 'uploads', poster }: Props) {
   const [uploading, setUploading] = useState(false)
   const [displayUrl, setDisplayUrl] = useState<string>('')
   const inputId = useId()
@@ -145,6 +146,7 @@ export default function MediaUploadField({ value, onChange, type, placeholder, m
       {fileInput}
       <video
         src={displayUrl || value} controls
+        poster={poster}
         style={{ width: '100%', maxHeight: 180, borderRadius: 8, border: '1px solid #f0f0f0', display: 'block', background: '#000' }}
       />
       {uploading

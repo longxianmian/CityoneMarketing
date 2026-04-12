@@ -565,7 +565,7 @@ export default function ActivityManage() {
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item label={<span><VideoCameraOutlined style={{ marginRight: 4 }} />{am('formCoverVideo')}</span>} style={{ marginBottom: 8 }}>
-                <MediaUploadField type="video" value={coverVideo} onChange={setCoverVideo} placeholder={am('formCoverVideoHint')} />
+                <MediaUploadField type="video" value={coverVideo} onChange={setCoverVideo} placeholder={am('formCoverVideoHint')} poster={coverImage} />
               </Form.Item>
             </Col>
           </Row>
