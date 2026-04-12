@@ -9,18 +9,36 @@ import { useOssUrl } from '../../components/OssImage'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
+const PLAY_ICON_STYLE: React.CSSProperties = {
+  width: 34, height: 34, borderRadius: '50%',
+  background: 'rgba(0,0,0,0.28)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+}
+const PLAY_ICON_SPAN = (paused: boolean): React.CSSProperties => ({
+  fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: paused ? 2 : 0,
+})
+
 function VideoClickPlay({ src, poster }: { src: string; poster?: string }) {
   const [started, setStarted] = useState(false)
-  const [muted, setMuted] = useState(false)
+  const [paused, setPaused] = useState(false)
   const ref = useRef<HTMLVideoElement>(null)
+
+  const togglePlay = () => {
+    const el = ref.current
+    if (!el) return
+    if (el.paused) { el.play(); setPaused(false) }
+    else { el.pause(); setPaused(true) }
+  }
+
   if (started) {
     return (
-      <div style={{ position: 'relative' }}>
-        <video ref={ref} src={src} autoPlay loop playsInline style={{ width: '100%', display: 'block', borderRadius: 12 }} />
-        <button onClick={() => { const el = ref.current; if (!el) return; el.muted = !el.muted; setMuted(el.muted) }}
-          style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.45)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#fff' }}>
-          {muted ? '🔇' : '🔊'}
-        </button>
+      <div style={{ position: 'relative', cursor: 'pointer', borderRadius: 12, overflow: 'hidden' }} onClick={togglePlay}>
+        <video ref={ref} src={src} autoPlay loop playsInline style={{ width: '100%', display: 'block' }} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={PLAY_ICON_STYLE}>
+            <span style={PLAY_ICON_SPAN(paused)}>{paused ? '▶' : '⏸'}</span>
+          </div>
+        </div>
       </div>
     )
   }
@@ -30,9 +48,9 @@ function VideoClickPlay({ src, poster }: { src: string; poster?: string }) {
       {poster
         ? <img src={poster} alt="" style={{ width: '100%', display: 'block', objectFit: 'cover', maxHeight: 220 }} />
         : <div style={{ height: 160 }} />}
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)' }}>
-        <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}>
-          <span style={{ fontSize: 22, marginLeft: 4, lineHeight: 1 }}>▶</span>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
+        <div style={PLAY_ICON_STYLE}>
+          <span style={PLAY_ICON_SPAN(true)}>▶</span>
         </div>
       </div>
     </div>

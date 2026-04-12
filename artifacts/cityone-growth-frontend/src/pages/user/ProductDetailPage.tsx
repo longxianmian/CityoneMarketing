@@ -37,14 +37,14 @@ export default function ProductDetailPage() {
   const [savedAddresses, setSavedAddresses] = useState<any[]>([])
   const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null)
   const [videoStarted, setVideoStarted] = useState(false)
-  const [videoMuted, setVideoMuted] = useState(false)
+  const [videoPaused, setVideoPaused] = useState(false)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
 
-  const toggleVideoMute = () => {
+  const toggleVideoPlay = () => {
     const el = heroVideoRef.current
     if (!el) return
-    el.muted = !el.muted
-    setVideoMuted(el.muted)
+    if (el.paused) { el.play(); setVideoPaused(false) }
+    else { el.pause(); setVideoPaused(true) }
   }
 
   const ACTION_MAP: Record<string, { text: string; color: string }> = {
@@ -346,26 +346,23 @@ export default function ProductDetailPage() {
 
       <div style={{ height: 220, background: '#f0f0f0', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
         {videoStarted && coverVideo ? (
-          <>
+          <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }} onClick={toggleVideoPlay}>
             <video ref={heroVideoRef} src={coverVideo} autoPlay loop playsInline
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            <button onClick={toggleVideoMute} style={{
-              position: 'absolute', bottom: 8, right: 8,
-              background: 'rgba(0,0,0,0.45)', border: 'none', borderRadius: '50%',
-              width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, color: '#fff', zIndex: 2,
-            }}>
-              {videoMuted ? '🔇' : '🔊'}
-            </button>
-          </>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: videoPaused ? 2 : 0 }}>{videoPaused ? '▶' : '⏸'}</span>
+              </div>
+            </div>
+          </div>
         ) : coverImage ? (
           <div style={{ position: 'relative', width: '100%', height: '100%', cursor: coverVideo ? 'pointer' : 'default' }}
                onClick={coverVideo ? () => setVideoStarted(true) : undefined}>
             <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} placeholderStyle={{ width: '100%', height: 220 }} />
             {coverVideo && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.18)' }}>
-                <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}>
-                  <span style={{ fontSize: 22, marginLeft: 4, lineHeight: 1 }}>▶</span>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
                 </div>
               </div>
             )}
@@ -374,8 +371,8 @@ export default function ProductDetailPage() {
           <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }}
                onClick={() => setVideoStarted(true)}>
             <div style={{ height: '100%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 22, marginLeft: 4 }}>▶</span>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
               </div>
             </div>
           </div>
