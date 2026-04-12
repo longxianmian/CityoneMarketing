@@ -288,7 +288,7 @@ export default function ProductDetailPage() {
   const usageRules = rules.join('\n')
   const redeemNotice = ''
   const coverImage = product.cover_image || ''
-  const coverVideo = product.coverVideo || ''
+  const coverVideo = product.cover_video || ''
   const pointsPrice = product.points_required || 0
   const cashPrice = (product.exchange_mode === 'mix' && product.price_thb) ? product.price_thb : 0
   const isPhysical = product.item_type === 'physical'

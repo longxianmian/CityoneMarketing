@@ -1,13 +1,43 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Card, Space, Tag, Spin, Modal, App } from 'antd'
-import { ShoppingCartOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import request from '../../api/request'
 import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useOssUrl } from '../../components/OssImage'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+function VideoClickPlay({ src, poster }: { src: string; poster?: string }) {
+  const [started, setStarted] = useState(false)
+  const [muted, setMuted] = useState(false)
+  const ref = useRef<HTMLVideoElement>(null)
+  if (started) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <video ref={ref} src={src} autoPlay loop playsInline style={{ width: '100%', display: 'block', borderRadius: 12 }} />
+        <button onClick={() => { const el = ref.current; if (!el) return; el.muted = !el.muted; setMuted(el.muted) }}
+          style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.45)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#fff' }}>
+          {muted ? '🔇' : '🔊'}
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div style={{ position: 'relative', cursor: 'pointer', background: poster ? 'transparent' : '#111', borderRadius: 12, overflow: 'hidden' }}
+         onClick={() => setStarted(true)}>
+      {poster
+        ? <img src={poster} alt="" style={{ width: '100%', display: 'block', objectFit: 'cover', maxHeight: 220 }} />
+        : <div style={{ height: 160 }} />}
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)' }}>
+        <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}>
+          <span style={{ fontSize: 22, marginLeft: 4, lineHeight: 1 }}>▶</span>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const ITEM_TYPE_GRADIENT: Record<string, string> = {
   digital:  'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
@@ -247,12 +277,9 @@ export default function RedeemUserPage() {
         </div>
 
         <div style={{ padding: 16 }}>
-          {item.coverVideo ? (
-            <Card style={{ marginBottom: 16, borderRadius: 16 }}>
-              <div style={{ fontWeight: 700, marginBottom: 10 }}>
-                <PlayCircleOutlined style={{ marginRight: 8 }} />Video
-              </div>
-              <video src={item.coverVideo} controls poster={resolvedCoverImage || undefined} style={{ width: '100%', borderRadius: 12 }} />
+          {item.cover_video ? (
+            <Card style={{ marginBottom: 16, borderRadius: 16, overflow: 'hidden', padding: 0 }}>
+              <VideoClickPlay src={item.cover_video} poster={resolvedCoverImage || undefined} />
             </Card>
           ) : null}
 

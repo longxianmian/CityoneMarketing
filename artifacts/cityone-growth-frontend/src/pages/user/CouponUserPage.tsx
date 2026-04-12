@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Card, Tag, Space, Spin, message, Modal, Form, Input, Radio, Divider } from 'antd'
 import { ShareAltOutlined, ArrowLeftOutlined, CheckCircleOutlined, EnvironmentOutlined, CarOutlined, ShopOutlined } from '@ant-design/icons'
@@ -64,6 +64,8 @@ export default function CouponUserPage() {
   const [claiming, setClaiming] = useState(false)
   const [step, setStep] = useState<Step>('detail')
   const [alreadyClaimed, setAlreadyClaimed] = useState(false)
+  const [videoStarted, setVideoStarted] = useState(false)
+  const heroVideoRef = useRef<HTMLVideoElement>(null)
   const { guard, checking } = useFollowGate()
   const effectiveUserId = useEffectiveUserId()
 
@@ -223,6 +225,7 @@ export default function CouponUserPage() {
   const validToText   = formatDate(coupon.valid_to, language)
   const validityLabel = `${validFromText} ~ ${validToText}`
   const coverUrl      = coupon.cover_image || null
+  const coverVideoUrl = coupon.cover_video || null
 
   // ── Step: Success ────────────────────────────────────────────────────────────
   if (step === 'success') {
@@ -421,8 +424,30 @@ export default function CouponUserPage() {
         </div>
       </Modal>
 
-      {coverUrl ? (
-        <OssImage src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+      {videoStarted && coverVideoUrl ? (
+        <div style={{ position: 'relative' }}>
+          <video ref={heroVideoRef} src={coverVideoUrl} autoPlay loop playsInline
+            style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+        </div>
+      ) : coverUrl ? (
+        <div style={{ position: 'relative', cursor: coverVideoUrl ? 'pointer' : 'default' }}
+             onClick={coverVideoUrl ? () => setVideoStarted(true) : undefined}>
+          <OssImage src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+          {coverVideoUrl && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.18)' }}>
+              <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}>
+                <span style={{ fontSize: 22, marginLeft: 4, lineHeight: 1 }}>▶</span>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : coverVideoUrl ? (
+        <div style={{ cursor: 'pointer', background: '#000', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+             onClick={() => setVideoStarted(true)}>
+          <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 22, marginLeft: 4 }}>▶</span>
+          </div>
+        </div>
       ) : (
         <div style={{ height: 160, background: 'linear-gradient(135deg, #1677ff20, #fa8c1640)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: 56 }}>🎫</span>
