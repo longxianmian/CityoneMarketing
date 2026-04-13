@@ -175,7 +175,7 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
 
   /* ── Step 2: 构建系统提示词 + 历史消息 ──────────────────────────────── */
   const systemPrompt = buildSystemPrompt(roleKeywords, userContext);
-  const historyMessages = (sessionHistory || []).slice(-8).map((m) => ({
+  const historyMessages = (sessionHistory || []).slice(-6).map((m) => ({
     role:    m.role === "user" ? "user" : "assistant",
     content: m.text || "",
   }));
@@ -249,7 +249,7 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
 
   let finalText = "";
   try {
-    finalText = await chatCompletion(messagesForFinal, { maxTokens: 1024 });
+    finalText = await chatCompletion(messagesForFinal, { maxTokens: 256 });
   } catch (err) {
     console.error("[pipeline] LLM 最终回复失败:", err.message, err.stack?.slice(0, 200));
     finalText = "查到了，但小城整理信息时出了点问题，请稍后再试。";

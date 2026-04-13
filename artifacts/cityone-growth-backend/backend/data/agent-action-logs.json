@@ -2366,5 +2366,37 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-13T07:17:42.140Z"
+  },
+  {
+    "log_id": "al_00149",
+    "session_id": "as_00082",
+    "message_id": "am_00384",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "图片你没法识别？",
+    "intent_code": "llm",
+    "intent_confidence": 1,
+    "tool_code": "",
+    "tool_result_status": "llm_direct",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T07:24:37.034Z"
+  },
+  {
+    "log_id": "al_00150",
+    "session_id": "as_00089",
+    "message_id": "am_00386",
+    "line_user_id": "u_demo_002",
+    "user_id": "u_demo_002",
+    "identity_tier": "identified_user",
+    "input_text": "我有多少积分？",
+    "intent_code": "query_points_balance",
+    "intent_confidence": 1,
+    "tool_code": "query_points_balance",
+    "tool_result_status": "llm_tool",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T07:28:20.372Z"
   }
 ]

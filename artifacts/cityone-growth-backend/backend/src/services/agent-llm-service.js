@@ -15,7 +15,7 @@
 import OpenAI from "openai";
 
 const DEFAULT_MODEL = "gpt-4o-mini";
-const MAX_TOKENS = 8192;
+const MAX_TOKENS = 512;
 
 let _client = null;
 let _model = DEFAULT_MODEL;
@@ -31,11 +31,12 @@ function getClient() {
     const stdBaseURL = process.env.OPENAI_BASE_URL;
 
     if (replitBaseURL && replitApiKey) {
-      _client = new OpenAI({ apiKey: replitApiKey, baseURL: replitBaseURL });
+      _client = new OpenAI({ apiKey: replitApiKey, baseURL: replitBaseURL, timeout: 30000 });
       _model = "gpt-5-mini"; // Replit 集成使用 gpt-5-mini
     } else if (stdApiKey) {
       _client = new OpenAI({
         apiKey: stdApiKey,
+        timeout: 30000,
         ...(stdBaseURL ? { baseURL: stdBaseURL } : {})
       });
       _model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
@@ -79,7 +80,7 @@ export async function chatCompletionWithTools(messages, tools = []) {
   const params = {
     model: _model,
     messages,
-    max_completion_tokens: 1024
+    max_completion_tokens: 512
   };
   if (tools.length > 0) {
     params.tools = tools;

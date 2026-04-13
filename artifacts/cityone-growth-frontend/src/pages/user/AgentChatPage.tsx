@@ -407,11 +407,18 @@ export default function AgentChatPage() {
           en: '⚠️ 小城 is temporarily offline. Please try again later.',
         }[lang]))
       }
-    } catch {
-      addMessage(makeText(uid(), {
-        zh: '网络连接中断，请稍后重试。',
-        th: 'การเชื่อมต่อขาดหาย กรุณาลองใหม่',
-        en: 'Connection lost. Please try again.',
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code
+      const isTimeout = code === 'ECONNABORTED' || code === 'ERR_NETWORK' ||
+        String((err as { message?: string })?.message).toLowerCase().includes('timeout')
+      addMessage(makeText(uid(), isTimeout ? {
+        zh: '问问正在思考中，响应时间较长，请稍后重试。',
+        th: 'ระบบกำลังประมวลผล กรุณาลองส่งใหม่อีกครั้ง',
+        en: 'Response is taking longer than expected. Please try again.',
+      }[lang] : {
+        zh: '网络异常，请检查网络后重试。',
+        th: 'เครือข่ายผิดปกติ กรุณาตรวจสอบการเชื่อมต่อและลองใหม่',
+        en: 'Network error. Please check your connection and retry.',
       }[lang]))
     } finally {
       setThinking(false)

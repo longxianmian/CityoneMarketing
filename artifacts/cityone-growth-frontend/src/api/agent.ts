@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const agentHttp = axios.create({
   baseURL: '',
-  timeout: 15000,
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 })
 
