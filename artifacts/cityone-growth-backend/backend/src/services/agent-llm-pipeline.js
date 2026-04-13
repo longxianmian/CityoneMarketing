@@ -12,46 +12,57 @@
 
 import { chatCompletionWithTools, chatCompletion } from "./agent-llm-service.js";
 import { loadAgentIntents } from "./agent-config-service.js";
-import { execute as nearBySites }       from "./agent-tools/tool-nearby-sites.js";
-import { execute as couponList }        from "./agent-tools/tool-coupon-list.js";
-import { execute as couponRecommend }   from "./agent-tools/tool-coupon-recommend.js";
-import { execute as claimBenefits }     from "./agent-tools/tool-claim-benefits.js";
-import { execute as availableCoupons }  from "./agent-tools/tool-available-coupons.js";
-import { execute as invitePoster }      from "./agent-tools/tool-invite-poster.js";
-import { execute as orderQuery }        from "./agent-tools/tool-order-query.js";
-import { execute as pointsQuery }       from "./agent-tools/tool-points-query.js";
 
-/* ─── 工具函数定义（OpenAI function schema）────────────────────────────── */
+/**
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │  工具架构（两层设计，参考阿里店小蜜 / OpenAI GPT Actions 方案）          │
+ * │                                                                         │
+ * │  Layer 1 - 平台知识层（无状态，运营新增内容自动生效，无需改代码）         │
+ * │    search_platform_content  扫描优惠券/活动/积分商城等所有公开内容       │
+ * │                                                                         │
+ * │  Layer 2 - 用户私有数据层（有状态，需身份验证）                          │
+ * │    get_user_account         积分余额 + 钱包券（合并为一次查询）          │
+ * │    query_nearby_stations    附近站点（位置相关）                         │
+ * │    generate_invite_link     生成邀请链接（动作类）                       │
+ * │    get_user_orders          订单历史                                     │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ */
+import { execute as platformSearch } from "./agent-tools/tool-platform-search.js";
+import { execute as userAccount }    from "./agent-tools/tool-user-account.js";
+import { execute as nearBySites }    from "./agent-tools/tool-nearby-sites.js";
+import { execute as invitePoster }   from "./agent-tools/tool-invite-poster.js";
+import { execute as orderQuery }     from "./agent-tools/tool-order-query.js";
+
+/* ─── 工具函数定义（5 工具，职责清晰）─────────────────────────────────────── */
 const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
-      name: "query_points_balance",
-      description: "查询用户的积分余额、会员等级、即将过期积分",
-      parameters: { type: "object", properties: {}, required: [] },
+      name: "search_platform_content",
+      description: [
+        "查询平台公开内容：优惠券活动、营销活动、积分商城商品。",
+        "当用户询问【优惠/活动/折扣/有什么券可以领/今天有什么/商城有什么/福利】时调用。",
+        "接受可选 query 参数做关键词筛选，不传则返回全部当前有效内容。",
+        "มีโปรโมชัน / มีส่วนลดไหม / Any promotions / What deals are available → 调用此工具。",
+      ].join(" "),
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "可选关键词，如 '耳机' '充电' 'coupon'" },
+        },
+        required: [],
+      },
     },
   },
   {
     type: "function",
     function: {
-      name: "query_available_coupons",
-      description: "查询平台当前正在进行的优惠活动、可领取的优惠券。当用户问「今天有什么优惠」「有没有活动」「有什么券可以领」「有什么折扣」「有什么promotion」「มีโปรโมชันอะไร」「มีส่วนลดไหม」时必须调用此工具。",
-      parameters: { type: "object", properties: {}, required: [] },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "query_coupons",
-      description: "查询用户自己券包里已持有的可用优惠券（不是平台活动，是用户已经领到手的券）",
-      parameters: { type: "object", properties: {}, required: [] },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "recommend_coupon",
-      description: "根据当前情况从用户已持有的券中推荐最适合使用的一张",
+      name: "get_user_account",
+      description: [
+        "查询用户私有账户信息：积分余额、已领券包、推荐券。",
+        "当用户询问【我的积分/我有多少分/我的券/钱包/账户/会员】时调用。",
+        "คะแนนของฉัน / My points / My coupons / My wallet → 调用此工具。",
+      ].join(" "),
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -59,7 +70,7 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "query_nearby_stations",
-      description: "查询附近可借用共享充电宝的站点",
+      description: "查询附近可借用共享充电宝的站点位置和库存。 สถานีใกล้เคียง / Nearby stations.",
       parameters: {
         type: "object",
         properties: {
@@ -72,24 +83,16 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
-      name: "query_benefits",
-      description: "查询用户还可以领取哪些福利或奖励",
-      parameters: { type: "object", properties: {}, required: [] },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "generate_invite_link",
-      description: "生成用户专属的邀请链接，用于邀请好友",
+      description: "生成用户专属邀请链接和分享文案，邀请好友注册/使用充电宝获取奖励。",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
   {
     type: "function",
     function: {
-      name: "query_recent_orders",
-      description: "查询用户最近的充电宝借还订单记录",
+      name: "get_user_orders",
+      description: "查询用户最近的充电宝借还订单记录、消费历史。 ประวัติออเดอร์ / Order history.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -97,14 +100,11 @@ const TOOL_DEFINITIONS = [
 
 /* ─── 工具执行映射 ────────────────────────────────────────────────────────── */
 const TOOL_EXECUTOR = {
-  query_points_balance:   (args, ctx) => pointsQuery(args, ctx),
-  query_available_coupons:(args, ctx) => availableCoupons(args, ctx),
-  query_coupons:          (args, ctx) => couponList(args, ctx),
-  recommend_coupon:       (args, ctx) => couponRecommend(args, ctx),
-  query_nearby_stations:  (args, ctx) => nearBySites(args, ctx),
-  query_benefits:         (args, ctx) => claimBenefits(args, ctx),
-  generate_invite_link:   (args, ctx) => invitePoster(args, ctx),
-  query_recent_orders:    (args, ctx) => orderQuery(args, ctx),
+  search_platform_content: (args, ctx) => platformSearch(args, ctx),
+  get_user_account:        (args, ctx) => userAccount(args, ctx),
+  query_nearby_stations:   (args, ctx) => nearBySites(args, ctx),
+  generate_invite_link:    (args, ctx) => invitePoster(args, ctx),
+  get_user_orders:         (args, ctx) => orderQuery(args, ctx),
 };
 
 /* ─── 系统提示词组装 ──────────────────────────────────────────────────────── */
@@ -324,66 +324,63 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
   };
 }
 
-/* ─── 工具兜底文案（LLM 摘要为空时使用）────────────────────────────────── */
+/* ─── 工具兜底文案（LLM 摘要为空时使用，对应新 5 工具架构）─────────────── */
 function buildToolFallback(toolName, toolResult, language) {
   const res = toolResult?.tool_result || {};
   const ok  = toolResult?.success !== false;
+  const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
 
   const T = {
-    query_available_coupons: {
-      zh: ok ? (
-        (res.total_count ?? res.count ?? 0) > 0
-          ? `平台目前有${res.coupon_count ? ` ${res.coupon_count} 张优惠券` : ""}${res.activity_count ? `、${res.activity_count} 个活动` : ""}，快去福利中心领取吧～`
-          : "目前平台暂无进行中的优惠活动，请稍后再看哦。"
-      ) : "优惠活动查询暂时不可用。",
-      th: ok ? (
-        (res.total_count ?? res.count ?? 0) > 0
-          ? `ตอนนี้มีโปรโมชัน ${res.total_count ?? res.count} รายการ ไปรับได้เลย!`
-          : "ยังไม่มีโปรโมชันที่กำลังดำเนินอยู่"
-      ) : "ไม่สามารถดึงข้อมูลโปรโมชันได้",
-      en: ok ? (
-        (res.total_count ?? res.count ?? 0) > 0
-          ? `There are ${res.total_count ?? res.count} active promotion(s) now. Head to the benefits center!`
-          : "No active promotions at the moment."
-      ) : "Promotion query unavailable.",
+    /* ── Layer 1: 平台知识层 ── */
+    search_platform_content: {
+      zh: ok
+        ? ((res.total ?? 0) > 0
+          ? `平台目前有${res.coupon_count > 0 ? ` ${res.coupon_count} 张优惠券` : ""}${res.activity_count > 0 ? `、${res.activity_count} 个活动` : ""}${res.mall_count > 0 ? `、${res.mall_count} 件商城商品` : ""}，快去福利中心看看吧～`
+          : "平台目前暂无进行中的优惠活动，请稍后再来哦。")
+        : "优惠查询暂时不可用，请稍后再试。",
+      th: ok
+        ? ((res.total ?? 0) > 0 ? `มีโปรโมชัน ${res.total} รายการตอนนี้ ไปดูที่ศูนย์สวัสดิการเลย!` : "ยังไม่มีโปรโมชันที่กำลังดำเนินอยู่")
+        : "ไม่สามารถดึงข้อมูลโปรโมชันได้",
+      en: ok
+        ? ((res.total ?? 0) > 0 ? `There are ${res.total} active promotion(s) now. Head to the Benefits Center!` : "No active promotions at the moment.")
+        : "Promotion query unavailable.",
     },
-    query_points_balance: {
-      zh: ok ? `您当前可用积分 ${res.available_points ?? 0} 分，累计 ${res.total_points ?? 0} 分。` : "积分查询暂时不可用，请稍后再试。",
-      th: ok ? `คะแนนที่ใช้ได้ ${res.available_points ?? 0} คะแนน` : "ไม่สามารถดึงข้อมูลคะแนนได้",
-      en: ok ? `You have ${res.available_points ?? 0} available points.` : "Points query unavailable, please try again.",
-    },
-    query_coupons: {
-      zh: ok ? (res.count > 0 ? `您有 ${res.count} 张可用优惠券，快去使用吧～` : "目前您还没有可用的优惠券哦。") : "卡券查询暂时不可用。",
-      th: ok ? (res.count > 0 ? `คุณมีคูปองที่ใช้ได้ ${res.count} ใบ` : "ยังไม่มีคูปองที่ใช้ได้") : "ไม่สามารถดึงข้อมูลคูปองได้",
-      en: ok ? (res.count > 0 ? `You have ${res.count} usable coupon(s).` : "No coupons available at the moment.") : "Coupon query unavailable.",
-    },
-    recommend_coupon: {
-      zh: ok && res.coupon_id ? "为您推荐了一张最合适的优惠券，请查看详情～" : "目前暂无适合推荐的优惠券哦。",
-      th: ok && res.coupon_id ? "แนะนำคูปองที่เหมาะสมที่สุดให้คุณแล้ว" : "ยังไม่มีคูปองที่แนะนำได้",
-      en: ok && res.coupon_id ? "We found the best coupon for you." : "No suitable coupons to recommend right now.",
+
+    /* ── Layer 2: 用户私有数据层 ── */
+    get_user_account: {
+      zh: ok
+        ? `您当前可用积分 ${res.points?.available_points ?? 0} 分` +
+          (res.wallet?.count > 0 ? `，钱包里有 ${res.wallet.count} 张可用券。` : "，暂无可用优惠券。")
+        : "账户信息查询暂时不可用，请稍后再试。",
+      th: ok
+        ? `คะแนนที่ใช้ได้ ${res.points?.available_points ?? 0} คะแนน` +
+          (res.wallet?.count > 0 ? ` มีคูปอง ${res.wallet.count} ใบ` : "")
+        : "ไม่สามารถดึงข้อมูลบัญชีได้",
+      en: ok
+        ? `You have ${res.points?.available_points ?? 0} points` +
+          (res.wallet?.count > 0 ? ` and ${res.wallet.count} coupon(s) in your wallet.` : ", no coupons in your wallet.")
+        : "Account query unavailable.",
     },
     query_nearby_stations: {
       zh: ok ? (res.total > 0 ? `附近共有 ${res.total} 个站点，可快速借还充电宝。` : "附近暂时没有找到站点信息。") : "站点查询暂时不可用。",
       th: ok ? (res.total > 0 ? `พบสถานี ${res.total} แห่งในบริเวณใกล้เคียง` : "ยังไม่พบสถานีในบริเวณใกล้เคียง") : "ไม่สามารถดึงข้อมูลสถานีได้",
       en: ok ? (res.total > 0 ? `Found ${res.total} station(s) nearby.` : "No stations found nearby.") : "Station query unavailable.",
     },
-    query_benefits: {
-      zh: ok ? (res.count > 0 ? `还有 ${res.count} 项福利等您领取！` : "目前暂无可领取的福利哦。") : "福利查询暂时不可用。",
-      th: ok ? (res.count > 0 ? `มีสิทธิ์รับสวัสดิการ ${res.count} รายการ` : "ยังไม่มีสวัสดิการที่สามารถรับได้") : "ไม่สามารถดึงข้อมูลสวัสดิการได้",
-      en: ok ? (res.count > 0 ? `You have ${res.count} benefit(s) to claim!` : "No benefits available at the moment.") : "Benefits query unavailable.",
-    },
     generate_invite_link: {
       zh: ok ? "已为您生成专属邀请链接，分享给好友即可获得奖励～" : "邀请链接生成失败，请稍后再试。",
       th: ok ? "สร้างลิงก์เชิญเฉพาะของคุณแล้ว แชร์ให้เพื่อนเพื่อรับรางวัล" : "ไม่สามารถสร้างลิงก์เชิญได้",
-      en: ok ? "Your invite link is ready. Share it with friends to earn rewards!" : "Failed to generate invite link, please try again.",
+      en: ok ? "Your invite link is ready. Share it with friends to earn rewards!" : "Failed to generate invite link.",
     },
-    query_recent_orders: {
+    get_user_orders: {
       zh: ok ? (res.total > 0 ? `您最近共有 ${res.total} 条订单记录。` : "暂时没有找到最近的订单记录。") : "订单查询暂时不可用。",
       th: ok ? (res.total > 0 ? `มีประวัติออเดอร์ ${res.total} รายการ` : "ยังไม่มีประวัติออเดอร์") : "ไม่สามารถดึงข้อมูลออเดอร์ได้",
       en: ok ? (res.total > 0 ? `You have ${res.total} recent order(s).` : "No recent orders found.") : "Order query unavailable.",
     },
   };
 
-  const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
-  return T[toolName]?.[lang] ?? (ok ? { zh: "已为您查询完毕～", th: "ดึงข้อมูลเรียบร้อยแล้ว", en: "Query complete." }[lang] : { zh: "查询暂时不可用，请稍后再试。", th: "ไม่สามารถดึงข้อมูลได้", en: "Query unavailable, please try again." }[lang]);
+  const generic = ok
+    ? { zh: "已为您查询完毕～", th: "ดึงข้อมูลเรียบร้อยแล้ว", en: "Query complete." }
+    : { zh: "查询暂时不可用，请稍后再试。", th: "ไม่สามารถดึงข้อมูลได้", en: "Query unavailable, please try again." };
+
+  return T[toolName]?.[lang] ?? generic[lang];
 }

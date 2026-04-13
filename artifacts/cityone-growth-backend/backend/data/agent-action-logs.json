@@ -2862,5 +2862,53 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-13T08:27:01.297Z"
+  },
+  {
+    "log_id": "al_00180",
+    "session_id": "as_00088",
+    "message_id": "am_00446",
+    "line_user_id": "test_u001",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "今天有什么优惠",
+    "intent_code": "search_platform_content",
+    "intent_confidence": 1,
+    "tool_code": "search_platform_content",
+    "tool_result_status": "llm_tool",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T08:32:06.033Z"
+  },
+  {
+    "log_id": "al_00181",
+    "session_id": "as_00088",
+    "message_id": "am_00448",
+    "line_user_id": "test_u001",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "我的积分",
+    "intent_code": "get_user_account",
+    "intent_confidence": 1,
+    "tool_code": "get_user_account",
+    "tool_result_status": "llm_tool",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T08:32:18.411Z"
+  },
+  {
+    "log_id": "al_00182",
+    "session_id": "as_00088",
+    "message_id": "am_00450",
+    "line_user_id": "test_u001",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "附近有站点吗",
+    "intent_code": "query_nearby_stations",
+    "intent_confidence": 1,
+    "tool_code": "query_nearby_stations",
+    "tool_result_status": "llm_tool",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T08:32:33.007Z"
   }
 ]
