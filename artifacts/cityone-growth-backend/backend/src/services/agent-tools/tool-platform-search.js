@@ -121,11 +121,50 @@ export async function execute(slots = {}, identity = {}) {
     });
   }
 
+  const topItems = results.slice(0, 4);
+
+  // 把搜索结果转为前端可直接渲染的卡片格式
+  const cards = topItems.map((item) => {
+    const isCoupon   = item.item_type === "coupon";
+    const isActivity = item.item_type === "activity";
+    const isMall     = item.item_type === "mall_item";
+
+    const actionText = {
+      coupon:    { zh: "去领取 →", th: "รับเลย →", en: "Claim →" }[lang],
+      activity:  { zh: "查看活动 →", th: "ดูกิจกรรม →", en: "View →" }[lang],
+      mall_item: { zh: "去兑换 →", th: "แลกเลย →", en: "Redeem →" }[lang],
+    }[item.item_type] || { zh: "查看 →", th: "ดู →", en: "View →" }[lang];
+
+    return {
+      card_type:    isCoupon ? "coupon" : isActivity ? "activity" : "benefit",
+      title:        item.name,
+      desc:         item.desc || (isMall ? `${item.points_required} 积分` : ""),
+      cover_image:  item.cover || "",
+      badge:        isCoupon ? { zh: "券", th: "คูปอง", en: "Coupon" }[lang]
+                  : isActivity ? { zh: "活动", th: "กิจกรรม", en: "Event" }[lang]
+                  : { zh: "兑换", th: "แลก", en: "Redeem" }[lang],
+      action_text:  actionText,
+      route:        item.route,
+    };
+  });
+
+  // 如果没有任何结果，推一张"去福利中心"的导航卡片
+  if (cards.length === 0) {
+    cards.push({
+      card_type:   "benefit",
+      title:       { zh: "🎁 福利中心", th: "🎁 ศูนย์สิทธิประโยชน์", en: "🎁 Welfare Center" }[lang],
+      desc:        { zh: "查看所有可领取福利和最新活动", th: "ดูสิทธิ์และกิจกรรมล่าสุด", en: "View all benefits and latest activities" }[lang],
+      cover_image: "",
+      action_text: { zh: "去福利中心 →", th: "ไปศูนย์สิทธิ์ →", en: "Go to Benefits →" }[lang],
+      route:       "/welfare",
+    });
+  }
+
   return {
     success: true,
     tool_code: "tool-platform-search",
     tool_result: {
-      items:          results.slice(0, 8),
+      items:          topItems,
       total:          results.length,
       coupon_count:   results.filter((i) => i.item_type === "coupon").length,
       activity_count: results.filter((i) => i.item_type === "activity").length,
@@ -134,6 +173,7 @@ export async function execute(slots = {}, identity = {}) {
     display_payload: {
       type:  "platform_content_list",
       title: { zh: "平台优惠与活动", th: "โปรโมชันและกิจกรรม", en: "Promotions & Activities" }[lang] || "平台优惠与活动",
+      cards,
     },
   };
 }

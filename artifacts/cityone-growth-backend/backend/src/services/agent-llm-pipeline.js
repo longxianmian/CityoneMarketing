@@ -533,11 +533,21 @@ async function runFallbackPipeline(userText, sessionHistory, roleKeywords, userC
     finalText = buildToolFallback(tc.name, toolResult, language);
   }
 
+  // 工具名 → intent_code 映射，确保前端能选到正确的 INTENT_ACTION_CARDS
+  const TOOL_TO_INTENT = {
+    search_platform_content: "coupon_recommend",
+    get_user_account:        "points_balance_query",
+    query_nearby_stations:   "nearby_sites_query",
+    generate_invite_link:    "invite_help",
+    get_user_orders:         "recent_orders_query",
+  };
+
   return {
     text:            finalText.trim(),
     display_payload: toolResult?.display_payload || null,
     suggestions:     [],
     source:          "fallback_llm_tool",
+    intent_code:     TOOL_TO_INTENT[tc.name] || "",
     tool_used:       tc.name,
     dispatch_mode:   "tool_then_card",
   };

@@ -299,11 +299,16 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
     // 5. 构建回复 payload（支持向量召回新字段）
     const dispatchMode = pipelineResult.dispatch_mode || "chat_only";
     const hasConfirmAction = !!pipelineResult.display_payload?.confirm_action;
+    // 透传工具结果卡片（raw backend 格式，前端 normalizeMessage 负责映射）
+    const toolCards = Array.isArray(pipelineResult.display_payload?.cards)
+      ? pipelineResult.display_payload.cards
+      : [];
     const replyPayload = {
       reply_type:      hasConfirmAction
                          ? "confirm_request"
-                         : (pipelineResult.display_payload?.cards?.length > 0 ? "tool_result" : "text"),
+                         : (toolCards.length > 0 ? "tool_result" : "text"),
       text:            pipelineResult.text || "",
+      cards:           toolCards,           // ← 前端 buildAIMessages 读 reply.cards
       display_payload: pipelineResult.display_payload || null,
       suggestions:     pipelineResult.suggestions || [],
       source:          pipelineResult.source || "llm",

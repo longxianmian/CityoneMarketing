@@ -168,6 +168,24 @@ function normalizeMessage(backendMsg: any): AgentMessage {
   }
 }
 
+// ─── Normalize raw backend card → AgentCard（与 normalizeMessage 保持同一映射规则）──
+function normalizeRawCard(c: any): AgentCard {
+  return {
+    type:       (c.card_type || 'benefit') as AgentCard['type'],
+    title:      c.title || '',
+    subtitle:   c.desc || c.subtitle || '',
+    badge:      c.badge,
+    meta:       c.meta,
+    coverImage: c.cover_image || '',
+    ctaPrimary: c.action_text
+      ? { text: c.action_text, action: c.action_type, route: c.route || c.action_url }
+      : undefined,
+    ctaSecondary: c.action_text_secondary
+      ? { text: c.action_text_secondary, route: c.route_secondary }
+      : undefined,
+  }
+}
+
 // ─── Frontend intent fallback (keyword-based, used when backend returns intent_unknown) ──
 // Backend handles real NLU; this only selects which action card to show when backend can't.
 
@@ -341,15 +359,16 @@ export default function AgentChatPage() {
       msgs.push(makeText(uid(), reply.text))
     }
 
-    // 2. Tool result cards from backend (when backend has tools connected)
-    if (Array.isArray(reply.cards) && reply.cards.length > 0) {
-      msgs.push({ id: uid(), role: 'ai', type: 'tool_card', cards: reply.cards, createdAt: nowISO() })
+    // 2. Tool result cards from backend（raw 格式 → 规范化为 AgentCard）
+    const rawToolCards = Array.isArray(reply.cards) ? reply.cards : []
+    if (rawToolCards.length > 0) {
+      const normalized = rawToolCards.map(normalizeRawCard)
+      msgs.push({ id: uid(), role: 'ai', type: 'tool_card', cards: normalized, createdAt: nowISO() })
     }
 
-    // 3. Intent-based action card — always try to push a relevant card.
-    //    Backend code used first; if unknown, falls back to frontend keyword detection.
-    //    This ensures guests always get an actionable card even without LLM tool access.
-    if (intentCode && intentCode !== 'greeting') {
+    // 3. Intent-based action card — 工具结果卡片存在时跳过（避免重复卡片）
+    //    只在没有工具卡片时才推意图导航卡片
+    if (rawToolCards.length === 0 && intentCode && intentCode !== 'greeting') {
       const cardFn = INTENT_ACTION_CARDS[intentCode]
       if (cardFn) {
         msgs.push({ id: uid(), role: 'ai', type: 'tool_card', cards: [cardFn(lang)], createdAt: nowISO() })
