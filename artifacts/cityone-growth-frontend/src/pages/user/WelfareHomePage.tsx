@@ -23,7 +23,6 @@ import { getActivities } from '../../api/growth'
 import request from '../../api/request'
 import { isObjectKey, useOssUrl } from '../../components/OssImage'
 import { prefetchActivity } from '../../cache/activityCache'
-import { useFollowGate } from '../../hooks/useFollowGate'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -265,7 +264,6 @@ export default function WelfareHomePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { t, language, setLanguage } = useI18n()
 
-  const { guard } = useFollowGate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
 
@@ -572,19 +570,8 @@ export default function WelfareHomePage() {
                   const backTo = tab === 'mall' ? '/welfare?tab=mall'
                     : tab === 'activity' ? '/welfare?tab=activity'
                     : '/welfare'
-                  // 卡券和积分商城需要粉丝身份；活动页本身有 guard
-                  if (item.type === 'coupon' || item.type === 'redeem') {
-                    const actionLabel = {
-                      coupon: { zh: '领取优惠卡券', th: 'รับคูปอง', en: 'Claim Coupon' },
-                      redeem: { zh: '积分兑换商品', th: 'แลกของรางวัล', en: 'Redeem Item' },
-                    }[item.type]
-                    const label = actionLabel[language]
-                    const autoParam = item.type === 'coupon' ? 'auto=claim' : 'auto=redeem'
-                    const returnPath = `${item.route}?${autoParam}`
-                    guard(() => navigate(item.route!, { state: { backTo } }), { label, returnPath, back: backTo })
-                  } else {
-                    navigate(item.route, { state: { backTo } })
-                  }
+                  // 直接进详情页，门控在详情页操作按钮处处理，不在入口拦截
+                  navigate(item.route, { state: { backTo } })
                 }}
               />
             ))}
