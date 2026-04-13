@@ -234,6 +234,29 @@
     }
   },
   {
+    "intent_code": "deposit_refund",
+    "intent_name": "押金退还说明",
+    "dispatch_mode": "chat_only",
+    "tool_name": null,
+    "card_template_key": null,
+    "similarity_threshold": 0.68,
+    "intent_scope": "in_scope",
+    "requires_confirmation": false,
+    "requires_payment": false,
+    "enabled": true,
+    "need_confirm": false,
+    "phrases": {
+      "zh": ["押金退还","退押金","怎么退押金","如何退押金","退钱","押金怎么退","押金退不了","退不了押金","押金在哪退","怎么申请退款","申请退款","押金退款","退款","押金退","退押","押金","退押金怎么操作","押金能退吗","可以退押金吗","我要退押金","帮我退押金","押金什么时候退","押金要多久退","押金怎么没退","没收到押金"],
+      "th": ["คืนเงินมัดจำ","ขอคืนเงิน","เงินมัดจำ","คืนเงิน","จะขอคืนเงินมัดจำ","วิธีคืนเงินมัดจำ","คืนเงินประกัน","เงินมัดจำคืนไม่ได้","ขอเงินคืน","โอนเงินคืน","เงินยังไม่คืน","มัดจำคืนยังไง"],
+      "en": ["deposit refund","refund deposit","how to refund","get refund","refund my deposit","return deposit","deposit back","deposit not returned","claim refund","request refund","where is my refund","deposit money back","security deposit"]
+    },
+    "template_responses": {
+      "zh": "抱歉给您造成麻烦了！\n\n由于您是通过手机摄像头扫码使用充电服务的，押金退还有以下两种方式：\n\n方式一：请回复您注册的手机号码，我们的客服人员将尽快联系您处理退款事宜。\n\n方式二：您也可以直接前往设备现场，用手机摄像头扫描设备上的二维码，进入系统后点击【押金退还】即可自助申请退款。\n\n请问您方便提供手机号码，还是选择前往设备现场操作呢？",
+      "th": "ขออภัยที่ทำให้คุณไม่สะดวกนะคะ!\n\nเนื่องจากคุณใช้บริการผ่านการสแกน QR Code ด้วยกล้องโทรศัพท์ การขอคืนเงินมัดจำมี 2 วิธีดังนี้\n\nวิธีที่ 1: กรุณาตอบกลับพร้อมเบอร์โทรศัพท์ที่ลงทะเบียน ทีมบริการลูกค้าของเราจะติดต่อกลับโดยเร็วที่สุดเพื่อดำเนินการคืนเงิน\n\nวิธีที่ 2: คุณสามารถไปที่อุปกรณ์ สแกน QR Code บนอุปกรณ์ด้วยกล้องโทรศัพท์ แล้วกดปุ่ม【คืนเงินมัดจำ】เพื่อขอคืนด้วยตนเองได้เลย\n\nคุณสะดวกแจ้งเบอร์โทรศัพท์ หรือต้องการไปที่อุปกรณ์โดยตรงคะ?",
+      "en": "Sorry for the inconvenience!\n\nSince you used the service by scanning the QR code with your phone camera, there are two ways to process your deposit refund:\n\nOption 1: Please reply with your registered phone number and our support team will contact you as soon as possible to process the refund.\n\nOption 2: You can go directly to the device, scan the QR code on the device with your phone camera, then tap 【Deposit Refund】 to apply for a refund yourself.\n\nWould you like to provide your phone number, or would you prefer to visit the device in person?"
+    }
+  },
+  {
     "intent_code": "after_sale_apply",
     "intent_name": "发起售后",
     "dispatch_mode": "tool_then_confirm",

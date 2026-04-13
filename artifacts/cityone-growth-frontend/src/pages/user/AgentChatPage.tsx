@@ -113,6 +113,17 @@ const INTENT_ACTION_CARDS: Record<string, IntentCardFn> = {
     subtitle: { zh: '提交问题说明，客服会在 30 分钟内跟进', th: 'ส่งรายละเอียดปัญหา ทีมงานตอบกลับภายใน 30 นาที', en: 'Submit your issue — support responds within 30 minutes' }[l],
     ctaPrimary: { text: { zh: '联系客服 →', th: 'ติดต่อ →', en: 'Contact Now →' }[l], route: '/welfare' },
   }),
+  deposit_refund: (l) => ({
+    type: 'order',
+    title: { zh: '💳 押金退还申请', th: '💳 ขอคืนเงินมัดจำ', en: '💳 Deposit Refund Request' }[l],
+    subtitle: {
+      zh: '请回复您注册的手机号码，客服将在 1 个工作日内处理退款',
+      th: 'กรุณาตอบกลับพร้อมเบอร์โทรที่ลงทะเบียน ทีมงานจัดการคืนเงินภายใน 1 วันทำการ',
+      en: 'Reply with your registered phone number — we\'ll process the refund within 1 business day',
+    }[l],
+    ctaPrimary: { text: { zh: '前往押金设置 →', th: 'ไปที่การตั้งค่ามัดจำ →', en: 'Go to Deposit Settings →' }[l], route: '/mine?tab=member' },
+    ctaSecondary: { text: { zh: '查看我的账户 →', th: 'ดูบัญชีของฉัน →', en: 'View My Account →' }[l], route: '/mine' },
+  }),
 }
 
 function makeGuestUnlockCard(lang: Lang): AgentCard {
@@ -214,6 +225,7 @@ function detectFrontendIntent(text: string): string {
   if (/站点|地图|附近|station|map|nearby|สถานี|แผนที่|ใกล้/.test(t)) return 'nearby_sites_query'
   if (/订单|记录|历史|order|history|คำสั่งซื้อ|ประวัติ/.test(t)) return 'recent_orders_query'
   if (/福利|benefit|welfare|สิทธิ/.test(t)) return 'benefit_claim_query'
+  if (/押金|退押金|押金退还|deposit.*refund|refund.*deposit|เงินมัดจำ|คืนเงินมัดจำ|มัดจำ/.test(t)) return 'deposit_refund'
   if (/售后|退款|投诉|refund|complaint|คืนเงิน|ร้องเรียน/.test(t)) return 'after_sale_apply'
   return ''
 }
