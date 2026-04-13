@@ -59,6 +59,8 @@ const GameProgram = lazy(() => import('./features/growth/GameProgram'))
 const ComingSoon = lazy(() => import('./features/growth/ComingSoon'))
 const StationManage = lazy(() => import('./features/growth/StationManage'))
 
+const AttributionCenter = lazy(() => import('./features/growth/AttributionCenter'))
+
 const AgentWenwenPage = lazy(() => import('./features/growth/AgentWenwenPage'))
 const AgentBizPage = lazy(() => import('./features/growth/AgentBizPage'))
 const AgentSysOpsPage = lazy(() => import('./features/growth/AgentSysOpsPage'))
@@ -122,6 +124,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
 
           {/* 增长总览 */}
+          <Route path="growth/attribution" element={<AttributionCenter />} />
           <Route path="growth/report" element={<GrowthReport />} />
           <Route path="overview/funnel" element={<CS title="转化漏斗" description="用户从入口到业务转化的全链路漏斗分析，阶段二实现" />} />
           <Route path="overview/order-attr" element={<CS title="订单归因" description="当前可先占位，阶段四对接 A 系统订单数据后实现" />} />
