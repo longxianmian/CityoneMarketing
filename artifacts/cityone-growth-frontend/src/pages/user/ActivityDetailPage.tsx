@@ -234,11 +234,11 @@ export default function ActivityDetailPage() {
         campaignId={activity?.campaign_id}
       />
 
-      <div style={{ flexShrink: 0, height: 200, background: '#f0f0f0', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ flexShrink: 0, background: '#f0f0f0' }}>
         {videoStarted && coverVideo ? (
-          <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }} onClick={toggleVideoPlay}>
+          <div style={{ position: 'relative', cursor: 'pointer' }} onClick={toggleVideoPlay}>
             <video ref={heroVideoRef} src={coverVideo} autoPlay loop playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+              style={{ width: '100%', display: 'block' }} />
             {videoPaused && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -248,9 +248,9 @@ export default function ActivityDetailPage() {
             )}
           </div>
         ) : coverImage ? (
-          <div style={{ position: 'relative', width: '100%', height: '100%', cursor: coverVideo ? 'pointer' : 'default' }}
+          <div style={{ position: 'relative', cursor: coverVideo ? 'pointer' : 'default' }}
                onClick={coverVideo ? () => setVideoStarted(true) : undefined}>
-            <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} placeholderStyle={{ width: '100%', height: 200 }} />
+            <OssImage src={coverImage} alt={title} style={{ width: '100%', display: 'block' }} placeholderStyle={{ width: '100%', height: 200 }} />
             {coverVideo && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -260,16 +260,14 @@ export default function ActivityDetailPage() {
             )}
           </div>
         ) : coverVideo ? (
-          <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }}
+          <div style={{ height: 200, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                onClick={() => setVideoStarted(true)}>
-            <div style={{ height: '100%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
-              </div>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
             </div>
           </div>
         ) : (
-          <div style={{ height: '100%', background: 'linear-gradient(135deg, #1677ff20, #1677ff40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ height: 160, background: 'linear-gradient(135deg, #1677ff20, #1677ff40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: 48 }}>🎁</span>
           </div>
         )}

@@ -432,11 +432,11 @@ export default function CouponUserPage() {
         </div>
       </Modal>
 
-      <div style={{ flexShrink: 0, background: '#f0f0f0', overflow: 'hidden' }}>
+      <div style={{ flexShrink: 0, background: '#f0f0f0' }}>
         {videoStarted && coverVideoUrl ? (
           <div style={{ position: 'relative', cursor: 'pointer' }} onClick={toggleVideoPlay}>
             <video ref={heroVideoRef} src={coverVideoUrl} autoPlay loop playsInline
-              style={{ width: '100%', maxHeight: 240, objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+              style={{ width: '100%', display: 'block' }} />
             {videoPaused && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -448,7 +448,7 @@ export default function CouponUserPage() {
         ) : coverUrl ? (
           <div style={{ position: 'relative', cursor: coverVideoUrl ? 'pointer' : 'default' }}
                onClick={coverVideoUrl ? () => setVideoStarted(true) : undefined}>
-            <OssImage src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+            <OssImage src={coverUrl} alt={name} style={{ width: '100%', display: 'block' }} />
             {coverVideoUrl && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
