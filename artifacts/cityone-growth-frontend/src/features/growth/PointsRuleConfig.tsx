@@ -4,11 +4,15 @@
 import React, { useState, useEffect } from 'react'
 import {
   Card, Table, Tag, Switch, Button, Modal, Form,
-  InputNumber, Input, message, Tooltip, Space, Badge,
+  InputNumber, Input, message, Tooltip, Space, Badge, Alert,
 } from 'antd'
-import { EditOutlined, InfoCircleOutlined, ReloadOutlined } from '@ant-design/icons'
+import { EditOutlined, InfoCircleOutlined, ReloadOutlined, LinkOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import request from '../../api/request'
 import dayjs from 'dayjs'
+
+// 邀请裂变相关的 rule_type —— 统一由「邀请裂变」模块管理，积分规则页不展示
+const INVITE_RULE_TYPES = new Set(['share_follow', 'share_register', 'invite_friend', 'EARN_SHARE_FOLLOW', 'EARN_SHARE_REGISTER', 'EARN_INVITE'])
 
 /* ─── 规则名称映射（支持数据库实际 rule_type 值）─────────────────────────── */
 const RULE_LABELS: Record<string, { label: string; color: string; desc: string; unit: string }> = {
@@ -38,6 +42,7 @@ function getRuleMeta(ruleKey: string) {
 }
 
 export default function PointsRuleConfig() {
+  const navigate = useNavigate()
   const [rules, setRules] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [editRecord, setEditRecord] = useState<any>(null)
@@ -50,7 +55,9 @@ export default function PointsRuleConfig() {
     setLoading(true)
     try {
       const res: any = await request.get('/growth/points/rules')
-      setRules(res.data?.rules || [])
+      // 过滤掉邀请裂变相关规则（由「邀请裂变」模块统一管理）
+      const all: any[] = res.data?.rules || []
+      setRules(all.filter(r => !INVITE_RULE_TYPES.has(r.rule_type)))
     } catch { message.error('加载失败') }
     setLoading(false)
   }
@@ -178,6 +185,23 @@ export default function PointsRuleConfig() {
         </div>
         <Button icon={<ReloadOutlined />} onClick={fetchRules}>刷新</Button>
       </div>
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={
+          <span>
+            邀请好友、分享关注等邀请裂变相关积分规则，统一在
+            <Button type="link" size="small" icon={<LinkOutlined />}
+              style={{ padding: '0 4px' }}
+              onClick={() => navigate('/admin/growth/invite')}>
+              邀请裂变
+            </Button>
+            模块配置，此处不重复展示。
+          </span>
+        }
+      />
 
       <Card>
         <Table

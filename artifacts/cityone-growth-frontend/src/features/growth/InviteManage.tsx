@@ -1,12 +1,13 @@
 /**
- * 邀请裂变 — Tab1: 邀请配置 + 邀请链路   Tab2: 归因记录（分享+消费统一视图）
+ * 邀请裂变 — 邀请奖励配置 + 邀请关系链路
+ * 归因记录已移至「渠道效果」模块，避免与积分规则重叠
  */
 import React, { useState, useCallback } from 'react'
 import {
-  Card, Table, Input, Button, Space, Tag, Row, Col,
-  Statistic, message, Modal, Form, InputNumber, Switch, Tabs, Select, DatePicker,
+  Card, Table, Input, Button, Tag, Row, Col,
+  Statistic, message, Modal, Form, InputNumber, Switch,
 } from 'antd'
-import { SearchOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons'
+import { ReloadOutlined, SettingOutlined } from '@ant-design/icons'
 import request from '../../api/request'
 import dayjs from 'dayjs'
 
@@ -159,128 +160,15 @@ function InviteTab() {
   )
 }
 
-/* ─── Tab2：归因记录（分享+消费合并）────────────────────────────────────── */
-const STATUS_COLOR: Record<string, string> = { pending: 'orange', settled: 'green', revoked: 'default', failed: 'red' }
-const STATUS_LABEL: Record<string, string> = { pending: '待结算', settled: '已结算', revoked: '已撤销', failed: '失败' }
-
-function AttributionTab() {
-  const [data, setData] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [userId, setUserId] = useState('')
-  const [sourceType, setSourceType] = useState('all')
-  const [status, setStatus] = useState<string | undefined>(undefined)
-
-  const fetchData = useCallback(async (p = page, ps = pageSize) => {
-    setLoading(true)
-    try {
-      const res: any = await request.get('/growth/admin/points/attribution', {
-        params: { page: p, page_size: ps, source_type: sourceType, user_id: userId || undefined, status: status || undefined },
-      })
-      setData(res.data?.items || [])
-      setTotal(res.data?.total || 0)
-      setPage(p)
-    } catch { setData([]); setTotal(0) }
-    setLoading(false)
-  }, [page, pageSize, sourceType, userId, status])
-
-  React.useEffect(() => { fetchData(1) }, [sourceType, status])
-
-  const columns = [
-    {
-      title: '来源', dataIndex: 'source_type', key: 'source_type', width: 90,
-      render: (v: string) => <Tag color={v === 'share' ? 'blue' : 'purple'}>{v === 'share' ? '分享归因' : '消费归因'}</Tag>,
-    },
-    {
-      title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 160, ellipsis: true,
-      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</span>,
-    },
-    {
-      title: '积分', dataIndex: 'points_value', key: 'points_value', width: 90,
-      render: (v: number) => <span style={{ fontWeight: 700, color: '#1677ff' }}>{v ?? 0}</span>,
-    },
-    {
-      title: '状态', dataIndex: 'points_status', key: 'points_status', width: 90,
-      render: (v: string) => <Tag color={STATUS_COLOR[v] || 'default'}>{STATUS_LABEL[v] || v || '—'}</Tag>,
-    },
-    {
-      title: '关联ID', dataIndex: 'ref_id', key: 'ref_id', width: 140, ellipsis: true,
-      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#888' }}>{v || '—'}</span>,
-    },
-    {
-      title: '时间', dataIndex: 'created_at', key: 'created_at', width: 150,
-      render: (v: string) => v ? dayjs(v).format('MM-DD HH:mm:ss') : '—',
-    },
-  ]
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Select
-          value={sourceType}
-          onChange={v => { setSourceType(v); setPage(1) }}
-          style={{ width: 130 }}
-          options={[
-            { value: 'all',     label: '全部来源' },
-            { value: 'share',   label: '分享归因' },
-            { value: 'consume', label: '消费归因' },
-          ]}
-        />
-        <Select
-          placeholder="结算状态"
-          value={status}
-          onChange={v => { setStatus(v); setPage(1) }}
-          allowClear style={{ width: 120 }}
-          options={[
-            { value: 'pending',  label: '待结算' },
-            { value: 'settled',  label: '已结算' },
-            { value: 'revoked',  label: '已撤销' },
-            { value: 'failed',   label: '失败' },
-          ]}
-        />
-        <Input.Search
-          placeholder="搜索用户ID"
-          value={userId}
-          onChange={e => setUserId(e.target.value)}
-          onSearch={() => fetchData(1)}
-          style={{ width: 220 }}
-          allowClear
-        />
-        <Button icon={<ReloadOutlined />} onClick={() => fetchData(1)}>刷新</Button>
-      </div>
-
-      <Card>
-        <Table
-          rowKey={(r, i) => `${r.source_type}_${r.id}_${i}`}
-          columns={columns}
-          dataSource={data}
-          loading={loading}
-          scroll={{ x: 800 }}
-          size="middle"
-          pagination={{ current: page, pageSize, total, showSizeChanger: true, showTotal: (t) => `共 ${t} 条`, onChange: (p, ps) => { setPage(p); setPageSize(ps); fetchData(p, ps) } }}
-        />
-      </Card>
-    </div>
-  )
-}
-
 /* ─── 主页面 ─────────────────────────────────────────────────────────────── */
 export default function InviteManage() {
   return (
     <div style={{ padding: '24px 20px' }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>邀请裂变</div>
-        <div style={{ color: '#888', fontSize: 13 }}>管理用户邀请奖励配置、邀请关系链路，以及分享/消费归因记录</div>
+        <div style={{ color: '#888', fontSize: 13 }}>管理邀请奖励积分配置与邀请关系链路（归因记录请前往「渠道效果」查看）</div>
       </div>
-      <Tabs
-        size="large"
-        items={[
-          { key: 'invite', label: '🔗 邀请链路', children: <InviteTab /> },
-          { key: 'attr',   label: '📊 归因记录', children: <AttributionTab /> },
-        ]}
-      />
+      <InviteTab />
     </div>
   )
 }
