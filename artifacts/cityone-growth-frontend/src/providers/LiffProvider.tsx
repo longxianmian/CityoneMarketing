@@ -14,11 +14,14 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 export interface LiffContextValue {
   liffReady: boolean
   inLineClient: boolean
+  /** initLiff() 已完成（无论成功/失败），可安全读取 isFriend */
+  liffChecked: boolean
 }
 
 export const LiffContext = createContext<LiffContextValue>({
   liffReady: false,
   inLineClient: false,
+  liffChecked: false,
 })
 
 export function useLiff() {
@@ -130,7 +133,7 @@ async function initLiff(
     }
 
     if (!signal.cancelled) {
-      onReady({ liffReady: true, inLineClient: isInClient })
+      onReady({ liffReady: true, inLineClient: isInClient, liffChecked: true })
     }
   } catch (err) {
     // 若在 LINE 内置浏览器但当前 URL 不在 LIFF 端点 (/welfare) 下，重定向到正确端点
@@ -144,12 +147,12 @@ async function initLiff(
       return
     }
     console.warn('[LIFF] init failed, falling back to device user:', err)
-    onReady({ liffReady: false, inLineClient: false })
+    onReady({ liffReady: false, inLineClient: false, liffChecked: true })
   }
 }
 
 export function LiffProvider({ children }: { children: React.ReactNode }) {
-  const [ctx, setCtx] = useState<LiffContextValue>({ liffReady: false, inLineClient: false })
+  const [ctx, setCtx] = useState<LiffContextValue>({ liffReady: false, inLineClient: false, liffChecked: false })
 
   useEffect(() => {
     const signal = { cancelled: false }

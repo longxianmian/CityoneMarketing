@@ -5,7 +5,7 @@
     "line_display_name": "babylong",
     "line_picture_url": "https://profile.line-scdn.net/0h_uLsK9RbAFphCh8hUlV-ZBFaAzBCe1lIHmgfblUKXjlbPBQLSWhPOlEJXG4MPUAFRWpHblEKCj5DQyd2KgoGNRIKIi47TxJPCm8YRCBrCGojQCBZERwvVQZjXmoCXj1wPmwTORQMPTVVQQZkEgtHPwJNFWIrQzJcRV1sDGQ4btkOCHcPTG1HPFAJX2_d",
     "followed_at": "2026-04-11T10:39:58.001Z",
-    "updated_at": "2026-04-13T13:27:05.282Z",
+    "updated_at": "2026-04-13T14:52:01.143Z",
     "source": "follow_button"
   },
   {
@@ -24,6 +24,15 @@
     "line_picture_url": "",
     "followed_at": "2026-04-11T14:10:08.927Z",
     "updated_at": "2026-04-11T14:16:08.243Z",
+    "source": "follow_button"
+  },
+  {
+    "user_id": "dev_add1n1x2mnxauhl4",
+    "line_user_id": "dev_add1n1x2mnxauhl4",
+    "line_display_name": "",
+    "line_picture_url": "",
+    "followed_at": "2026-04-13T14:40:28.271Z",
+    "updated_at": "2026-04-13T14:43:33.353Z",
     "source": "follow_button"
   }
 ]
