@@ -331,6 +331,13 @@ export default function AgentChatPage() {
 
     const msgs: AgentMessage[] = []
 
+    // 0. follow_required — 非粉丝访问受限意图，前端直接渲染关注按钮
+    if (reply.reply_type === 'follow_required') {
+      if (reply.text) msgs.push(makeText(uid(), reply.text))
+      msgs.push({ id: uid(), role: 'ai', type: 'follow_required', createdAt: nowISO() })
+      return msgs
+    }
+
     // 1. AI text reply (LLM-generated)
     if (reply.text) {
       msgs.push(makeText(uid(), reply.text))
@@ -556,7 +563,14 @@ export default function AgentChatPage() {
             lang={lang}
             onSuggestionClick={sendMessage}
             onConfirm={handleConfirm}
-            onFollowOA={() => navigate('/welfare')}
+            onFollowOA={() => {
+              const name = encodeURIComponent({
+                zh: '关注后解锁积分、卡券、活动等功能',
+                th: 'ติดตามเพื่อใช้งานคะแนน คูปอง และกิจกรรม',
+                en: 'Follow to unlock points, coupons & activities',
+              }[lang])
+              navigate(`/follow-oa?to=${encodeURIComponent('/agent/chat')}&name=${name}&back=${encodeURIComponent('/welfare')}`)
+            }}
           />
 
           {showInitialPrompts && (

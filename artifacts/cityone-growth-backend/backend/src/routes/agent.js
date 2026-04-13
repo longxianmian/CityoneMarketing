@@ -37,6 +37,7 @@ import {
 } from "../services/agent-config-service.js";
 import { checkLLMHealth } from "../services/agent-llm-service.js";
 import { runLLMPipeline } from "../services/agent-llm-pipeline.js";
+import { checkPolicy, POLICY_RESULTS } from "../services/agent-policy-service.js";
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -227,6 +228,73 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
     };
 
     const pipelineResult = await runLLMPipeline(text, sessionHistory, roleKeywords, userContext);
+
+    // 5a. 权限策略检查：pipeline 识别 intent 后才能判断是否允许
+    const recognizedIntent = pipelineResult.intent_code || "";
+    const policyResult = checkPolicy(identity.identity_tier, recognizedIntent);
+
+    if (policyResult.result === POLICY_RESULTS.NEED_FOLLOW) {
+      const INTENT_LABELS = {
+        zh: {
+          points_balance_query: "查询积分余额", coupon_list_query: "查看我的卡券",
+          coupon_recommend: "领取优惠卡券", recent_orders_query: "查看订单记录",
+          points_balance_redeem: "积分兑换", benefit_claim_query: "查看专属福利",
+          invite_poster_generate: "生成邀请海报", member_rights_query: "查看会员权益",
+          activity_query: "参与活动", after_sale_apply: "申请售后",
+        },
+        th: {
+          points_balance_query: "ดูคะแนน", coupon_list_query: "ดูคูปองของฉัน",
+          coupon_recommend: "รับคูปอง", recent_orders_query: "ดูประวัติออเดอร์",
+          points_balance_redeem: "แลกคะแนน", benefit_claim_query: "รับสิทธิพิเศษ",
+          invite_poster_generate: "สร้างโปสเตอร์ชวนเพื่อน", member_rights_query: "ดูสิทธิสมาชิก",
+          activity_query: "เข้าร่วมกิจกรรม", after_sale_apply: "ขอบริการหลังขาย",
+        },
+        en: {
+          points_balance_query: "check points balance", coupon_list_query: "view my coupons",
+          coupon_recommend: "claim coupons", recent_orders_query: "view order history",
+          points_balance_redeem: "redeem points", benefit_claim_query: "view exclusive benefits",
+          invite_poster_generate: "generate invite poster", member_rights_query: "view member rights",
+          activity_query: "join activities", after_sale_apply: "apply for after-sales",
+        },
+      };
+      const langLabels = INTENT_LABELS[language] || INTENT_LABELS.zh;
+      const intentLabel = langLabels[recognizedIntent] || (language === "th" ? "ฟีเจอร์นี้" : language === "en" ? "this feature" : "该功能");
+      const followText = {
+        zh: `需要先关注 CityOne LINE OA 才能${intentLabel}。关注后马上可以使用！`,
+        th: `กรุณาติดตาม CityOne LINE OA ก่อนเพื่อ${intentLabel}`,
+        en: `Please follow CityOne LINE OA first to ${intentLabel}.`,
+      }[language] || `需要先关注 CityOne LINE OA 才能使用该功能。`;
+
+      const agentMsg = addMessage({
+        sessionId, role: "agent", type: "follow_required",
+        text: followText, intentCode: recognizedIntent,
+        payload: { reply_type: "follow_required", text: followText, intent_code: recognizedIntent }
+      });
+      touchSession(sessionId);
+      writeAgentLog({
+        sessionId, messageId: userMsg.message_id,
+        lineUserId: session.line_user_id, userId: session.user_id,
+        identityTier: identity.identity_tier, inputText: text,
+        intentCode: recognizedIntent, intentConfidence: 1,
+        toolCode: "", toolResultStatus: "blocked_need_follow",
+        needConfirm: false, finalAction: "need_follow"
+      });
+      return sendOk(res, sendJson, "message processed", {
+        user_message_id: userMsg.message_id,
+        agent_message_id: agentMsg.message_id,
+        intent: { code: recognizedIntent, name: recognizedIntent, confidence: 1, recognition_mode: pipelineResult.source || "llm" },
+        identity_tier: identity.identity_tier,
+        policy_result: "need_follow",
+        reply: {
+          reply_type: "follow_required",
+          text: followText,
+          intent_code: recognizedIntent,
+          dispatch_mode: "blocked",
+          suggestions: [],
+          confirm_action: null,
+        }
+      });
+    }
 
     // 5. 构建回复 payload（支持向量召回新字段）
     const dispatchMode = pipelineResult.dispatch_mode || "chat_only";
