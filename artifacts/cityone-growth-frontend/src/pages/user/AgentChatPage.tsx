@@ -139,7 +139,8 @@ function mapBackendType(t: string): AgentMessage['type'] {
 
 // ─── Convert backend AgentBackendMessage → frontend AgentMessage ──────────────
 // Supports both restored history messages and new reply messages from backend.
-function normalizeMessage(backendMsg: any): AgentMessage {
+// lang 用于在还原时重新生成 intent 卡片（card_only 场景卡片不存入后端，靠 intent_code 重建）
+function normalizeMessage(backendMsg: any, lang: Lang = 'zh'): AgentMessage {
   const payload = backendMsg.payload || {}
   const rawCards: any[] = Array.isArray(payload.cards) ? payload.cards : []
 
@@ -155,14 +156,26 @@ function normalizeMessage(backendMsg: any): AgentMessage {
       : undefined,
   }))
 
+  // 还原 card_only 场景：raw cards 为空但有 intent_code，重新生成意图导航卡片
+  // 排除 follow_required / confirm_request 等特殊类型，这些有自己的展示逻辑
+  const replyType: string = payload.reply_type || backendMsg.type || ''
+  const isSpecialType = ['follow_required', 'confirm_request', 'welcome', 'session_init'].includes(replyType)
+  if (cards.length === 0 && backendMsg.role !== 'user' && !isSpecialType) {
+    const intentCode: string = payload.intent_code || backendMsg.intent_code || ''
+    if (intentCode && intentCode !== 'greeting' && intentCode !== 'out_of_scope' && intentCode !== 'llm') {
+      const cardFn = INTENT_ACTION_CARDS[intentCode]
+      if (cardFn) cards.push(cardFn(lang))
+    }
+  }
+
   const suggestions: string[] = Array.isArray(payload.suggestions) ? payload.suggestions : []
 
   return {
     id: backendMsg.message_id || uid(),
     role: backendMsg.role === 'user' ? 'user' : 'ai',
-    type: mapBackendType(backendMsg.type || 'text'),
+    type: cards.length > 0 ? 'tool_card' : mapBackendType(backendMsg.type || 'text'),
     text: backendMsg.text || payload.text || '',
-    cards,
+    cards: cards.length > 0 ? cards : undefined,
     suggestions,
     createdAt: backendMsg.created_at || nowISO(),
   }
@@ -263,7 +276,7 @@ export default function AgentChatPage() {
         setSessionId(data.session.session_id)
         const msgs: any[] = Array.isArray(data.messages) ? data.messages : []
         if (msgs.length > 0) {
-          setMessages(msgs.map(normalizeMessage))
+          setMessages(msgs.map(m => normalizeMessage(m, lang)))
           setRestored(true)
           return true
         }
@@ -300,7 +313,7 @@ export default function AgentChatPage() {
 
         if (backendMessages.length > 0) {
           // 后端返回了消息（含历史消息或新会话欢迎消息），直接渲染
-          setMessages(backendMessages.map(normalizeMessage))
+          setMessages(backendMessages.map(m => normalizeMessage(m, lang)))
           setRestored(isRestored)
         } else {
           // 后端没有返回消息时，用本地欢迎语兜底
