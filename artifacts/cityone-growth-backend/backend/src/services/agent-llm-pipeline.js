@@ -133,6 +133,28 @@ function buildSystemPrompt(roleKeywords, userContext) {
   ].join("\n");
 }
 
+/* ─── 超出服务范围快速检测（零延迟，无 LLM 调用）───────────────────────── */
+// 充电宝相关关键词（只要包含其中任意一个，就视为在服务范围内）
+const IN_SCOPE_RE = /充电宝|共享充电|充电|电宝|站点|卡券|优惠券|积分|借电|还电|会员|订单|福利|邀请|领取|兑换|coupon|points|power.?bank|powerbank|charging|station|order|member|welfare|พาวเวอร์แบงก์|แบตสำรอง|คูปอง|คะแนน|ออเดอร์|สมาชิก|สถานี/i;
+
+// 明确超出服务范围的关键词
+const OUT_OF_SCOPE_RE = /天气|气温|温度|下雨|晴天|台风|预报|weather|forecast|temperature|rain|sunny|cloudy|อากาศ|พยากรณ์|ฝน|แดด|ร้อน|หนาว|新闻|头条|时政|政治|股票|基金|理财|炒股|比特币|news|politics|stock|investment|crypto|ข่าว|การเมือง|หุ้น|帮我翻译|翻译一下|translate this|翻訳|แปลภาษา|讲个故事|说个笑话|写首诗|写作文|帮我写|tell me a story|write a poem|tell a joke|write.*for me|เล่านิทาน|เล่าเรื่อง|足球|篮球|球赛|比赛结果|football.*score|basketball|sports result|ผลบอล|ผลกีฬา/i;
+
+const OUT_OF_SCOPE_REPLY = {
+  zh: "抱歉哦，我只提供跟充电宝相关的服务哦",
+  th: "ขอโทษนะคะ หนูให้บริการเฉพาะเรื่องที่เกี่ยวกับพาวเวอร์แบงก์เท่านั้นค่ะ",
+  en: "Sorry, I only provide services related to power banks.",
+};
+
+function checkOutOfScope(text, language) {
+  if (IN_SCOPE_RE.test(text)) return { matched: false };  // 含充电宝关键词→不超出
+  if (OUT_OF_SCOPE_RE.test(text)) {
+    const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
+    return { matched: true, text: OUT_OF_SCOPE_REPLY[lang] };
+  }
+  return { matched: false };
+}
+
 /* ─── 关键词模板检查（管理端配置的特殊情况）────────────────────────────── */
 function checkKeywordTemplate(text, language) {
   const normalized = String(text).trim().toLowerCase();
@@ -178,6 +200,17 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
       suggestions:     [],
       source:          "keyword_template",
       intent_code:     templateCheck.intent_code,
+    };
+  }
+
+  /* ── Step 1b: 超出服务范围快速检测（无 LLM 调用，即时返回）─────────── */
+  const oosCheck = checkOutOfScope(userText, language);
+  if (oosCheck.matched) {
+    return {
+      text:            oosCheck.text,
+      display_payload: null,
+      suggestions:     [],
+      source:          "out_of_scope",
     };
   }
 
