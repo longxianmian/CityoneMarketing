@@ -157,7 +157,7 @@ export default function App() {
           <Route path="growth/points/rules"    element={<PointsRuleConfig />} />
           <Route path="growth/points/accounts" element={<PointsAccounts />} />
           <Route path="growth/points/ledger"   element={<PointsLedger />} />
-          <Route path="growth/invite"          element={<InviteManage />} />
+          <Route path="growth/invite"          element={<Navigate to="/admin/growth/points/rules" replace />} />
 
           {/* AI Agent */}
           <Route path="agent/wenwen" element={<AgentWenwenPage />} />

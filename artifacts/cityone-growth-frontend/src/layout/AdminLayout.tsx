@@ -184,7 +184,6 @@ export default function AdminLayout() {
           { key: '/admin/growth/points/rules',    label: '积分规则' },
           { key: '/admin/growth/points/accounts', label: '用户积分' },
           { key: '/admin/growth/points/ledger',   label: '积分流水' },
-          { key: '/admin/growth/invite',          label: '邀请裂变' },
         ],
       },
       // === 5. AI Agent ===

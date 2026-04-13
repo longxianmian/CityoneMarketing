@@ -116,6 +116,8 @@ import {
   handleAdminShareRelations,
   handleAdminConsumeRelations,
   handlePointsRules,
+  handlePointsRuleCreate,
+  handlePointsRuleDelete,
   handlePointsAdjust,
   handlePointsRuleUpdate,
   handlePointsRuleToggle,
@@ -1312,6 +1314,12 @@ const server = http.createServer(async (req, res) => {
     // ── 积分规则 & 手工调整 ───────────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/growth/points/rules") {
       return handlePointsRules(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/points/rules/create") {
+      return handlePointsRuleCreate(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/points/rules/delete") {
+      return handlePointsRuleDelete(req, res, url, sendJson, readBody);
     }
     if (req.method === "POST" && url.pathname === "/api/growth/points/rules/update") {
       return handlePointsRuleUpdate(req, res, url, sendJson, readBody);

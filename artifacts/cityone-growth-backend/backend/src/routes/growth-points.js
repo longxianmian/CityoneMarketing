@@ -276,6 +276,42 @@ export async function handleAdminConsumeRelations(req, res, url, sendJson) {
   }
 }
 
+// ── 积分规则新建 ────────────────────────────────────────────────────────────
+// POST /growth/points/rules/create  body: { rule_type, points_value, description, enabled }
+export async function handlePointsRuleCreate(req, res, url, sendJson, readBody) {
+  try {
+    const body = await readBody(req);
+    const { rule_type, points_value, description, enabled } = body;
+    if (!rule_type || !rule_type.trim()) return sendError(res, sendJson, 400, "MISSING_TYPE", "缺少 rule_type");
+    const pts = Number(points_value);
+    if (isNaN(pts) || pts < 0) return sendError(res, sendJson, 400, "INVALID_POINTS", "积分值须为非负数");
+    const rule_id = `rule_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const result = await query(
+      `INSERT INTO points_rules (rule_id, rule_type, points_value, description, enabled, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,NOW(),NOW()) RETURNING *`,
+      [rule_id, rule_type.trim(), pts, description ?? "", enabled !== false]
+    );
+    return sendOk(res, sendJson, "已创建", result.rows[0]);
+  } catch (err) {
+    if (err.code === "23505") return sendError(res, sendJson, 409, "DUPLICATE", "同类型规则已存在");
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ── 积分规则删除 ────────────────────────────────────────────────────────────
+// POST /growth/points/rules/delete  body: { rule_id }
+export async function handlePointsRuleDelete(req, res, url, sendJson, readBody) {
+  try {
+    const body = await readBody(req);
+    const { rule_id } = body;
+    if (!rule_id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少 rule_id");
+    await query(`DELETE FROM points_rules WHERE rule_id=$1`, [rule_id]);
+    return sendOk(res, sendJson, "已删除", {});
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
 // ── 积分规则读取（全部，含禁用）─────────────────────────────────────────────
 // GET /growth/points/rules
 export async function handlePointsRules(req, res, url, sendJson) {
