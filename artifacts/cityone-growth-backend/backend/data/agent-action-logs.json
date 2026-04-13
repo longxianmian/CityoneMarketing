@@ -2398,5 +2398,53 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-13T07:28:20.372Z"
+  },
+  {
+    "log_id": "al_00151",
+    "session_id": "as_00082",
+    "message_id": "am_00388",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "你知道今天曼谷的天气吗",
+    "intent_code": "llm",
+    "intent_confidence": 1,
+    "tool_code": "",
+    "tool_result_status": "llm_direct",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T07:34:16.654Z"
+  },
+  {
+    "log_id": "al_00152",
+    "session_id": "as_00088",
+    "message_id": "am_00390",
+    "line_user_id": "test_u001",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "你知道今天曼谷的天气吗",
+    "intent_code": "llm",
+    "intent_confidence": 1,
+    "tool_code": "",
+    "tool_result_status": "llm_direct",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T07:37:48.631Z"
+  },
+  {
+    "log_id": "al_00153",
+    "session_id": "as_00089",
+    "message_id": "am_00392",
+    "line_user_id": "u_demo_002",
+    "user_id": "u_demo_002",
+    "identity_tier": "identified_user",
+    "input_text": "我有多少积分",
+    "intent_code": "query_points_balance",
+    "intent_confidence": 1,
+    "tool_code": "query_points_balance",
+    "tool_result_status": "llm_tool",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T07:38:11.812Z"
   }
 ]

@@ -395,14 +395,14 @@ export default function AgentChatPage() {
     setInput('')
     setThinking(true)
 
-    // 3 秒内无回复，先插入「请稍等」安抚消息
+    // 5 秒内无回复，先插入「请稍等」安抚消息（直接回复通常 <5s，查询型 >5s）
     const pendingTimer = setTimeout(() => {
       addMessage(makeText(uid(), {
         zh: '请稍等，我需要花点时间去查询才能回复…',
         th: 'กรุณารอสักครู่ กำลังค้นข้อมูลให้…',
         en: 'Please wait, I need a moment to look that up…',
       }[lang]))
-    }, 3000)
+    }, 5000)
 
     try {
       if (sessionId) {
