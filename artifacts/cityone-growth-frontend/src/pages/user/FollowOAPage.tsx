@@ -100,11 +100,11 @@ export default function FollowOAPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #f0fef4 0%, #e6f4ff 100%)' }}>
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 0 32px' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(160deg, #f0fef4 0%, #e6f4ff 100%)' }}>
+      <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', height: '100%' }}>
 
         {/* 顶部导航 */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #e8f4e8' }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #e8f4e8' }}>
           <Button
             type="text"
             icon={<ArrowLeftOutlined />}
@@ -118,77 +118,89 @@ export default function FollowOAPage() {
           </span>
         </div>
 
-        {/* LINE OA 品牌卡 */}
-        <div style={{
-          margin: '24px 16px 0',
-          borderRadius: 20,
-          background: '#fff',
-          overflow: 'hidden',
-          boxShadow: '0 2px 16px rgba(6,199,85,0.12)',
-          border: '1px solid #d9f7be',
-        }}>
-          {/* 品牌头部 */}
+        {/* 可滚动内容区 */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 0' }}>
+          {/* LINE OA 品牌卡 */}
           <div style={{
-            background: 'linear-gradient(135deg, #06c755 0%, #00a84e 100%)',
-            padding: '28px 24px',
-            textAlign: 'center',
+            borderRadius: 20,
+            background: '#fff',
+            overflow: 'hidden',
+            boxShadow: '0 2px 16px rgba(6,199,85,0.12)',
+            border: '1px solid #d9f7be',
           }}>
-            <div style={{ fontSize: 52, marginBottom: 8 }}>💬</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>CityOne</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', display: 'inline-block', padding: '3px 10px', borderRadius: 20 }}>
-              {L.oaBadge}
-            </div>
-          </div>
-
-          <div style={{ padding: '24px 20px' }}>
-            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: '#1a1a1a' }}>{L.headline}</div>
-            <div style={{ fontSize: 14, color: '#666', lineHeight: 1.8, marginBottom: 20 }}>{L.desc}</div>
-
-            {/* 触发操作名称（如"新人礼包免费充电30分钟"）*/}
-            {name && (
-              <div style={{
-                background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)',
-                border: '1px solid #ffd591',
-                borderRadius: 12,
-                padding: '12px 16px',
-                marginBottom: 20,
-                fontSize: 14,
-                color: '#ad6800',
-              }}>
-                🎯 {name}
+            {/* 品牌头部 */}
+            <div style={{
+              background: 'linear-gradient(135deg, #06c755 0%, #00a84e 100%)',
+              padding: '18px 24px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 40, marginBottom: 6 }}>💬</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 4 }}>CityOne</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', display: 'inline-block', padding: '3px 10px', borderRadius: 20 }}>
+                {L.oaBadge}
               </div>
-            )}
-
-            {/* 操作步骤 */}
-            <div style={{ background: '#f6ffed', border: '1px solid #d9f7be', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: '#389e0d', marginBottom: 12 }}>
-                {{ zh: '操作步骤', th: 'ขั้นตอน', en: 'Steps' }[language]}
-              </div>
-              {[L.step1, L.step2, L.step3].map((s, i) => (
-                <div key={i} style={{ fontSize: 13, color: '#555', lineHeight: 1.9 }}>{s}</div>
-              ))}
             </div>
 
-            {/* 唯一按钮：点击即跳转，返回自动进入目标页 */}
-            <Button
-              type="primary"
-              size="large"
-              block
-              onClick={handleFollow}
-              style={{
-                height: 52,
-                borderRadius: 50,
-                fontSize: 16,
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #06c755, #00a84e)',
-                border: 'none',
-                boxShadow: '0 4px 16px rgba(6,199,85,0.35)',
-              }}
-            >
-              {L.followBtn}
-            </Button>
+            <div style={{ padding: '20px 20px 24px' }}>
+              <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 6, color: '#1a1a1a' }}>{L.headline}</div>
+              <div style={{ fontSize: 13, color: '#666', lineHeight: 1.7, marginBottom: 16 }}>{L.desc}</div>
+
+              {/* 触发操作名称（如"新人礼包免费充电30分钟"）*/}
+              {name && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)',
+                  border: '1px solid #ffd591',
+                  borderRadius: 12,
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                  fontSize: 13,
+                  color: '#ad6800',
+                }}>
+                  🎯 {name}
+                </div>
+              )}
+
+              {/* 操作步骤 */}
+              <div style={{ background: '#f6ffed', border: '1px solid #d9f7be', borderRadius: 14, padding: '14px' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#389e0d', marginBottom: 10 }}>
+                  {{ zh: '操作步骤', th: 'ขั้นตอน', en: 'Steps' }[language]}
+                </div>
+                {[L.step1, L.step2, L.step3].map((s, i) => (
+                  <div key={i} style={{ fontSize: 13, color: '#555', lineHeight: 1.9 }}>{s}</div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* 底部按钮区 — 始终可见，不随内容滚动 */}
+        <div style={{
+          flexShrink: 0,
+          padding: '12px 16px',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
+          background: 'rgba(240,254,244,0.95)',
+          borderTop: '1px solid #e8f4e8',
+          backdropFilter: 'blur(8px)',
+        }}>
+          <Button
+            type="primary"
+            size="large"
+            block
+            onClick={handleFollow}
+            style={{
+              height: 52,
+              borderRadius: 50,
+              fontSize: 16,
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #06c755, #00a84e)',
+              border: 'none',
+              boxShadow: '0 4px 16px rgba(6,199,85,0.35)',
+            }}
+          >
+            {L.followBtn}
+          </Button>
+        </div>
+
       </div>
     </div>
   )
