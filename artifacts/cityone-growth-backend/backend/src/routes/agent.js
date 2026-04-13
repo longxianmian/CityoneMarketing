@@ -6,6 +6,20 @@
  *   管理端：admin/agent/config, intents, tools, logs, metrics
  */
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __agentFilename = fileURLToPath(import.meta.url);
+const __agentDirname  = path.dirname(__agentFilename);
+const AGENT_DATA_DIR  = path.join(__agentDirname, "..", "..", "data");
+
+function loadJsonData(filename, defaultValue = []) {
+  const fp = path.join(AGENT_DATA_DIR, filename);
+  if (!fs.existsSync(fp)) return defaultValue;
+  try { return JSON.parse(fs.readFileSync(fp, "utf-8")); } catch { return defaultValue; }
+}
+
 import {
   createSession,
   getSession,
@@ -16,16 +30,13 @@ import {
   getSessionMessages
 } from "../services/agent-session-service.js";
 import { resolveAgentIdentity } from "../services/agent-identity-service.js";
-import { recognizeIntent } from "../services/agent-intent-service.js";
-import { checkPolicy, POLICY_RESULTS } from "../services/agent-policy-service.js";
-import { routeAndExecute } from "../services/agent-tool-router.js";
-import { buildReply } from "../services/agent-reply-service.js";
 import { writeAgentLog, queryAgentLogs, computeAgentMetrics } from "../services/agent-log-service.js";
 import {
   loadAgentConfig, saveAgentConfig,
   loadAgentIntents, saveAgentIntents
 } from "../services/agent-config-service.js";
-import { generateReplyText, checkLLMHealth } from "../services/agent-llm-service.js";
+import { checkLLMHealth } from "../services/agent-llm-service.js";
+import { runLLMPipeline } from "../services/agent-llm-pipeline.js";
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -196,112 +207,76 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
       user_stage_code: session.user_id ? "identified_user" : (session.line_user_id ? "oa_followed_registered" : "visitor_unfollowed")
     });
 
-    // 2. 意图识别（LLM优先，关键词兜底；传入当前身份可用意图白名单）
-    const intentResult = await recognizeIntent(text, language, {
-      site_id: session.site_id,
-      entry_type: session.entry_type,
-      entry_code: session.entry_code,
-      allowed_intents: identity.capabilities
-    });
+    // 2. 加载角色关键词（管理端配置）
+    const allKeywords = loadJsonData("agent-role-keywords.json", []);
+    const roleKeywords = allKeywords.find((k) => k.agent_code === "wenwen" && k.language === language)
+      || allKeywords.find((k) => k.agent_code === "wenwen" && k.language === "zh")
+      || {};
 
-    // 3. 权限检查
-    const policyResult = checkPolicy(identity.identity_tier, intentResult.intent_code, intentResult.need_confirm);
+    // 3. 加载历史消息（最近 8 条）
+    const sessionHistory = getSessionMessages(sessionId, 8);
 
-    // 4. 工具执行（如果允许）
-    let toolResult = null;
-    let toolResultStatus = "skipped";
-
-    if (policyResult.result === POLICY_RESULTS.ALLOWED) {
-      toolResult = await routeAndExecute(intentResult.intent_code, intentResult.slots, {
-        line_user_id: session.line_user_id,
-        user_id: session.user_id,
-        identity_tier: identity.identity_tier,
-        language,
-        site_id: session.site_id
-      });
-      toolResultStatus = toolResult ? (toolResult.success ? "success" : "error") : "info_only";
-    } else {
-      toolResultStatus = policyResult.result;
-    }
-
-    // 5. 构建结构化回复（rule-based 骨架：cards + suggestions）
-    const replyPayload = buildReply({
-      intentCode: intentResult.intent_code,
-      toolResult,
-      identityTier: identity.identity_tier,
+    // 4. LLM Function Calling 主管道
+    //    关键词模板检查 → LLM 自主调工具 → 工具执行 → LLM 生成回复
+    const userContext = {
       language,
-      policyResult
-    });
+      identity_tier: identity.identity_tier,
+      line_user_id:  session.line_user_id || "",
+      user_id:       session.user_id || "",
+      site_id:       session.site_id || "",
+    };
 
-    // 简单数据型意图：模板已足够，跳过 LLM 避免延迟
-    const SKIP_LLM_REPLY_INTENTS = new Set([
-      "greeting", "nearby_sites_query", "coupon_list_query", "coupon_recommend",
-      "points_balance_query", "recent_orders_query", "benefit_claim_query",
-      "invite_poster_generate", "growth_saving_intent"
-    ]);
+    const pipelineResult = await runLLMPipeline(text, sessionHistory, roleKeywords, userContext);
 
-    // 6. LLM 生成自然语言回复文本（仅解释类/帮助类意图才调用）
-    if (
-      policyResult.result === POLICY_RESULTS.ALLOWED &&
-      intentResult.intent_code !== "unknown" &&
-      !SKIP_LLM_REPLY_INTENTS.has(intentResult.intent_code)
-    ) {
-      try {
-        const recentMsgs = getSessionMessages(sessionId, 6);
-        const history = recentMsgs.map((m) => `${m.role === "user" ? "用户" : "助理"}: ${m.text}`);
-        const llmText = await generateReplyText(
-          intentResult.intent_code,
-          toolResult,
-          identity.identity_tier,
-          language,
-          history
-        );
-        if (llmText && llmText.trim()) replyPayload.text = llmText.trim();
-      } catch {
-        // LLM 生成失败，保留 rule-based 文本
-      }
-    }
+    // 5. 构建回复 payload（保留 cards / display_payload 结构）
+    const replyPayload = {
+      reply_type:      pipelineResult.display_payload ? "tool_result" : "text",
+      text:            pipelineResult.text || "",
+      display_payload: pipelineResult.display_payload || null,
+      suggestions:     pipelineResult.suggestions || [],
+      source:          pipelineResult.source || "llm",
+    };
 
-    // 7. 写入 Agent 回复消息
+    // 6. 写入 Agent 回复消息
     const agentMsg = addMessage({
       sessionId,
-      role: "agent",
-      type: replyPayload.reply_type || "tool_result",
-      text: replyPayload.text,
-      intentCode: intentResult.intent_code,
-      payload: replyPayload
+      role:       "agent",
+      type:       replyPayload.reply_type,
+      text:       replyPayload.text,
+      intentCode: pipelineResult.intent_code || pipelineResult.tool_used || "llm",
+      payload:    replyPayload
     });
 
-    // 7b. 更新会话最近活跃时间
+    // 更新会话最近活跃时间
     touchSession(sessionId);
 
     // 7. 记录日志
     writeAgentLog({
       sessionId,
-      messageId: userMsg.message_id,
-      lineUserId: session.line_user_id,
-      userId: session.user_id,
-      identityTier: identity.identity_tier,
-      inputText: text,
-      intentCode: intentResult.intent_code,
-      intentConfidence: intentResult.confidence,
-      toolCode: toolResult?.tool_code || "",
-      toolResultStatus,
-      needConfirm: intentResult.need_confirm,
-      finalAction: policyResult.result
+      messageId:        userMsg.message_id,
+      lineUserId:       session.line_user_id,
+      userId:           session.user_id,
+      identityTier:     identity.identity_tier,
+      inputText:        text,
+      intentCode:       pipelineResult.intent_code || pipelineResult.tool_used || "llm",
+      intentConfidence: 1,
+      toolCode:         pipelineResult.tool_used || "",
+      toolResultStatus: pipelineResult.source || "llm",
+      needConfirm:      false,
+      finalAction:      "allowed"
     });
 
     return sendOk(res, sendJson, "message processed", {
       user_message_id: userMsg.message_id,
       agent_message_id: agentMsg.message_id,
       intent: {
-        code: intentResult.intent_code,
-        name: intentResult.intent_name,
-        confidence: intentResult.confidence,
-        recognition_mode: intentResult.recognition_mode || "unknown"
+        code: pipelineResult.intent_code || pipelineResult.tool_used || "llm",
+        name: pipelineResult.tool_used || "llm",
+        confidence: 1,
+        recognition_mode: pipelineResult.source || "llm"
       },
       identity_tier: identity.identity_tier,
-      policy_result: policyResult.result,
+      policy_result: "allowed",
       reply: replyPayload
     });
   } catch (err) {

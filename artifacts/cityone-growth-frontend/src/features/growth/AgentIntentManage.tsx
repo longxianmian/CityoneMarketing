@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Button, Tag, Switch, Modal, Form, Input, Select, message, Space } from 'antd'
-import { PlusOutlined, EditOutlined } from '@ant-design/icons'
+import { Table, Button, Tag, Switch, Modal, Form, Input, message, Alert, Space } from 'antd'
+import { PlusOutlined, EditOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { getAgentIntents, updateAgentIntent, createAgentIntent } from '../../api/agent-admin'
 import { useI18n } from '../../i18n'
 
 const { TextArea } = Input
+
+function phrasesToStr(arr?: string[]) { return (arr || []).join('\n') }
+function strToPhrases(s?: string) { return (s || '').split('\n').map(x => x.trim()).filter(Boolean) }
 
 export default function AgentIntentManage() {
   const { t } = useI18n()
@@ -14,39 +17,13 @@ export default function AgentIntentManage() {
   const [editing, setEditing] = useState<any>(null)
   const [form] = Form.useForm()
 
-  const MODULES = [
-    { value: 'borrow', label: t('agentIntentManage.modBorrow') },
-    { value: 'coupon', label: t('agentIntentManage.modCoupon') },
-    { value: 'points', label: t('agentIntentManage.modPoints') },
-    { value: 'invite', label: t('agentIntentManage.modInvite') },
-    { value: 'order', label: t('agentIntentManage.modOrder') },
-    { value: 'site', label: t('agentIntentManage.modSite') },
-    { value: 'activity', label: t('agentIntentManage.modActivity') },
-    { value: 'general', label: t('agentIntentManage.modGeneral') },
-  ]
-
-  const TIERS = [
-    { value: 'guest', label: t('agentIntentManage.tierGuest') },
-    { value: 'fan', label: t('agentIntentManage.tierFan') },
-    { value: 'user', label: t('agentIntentManage.tierUser') },
-    { value: 'member', label: t('agentIntentManage.tierMember') },
-  ]
-
-  const MOCK_DATA = [
-    { id: '1', code: 'borrow_guide', name: t('agentIntentManage.modBorrow'), module: 'borrow', enabled: true, requireConfirm: false, tiers: ['guest', 'fan', 'user', 'member'], hitCount: 1024, tool: 'site_search' },
-    { id: '2', code: 'coupon_query', name: t('agentIntentManage.modCoupon'), module: 'coupon', enabled: true, requireConfirm: false, tiers: ['fan', 'user', 'member'], hitCount: 867, tool: 'coupon_list' },
-    { id: '3', code: 'points_redeem', name: t('agentIntentManage.modPoints'), module: 'points', enabled: true, requireConfirm: true, tiers: ['user', 'member'], hitCount: 456, tool: 'points_exchange' },
-    { id: '4', code: 'invite_help', name: t('agentIntentManage.modInvite'), module: 'invite', enabled: true, requireConfirm: false, tiers: ['member'], hitCount: 231, tool: 'share_welfare' },
-    { id: '5', code: 'order_query', name: t('agentIntentManage.modOrder'), module: 'order', enabled: true, requireConfirm: false, tiers: ['user', 'member'], hitCount: 389, tool: 'order_search' },
-  ]
-
   const load = async () => {
     setLoading(true)
     try {
       const res = await getAgentIntents()
-      setData(res.data?.data || res.data?.list || MOCK_DATA)
+      setData(res.data?.data || res.data?.list || [])
     } catch {
-      setData(MOCK_DATA)
+      setData([])
     } finally {
       setLoading(false)
     }
@@ -58,12 +35,15 @@ export default function AgentIntentManage() {
   const openEdit = (row: any) => {
     setEditing(row)
     form.setFieldsValue({
-      ...row,
-      alias_zh: row.alias?.zh,
-      alias_th: row.alias?.th,
-      alias_en: row.alias?.en,
-      replyTemplate: row.replyTemplate,
-      fallbackText: row.fallbackText,
+      code: row.intent_code || row.code,
+      name: row.intent_name || row.name,
+      phrases_zh: phrasesToStr(row.phrases?.zh),
+      phrases_th: phrasesToStr(row.phrases?.th),
+      phrases_en: phrasesToStr(row.phrases?.en),
+      resp_zh: row.template_responses?.zh || '',
+      resp_th: row.template_responses?.th || '',
+      resp_en: row.template_responses?.en || '',
+      enabled: row.enabled !== false,
     })
     setModalOpen(true)
   }
@@ -71,7 +51,21 @@ export default function AgentIntentManage() {
   const onSave = async () => {
     try {
       const values = await form.validateFields()
-      const payload = { ...values, alias: { zh: values.alias_zh, th: values.alias_th, en: values.alias_en } }
+      const payload = {
+        intent_code: values.code,
+        intent_name: values.name,
+        enabled: values.enabled !== false,
+        phrases: {
+          zh: strToPhrases(values.phrases_zh),
+          th: strToPhrases(values.phrases_th),
+          en: strToPhrases(values.phrases_en),
+        },
+        template_responses: {
+          zh: values.resp_zh || '',
+          th: values.resp_th || '',
+          en: values.resp_en || '',
+        },
+      }
       if (editing) {
         await updateAgentIntent({ ...payload, id: editing.id })
         message.success(t('agentIntentManage.savedOk'))
@@ -99,30 +93,82 @@ export default function AgentIntentManage() {
   }
 
   const columns = [
-    { title: t('agentIntentManage.colCode'), dataIndex: 'code', width: 160, render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code> },
-    { title: t('agentIntentManage.colName'), dataIndex: 'name', width: 140 },
-    { title: t('agentIntentManage.colModule'), dataIndex: 'module', width: 110, render: (v: string) => <Tag>{MODULES.find((m) => m.value === v)?.label || v}</Tag> },
-    { title: t('agentIntentManage.colTiers'), dataIndex: 'tiers', width: 200, render: (v: string[]) => (v || []).map((tier) => <Tag key={tier} color="blue">{TIERS.find((i) => i.value === tier)?.label || tier}</Tag>) },
-    { title: t('agentIntentManage.colConfirm'), dataIndex: 'requireConfirm', width: 80, render: (v: boolean) => v ? <Tag color="orange">{t('agentIntentManage.confirmYes')}</Tag> : <Tag color="default">{t('agentIntentManage.confirmNo')}</Tag> },
-    { title: t('agentIntentManage.colTool'), dataIndex: 'tool', width: 140, render: (v: string) => v ? <code style={{ fontSize: 12 }}>{v}</code> : '-' },
-    { title: t('agentIntentManage.colHits'), dataIndex: 'hitCount', width: 90, align: 'right' as const },
-    { title: t('agentIntentManage.colEnabled'), dataIndex: 'enabled', width: 80, render: (_: any, row: any) => <Switch size="small" checked={row.enabled} onChange={() => toggleEnabled(row)} /> },
-    { title: t('agentIntentManage.colActions'), width: 80, render: (_: any, row: any) => <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>{t('agentIntentManage.editBtn')}</Button> },
+    {
+      title: t('agentIntentManage.colCode'),
+      dataIndex: 'intent_code',
+      width: 160,
+      render: (v: string, row: any) => <code style={{ fontSize: 12 }}>{v || row.code}</code>,
+    },
+    {
+      title: t('agentIntentManage.colName'),
+      dataIndex: 'intent_name',
+      width: 140,
+      render: (v: string, row: any) => v || row.name,
+    },
+    {
+      title: t('agentIntentManage.colPhrases'),
+      width: 220,
+      render: (_: any, row: any) => {
+        const all = [
+          ...(row.phrases?.zh || []),
+          ...(row.phrases?.th || []),
+          ...(row.phrases?.en || []),
+        ].slice(0, 4)
+        return all.length
+          ? <Space wrap>{all.map((p: string, i: number) => <Tag key={i}>{p}</Tag>)}</Space>
+          : <span style={{ color: '#999' }}>{t('agentIntentManage.noPhrases')}</span>
+      },
+    },
+    {
+      title: t('agentIntentManage.colRespPreview'),
+      width: 200,
+      render: (_: any, row: any) => {
+        const resp = row.template_responses?.zh
+        return resp
+          ? <span style={{ fontSize: 12, color: '#555' }}>{resp.slice(0, 40)}{resp.length > 40 ? '…' : ''}</span>
+          : <span style={{ color: '#bbb' }}>{t('agentIntentManage.noResp')}</span>
+      },
+    },
+    {
+      title: t('agentIntentManage.colEnabled'),
+      dataIndex: 'enabled',
+      width: 80,
+      render: (_: any, row: any) => (
+        <Switch size="small" checked={row.enabled !== false} onChange={() => toggleEnabled(row)} />
+      ),
+    },
+    {
+      title: t('agentIntentManage.colActions'),
+      width: 80,
+      render: (_: any, row: any) => (
+        <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
+          {t('agentIntentManage.editBtn')}
+        </Button>
+      ),
+    },
   ]
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ fontSize: 18, fontWeight: 700 }}>{t('agentIntentManage.pageTitle')}</div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openNew}>{t('agentIntentManage.newIntent')}</Button>
       </div>
+
+      <Alert
+        icon={<InfoCircleOutlined />}
+        type="info"
+        showIcon
+        message={t('agentIntentManage.bannerTip')}
+        style={{ marginBottom: 16 }}
+      />
 
       <Table
         rowKey="id"
         dataSource={data}
         columns={columns}
         loading={loading}
-        scroll={{ x: 900 }}
+        scroll={{ x: 800 }}
         pagination={{ pageSize: 15 }}
       />
 
@@ -133,35 +179,44 @@ export default function AgentIntentManage() {
         onOk={onSave}
         okText={t('agentIntentManage.saveBtn')}
         cancelText={t('agentIntentManage.cancelBtn')}
-        width={640}
+        width={660}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" initialValues={{ enabled: true }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item label={t('agentIntentManage.formCode')} name="code" rules={[{ required: true }]}>
-              <Input placeholder="如：borrow_guide" disabled={!!editing} />
+              <Input placeholder="例：promo_activity" disabled={!!editing} />
             </Form.Item>
             <Form.Item label={t('agentIntentManage.formName')} name="name" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
-            <Form.Item label={t('agentIntentManage.formModule')} name="module" rules={[{ required: true }]}>
-              <Select options={MODULES} />
-            </Form.Item>
-            <Form.Item label={t('agentIntentManage.formTool')} name="tool">
-              <Input placeholder="如：site_search" />
-            </Form.Item>
-            <Form.Item label={t('agentIntentManage.formTiers')} name="tiers">
-              <Select mode="multiple" options={TIERS} />
-            </Form.Item>
-            <Form.Item label={t('agentIntentManage.formConfirm')} name="requireConfirm" valuePropName="checked">
-              <Switch />
+              <Input placeholder="例：活动咨询特殊模板" />
             </Form.Item>
           </div>
-          <Form.Item label={t('agentIntentManage.formAliasZh')} name="alias_zh"><Input /></Form.Item>
-          <Form.Item label={t('agentIntentManage.formAliasTh')} name="alias_th"><Input /></Form.Item>
-          <Form.Item label={t('agentIntentManage.formAliasEn')} name="alias_en"><Input /></Form.Item>
-          <Form.Item label={t('agentIntentManage.formTemplate')} name="replyTemplate"><TextArea rows={2} /></Form.Item>
-          <Form.Item label={t('agentIntentManage.formFallback')} name="fallbackText"><TextArea rows={2} /></Form.Item>
+
+          <div style={{ fontWeight: 600, marginBottom: 8, color: '#333' }}>触发关键词</div>
+          <Form.Item label={t('agentIntentManage.formPhrasesZh')} name="phrases_zh">
+            <TextArea rows={2} placeholder={'领优惠\n有什么活动'} />
+          </Form.Item>
+          <Form.Item label={t('agentIntentManage.formPhrasesTh')} name="phrases_th">
+            <TextArea rows={2} placeholder={'มีโปรโมชั่น\nส่วนลด'} />
+          </Form.Item>
+          <Form.Item label={t('agentIntentManage.formPhrasesEn')} name="phrases_en">
+            <TextArea rows={2} placeholder={'any promotions\ndiscount'} />
+          </Form.Item>
+
+          <div style={{ fontWeight: 600, marginBottom: 8, color: '#333', marginTop: 8 }}>命中时预设回复</div>
+          <Form.Item label={t('agentIntentManage.formRespZh')} name="resp_zh">
+            <TextArea rows={2} placeholder="（中文预设回复，为空则交给 LLM）" />
+          </Form.Item>
+          <Form.Item label={t('agentIntentManage.formRespTh')} name="resp_th">
+            <TextArea rows={2} placeholder="（泰文预设回复，选填）" />
+          </Form.Item>
+          <Form.Item label={t('agentIntentManage.formRespEn')} name="resp_en">
+            <TextArea rows={2} placeholder="（英文预设回复，选填）" />
+          </Form.Item>
+
+          <Form.Item label="启用" name="enabled" valuePropName="checked">
+            <Switch />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

@@ -69,6 +69,36 @@ export async function chatCompletion(messages, options = {}) {
 }
 
 /**
+ * 带工具的聊天调用（Function Calling）
+ * @param {Array} messages - OpenAI messages 格式（含历史）
+ * @param {Array} tools - OpenAI function definitions（[]表示不用工具）
+ * @returns {{ text: string, tool_call: { id, name, arguments } | null }}
+ */
+export async function chatCompletionWithTools(messages, tools = []) {
+  const client = getClient();
+  const params = {
+    model: _model,
+    messages,
+    max_completion_tokens: 1024
+  };
+  if (tools.length > 0) {
+    params.tools = tools;
+    params.tool_choice = "auto";
+  }
+  const response = await client.chat.completions.create(params);
+  const choice = response.choices[0];
+  const msg = choice.message;
+
+  if (msg.tool_calls && msg.tool_calls.length > 0) {
+    const tc = msg.tool_calls[0];
+    let args = {};
+    try { args = JSON.parse(tc.function.arguments || "{}"); } catch {}
+    return { text: "", tool_call: { id: tc.id, name: tc.function.name, arguments: args } };
+  }
+  return { text: msg.content || "", tool_call: null };
+}
+
+/**
  * 意图识别：输入用户文本，返回结构化意图 JSON
  * @param {string} text - 用户输入
  * @param {string} language - zh/th/en
