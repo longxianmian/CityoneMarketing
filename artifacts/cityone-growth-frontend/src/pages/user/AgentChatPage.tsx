@@ -395,12 +395,23 @@ export default function AgentChatPage() {
     setInput('')
     setThinking(true)
 
+    // 3 秒内无回复，先插入「请稍等」安抚消息
+    const pendingTimer = setTimeout(() => {
+      addMessage(makeText(uid(), {
+        zh: '请稍等，我需要花点时间去查询才能回复…',
+        th: 'กรุณารอสักครู่ กำลังค้นข้อมูลให้…',
+        en: 'Please wait, I need a moment to look that up…',
+      }[lang]))
+    }, 3000)
+
     try {
       if (sessionId) {
         const res = await sendAgentMessage(sessionId, { text: text.trim(), language: lang })
+        clearTimeout(pendingTimer)
         const data = res.data?.data || res.data
         buildAIMessages(data, text.trim()).forEach((m) => addMessage(m))
       } else {
+        clearTimeout(pendingTimer)
         addMessage(makeText(uid(), {
           zh: '⚠️ 小城暂时离线，请稍后再试。',
           th: '⚠️ 小城ออฟไลน์ชั่วคราว กรุณาลองใหม่',
@@ -408,6 +419,7 @@ export default function AgentChatPage() {
         }[lang]))
       }
     } catch (err: unknown) {
+      clearTimeout(pendingTimer)
       const code = (err as { code?: string })?.code
       const isTimeout = code === 'ECONNABORTED' || code === 'ERR_NETWORK' ||
         String((err as { message?: string })?.message).toLowerCase().includes('timeout')
