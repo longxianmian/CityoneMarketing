@@ -2766,5 +2766,53 @@
     "need_confirm": false,
     "final_action": "allowed",
     "created_at": "2026-04-13T08:10:27.129Z"
+  },
+  {
+    "log_id": "al_00174",
+    "session_id": "as_00082",
+    "message_id": "am_00434",
+    "line_user_id": "admin_test",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "今天有什么优惠",
+    "intent_code": "query_coupons",
+    "intent_confidence": 1,
+    "tool_code": "query_coupons",
+    "tool_result_status": "llm_tool",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T08:14:35.058Z"
+  },
+  {
+    "log_id": "al_00175",
+    "session_id": "as_00088",
+    "message_id": "am_00436",
+    "line_user_id": "test_u001",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "今天有什么优惠",
+    "intent_code": "query_coupons",
+    "intent_confidence": 1,
+    "tool_code": "query_coupons",
+    "tool_result_status": "llm_tool",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T08:17:17.606Z"
+  },
+  {
+    "log_id": "al_00176",
+    "session_id": "as_00088",
+    "message_id": "am_00438",
+    "line_user_id": "test_u001",
+    "user_id": "",
+    "identity_tier": "oa_fan",
+    "input_text": "今天有什么优惠",
+    "intent_code": "query_available_coupons",
+    "intent_confidence": 1,
+    "tool_code": "query_available_coupons",
+    "tool_result_status": "llm_tool",
+    "need_confirm": false,
+    "final_action": "allowed",
+    "created_at": "2026-04-13T08:20:09.180Z"
   }
 ]

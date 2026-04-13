@@ -12,13 +12,14 @@
 
 import { chatCompletionWithTools, chatCompletion } from "./agent-llm-service.js";
 import { loadAgentIntents } from "./agent-config-service.js";
-import { execute as nearBySites }   from "./agent-tools/tool-nearby-sites.js";
-import { execute as couponList }    from "./agent-tools/tool-coupon-list.js";
-import { execute as couponRecommend } from "./agent-tools/tool-coupon-recommend.js";
-import { execute as claimBenefits } from "./agent-tools/tool-claim-benefits.js";
-import { execute as invitePoster }  from "./agent-tools/tool-invite-poster.js";
-import { execute as orderQuery }    from "./agent-tools/tool-order-query.js";
-import { execute as pointsQuery }   from "./agent-tools/tool-points-query.js";
+import { execute as nearBySites }       from "./agent-tools/tool-nearby-sites.js";
+import { execute as couponList }        from "./agent-tools/tool-coupon-list.js";
+import { execute as couponRecommend }   from "./agent-tools/tool-coupon-recommend.js";
+import { execute as claimBenefits }     from "./agent-tools/tool-claim-benefits.js";
+import { execute as availableCoupons }  from "./agent-tools/tool-available-coupons.js";
+import { execute as invitePoster }      from "./agent-tools/tool-invite-poster.js";
+import { execute as orderQuery }        from "./agent-tools/tool-order-query.js";
+import { execute as pointsQuery }       from "./agent-tools/tool-points-query.js";
 
 /* ─── 工具函数定义（OpenAI function schema）────────────────────────────── */
 const TOOL_DEFINITIONS = [
@@ -33,8 +34,16 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "query_available_coupons",
+      description: "查询平台当前正在进行的优惠活动、可领取的优惠券。当用户问「今天有什么优惠」「有没有活动」「有什么券可以领」「有什么折扣」「有什么promotion」「มีโปรโมชันอะไร」「มีส่วนลดไหม」时必须调用此工具。",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "query_coupons",
-      description: "查询用户当前持有的可用优惠券列表",
+      description: "查询用户自己券包里已持有的可用优惠券（不是平台活动，是用户已经领到手的券）",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -42,7 +51,7 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "recommend_coupon",
-      description: "根据当前情况推荐最适合用户使用的优惠券",
+      description: "根据当前情况从用户已持有的券中推荐最适合使用的一张",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -88,13 +97,14 @@ const TOOL_DEFINITIONS = [
 
 /* ─── 工具执行映射 ────────────────────────────────────────────────────────── */
 const TOOL_EXECUTOR = {
-  query_points_balance:  (args, ctx) => pointsQuery(args, ctx),
-  query_coupons:         (args, ctx) => couponList(args, ctx),
-  recommend_coupon:      (args, ctx) => couponRecommend(args, ctx),
-  query_nearby_stations: (args, ctx) => nearBySites(args, ctx),
-  query_benefits:        (args, ctx) => claimBenefits(args, ctx),
-  generate_invite_link:  (args, ctx) => invitePoster(args, ctx),
-  query_recent_orders:   (args, ctx) => orderQuery(args, ctx),
+  query_points_balance:   (args, ctx) => pointsQuery(args, ctx),
+  query_available_coupons:(args, ctx) => availableCoupons(args, ctx),
+  query_coupons:          (args, ctx) => couponList(args, ctx),
+  recommend_coupon:       (args, ctx) => couponRecommend(args, ctx),
+  query_nearby_stations:  (args, ctx) => nearBySites(args, ctx),
+  query_benefits:         (args, ctx) => claimBenefits(args, ctx),
+  generate_invite_link:   (args, ctx) => invitePoster(args, ctx),
+  query_recent_orders:    (args, ctx) => orderQuery(args, ctx),
 };
 
 /* ─── 系统提示词组装 ──────────────────────────────────────────────────────── */
@@ -121,7 +131,12 @@ function buildSystemPrompt(roleKeywords, userContext) {
     `当前用户：${tierMap[userContext.identity_tier] || "未知身份"}`,
     `回复语言：必须使用${langMap[lang] || "中文"}`,
     "",
-    "工具调用规则：需要查询数据时主动调用对应工具，不要猜测或编造数据。工具返回数据后，用简短自然语言摘要要点。",
+    "【工具调用规则】需要查询任何数据时必须调用对应工具，严禁猜测或编造数据。尤其是：",
+    "  - 用户询问优惠/活动/折扣/有什么券 → 必须调用 query_available_coupons",
+    "  - 用户询问我的积分/余额 → 必须调用 query_points_balance",
+    "  - 用户询问我有什么券/我的券包 → 必须调用 query_coupons",
+    "  - 用户询问附近站点/哪里可以借 → 必须调用 query_nearby_stations",
+    "工具返回数据后，用简短自然语言摘要要点，不要重复工具原始数据。",
     "",
     "【超出服务范围处理】如果用户的问题与共享充电宝、积分、卡券、站点、订单、会员等服务完全无关（如问天气、翻译、新闻、故事、代码等），",
     lang === "th"
@@ -315,6 +330,11 @@ function buildToolFallback(toolName, toolResult, language) {
   const ok  = toolResult?.success !== false;
 
   const T = {
+    query_available_coupons: {
+      zh: ok ? (res.count > 0 ? `平台目前有 ${res.count} 个优惠活动，快去福利中心领取吧～` : "目前平台暂无进行中的优惠活动，请稍后再看哦。") : "优惠活动查询暂时不可用。",
+      th: ok ? (res.count > 0 ? `ตอนนี้มีโปรโมชัน ${res.count} รายการ ไปรับได้เลย!` : "ยังไม่มีโปรโมชันที่กำลังดำเนินอยู่") : "ไม่สามารถดึงข้อมูลโปรโมชันได้",
+      en: ok ? (res.count > 0 ? `There are ${res.count} active promotion(s) now. Go claim them!` : "No active promotions at the moment.") : "Promotion query unavailable.",
+    },
     query_points_balance: {
       zh: ok ? `您当前可用积分 ${res.available_points ?? 0} 分，累计 ${res.total_points ?? 0} 分。` : "积分查询暂时不可用，请稍后再试。",
       th: ok ? `คะแนนที่ใช้ได้ ${res.available_points ?? 0} คะแนน` : "ไม่สามารถดึงข้อมูลคะแนนได้",
