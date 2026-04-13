@@ -138,7 +138,7 @@ function buildSystemPrompt(roleKeywords, userContext) {
 const IN_SCOPE_RE = /充电宝|共享充电|充电|电宝|站点|卡券|优惠券|积分|借电|还电|会员|订单|福利|邀请|领取|兑换|coupon|points|power.?bank|powerbank|charging|station|order|member|welfare|พาวเวอร์แบงก์|แบตสำรอง|คูปอง|คะแนน|ออเดอร์|สมาชิก|สถานี/i;
 
 // 明确超出服务范围的关键词
-const OUT_OF_SCOPE_RE = /天气|气温|温度|下雨|晴天|台风|预报|weather|forecast|temperature|rain|sunny|cloudy|อากาศ|พยากรณ์|ฝน|แดด|ร้อน|หนาว|新闻|头条|时政|政治|股票|基金|理财|炒股|比特币|news|politics|stock|investment|crypto|ข่าว|การเมือง|หุ้น|帮我翻译|翻译一下|translate this|翻訳|แปลภาษา|讲个故事|说个笑话|写首诗|写作文|帮我写|tell me a story|write a poem|tell a joke|write.*for me|เล่านิทาน|เล่าเรื่อง|足球|篮球|球赛|比赛结果|football.*score|basketball|sports result|ผลบอล|ผลกีฬา/i;
+const OUT_OF_SCOPE_RE = /天气|气温|温度|下雨|晴天|台风|预报|weather|forecast|temperature|rain|sunny|cloudy|อากาศ|พยากรณ์|ฝน|แดด|ร้อน|หนาว|新闻|头条|时政|政治|股票|基金|理财|炒股|比特币|news|politics|stock|investment|crypto|ข่าว|การเมือง|หุ้น|帮我翻译|翻译一下|translate this|翻訳|แปลภาษา|讲个故事|说个笑话|写首诗|写作文|帮我写|tell me a story|write a poem|tell a joke|write.*for me|เล่านิทาน|เล่าเรื่อง|足球|篮球|球赛|比赛结果|football.*score|basketball|sports result|ผลบอล|ผลกีฬา|打车|叫车|打的|网约车|出租车|叫滴滴|滴滴|grab|taxi|เรียกรถ|แท็กซี่|กร๊าบ|点外卖|订餐|外卖|美团|饿了么|food delivery|สั่งอาหาร|เดลิเวอรี|导航|地图|路线|怎么走|maps|navigation|แผนที่|นำทาง|酒店|宾馆|订房|hotel|ที่พัก|โรงแรม|机票|火车票|高铁|飞机|订票|flight|ticket|ตั๋ว|สายการบิน|医院|看病|医生|药|诊所|hospital|doctor|medicine|โรงพยาบาล|หมอ|ยา|借钱|贷款|转账|还款|loan|transfer money|กู้เงิน|โอนเงิน|购物|买东西|淘宝|京东|shopping|สั่งซื้อ|ช้อปปิ้ง|唱歌|推荐歌曲|音乐|歌词|music|song|เพลง|ฟังเพลง|拍照|相册|图片|photo|camera|รูปภาพ|กล้อง/i;
 
 const OUT_OF_SCOPE_REPLY = {
   zh: "抱歉哦，我只提供跟充电宝相关的服务哦",
