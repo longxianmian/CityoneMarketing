@@ -9,6 +9,7 @@ const agentHttp = axios.create({
 /** 初始化或恢复会话（后端7天内同用户自动恢复） */
 export function initAgentSession(data: {
   line_user_id?: string
+  user_id?: string
   site_id?: string
   entry_type?: string
   entry_code?: string

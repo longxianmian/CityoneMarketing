@@ -4,6 +4,7 @@ import { SendOutlined, UserOutlined, PlusOutlined, SmileOutlined } from '@ant-de
 import { useI18n } from '../../i18n'
 import useLineUserStore from '../../store/lineUser'
 import useAgentStore, { AgentMessage, AgentCard } from '../../store/agent'
+import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import UserPageHeader from '../../components/user/UserPageHeader'
 import AgentMessageList from '../../components/user/agent/AgentMessageList'
 import AgentIdentityBanner from '../../components/user/agent/AgentIdentityBanner'
@@ -204,6 +205,7 @@ export default function AgentChatPage() {
   const navigate = useNavigate()
   const { language } = useI18n()
   const { profile } = useLineUserStore()
+  const effectiveUserId = useEffectiveUserId()
   const lang = (['zh', 'th', 'en'].includes(language) ? language : 'zh') as Lang
 
   const {
@@ -261,7 +263,7 @@ export default function AgentChatPage() {
     const doInit = async () => {
       try {
         const lineUserId = profile?.lineUserId || 'admin_test'
-        const res = await initAgentSession({ line_user_id: lineUserId, language: lang })
+        const res = await initAgentSession({ line_user_id: lineUserId, user_id: effectiveUserId, language: lang })
         const data = res.data?.data || res.data || {}
 
         const sid: string = data.session_id || data.sessionId || ''
