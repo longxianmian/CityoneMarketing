@@ -348,7 +348,7 @@ export default function ProductDetailPage() {
         {videoStarted && coverVideo ? (
           <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }} onClick={toggleVideoPlay}>
             <video ref={heroVideoRef} src={coverVideo} autoPlay loop playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
             {videoPaused && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -360,7 +360,7 @@ export default function ProductDetailPage() {
         ) : coverImage ? (
           <div style={{ position: 'relative', width: '100%', height: '100%', cursor: coverVideo ? 'pointer' : 'default' }}
                onClick={coverVideo ? () => setVideoStarted(true) : undefined}>
-            <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} placeholderStyle={{ width: '100%', height: 220 }} />
+            <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} placeholderStyle={{ width: '100%', height: 220 }} />
             {coverVideo && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
