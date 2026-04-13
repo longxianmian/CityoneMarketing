@@ -148,12 +148,12 @@ function buildSystemPrompt(roleKeywords, userContext) {
   ].join("\n");
 }
 
-/* ─── 超出服务范围快速检测（零延迟，无 LLM 调用）───────────────────────── */
-// 充电宝相关关键词（只要包含其中任意一个，就视为在服务范围内）
+/* ─── 服务范围判断 ────────────────────────────────────────────────────────── */
+/**
+ * IN_SCOPE_RE：充电宝强相关关键词，命中则直接跳过分类器进入工具管道。
+ * 这是一条快速通道，不是穷举列表——漏网的由 LLM 分类器兜底。
+ */
 const IN_SCOPE_RE = /充电宝|共享充电|充电|电宝|站点|卡券|优惠券|积分|借电|还电|会员|订单|福利|邀请|领取|兑换|coupon|points|power.?bank|powerbank|charging|station|order|member|welfare|พาวเวอร์แบงก์|แบตสำรอง|คูปอง|คะแนน|ออเดอร์|สมาชิก|สถานี/i;
-
-// 明确超出服务范围的关键词
-const OUT_OF_SCOPE_RE = /天气|气温|温度|下雨|晴天|台风|预报|weather|forecast|temperature|rain|sunny|cloudy|อากาศ|พยากรณ์|ฝน|แดด|ร้อน|หนาว|新闻|头条|时政|政治|股票|基金|理财|炒股|比特币|news|politics|stock|investment|crypto|ข่าว|การเมือง|หุ้น|帮我翻译|翻译一下|translate this|翻訳|แปลภาษา|讲个故事|说个笑话|写首诗|写作文|帮我写|tell me a story|write a poem|tell a joke|write.*for me|เล่านิทาน|เล่าเรื่อง|足球|篮球|球赛|比赛结果|football.*score|basketball|sports result|ผลบอล|ผลกีฬา|打车|叫车|打的|网约车|出租车|叫滴滴|滴滴|grab|taxi|เรียกรถ|แท็กซี่|กร๊าบ|点外卖|订餐|外卖|美团|饿了么|food delivery|สั่งอาหาร|เดลิเวอรี|导航|地图|路线|怎么走|maps|navigation|แผนที่|นำทาง|酒店|宾馆|订房|hotel|ที่พัก|โรงแรม|机票|火车票|高铁|飞机|订票|flight|ticket|ตั๋ว|สายการบิน|医院|看病|医生|药|诊所|hospital|doctor|medicine|โรงพยาบาล|หมอ|ยา|借钱|贷款|转账|还款|loan|transfer money|กู้เงิน|โอนเงิน|购物|买东西|淘宝|京东|shopping|สั่งซื้อ|ช้อปปิ้ง|唱歌|推荐歌曲|音乐|歌词|music|song|เพลง|ฟังเพลง|拍照|相册|图片|photo|camera|รูปภาพ|กล้อง/i;
 
 const OUT_OF_SCOPE_REPLY = {
   zh: "抱歉哦，我只提供跟充电宝相关的服务哦",
@@ -161,13 +161,42 @@ const OUT_OF_SCOPE_REPLY = {
   en: "Sorry, I only provide services related to power banks.",
 };
 
-function checkOutOfScope(text, language) {
-  if (IN_SCOPE_RE.test(text)) return { matched: false };  // 含充电宝关键词→不超出
-  if (OUT_OF_SCOPE_RE.test(text)) {
-    const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
-    return { matched: true, text: OUT_OF_SCOPE_REPLY[lang] };
+/**
+ * LLM 分类器（仅在 IN_SCOPE_RE 未命中时调用）
+ *
+ * 设计原则：
+ *   - 只问 IN_SCOPE / OUT_OF_SCOPE，max_tokens=5，极轻量，< 2s 完成
+ *   - 在 5 秒"请稍等"计时器触发前完成判断：
+ *       OUT_OF_SCOPE → 立刻返回拒绝文案（用户看不到"请稍等"）
+ *       IN_SCOPE     → 进入工具管道（用户看到"请稍等"是合理预期）
+ *   - 分类失败时降级为 IN_SCOPE，保证主流程不中断
+ */
+async function classifyScope(text) {
+  try {
+    const reply = await chatCompletion(
+      [
+        {
+          role: "system",
+          content:
+            "You are a strict scope classifier for a shared power bank rental chatbot. " +
+            "Reply with EXACTLY one token: IN_SCOPE or OUT_OF_SCOPE. " +
+            "IN_SCOPE = questions about: power bank rental/return, charging stations, " +
+            "loyalty points, coupons/discounts, orders, membership, invite rewards, " +
+            "or general greetings (hi/hello/你好/สวัสดี). " +
+            "OUT_OF_SCOPE = everything else (food, weather, travel, finance, news, " +
+            "entertainment, translation, coding, etc.).",
+        },
+        { role: "user", content: String(text).slice(0, 200) },
+      ],
+      { maxTokens: 5 }
+    );
+    return String(reply).trim().toUpperCase().includes("IN_SCOPE")
+      ? "IN_SCOPE"
+      : "OUT_OF_SCOPE";
+  } catch (err) {
+    console.warn("[pipeline] 分类器调用失败，降级为 IN_SCOPE:", err.message);
+    return "IN_SCOPE";
   }
-  return { matched: false };
 }
 
 /* ─── 关键词模板检查（管理端配置的特殊情况）────────────────────────────── */
@@ -218,15 +247,22 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
     };
   }
 
-  /* ── Step 1b: 超出服务范围快速检测（无 LLM 调用，即时返回）─────────── */
-  const oosCheck = checkOutOfScope(userText, language);
-  if (oosCheck.matched) {
-    return {
-      text:            oosCheck.text,
-      display_payload: null,
-      suggestions:     [],
-      source:          "out_of_scope",
-    };
+  /* ── Step 1b: 服务范围判断 ───────────────────────────────────────────── */
+  // IN_SCOPE_RE 命中 → 快速通道，直接进工具管道（跳过 LLM 分类，节省一次调用）
+  // 未命中 → 调用轻量 LLM 分类器（max_tokens=5，< 2s，在 5s 计时器前完成）
+  //   OUT_OF_SCOPE → 立刻返回拒绝文案，用户看不到"请稍等"
+  //   IN_SCOPE     → 继续走工具管道，"请稍等"出现是合理的
+  if (!IN_SCOPE_RE.test(userText)) {
+    const scope = await classifyScope(userText);
+    if (scope === "OUT_OF_SCOPE") {
+      const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
+      return {
+        text:            OUT_OF_SCOPE_REPLY[lang],
+        display_payload: null,
+        suggestions:     [],
+        source:          "out_of_scope",
+      };
+    }
   }
 
   /* ── Step 2: 构建系统提示词 + 历史消息 ──────────────────────────────── */
