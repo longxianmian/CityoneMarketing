@@ -67,3 +67,7 @@ artifacts/cityone-growth-backend/backend/data/points-accounts.json
 artifacts/cityone-growth-backend/backend/data/points-ledger.json
 artifacts/cityone-growth-backend/backend/data/agent-sessions.json
 artifacts/cityone-growth-backend/backend/data/agent-messages.json
+artifacts/cityone-growth-backend/backend/data/agent-action-logs.json
+
+# Replit 对话附件（截图、临时文本）
+attached_assets/
