@@ -76,6 +76,15 @@ The project is structured as a pnpm workspace monorepo, with distinct `artifacts
 - **Activity Prefetch:** `src/cache/activityCache.ts` prefetches activity detail data when WelfareHomePage loads its activity list, so clicking an activity card renders instantly from cache.
 - **useEffectiveUserId Hook:** `src/hooks/useEffectiveUserId.ts` — priority chain: `canonicalUserId > lineUserId > getDeviceUserId()`. Used in MinePage, FollowOAPage, and all user-identity-dependent pages.
 
+**AI Agent「问问」架构（agent-llm-pipeline.js）：**
+- 两层工具设计（参考阿里店小蜜 / OpenAI GPT Actions 方案），5 个工具：
+  - **Layer 1 平台知识层（无状态）**：`search_platform_content` — 统一扫描 coupons.json / activities.json / mall-items.json，运营新增内容自动生效，零代码变更
+  - **Layer 2 用户私有层（有状态）**：`get_user_account`（积分+钱包）、`query_nearby_stations`、`generate_invite_link`、`get_user_orders`
+- 管道流程：关键词模板 → OUT_OF_SCOPE 快速拦截 → LLM function calling（5工具）→ 工具执行 → LLM摘要(max_tokens=256) → buildToolFallback兜底
+- 超出范围（天气/打车/外卖等）：IN_SCOPE_RE 优先，OUT_OF_SCOPE_RE 兜底，~150ms 零 LLM 调用直接返回
+- 前端超时 60s，5秒无回复插入"请稍等"提示消息
+- 关键工具文件：`tool-platform-search.js`（平台内容）、`tool-user-account.js`（用户账户）
+
 **API Architecture & Routing:**
 - A three-layer proxy architecture: `Browser → Vite → api-server → growth-backend`.
 - Specific proxying rules for different route types (e.g., `POST /api/upload` before body-parser, native `http.request` for `/uploads/*` and `/api/agent/*`).
