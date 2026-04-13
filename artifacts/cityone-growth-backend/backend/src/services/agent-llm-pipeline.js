@@ -153,7 +153,7 @@ function buildSystemPrompt(roleKeywords, userContext) {
  * IN_SCOPE_RE：充电宝强相关关键词，命中则直接跳过分类器进入工具管道。
  * 这是一条快速通道，不是穷举列表——漏网的由 LLM 分类器兜底。
  */
-const IN_SCOPE_RE = /充电宝|共享充电|充电|电宝|站点|卡券|优惠券|积分|借电|还电|会员|订单|福利|邀请|领取|兑换|coupon|points|power.?bank|powerbank|charging|station|order|member|welfare|พาวเวอร์แบงก์|แบตสำรอง|คูปอง|คะแนน|ออเดอร์|สมาชิก|สถานี|你是谁|你叫什么|你能做什么|介绍.*自己|你好|hello|hi\b|สวัสดี|who are you|what can you do/i;
+const IN_SCOPE_RE = /充电宝|共享充电|充电|电宝|站点|卡券|优惠|折扣|活动|特惠|促销|积分|借电|还电|会员|订单|福利|邀请|领取|兑换|coupon|discount|promotion|deal|offer|points|power.?bank|powerbank|charging|station|order|member|welfare|โปรโมชัน|ส่วนลด|พาวเวอร์แบงก์|แบตสำรอง|คูปอง|คะแนน|ออเดอร์|สมาชิก|สถานี|你是谁|你叫什么|你能做什么|介绍.*自己|你好|hello|hi\b|สวัสดี|who are you|what can you do/i;
 
 const OUT_OF_SCOPE_REPLY = {
   zh: "抱歉哦，我只提供跟充电宝相关的服务哦",
@@ -178,15 +178,16 @@ async function classifyScope(text) {
         {
           role: "system",
           content:
-            "You are a strict scope classifier for a shared power bank rental chatbot. " +
+            "You are a scope classifier for a shared power bank rental chatbot. " +
             "Reply with EXACTLY one token: IN_SCOPE or OUT_OF_SCOPE. " +
-            "IN_SCOPE includes: power bank rental/return, charging stations, " +
-            "loyalty points, coupons/discounts, orders, membership, invite rewards, " +
-            "general greetings (hi/hello/你好/สวัสดี/早上好/下午好), " +
-            "questions about the assistant itself (who are you/你是谁/你叫什么/你能做什么/介绍一下你自己/what can you do), " +
-            "and any question that could reasonably relate to a power bank rental service. " +
-            "OUT_OF_SCOPE = clearly unrelated topics (food delivery, weather forecast, " +
-            "travel booking, financial trading, entertainment, translation requests, coding help, etc.).",
+            "When in doubt, ALWAYS reply IN_SCOPE. " +
+            "IN_SCOPE: power bank rental/return, charging, stations, " +
+            "promotions/discounts/deals/offers (今天有什么优惠/有什么活动/有折扣吗), " +
+            "loyalty points, coupons, orders, membership, invite rewards, " +
+            "greetings, questions about this assistant. " +
+            "OUT_OF_SCOPE: ONLY when the question is CLEARLY about food delivery, " +
+            "weather, travel booking, stock trading, or other topics with " +
+            "absolutely zero relation to a power bank rental service.",
         },
         { role: "user", content: String(text).slice(0, 200) },
       ],
