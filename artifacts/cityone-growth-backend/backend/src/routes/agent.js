@@ -228,13 +228,21 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
 
     const pipelineResult = await runLLMPipeline(text, sessionHistory, roleKeywords, userContext);
 
-    // 5. 构建回复 payload（保留 cards / display_payload 结构）
+    // 5. 构建回复 payload（支持向量召回新字段）
+    const dispatchMode = pipelineResult.dispatch_mode || "chat_only";
+    const hasConfirmAction = !!pipelineResult.display_payload?.confirm_action;
     const replyPayload = {
-      reply_type:      pipelineResult.display_payload ? "tool_result" : "text",
+      reply_type:      hasConfirmAction
+                         ? "confirm_request"
+                         : (pipelineResult.display_payload?.cards?.length > 0 ? "tool_result" : "text"),
       text:            pipelineResult.text || "",
       display_payload: pipelineResult.display_payload || null,
       suggestions:     pipelineResult.suggestions || [],
       source:          pipelineResult.source || "llm",
+      intent_code:     pipelineResult.intent_code || "",
+      dispatch_mode:   dispatchMode,
+      // 确认卡片字段（tool_then_confirm 时）
+      confirm_action:  pipelineResult.display_payload?.confirm_action || null,
     };
 
     // 6. 写入 Agent 回复消息

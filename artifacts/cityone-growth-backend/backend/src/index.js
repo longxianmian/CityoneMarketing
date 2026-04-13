@@ -244,6 +244,10 @@ import {
   handleRepairActionsCreate,
   handleRepairActionsUpdate,
   handleRepairActionsDelete,
+  handleSeedIntentVectors,
+  handleReEmbedIntent,
+  handleRecallTest,
+  handleIntentLabelsList,
 } from "./routes/agent-admin.js";
 import {
   handleDeviceBorrowEventWebhook,
@@ -1287,6 +1291,20 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && /^\/api\/admin\/ops\/repair-actions\/\d+\/delete$/.test(url.pathname)) {
       return handleRepairActionsDelete(req, res, url, sendJson);
+    }
+
+    // ── 向量意图管理（语义召回）──────────────────────────────────────────────
+    if (req.method === "POST" && url.pathname === "/api/agent-admin/seed-intent-vectors") {
+      return handleSeedIntentVectors(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/agent-admin/re-embed-intent") {
+      return handleReEmbedIntent(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/agent-admin/recall-test") {
+      return handleRecallTest(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "GET" && url.pathname === "/api/agent-admin/intent-labels") {
+      return handleIntentLabelsList(req, res, url, sendJson);
     }
 
     // ── 用户端积分接口 ────────────────────────────────────────────────────────

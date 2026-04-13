@@ -76,7 +76,15 @@ The project is structured as a pnpm workspace monorepo, with distinct `artifacts
 - **Activity Prefetch:** `src/cache/activityCache.ts` prefetches activity detail data when WelfareHomePage loads its activity list, so clicking an activity card renders instantly from cache.
 - **useEffectiveUserId Hook:** `src/hooks/useEffectiveUserId.ts` — priority chain: `canonicalUserId > lineUserId > getDeviceUserId()`. Used in MinePage, FollowOAPage, and all user-identity-dependent pages.
 
-**AI Agent「问问」架构（agent-llm-pipeline.js）：**
+**AI Agent「问问」新架构（向量召回 + dispatch_mode 分流）：**
+- 架构路线：意图标签向量化 → pgvector 语义召回（当前：LLM 分类降级）→ dispatch_mode 分流 → 卡片输出
+- dispatch_mode 共 5 种：`chat_only`（1次LLM无工具）/ `card_only`（1次LLM+前端INTENT_ACTION_CARDS）/ `tool_then_card`（直接调工具+1次LLM摘要）/ `tool_then_confirm`（返回confirm_action payload）/ `out_of_scope`（0次LLM）
+- 核心文件：`agent-vector-service.js`（意图检索/LLM分类/种子）/ `agent-llm-pipeline.js`（管道主入口）/ `agent-vector-service.js`
+- 14条意图均配置 dispatch_mode/tool_name/card_template_key/similarity_threshold（见 `agent-intents.json`）
+- pgvector：`wenwen_intent_labels` 表（1536维embedding，ivfflat索引），migration 015
+- 管理端接口：`POST /api/agent-admin/seed-intent-vectors`（批量种子）/ `POST /api/agent-admin/recall-test`（召回测试）/ `GET /api/agent-admin/intent-labels`（列表）
+- 当前降级策略：embedding 不可用时自动降级到 `recognizeIntentWithLLM`（已验证），dispatch_mode 路由仍全量生效
+- 若需启用真正向量召回，设置 `OPENAI_API_KEY`（标准 OpenAI 端点支持 /embeddings），再调用 seed 接口
 - 两层工具设计（参考阿里店小蜜 / OpenAI GPT Actions 方案），5 个工具：
   - **Layer 1 平台知识层（无状态）**：`search_platform_content` — 统一扫描 coupons.json / activities.json / mall-items.json，运营新增内容自动生效，零代码变更
   - **Layer 2 用户私有层（有状态）**：`get_user_account`（积分+钱包）、`query_nearby_stations`、`generate_invite_link`、`get_user_orders`

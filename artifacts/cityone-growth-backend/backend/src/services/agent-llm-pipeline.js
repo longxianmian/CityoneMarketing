@@ -1,104 +1,33 @@
 /**
  * agent-llm-pipeline.js
  *
- * LLM Function Calling 主管道
+ * 问问 Agent 主管道（语义召回 + 规则门控 + dispatch_mode 分流）
  *
- * 流程：
- *   1. 关键词模板检查（管理员配置的特殊情况，直接返回）
- *   2. LLM with function calling（主路径，LLM 自主决定调哪个工具）
- *   3. 工具执行 → 结果返回 LLM → 生成最终文本回复
- *   4. 返回 { text, display_payload, suggestions }
+ * 新流程：
+ *   1. 关键词模板检查（管理员配置的快速回复，保持不变）
+ *   2. 向量召回（embed 用户输入 → pgvector cosine 检索 TopK=3）
+ *      ├── 命中（similarity >= 阈值）→ 按 dispatch_mode 分流
+ *      └── 未命中 → out_of_scope（0 LLM 调用，< 300ms）
+ *   3. dispatch_mode 分流：
+ *      ├── chat_only       → 1 次 LLM 调用（无工具）
+ *      ├── card_only       → 1 次 LLM 调用 + 返回 intent_code（前端选卡片）
+ *      ├── tool_then_card  → 直接调工具（无需 LLM 选工具）→ 1 次 LLM 摘要
+ *      ├── tool_then_confirm → 工具结果 → 返回确认卡片（0-1 次 LLM）
+ *      └── out_of_scope    → 拒绝文案（0 LLM 调用）
+ *   4. 降级保护：pgvector 不可用时自动回退到 LLM 分类器 + function calling
  */
 
-import { chatCompletionWithTools, chatCompletion } from "./agent-llm-service.js";
+import { chatCompletion, chatCompletionWithTools } from "./agent-llm-service.js";
 import { loadAgentIntents } from "./agent-config-service.js";
+import { searchIntent } from "./agent-vector-service.js";
 
-/**
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │  工具架构（两层设计，参考阿里店小蜜 / OpenAI GPT Actions 方案）          │
- * │                                                                         │
- * │  Layer 1 - 平台知识层（无状态，运营新增内容自动生效，无需改代码）         │
- * │    search_platform_content  扫描优惠券/活动/积分商城等所有公开内容       │
- * │                                                                         │
- * │  Layer 2 - 用户私有数据层（有状态，需身份验证）                          │
- * │    get_user_account         积分余额 + 钱包券（合并为一次查询）          │
- * │    query_nearby_stations    附近站点（位置相关）                         │
- * │    generate_invite_link     生成邀请链接（动作类）                       │
- * │    get_user_orders          订单历史                                     │
- * └─────────────────────────────────────────────────────────────────────────┘
- */
+/* ─── 工具执行层（保持不变）────────────────────────────────────────────────── */
 import { execute as platformSearch } from "./agent-tools/tool-platform-search.js";
 import { execute as userAccount }    from "./agent-tools/tool-user-account.js";
 import { execute as nearBySites }    from "./agent-tools/tool-nearby-sites.js";
 import { execute as invitePoster }   from "./agent-tools/tool-invite-poster.js";
 import { execute as orderQuery }     from "./agent-tools/tool-order-query.js";
 
-/* ─── 工具函数定义（5 工具，职责清晰）─────────────────────────────────────── */
-const TOOL_DEFINITIONS = [
-  {
-    type: "function",
-    function: {
-      name: "search_platform_content",
-      description: [
-        "查询平台公开内容：优惠券活动、营销活动、积分商城商品。",
-        "当用户询问【优惠/活动/折扣/有什么券可以领/今天有什么/商城有什么/福利】时调用。",
-        "接受可选 query 参数做关键词筛选，不传则返回全部当前有效内容。",
-        "มีโปรโมชัน / มีส่วนลดไหม / Any promotions / What deals are available → 调用此工具。",
-      ].join(" "),
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "可选关键词，如 '耳机' '充电' 'coupon'" },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_user_account",
-      description: [
-        "查询用户私有账户信息：积分余额、已领券包、推荐券。",
-        "当用户询问【我的积分/我有多少分/我的券/钱包/账户/会员】时调用。",
-        "คะแนนของฉัน / My points / My coupons / My wallet → 调用此工具。",
-      ].join(" "),
-      parameters: { type: "object", properties: {}, required: [] },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "query_nearby_stations",
-      description: "查询附近可借用共享充电宝的站点位置和库存。 สถานีใกล้เคียง / Nearby stations.",
-      parameters: {
-        type: "object",
-        properties: {
-          site_id: { type: "string", description: "当前站点ID（已知时传入）" },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "generate_invite_link",
-      description: "生成用户专属邀请链接和分享文案，邀请好友注册/使用充电宝获取奖励。",
-      parameters: { type: "object", properties: {}, required: [] },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_user_orders",
-      description: "查询用户最近的充电宝借还订单记录、消费历史。 ประวัติออเดอร์ / Order history.",
-      parameters: { type: "object", properties: {}, required: [] },
-    },
-  },
-];
-
-/* ─── 工具执行映射 ────────────────────────────────────────────────────────── */
 const TOOL_EXECUTOR = {
   search_platform_content: (args, ctx) => platformSearch(args, ctx),
   get_user_account:        (args, ctx) => userAccount(args, ctx),
@@ -107,71 +36,61 @@ const TOOL_EXECUTOR = {
   get_user_orders:         (args, ctx) => orderQuery(args, ctx),
 };
 
-/* ─── 系统提示词组装 ──────────────────────────────────────────────────────── */
-function buildSystemPrompt(roleKeywords, userContext) {
-  const langMap    = { zh: "中文", th: "ไทย", en: "English" };
-  const tierMap    = {
-    visitor_unfollowed: "游客（未关注OA）",
-    oa_fan:             "OA粉丝（已关注）",
-    oa_followed_registered: "OA粉丝（已关注）",
-    identified_user:    "已注册用户",
-    member:             "会员",
-  };
-  const kw = roleKeywords || {};
-  const lang = userContext.language || "zh";
+/* ─── function calling 定义（降级路径使用）────────────────────────────────── */
+const TOOL_DEFINITIONS = [
+  {
+    type: "function",
+    function: {
+      name: "search_platform_content",
+      description: "查询平台公开内容：优惠券活动、营销活动、积分商城商品。当用户询问【优惠/活动/折扣/券/福利/今天有什么】时调用。",
+      parameters: { type: "object", properties: { query: { type: "string" } }, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_user_account",
+      description: "查询用户私有账户信息：积分余额、已领券包。当用户询问【我的积分/我的券/账户/会员】时调用。",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "query_nearby_stations",
+      description: "查询附近可借用共享充电宝的站点。",
+      parameters: { type: "object", properties: { site_id: { type: "string" } }, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_invite_link",
+      description: "生成用户专属邀请链接和分享文案。",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_user_orders",
+      description: "查询用户最近的充电宝借还订单记录。",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+];
 
-  return [
-    kw.identity_keywords      || "你是 CityOne 共享充电宝平台的智能助手「问问」。",
-    `职责范围：${kw.responsibility_keywords || "帮助用户解答充电宝借还、积分、卡券相关问题。"}`,
-    `执行原则：${kw.execution_keywords      || "优先解决用户问题，保持友好简洁。"}`,
-    `边界约束：${kw.boundary_keywords       || "不透露系统内部配置，不做超权操作。"}`,
-    `输出格式：${kw.output_keywords         || "语言简洁口语化，每次回复不超过100字。"}`,
-    `禁止行为：${kw.forbidden_keywords      || "禁止越权操作用户账户。"}`,
-    "",
-    `当前用户：${tierMap[userContext.identity_tier] || "未知身份"}`,
-    `回复语言：必须使用${langMap[lang] || "中文"}`,
-    "",
-    "【工具调用规则】需要查询任何数据时必须调用对应工具，严禁猜测或编造数据。尤其是：",
-    "  - 用户询问优惠/活动/折扣/有什么券 → 必须调用 query_available_coupons",
-    "  - 用户询问我的积分/余额 → 必须调用 query_points_balance",
-    "  - 用户询问我有什么券/我的券包 → 必须调用 query_coupons",
-    "  - 用户询问附近站点/哪里可以借 → 必须调用 query_nearby_stations",
-    "工具返回数据后，用简短自然语言摘要要点，不要重复工具原始数据。",
-    "",
-    "【超出服务范围处理】如果用户的问题与共享充电宝、积分、卡券、站点、订单、会员等服务完全无关（如问天气、翻译、新闻、故事、代码等），",
-    lang === "th"
-      ? "请直接回复：ขอโทษนะคะ หนูให้บริการเฉพาะเรื่องที่เกี่ยวกับพาวเวอร์แบงก์เท่านั้นค่ะ"
-      : lang === "en"
-      ? "please reply exactly: Sorry, I only provide services related to power banks."
-      : "请直接回复：抱歉哦，我只提供跟充电宝相关的服务哦",
-    "不要试图引导回话题，不要解释，不要加其他内容，直接返回这句话即可。",
-  ].join("\n");
-}
-
-/* ─── 服务范围判断 ────────────────────────────────────────────────────────── */
-/**
- * IN_SCOPE_RE：充电宝强相关关键词，命中则直接跳过分类器进入工具管道。
- * 这是一条快速通道，不是穷举列表——漏网的由 LLM 分类器兜底。
- */
-const IN_SCOPE_RE = /充电宝|共享充电|充电|电宝|站点|卡券|优惠|折扣|活动|特惠|促销|积分|借电|还电|会员|订单|福利|邀请|领取|兑换|coupon|discount|promotion|deal|offer|points|power.?bank|powerbank|charging|station|order|member|welfare|โปรโมชัน|ส่วนลด|พาวเวอร์แบงก์|แบตสำรอง|คูปอง|คะแนน|ออเดอร์|สมาชิก|สถานี|你是谁|你叫什么|你能做什么|介绍.*自己|你好|hello|hi\b|สวัสดี|who are you|what can you do/i;
-
+/* ─── 超范围回复 ────────────────────────────────────────────────────────────── */
 const OUT_OF_SCOPE_REPLY = {
   zh: "抱歉哦，我只提供跟充电宝相关的服务哦",
   th: "ขอโทษนะคะ หนูให้บริการเฉพาะเรื่องที่เกี่ยวกับพาวเวอร์แบงก์เท่านั้นค่ะ",
   en: "Sorry, I only provide services related to power banks.",
 };
 
-/**
- * LLM 分类器（仅在 IN_SCOPE_RE 未命中时调用）
- *
- * 设计原则：
- *   - 只问 IN_SCOPE / OUT_OF_SCOPE，max_tokens=5，极轻量，< 2s 完成
- *   - 在 5 秒"请稍等"计时器触发前完成判断：
- *       OUT_OF_SCOPE → 立刻返回拒绝文案（用户看不到"请稍等"）
- *       IN_SCOPE     → 进入工具管道（用户看到"请稍等"是合理预期）
- *   - 分类失败时降级为 IN_SCOPE，保证主流程不中断
- */
-async function classifyScope(text) {
+/* ─── 降级路径：IN_SCOPE 快速通道（pgvector 不可用时使用）─────────────────── */
+const IN_SCOPE_RE = /充电宝|共享充电|充电|电宝|站点|卡券|优惠|折扣|活动|特惠|促销|积分|借电|还电|会员|订单|福利|邀请|领取|兑换|coupon|discount|promotion|deal|offer|points|power.?bank|powerbank|charging|station|order|member|welfare|โปรโมชัน|ส่วนลด|พาวเวอร์แบงก์|แบตสำรอง|คูปอง|คะแนน|ออเดอร์|สมาชิก|สถานี|你是谁|你叫什么|你能做什么|介绍.*自己|你好|hello|hi\b|สวัสดี|who are you|what can you do/i;
+
+async function classifyScopeFallback(text) {
   try {
     const reply = await chatCompletion(
       [
@@ -182,39 +101,59 @@ async function classifyScope(text) {
             "Reply with EXACTLY one token: IN_SCOPE or OUT_OF_SCOPE. " +
             "When in doubt, ALWAYS reply IN_SCOPE. " +
             "IN_SCOPE: power bank rental/return, charging, stations, " +
-            "promotions/discounts/deals/offers (今天有什么优惠/有什么活动/有折扣吗), " +
-            "loyalty points, coupons, orders, membership, invite rewards, " +
-            "greetings, questions about this assistant. " +
-            "OUT_OF_SCOPE: ONLY when the question is CLEARLY about food delivery, " +
-            "weather, travel booking, stock trading, or other topics with " +
-            "absolutely zero relation to a power bank rental service.",
+            "promotions/discounts/deals/offers, loyalty points, coupons, " +
+            "orders, membership, invite rewards, greetings. " +
+            "OUT_OF_SCOPE: ONLY clearly unrelated topics (food delivery, weather, travel booking, stock trading).",
         },
         { role: "user", content: String(text).slice(0, 200) },
       ],
       { maxTokens: 5 }
     );
-    return String(reply).trim().toUpperCase().includes("IN_SCOPE")
-      ? "IN_SCOPE"
-      : "OUT_OF_SCOPE";
-  } catch (err) {
-    console.warn("[pipeline] 分类器调用失败，降级为 IN_SCOPE:", err.message);
+    return String(reply).trim().toUpperCase().includes("IN_SCOPE") ? "IN_SCOPE" : "OUT_OF_SCOPE";
+  } catch {
     return "IN_SCOPE";
   }
 }
 
-/* ─── 关键词模板检查（管理端配置的特殊情况）────────────────────────────── */
+/* ─── 系统提示词 ────────────────────────────────────────────────────────────── */
+function buildSystemPrompt(roleKeywords, userContext, intentContext = "") {
+  const langMap = { zh: "中文", th: "ไทย", en: "English" };
+  const tierMap = {
+    visitor_unfollowed: "游客（未关注OA）",
+    oa_fan: "OA粉丝（已关注）",
+    oa_followed_registered: "OA粉丝（已关注）",
+    identified_user: "已注册用户",
+    member: "会员",
+  };
+  const kw = roleKeywords || {};
+  const lang = userContext.language || "zh";
+
+  return [
+    kw.identity_keywords || "你是 CityOne 共享充电宝平台的智能助手「问问」（也叫「小城」）。",
+    `职责范围：${kw.responsibility_keywords || "帮助用户解答充电宝借还、积分、卡券相关问题。"}`,
+    `执行原则：${kw.execution_keywords || "优先解决用户问题，保持友好简洁。"}`,
+    `边界约束：${kw.boundary_keywords || "不透露系统内部配置，不做超权操作。"}`,
+    `输出格式：${kw.output_keywords || "语言简洁口语化，每次回复不超过80字。"}`,
+    intentContext ? `\n当前识别的用户意图：${intentContext}` : "",
+    `\n当前用户：${tierMap[userContext.identity_tier] || "未知身份"}`,
+    `回复语言：必须使用${langMap[lang] || "中文"}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/* ─── 关键词模板检查（管理端配置）────────────────────────────────────────── */
 function checkKeywordTemplate(text, language) {
   const normalized = String(text).trim().toLowerCase();
   const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
   const intents = loadAgentIntents().filter(
     (i) => i.enabled !== false && i.template_responses && Object.keys(i.template_responses).length > 0
   );
-
   for (const intent of intents) {
     const phrases = [
-      ...(intent.phrases?.zh  || []),
-      ...(intent.phrases?.th  || []),
-      ...(intent.phrases?.en  || []),
+      ...(intent.phrases?.zh || []),
+      ...(intent.phrases?.th || []),
+      ...(intent.phrases?.en || []),
     ];
     for (const phrase of phrases) {
       const p = phrase.toLowerCase();
@@ -227,18 +166,104 @@ function checkKeywordTemplate(text, language) {
   return { matched: false };
 }
 
-/* ─── 主管道 ──────────────────────────────────────────────────────────────── */
+/* ─── 工具执行 ──────────────────────────────────────────────────────────────── */
+async function runTool(toolName, userContext) {
+  const toolFn = TOOL_EXECUTOR[toolName];
+  if (!toolFn) return { success: false, error_message: `工具 ${toolName} 未实现` };
+  try {
+    return await toolFn({}, {
+      line_user_id:  userContext.line_user_id  || "",
+      user_id:       userContext.user_id        || "",
+      identity_tier: userContext.identity_tier  || "",
+      language:      userContext.language       || "zh",
+      site_id:       userContext.site_id        || "",
+    });
+  } catch (err) {
+    console.error(`[pipeline] 工具执行失败 (${toolName}):`, err.message);
+    return { success: false, error_message: err.message };
+  }
+}
+
+/* ─── LLM 摘要（工具结果 → 自然语言）──────────────────────────────────────── */
+async function buildLLMSummary(userText, toolResult, language, intentName) {
+  const langName = { zh: "中文", th: "ไทย", en: "English" }[language] || "中文";
+  const toolData = JSON.stringify(toolResult?.tool_result || { error: "无数据" });
+  try {
+    return await chatCompletion(
+      [
+        {
+          role: "system",
+          content: `你是 CityOne 共享充电宝平台的助手「问问」（也叫「小城」）。
+你已查询到用户需要的数据，用简短自然的${langName}告诉用户结果。
+不超过80字，不要提到"工具"/"接口"/"系统"等技术词。`,
+        },
+        {
+          role: "user",
+          content: `用户问：${userText}\n意图：${intentName || ""}\n查询结果：${toolData}\n\n请用${langName}简短口语化回答。`,
+        },
+      ],
+      { maxTokens: 256 }
+    );
+  } catch (err) {
+    console.error("[pipeline] LLM 摘要失败:", err.message);
+    return "";
+  }
+}
+
+/* ─── 工具结果兜底文案 ──────────────────────────────────────────────────────── */
+function buildToolFallback(toolName, toolResult, language) {
+  const res = toolResult?.tool_result || {};
+  const ok  = toolResult?.success !== false;
+  const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
+  const T = {
+    search_platform_content: {
+      zh: ok ? ((res.total ?? 0) > 0 ? `平台目前有${res.coupon_count > 0 ? ` ${res.coupon_count} 张优惠券` : ""}${res.activity_count > 0 ? `、${res.activity_count} 个活动` : ""}，去福利中心看看吧～` : "平台目前暂无进行中的优惠活动，请稍后再来哦。") : "优惠查询暂时不可用，请稍后再试。",
+      th: ok ? ((res.total ?? 0) > 0 ? `มีโปรโมชัน ${res.total} รายการ ไปดูที่ศูนย์สวัสดิการเลย!` : "ยังไม่มีโปรโมชันที่กำลังดำเนินอยู่") : "ไม่สามารถดึงข้อมูลโปรโมชันได้",
+      en: ok ? ((res.total ?? 0) > 0 ? `There are ${res.total} active promotion(s). Head to the Benefits Center!` : "No active promotions at the moment.") : "Promotion query unavailable.",
+    },
+    get_user_account: {
+      zh: ok ? `您当前可用积分 ${res.points?.available_points ?? 0} 分` + (res.wallet?.count > 0 ? `，钱包里有 ${res.wallet.count} 张可用券` : "") + ((res.wallet?.count || 0) === 0 ? "，暂无可用卡券。" : "。") : "账户信息查询暂时不可用，请稍后再试。",
+      th: ok ? `คะแนนที่ใช้ได้ ${res.points?.available_points ?? 0} คะแนน` + (res.wallet?.count > 0 ? ` มีคูปอง ${res.wallet.count} ใบ` : "") : "ไม่สามารถดึงข้อมูลบัญชีได้",
+      en: ok ? `You have ${res.points?.available_points ?? 0} points` + (res.wallet?.count > 0 ? `, ${res.wallet.count} coupon(s) in wallet` : ", no coupons yet.") : "Account query unavailable.",
+    },
+    query_nearby_stations: {
+      zh: ok ? (res.total > 0 ? `附近共有 ${res.total} 个站点，可快速借还充电宝。` : "附近暂时没有找到站点信息。") : "站点查询暂时不可用。",
+      th: ok ? (res.total > 0 ? `พบสถานี ${res.total} แห่งในบริเวณใกล้เคียง` : "ยังไม่พบสถานีในบริเวณใกล้เคียง") : "ไม่สามารถดึงข้อมูลสถานีได้",
+      en: ok ? (res.total > 0 ? `Found ${res.total} station(s) nearby.` : "No stations found nearby.") : "Station query unavailable.",
+    },
+    generate_invite_link: {
+      zh: ok ? "已为您生成专属邀请链接，分享给好友即可获得积分奖励～" : "邀请链接生成失败，请稍后再试。",
+      th: ok ? "สร้างลิงก์เชิญเฉพาะของคุณแล้ว แชร์ให้เพื่อนเพื่อรับคะแนน" : "ไม่สามารถสร้างลิงก์เชิญได้",
+      en: ok ? "Your invite link is ready. Share it to earn points!" : "Failed to generate invite link.",
+    },
+    get_user_orders: {
+      zh: ok ? (res.total > 0 ? `您最近共有 ${res.total} 条订单记录。` : "暂时没有找到最近的订单记录。") : "订单查询暂时不可用。",
+      th: ok ? (res.total > 0 ? `มีประวัติออเดอร์ ${res.total} รายการ` : "ยังไม่มีประวัติออเดอร์") : "ไม่สามารถดึงข้อมูลออเดอร์ได้",
+      en: ok ? (res.total > 0 ? `You have ${res.total} recent order(s).` : "No recent orders found.") : "Order query unavailable.",
+    },
+  };
+  const generic = ok
+    ? { zh: "已为您查询完毕～", th: "ดึงข้อมูลเรียบร้อยแล้ว", en: "Query complete." }
+    : { zh: "查询暂时不可用，请稍后再试。", th: "ไม่สามารถดึงข้อมูลได้", en: "Query unavailable." };
+  return T[toolName]?.[lang] ?? generic[lang];
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * 主管道
+ * ════════════════════════════════════════════════════════════════════════════ */
+
 /**
  * @param {string}   userText       - 用户输入
  * @param {Array}    sessionHistory - 近期消息历史 [{ role, text }]
  * @param {object}   roleKeywords   - 管理端配置的角色关键词
  * @param {object}   userContext    - { language, identity_tier, line_user_id, user_id, site_id }
- * @returns {{ text, display_payload, suggestions, source }}
+ * @returns {{ text, display_payload, suggestions, source, intent_code, dispatch_mode }}
  */
 export async function runLLMPipeline(userText, sessionHistory, roleKeywords, userContext) {
   const language = userContext.language || "zh";
+  const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
 
-  /* ── Step 1: 关键词模板检查 ──────────────────────────────────────────── */
+  /* ── Step 1: 关键词模板检查（管理端配置的快速回复）────────────────────── */
   const templateCheck = checkKeywordTemplate(userText, language);
   if (templateCheck.matched) {
     return {
@@ -247,28 +272,192 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
       suggestions:     [],
       source:          "keyword_template",
       intent_code:     templateCheck.intent_code,
+      dispatch_mode:   "chat_only",
     };
   }
 
-  /* ── Step 1b: 服务范围判断 ───────────────────────────────────────────── */
-  // IN_SCOPE_RE 命中 → 快速通道，直接进工具管道（跳过 LLM 分类，节省一次调用）
-  // 未命中 → 调用轻量 LLM 分类器（max_tokens=5，< 2s，在 5s 计时器前完成）
-  //   OUT_OF_SCOPE → 立刻返回拒绝文案，用户看不到"请稍等"
-  //   IN_SCOPE     → 继续走工具管道，"请稍等"出现是合理的
+  /* ── Step 2: 语义向量召回（LLM 分类降级）────────────────────────────── */
+  const vectorResult = await searchIntent(userText, 3, lang);
+
+  /* ── Step 2b: 向量库不可用 → 降级到旧路径 ─────────────────────────────── */
+  if (!vectorResult.ready) {
+    return runFallbackPipeline(userText, sessionHistory, roleKeywords, userContext);
+  }
+
+  /* ── Step 2c: 未命中任何意图 → out_of_scope ───────────────────────────── */
+  if (!vectorResult.topIntent) {
+    console.log(
+      `[pipeline] out_of_scope: top_similarity=${vectorResult.results[0]?.similarity?.toFixed(3) || "N/A"}`
+    );
+    return {
+      text:            OUT_OF_SCOPE_REPLY[lang],
+      display_payload: null,
+      suggestions:     [],
+      source:          "vector_out_of_scope",
+      intent_code:     "out_of_scope",
+      dispatch_mode:   "out_of_scope",
+    };
+  }
+
+  const intent = vectorResult.topIntent;
+  console.log(
+    `[pipeline] intent=${intent.intent_code} dispatch=${intent.dispatch_mode} sim=${intent.similarity?.toFixed(3)}`
+  );
+
+  /* ── Step 3: 按 dispatch_mode 分流 ────────────────────────────────────── */
+
+  /* ── 3a. chat_only：直接 LLM，无工具 ─────────────────────────────────── */
+  if (intent.dispatch_mode === "chat_only" || intent.dispatch_mode === "greeting") {
+    const historyMessages = (sessionHistory || []).slice(-6).map((m) => ({
+      role:    m.role === "user" ? "user" : "assistant",
+      content: m.text || "",
+    }));
+    const systemPrompt = buildSystemPrompt(roleKeywords, userContext, intent.intent_name);
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...historyMessages,
+      { role: "user", content: userText },
+    ];
+    let text = "";
+    try {
+      text = await chatCompletion(messages, { maxTokens: 256 });
+    } catch (err) {
+      console.error("[pipeline] chat_only LLM 失败:", err.message);
+      text = lang === "th" ? "ขอโทษนะคะ ลองใหม่อีกครั้งนะคะ" : lang === "en" ? "Sorry, please try again." : "小城暂时有点忙，请稍后再试 😊";
+    }
+    return {
+      text:            text || "小城没有理解你的问题，能换个方式说吗？",
+      display_payload: null,
+      suggestions:     [],
+      source:          "vector_chat_only",
+      intent_code:     intent.intent_code,
+      dispatch_mode:   "chat_only",
+    };
+  }
+
+  /* ── 3b. card_only：1 次 LLM + 前端选卡片 ────────────────────────────── */
+  if (intent.dispatch_mode === "card_only") {
+    const systemPrompt = buildSystemPrompt(roleKeywords, userContext, intent.intent_name);
+    const cardHint = {
+      zh: `（回复完后用户会看到操作入口卡片，你只需用1-2句自然语言介绍一下即可）`,
+      th: `（ผู้ใช้จะเห็นการ์ดปุ่มด้านล่าง ตอบแค่ 1-2 ประโยคก็พอ）`,
+      en: `(An action card will appear below your reply. Keep your response to 1-2 sentences.)`,
+    }[lang];
+    let text = "";
+    try {
+      text = await chatCompletion(
+        [
+          { role: "system", content: systemPrompt + "\n" + cardHint },
+          { role: "user", content: userText },
+        ],
+        { maxTokens: 128 }
+      );
+    } catch (err) {
+      console.error("[pipeline] card_only LLM 失败:", err.message);
+    }
+    return {
+      text:            text || (lang === "zh" ? "好的，为您找到相关入口～" : lang === "th" ? "ค่ะ นี่คือทางเข้าที่คุณต้องการ" : "Here you go!"),
+      display_payload: null,
+      suggestions:     [],
+      source:          "vector_card_only",
+      intent_code:     intent.intent_code,
+      dispatch_mode:   "card_only",
+    };
+  }
+
+  /* ── 3c. tool_then_confirm：查工具 → 推确认卡片 ──────────────────────── */
+  if (intent.dispatch_mode === "tool_then_confirm") {
+    // after_sale_apply 等：先给出引导文案，再推确认卡片
+    const confirmTexts = {
+      zh: { text: "好的，您遇到了设备问题。请确认以下操作，我帮您记录并联系客服跟进。", confirmText: "确认提交", actionCode: intent.intent_code, actionText: `提交${intent.intent_name}申请` },
+      th: { text: "ค่ะ คุณพบปัญหากับอุปกรณ์ กรุณายืนยันเพื่อให้ทีมงานติดตาม", confirmText: "ยืนยัน", actionCode: intent.intent_code, actionText: `ส่งคำขอ${intent.intent_name}` },
+      en: { text: "Got it! Please confirm below and we'll have support follow up.", confirmText: "Confirm", actionCode: intent.intent_code, actionText: `Submit ${intent.intent_name} request` },
+    }[lang];
+
+    return {
+      text:          confirmTexts.text,
+      display_payload: {
+        confirm_action: {
+          actionCode:  confirmTexts.actionCode,
+          actionText:  confirmTexts.actionText,
+          confirmText: confirmTexts.confirmText,
+        },
+      },
+      suggestions:   [],
+      source:        "vector_tool_confirm",
+      intent_code:   intent.intent_code,
+      dispatch_mode: "tool_then_confirm",
+    };
+  }
+
+  /* ── 3d. tool_then_card（主路径）：直接调工具 → LLM 摘要 ─────────────── */
+  if (intent.dispatch_mode === "tool_then_card" && intent.tool_name) {
+    const toolResult = await runTool(intent.tool_name, userContext);
+
+    let finalText = await buildLLMSummary(userText, toolResult, language, intent.intent_name);
+    if (!finalText?.trim()) {
+      finalText = buildToolFallback(intent.tool_name, toolResult, language);
+    }
+
+    return {
+      text:            finalText.trim(),
+      display_payload: toolResult?.display_payload || null,
+      suggestions:     [],
+      source:          "vector_tool_card",
+      intent_code:     intent.intent_code,
+      dispatch_mode:   "tool_then_card",
+      tool_used:       intent.tool_name,
+    };
+  }
+
+  /* ── 3e. 兜底（tool_then_pay 或未知模式）→ chat_only 降级 ───────────── */
+  const systemPrompt = buildSystemPrompt(roleKeywords, userContext, intent.intent_name);
+  let text = "";
+  try {
+    text = await chatCompletion(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userText },
+      ],
+      { maxTokens: 256 }
+    );
+  } catch (err) {
+    text = lang === "zh" ? "小城暂时有点忙，请稍后再试 😊" : "Please try again later.";
+  }
+  return {
+    text:            text,
+    display_payload: null,
+    suggestions:     [],
+    source:          "vector_fallback",
+    intent_code:     intent.intent_code,
+    dispatch_mode:   "chat_only",
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * 降级路径（pgvector 不可用时）：IN_SCOPE_RE + LLM 分类器 + function calling
+ * ════════════════════════════════════════════════════════════════════════════ */
+async function runFallbackPipeline(userText, sessionHistory, roleKeywords, userContext) {
+  console.log("[pipeline] 降级到 LLM function calling 路径");
+  const language = userContext.language || "zh";
+  const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
+
+  // 范围判断
   if (!IN_SCOPE_RE.test(userText)) {
-    const scope = await classifyScope(userText);
+    const scope = await classifyScopeFallback(userText);
     if (scope === "OUT_OF_SCOPE") {
-      const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
       return {
         text:            OUT_OF_SCOPE_REPLY[lang],
         display_payload: null,
         suggestions:     [],
-        source:          "out_of_scope",
+        source:          "fallback_out_of_scope",
+        intent_code:     "out_of_scope",
+        dispatch_mode:   "out_of_scope",
       };
     }
   }
 
-  /* ── Step 2: 构建系统提示词 + 历史消息 ──────────────────────────────── */
+  // LLM with function calling
   const systemPrompt = buildSystemPrompt(roleKeywords, userContext);
   const historyMessages = (sessionHistory || []).slice(-6).map((m) => ({
     role:    m.role === "user" ? "user" : "assistant",
@@ -277,79 +466,57 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
   const messages = [
     { role: "system", content: systemPrompt },
     ...historyMessages,
-    { role: "user",   content: userText },
+    { role: "user", content: userText },
   ];
 
-  /* ── Step 3: LLM 第一次调用（含工具定义，LLM 自主决定是否调工具）─── */
   let firstResponse;
   try {
     firstResponse = await chatCompletionWithTools(messages, TOOL_DEFINITIONS);
   } catch (err) {
-    console.error("[pipeline] LLM 第一次调用失败:", err.message);
-    return { text: "小城暂时有点忙，请稍后再试 😊", display_payload: null, suggestions: [], source: "error" };
+    console.error("[pipeline] fallback LLM 调用失败:", err.message);
+    return {
+      text:            lang === "zh" ? "小城暂时有点忙，请稍后再试 😊" : "Please try again later.",
+      display_payload: null,
+      suggestions:     [],
+      source:          "error",
+      dispatch_mode:   "chat_only",
+    };
   }
 
-  /* ── 无工具调用：LLM 直接回复 ───────────────────────────────────────── */
   if (!firstResponse.tool_call) {
     return {
       text:            firstResponse.text || "小城没有理解你的问题，能换个方式说吗？",
       display_payload: null,
       suggestions:     [],
-      source:          "llm_direct",
+      source:          "fallback_llm_direct",
+      dispatch_mode:   "chat_only",
     };
   }
 
-  /* ── Step 4: 执行工具 ────────────────────────────────────────────────── */
+  // 执行工具
   const tc = firstResponse.tool_call;
-  const toolFn = TOOL_EXECUTOR[tc.name];
-  let toolResult = null;
+  const toolResult = await runTool(tc.name, userContext);
 
-  if (toolFn) {
-    try {
-      toolResult = await toolFn(tc.arguments || {}, {
-        line_user_id:  userContext.line_user_id  || "",
-        user_id:       userContext.user_id        || "",
-        identity_tier: userContext.identity_tier  || "",
-        language,
-        site_id:       userContext.site_id        || "",
-        ...tc.arguments,
-      });
-    } catch (err) {
-      console.error(`[pipeline] 工具执行失败 (${tc.name}):`, err.message);
-      toolResult = { success: false, error_message: err.message };
-    }
-  } else {
-    toolResult = { success: false, error_message: `工具 ${tc.name} 未实现` };
-  }
-
-  /* ── Step 5: 把工具结果包装成 system 注入，让 LLM 生成最终回复 ───── */
-  const toolResultContent = JSON.stringify(
-    toolResult?.tool_result || { error: toolResult?.error_message || "无数据" }
-  );
-
-  // 第二次调用：纯文本摘要，明确禁止工具调用
+  // 生成最终回复
+  const toolResultContent = JSON.stringify(toolResult?.tool_result || { error: toolResult?.error_message || "无数据" });
   const langName = language === "th" ? "ไทย" : language === "en" ? "English" : "中文";
-  const messagesForFinal = [
-    {
-      role:    "system",
-      content: `你是 CityOne 共享充电宝平台的助手「问问」。
-你已经查询到了用户需要的数据，现在只需要用自然语言告诉用户结果。
-不要调用任何工具，不要返回 JSON，直接用${langName}简短口语化地回答用户。不超过80字。`,
-    },
-    {
-      role:    "user",
-      content: `用户问：${userText}\n\n查询结果：${toolResultContent}\n\n请用${langName}自然语言简短回答用户，突出最关键的信息。`,
-    },
-  ];
-
   let finalText = "";
   try {
-    finalText = await chatCompletion(messagesForFinal, { maxTokens: 256 });
-  } catch (err) {
-    console.error("[pipeline] LLM 最终回复失败:", err.message, err.stack?.slice(0, 200));
-  }
+    finalText = await chatCompletion(
+      [
+        {
+          role: "system",
+          content: `你是 CityOne 助手「问问」。已查询到数据，用${langName}简短口语化回答，不超过80字。`,
+        },
+        {
+          role: "user",
+          content: `用户问：${userText}\n查询结果：${toolResultContent}\n请用${langName}回答：`,
+        },
+      ],
+      { maxTokens: 256 }
+    );
+  } catch {}
 
-  // 兜底：若 LLM 摘要为空，根据工具和数据生成有意义的回复
   if (!finalText?.trim()) {
     finalText = buildToolFallback(tc.name, toolResult, language);
   }
@@ -358,74 +525,8 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
     text:            finalText.trim(),
     display_payload: toolResult?.display_payload || null,
     suggestions:     [],
-    source:          "llm_tool",
+    source:          "fallback_llm_tool",
     tool_used:       tc.name,
+    dispatch_mode:   "tool_then_card",
   };
-}
-
-/* ─── 工具兜底文案（LLM 摘要为空时使用，对应新 5 工具架构）─────────────── */
-function buildToolFallback(toolName, toolResult, language) {
-  const res = toolResult?.tool_result || {};
-  const ok  = toolResult?.success !== false;
-  const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
-
-  const T = {
-    /* ── Layer 1: 平台知识层 ── */
-    search_platform_content: {
-      zh: ok
-        ? ((res.total ?? 0) > 0
-          ? `平台目前有${res.coupon_count > 0 ? ` ${res.coupon_count} 张优惠券` : ""}${res.activity_count > 0 ? `、${res.activity_count} 个活动` : ""}${res.mall_count > 0 ? `、${res.mall_count} 件商城商品` : ""}，快去福利中心看看吧～`
-          : "平台目前暂无进行中的优惠活动，请稍后再来哦。")
-        : "优惠查询暂时不可用，请稍后再试。",
-      th: ok
-        ? ((res.total ?? 0) > 0 ? `มีโปรโมชัน ${res.total} รายการตอนนี้ ไปดูที่ศูนย์สวัสดิการเลย!` : "ยังไม่มีโปรโมชันที่กำลังดำเนินอยู่")
-        : "ไม่สามารถดึงข้อมูลโปรโมชันได้",
-      en: ok
-        ? ((res.total ?? 0) > 0 ? `There are ${res.total} active promotion(s) now. Head to the Benefits Center!` : "No active promotions at the moment.")
-        : "Promotion query unavailable.",
-    },
-
-    /* ── Layer 2: 用户私有数据层 ── */
-    get_user_account: {
-      zh: ok
-        ? `您当前可用积分 ${res.points?.available_points ?? 0} 分` +
-          (res.wallet?.count > 0 ? `，钱包里有 ${res.wallet.count} 张可用券` : "") +
-          (res.prizes?.count > 0 ? `，另有 ${res.prizes.count} 张活动奖品` : "") +
-          ((res.wallet?.count || 0) + (res.prizes?.count || 0) === 0 ? "，暂无可用卡券。" : "。")
-        : "账户信息查询暂时不可用，请稍后再试。",
-      th: ok
-        ? `คะแนนที่ใช้ได้ ${res.points?.available_points ?? 0} คะแนน` +
-          (res.wallet?.count > 0 ? ` มีคูปอง ${res.wallet.count} ใบ` : "") +
-          (res.prizes?.count > 0 ? ` มีของรางวัล ${res.prizes.count} รายการ` : "") +
-          ((res.wallet?.count || 0) + (res.prizes?.count || 0) === 0 ? " ยังไม่มีคูปอง" : "")
-        : "ไม่สามารถดึงข้อมูลบัญชีได้",
-      en: ok
-        ? `You have ${res.points?.available_points ?? 0} points` +
-          (res.wallet?.count > 0 ? `, ${res.wallet.count} coupon(s) in wallet` : "") +
-          (res.prizes?.count > 0 ? `, ${res.prizes.count} activity prize(s)` : "") +
-          ((res.wallet?.count || 0) + (res.prizes?.count || 0) === 0 ? ", no coupons yet." : ".")
-        : "Account query unavailable.",
-    },
-    query_nearby_stations: {
-      zh: ok ? (res.total > 0 ? `附近共有 ${res.total} 个站点，可快速借还充电宝。` : "附近暂时没有找到站点信息。") : "站点查询暂时不可用。",
-      th: ok ? (res.total > 0 ? `พบสถานี ${res.total} แห่งในบริเวณใกล้เคียง` : "ยังไม่พบสถานีในบริเวณใกล้เคียง") : "ไม่สามารถดึงข้อมูลสถานีได้",
-      en: ok ? (res.total > 0 ? `Found ${res.total} station(s) nearby.` : "No stations found nearby.") : "Station query unavailable.",
-    },
-    generate_invite_link: {
-      zh: ok ? "已为您生成专属邀请链接，分享给好友即可获得奖励～" : "邀请链接生成失败，请稍后再试。",
-      th: ok ? "สร้างลิงก์เชิญเฉพาะของคุณแล้ว แชร์ให้เพื่อนเพื่อรับรางวัล" : "ไม่สามารถสร้างลิงก์เชิญได้",
-      en: ok ? "Your invite link is ready. Share it with friends to earn rewards!" : "Failed to generate invite link.",
-    },
-    get_user_orders: {
-      zh: ok ? (res.total > 0 ? `您最近共有 ${res.total} 条订单记录。` : "暂时没有找到最近的订单记录。") : "订单查询暂时不可用。",
-      th: ok ? (res.total > 0 ? `มีประวัติออเดอร์ ${res.total} รายการ` : "ยังไม่มีประวัติออเดอร์") : "ไม่สามารถดึงข้อมูลออเดอร์ได้",
-      en: ok ? (res.total > 0 ? `You have ${res.total} recent order(s).` : "No recent orders found.") : "Order query unavailable.",
-    },
-  };
-
-  const generic = ok
-    ? { zh: "已为您查询完毕～", th: "ดึงข้อมูลเรียบร้อยแล้ว", en: "Query complete." }
-    : { zh: "查询暂时不可用，请稍后再试。", th: "ไม่สามารถดึงข้อมูลได้", en: "Query unavailable, please try again." };
-
-  return T[toolName]?.[lang] ?? generic[lang];
 }

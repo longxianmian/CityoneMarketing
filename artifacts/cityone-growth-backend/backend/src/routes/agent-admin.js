@@ -6,6 +6,8 @@
  *       policy-contents、biz-kpi-metrics、biz-report-templates、
  *       biz-alert-rules、biz-action-suggestions、
  *       ops-issue-types、ops-repair-actions
+ *
+ * 向量意图管理：seed-intent-vectors、recall-test、intent-labels
  */
 
 import fs from "node:fs";
@@ -542,5 +544,75 @@ export async function handleRepairActionsDelete(req, res, url, sendJson) {
     return sendOk(res, sendJson, "repair action deleted", removed);
   } catch (err) {
     return sendError(res, sendJson, 500, "DELETE_FAILED", err.message);
+  }
+}
+
+// ─── 向量意图管理（语义召回 pgvector）────────────────────────────────────────
+
+import {
+  seedAllIntents,
+  reEmbedIntent,
+  recallTest,
+  listIntentLabels,
+} from "../services/agent-vector-service.js";
+
+/**
+ * POST /api/agent-admin/seed-intent-vectors
+ * 把 agent-intents.json 全量 upsert 到 pgvector，并生成 embedding
+ */
+export async function handleSeedIntentVectors(req, res, url, sendJson) {
+  try {
+    const result = await seedAllIntents();
+    return sendOk(res, sendJson, "意图向量种子完成", result);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "SEED_FAILED", err.message);
+  }
+}
+
+/**
+ * POST /api/agent-admin/re-embed-intent
+ * Body: { intent_code }
+ * 重新对单条意图生成 embedding
+ */
+export async function handleReEmbedIntent(req, res, url, sendJson, readBody) {
+  try {
+    const body = await readBody(req);
+    const intentCode = String(body.intent_code || "").trim();
+    if (!intentCode) return sendError(res, sendJson, 400, "MISSING_CODE", "intent_code 必填");
+    const result = await reEmbedIntent(intentCode);
+    return sendOk(res, sendJson, "意图 embedding 完成", result);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "RE_EMBED_FAILED", err.message);
+  }
+}
+
+/**
+ * POST /api/agent-admin/recall-test
+ * Body: { text, top_k? }
+ * 测试语义召回结果（管理端测试台）
+ */
+export async function handleRecallTest(req, res, url, sendJson, readBody) {
+  try {
+    const body = await readBody(req);
+    const text = String(body.text || "").trim();
+    const topK = Math.min(Number(body.top_k || 3), 10);
+    if (!text) return sendError(res, sendJson, 400, "MISSING_TEXT", "text 必填");
+    const result = await recallTest(text, topK);
+    return sendOk(res, sendJson, "召回测试完成", result);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "RECALL_TEST_FAILED", err.message);
+  }
+}
+
+/**
+ * GET /api/agent-admin/intent-labels
+ * 列出所有意图标签（含 embedding 状态）
+ */
+export async function handleIntentLabelsList(req, res, url, sendJson) {
+  try {
+    const labels = await listIntentLabels();
+    return sendOk(res, sendJson, "意图标签列表", labels);
+  } catch (err) {
+    return sendError(res, sendJson, 500, "LIST_FAILED", err.message);
   }
 }

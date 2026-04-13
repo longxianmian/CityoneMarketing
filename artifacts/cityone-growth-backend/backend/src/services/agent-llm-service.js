@@ -233,6 +233,21 @@ export async function generateReplyText(intentCode, toolResult, identityTier, la
 }
 
 /**
+ * 生成文本向量 Embedding（text-embedding-3-small，1536 维）
+ * @param {string} text
+ * @returns {number[]} 1536 维向量
+ */
+export async function createEmbedding(text) {
+  const client = getClient();
+  const response = await client.embeddings.create({
+    model: "text-embedding-3-small",
+    input: String(text).slice(0, 8000),
+    encoding_format: "float",
+  });
+  return response.data[0].embedding;
+}
+
+/**
  * 检查 LLM 是否可用
  */
 export async function checkLLMHealth() {

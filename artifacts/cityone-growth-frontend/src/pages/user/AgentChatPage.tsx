@@ -352,7 +352,7 @@ export default function AgentChatPage() {
     // 4. Confirm card — Agent needs user approval before executing action
     //    Normalize snake_case keys from backend (action_code → actionCode, etc.)
     //    Fall back to intentCode if confirm_action fields are all empty
-    if (reply.reply_type === 'confirm_required') {
+    if (reply.reply_type === 'confirm_required' || reply.reply_type === 'confirm_request') {
       const ca = reply.confirm_action || {}
       const resolvedCode = ca.actionCode || ca.action_code || ca.intent_code || intentCode || ''
       msgs.push({
