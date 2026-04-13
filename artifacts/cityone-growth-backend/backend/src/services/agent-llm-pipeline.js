@@ -331,9 +331,21 @@ function buildToolFallback(toolName, toolResult, language) {
 
   const T = {
     query_available_coupons: {
-      zh: ok ? (res.count > 0 ? `平台目前有 ${res.count} 个优惠活动，快去福利中心领取吧～` : "目前平台暂无进行中的优惠活动，请稍后再看哦。") : "优惠活动查询暂时不可用。",
-      th: ok ? (res.count > 0 ? `ตอนนี้มีโปรโมชัน ${res.count} รายการ ไปรับได้เลย!` : "ยังไม่มีโปรโมชันที่กำลังดำเนินอยู่") : "ไม่สามารถดึงข้อมูลโปรโมชันได้",
-      en: ok ? (res.count > 0 ? `There are ${res.count} active promotion(s) now. Go claim them!` : "No active promotions at the moment.") : "Promotion query unavailable.",
+      zh: ok ? (
+        (res.total_count ?? res.count ?? 0) > 0
+          ? `平台目前有${res.coupon_count ? ` ${res.coupon_count} 张优惠券` : ""}${res.activity_count ? `、${res.activity_count} 个活动` : ""}，快去福利中心领取吧～`
+          : "目前平台暂无进行中的优惠活动，请稍后再看哦。"
+      ) : "优惠活动查询暂时不可用。",
+      th: ok ? (
+        (res.total_count ?? res.count ?? 0) > 0
+          ? `ตอนนี้มีโปรโมชัน ${res.total_count ?? res.count} รายการ ไปรับได้เลย!`
+          : "ยังไม่มีโปรโมชันที่กำลังดำเนินอยู่"
+      ) : "ไม่สามารถดึงข้อมูลโปรโมชันได้",
+      en: ok ? (
+        (res.total_count ?? res.count ?? 0) > 0
+          ? `There are ${res.total_count ?? res.count} active promotion(s) now. Head to the benefits center!`
+          : "No active promotions at the moment."
+      ) : "Promotion query unavailable.",
     },
     query_points_balance: {
       zh: ok ? `您当前可用积分 ${res.available_points ?? 0} 分，累计 ${res.total_points ?? 0} 分。` : "积分查询暂时不可用，请稍后再试。",
