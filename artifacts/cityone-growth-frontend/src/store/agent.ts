@@ -49,6 +49,7 @@ interface AgentState {
   setIdentityTier: (tier: string | null) => void
   setCapabilities: (caps: string[]) => void
   addMessage: (msg: AgentMessage) => void
+  addMessages: (msgs: AgentMessage[]) => void
   removeMessage: (id: string) => void
   setMessages: (msgs: AgentMessage[]) => void
   setQuickPrompts: (prompts: string[]) => void
@@ -69,6 +70,7 @@ const useAgentStore = create<AgentState>((set) => ({
   setIdentityTier: (tier) => set({ identityTier: tier }),
   setCapabilities: (caps) => set({ capabilities: caps }),
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
+  addMessages: (msgs) => set((s) => ({ messages: [...s.messages, ...msgs] })),
   removeMessage: (id) => set((s) => ({ messages: s.messages.filter((m) => m.id !== id) })),
   setMessages: (msgs) => set({ messages: msgs }),
   setQuickPrompts: (prompts) => set({ quickPrompts: prompts }),

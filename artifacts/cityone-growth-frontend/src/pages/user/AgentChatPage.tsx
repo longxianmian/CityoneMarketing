@@ -210,7 +210,7 @@ export default function AgentChatPage() {
 
   const {
     sessionId, identityTier, capabilities, messages, quickPrompts, isThinking,
-    setSessionId, setIdentityTier, setCapabilities, addMessage, removeMessage,
+    setSessionId, setIdentityTier, setCapabilities, addMessage, addMessages, removeMessage,
     setMessages, setQuickPrompts, setThinking, setPendingConfirmAction,
   } = useAgentStore()
 
@@ -423,7 +423,8 @@ export default function AgentChatPage() {
         clearTimeout(pendingTimer)
         removePendingThinking()
         const data = res.data?.data || res.data
-        buildAIMessages(data, text.trim()).forEach((m) => addMessage(m))
+        const aiMsgs = buildAIMessages(data, text.trim())
+        if (aiMsgs.length > 0) addMessages(aiMsgs)
       } else {
         clearTimeout(pendingTimer)
         removePendingThinking()
@@ -451,7 +452,7 @@ export default function AgentChatPage() {
     } finally {
       setThinking(false)
     }
-  }, [sessionId, isThinking, lang, addMessage, removeMessage, setThinking, setIdentityTier, buildAIMessages])
+  }, [sessionId, isThinking, lang, addMessage, addMessages, removeMessage, setThinking, setIdentityTier, buildAIMessages])
 
   const handleConfirm = useCallback(async (actionCode: string, confirm: boolean) => {
     setPendingConfirmAction(null)
