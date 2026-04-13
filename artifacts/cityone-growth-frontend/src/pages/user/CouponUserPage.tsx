@@ -278,9 +278,9 @@ export default function CouponUserPage() {
 
   // ── Step: Detail（默认，浏览自由）─────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 100 }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
       <div style={{
-        position: 'sticky', top: 0, zIndex: 20,
+        flexShrink: 0,
         background: '#fff', display: 'flex', alignItems: 'center',
         padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0',
       }}>
@@ -432,43 +432,46 @@ export default function CouponUserPage() {
         </div>
       </Modal>
 
-      {videoStarted && coverVideoUrl ? (
-        <div style={{ position: 'relative', cursor: 'pointer' }} onClick={toggleVideoPlay}>
-          <video ref={heroVideoRef} src={coverVideoUrl} autoPlay loop playsInline
-            style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
-          {videoPaused && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
+      <div style={{ flexShrink: 0, background: '#f0f0f0', overflow: 'hidden' }}>
+        {videoStarted && coverVideoUrl ? (
+          <div style={{ position: 'relative', cursor: 'pointer' }} onClick={toggleVideoPlay}>
+            <video ref={heroVideoRef} src={coverVideoUrl} autoPlay loop playsInline
+              style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+            {videoPaused && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      ) : coverUrl ? (
-        <div style={{ position: 'relative', cursor: coverVideoUrl ? 'pointer' : 'default' }}
-             onClick={coverVideoUrl ? () => setVideoStarted(true) : undefined}>
-          <OssImage src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
-          {coverVideoUrl && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
-              </div>
-            </div>
-          )}
-        </div>
-      ) : coverVideoUrl ? (
-        <div style={{ cursor: 'pointer', background: '#000', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-             onClick={() => setVideoStarted(true)}>
-          <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
+            )}
           </div>
-        </div>
-      ) : (
-        <div style={{ height: 160, background: 'linear-gradient(135deg, #1677ff20, #fa8c1640)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 56 }}>🎫</span>
-        </div>
-      )}
+        ) : coverUrl ? (
+          <div style={{ position: 'relative', cursor: coverVideoUrl ? 'pointer' : 'default' }}
+               onClick={coverVideoUrl ? () => setVideoStarted(true) : undefined}>
+            <OssImage src={coverUrl} alt={name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+            {coverVideoUrl && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : coverVideoUrl ? (
+          <div style={{ cursor: 'pointer', background: '#000', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+               onClick={() => setVideoStarted(true)}>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
+            </div>
+          </div>
+        ) : (
+          <div style={{ height: 160, background: 'linear-gradient(135deg, #1677ff20, #fa8c1640)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 56 }}>🎫</span>
+          </div>
+        )}
+      </div>
 
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
       <div style={{ padding: '20px 16px 0' }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: '20px 16px', marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: '#1677ff', fontWeight: 700, marginBottom: 6 }}>{L.benefit}</div>
@@ -509,11 +512,12 @@ export default function CouponUserPage() {
           </div>
         )}
       </div>
+      </div>
 
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
+        flexShrink: 0,
         padding: '12px 16px 24px',
-        background: '#fff', borderTop: '1px solid #f0f0f0', zIndex: 20,
+        background: '#fff', borderTop: '1px solid #f0f0f0',
       }}>
         <Space direction="vertical" style={{ width: '100%' }}>
           <button

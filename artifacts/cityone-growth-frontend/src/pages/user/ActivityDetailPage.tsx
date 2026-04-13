@@ -209,8 +209,8 @@ export default function ActivityDetailPage() {
 
   // ── 活动详情主视图 ─────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 100 }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
+      <div style={{ flexShrink: 0, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
         <button onClick={() => { const b = (location.state as any)?.backTo; b ? nav(b) : location.key !== 'default' ? nav(-1) : nav('/welfare') }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
           <ArrowLeftOutlined style={{ fontSize: 20 }} />
         </button>
@@ -234,7 +234,7 @@ export default function ActivityDetailPage() {
         campaignId={activity?.campaign_id}
       />
 
-      <div style={{ height: 200, background: '#f0f0f0', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+      <div style={{ flexShrink: 0, height: 200, background: '#f0f0f0', overflow: 'hidden', position: 'relative' }}>
         {videoStarted && coverVideo ? (
           <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }} onClick={toggleVideoPlay}>
             <video ref={heroVideoRef} src={coverVideo} autoPlay loop playsInline
@@ -275,6 +275,7 @@ export default function ActivityDetailPage() {
         )}
       </div>
 
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
       <div style={{ padding: '20px 16px 0' }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>{title}</h1>
         {subTitle && <p style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>{subTitle}</p>}
@@ -334,8 +335,9 @@ export default function ActivityDetailPage() {
           </Section>
         )}
       </div>
+      </div>
 
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 16px 24px', background: '#fff', borderTop: '1px solid #f0f0f0', zIndex: 20 }}>
+      <div style={{ flexShrink: 0, padding: '12px 16px 24px', background: '#fff', borderTop: '1px solid #f0f0f0' }}>
         <button
           onClick={handleAction}
           disabled={checking}
