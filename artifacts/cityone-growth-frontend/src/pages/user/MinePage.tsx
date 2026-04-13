@@ -863,6 +863,7 @@ export default function MinePage() {
                   benefitItems.map((item, i) => (
                     <div
                       key={item.user_product_id || i}
+                      onClick={() => item.product_id && navigate(`/coupon/${item.product_id}`)}
                       style={{
                         border: '1px solid #ECF1F6',
                         borderRadius: 14,
@@ -871,6 +872,7 @@ export default function MinePage() {
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         gap: 12,
+                        cursor: item.product_id ? 'pointer' : 'default',
                       }}
                     >
                       <div style={{ flex: 1 }}>
@@ -899,19 +901,18 @@ export default function MinePage() {
                             : ''}
                         </div>
                       </div>
-                      {couponSub === 'available' && (
+                      {couponSub === 'available' && item.product_id && (
                         <button
-                          onClick={() =>
-                            item.item_type === 'physical'
-                              ? setPhysicalGiftModalOpen(true)
-                              : setBorrowModalOpen(true)
-                          }
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/coupon/${item.product_id}`)
+                          }}
                           style={{
-                            border: `1.5px solid ${item.item_type === 'physical' ? '#7C3AED' : '#2CDBCE'}`,
+                            border: `1.5px solid #2CDBCE`,
                             borderRadius: 20,
                             padding: '6px 14px',
                             background: 'transparent',
-                            color: item.item_type === 'physical' ? '#7C3AED' : '#2CDBCE',
+                            color: '#2CDBCE',
                             fontWeight: 700,
                             fontSize: 13,
                             cursor: 'pointer',
