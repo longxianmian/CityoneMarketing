@@ -210,7 +210,7 @@ export default function AgentChatPage() {
 
   const {
     sessionId, identityTier, capabilities, messages, quickPrompts, isThinking,
-    setSessionId, setIdentityTier, setCapabilities, addMessage,
+    setSessionId, setIdentityTier, setCapabilities, addMessage, removeMessage,
     setMessages, setQuickPrompts, setThinking, setPendingConfirmAction,
   } = useAgentStore()
 
@@ -221,6 +221,8 @@ export default function AgentChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // 追踪"请稍等"临时消息 ID，真实回复到达时移除
+  const pendingThinkingMsgId = useRef<string | null>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -397,23 +399,34 @@ export default function AgentChatPage() {
     setInput('')
     setThinking(true)
 
-    // 5 秒内无回复，先插入「请稍等」安抚消息（直接回复通常 <5s，查询型 >5s）
+    // 8 秒内无回复，先插入「请稍等」安抚消息；真实回复到达后自动移除
+    const thinkingId = uid()
     const pendingTimer = setTimeout(() => {
-      addMessage(makeText(uid(), {
+      pendingThinkingMsgId.current = thinkingId
+      addMessage(makeText(thinkingId, {
         zh: '请稍等，我需要花点时间去查询才能回复…',
         th: 'กรุณารอสักครู่ กำลังค้นข้อมูลให้…',
         en: 'Please wait, I need a moment to look that up…',
       }[lang]))
-    }, 5000)
+    }, 8000)
+
+    const removePendingThinking = () => {
+      if (pendingThinkingMsgId.current) {
+        removeMessage(pendingThinkingMsgId.current)
+        pendingThinkingMsgId.current = null
+      }
+    }
 
     try {
       if (sessionId) {
         const res = await sendAgentMessage(sessionId, { text: text.trim(), language: lang })
         clearTimeout(pendingTimer)
+        removePendingThinking()
         const data = res.data?.data || res.data
         buildAIMessages(data, text.trim()).forEach((m) => addMessage(m))
       } else {
         clearTimeout(pendingTimer)
+        removePendingThinking()
         addMessage(makeText(uid(), {
           zh: '⚠️ 小城暂时离线，请稍后再试。',
           th: '⚠️ 小城ออฟไลน์ชั่วคราว กรุณาลองใหม่',
@@ -422,6 +435,7 @@ export default function AgentChatPage() {
       }
     } catch (err: unknown) {
       clearTimeout(pendingTimer)
+      removePendingThinking()
       const code = (err as { code?: string })?.code
       const isTimeout = code === 'ECONNABORTED' || code === 'ERR_NETWORK' ||
         String((err as { message?: string })?.message).toLowerCase().includes('timeout')
@@ -437,7 +451,7 @@ export default function AgentChatPage() {
     } finally {
       setThinking(false)
     }
-  }, [sessionId, isThinking, lang, addMessage, setThinking, setIdentityTier, buildAIMessages])
+  }, [sessionId, isThinking, lang, addMessage, removeMessage, setThinking, setIdentityTier, buildAIMessages])
 
   const handleConfirm = useCallback(async (actionCode: string, confirm: boolean) => {
     setPendingConfirmAction(null)

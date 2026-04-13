@@ -308,25 +308,37 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
 
   /* ── 3a. chat_only：直接 LLM，无工具 ─────────────────────────────────── */
   if (intent.dispatch_mode === "chat_only" || intent.dispatch_mode === "greeting") {
-    const historyMessages = (sessionHistory || []).slice(-6).map((m) => ({
-      role:    m.role === "user" ? "user" : "assistant",
-      content: m.text || "",
-    }));
+    // 过滤空内容消息，避免空 assistant content 导致 API 返回空串
+    const historyMessages = (sessionHistory || [])
+      .slice(-4)
+      .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text || "" }))
+      .filter((m) => m.content.trim().length > 0);
+
     const systemPrompt = buildSystemPrompt(roleKeywords, userContext, intent.intent_name);
     const messages = [
       { role: "system", content: systemPrompt },
       ...historyMessages,
       { role: "user", content: userText },
     ];
+
+    // 意图特定的 fallback（greeting 不应该用"没理解"语气）
+    const CHAT_FALLBACK = {
+      greeting: { zh: "你好！我是小城 👋 有什么可以帮你的？", th: "สวัสดีค่ะ ฉันคือเสี่ยวเฉิง 👋 มีอะไรให้ช่วยไหมคะ?", en: "Hi! I'm Xiao Cheng 👋 How can I help you?" },
+      borrow_help: { zh: "借充电宝很简单：扫码 → 选规格 → 支付，即可借用。有疑问随时问我哦～", th: "การยืมง่ายมาก: สแกน → เลือกขนาด → ชำระเงิน", en: "To borrow: scan QR → select size → pay. Easy!" },
+      return_help: { zh: "还充电宝：把充电宝插入任意站点的卡槽即可自动还回，系统会实时扣费结算。", th: "การคืน: เสียบพาวเวอร์แบงก์เข้าช่องของสถานีใดก็ได้", en: "To return: insert the power bank into any station slot — it auto-returns." },
+      default: { zh: "小城暂时有点忙，请稍后再问我哦 😊", th: "ขอโทษนะคะ ลองใหม่อีกครั้งนะคะ", en: "Sorry, I'm a bit busy. Please try again!" },
+    };
+    const fallbackGroup = CHAT_FALLBACK[intent.intent_code] || CHAT_FALLBACK.default;
+    const fallbackText = fallbackGroup[lang] || fallbackGroup.zh;
+
     let text = "";
     try {
       text = await chatCompletion(messages, { maxTokens: 256 });
     } catch (err) {
       console.error("[pipeline] chat_only LLM 失败:", err.message);
-      text = lang === "th" ? "ขอโทษนะคะ ลองใหม่อีกครั้งนะคะ" : lang === "en" ? "Sorry, please try again." : "小城暂时有点忙，请稍后再试 😊";
     }
     return {
-      text:            text || "小城没有理解你的问题，能换个方式说吗？",
+      text:            text?.trim() || fallbackText,
       display_payload: null,
       suggestions:     [],
       source:          "vector_chat_only",
