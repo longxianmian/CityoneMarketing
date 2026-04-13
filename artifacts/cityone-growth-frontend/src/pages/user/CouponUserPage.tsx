@@ -432,11 +432,11 @@ export default function CouponUserPage() {
         </div>
       </Modal>
 
-      <div style={{ flexShrink: 0, background: '#f0f0f0' }}>
+      <div style={{ flexShrink: 0, width: '100%', aspectRatio: '16/9', background: '#f0f0f0', overflow: 'hidden', position: 'relative' } as React.CSSProperties}>
         {videoStarted && coverVideoUrl ? (
-          <div style={{ position: 'relative', cursor: 'pointer' }} onClick={toggleVideoPlay}>
+          <div style={{ position: 'absolute', inset: 0, cursor: 'pointer' }} onClick={toggleVideoPlay}>
             <video ref={heroVideoRef} src={coverVideoUrl} autoPlay loop playsInline
-              style={{ width: '100%', display: 'block' }} />
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             {videoPaused && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -446,9 +446,9 @@ export default function CouponUserPage() {
             )}
           </div>
         ) : coverUrl ? (
-          <div style={{ position: 'relative', cursor: coverVideoUrl ? 'pointer' : 'default' }}
+          <div style={{ position: 'absolute', inset: 0, cursor: coverVideoUrl ? 'pointer' : 'default' }}
                onClick={coverVideoUrl ? () => setVideoStarted(true) : undefined}>
-            <OssImage src={coverUrl} alt={name} style={{ width: '100%', display: 'block' }} />
+            <OssImage src={coverUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             {coverVideoUrl && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -458,14 +458,14 @@ export default function CouponUserPage() {
             )}
           </div>
         ) : coverVideoUrl ? (
-          <div style={{ cursor: 'pointer', background: '#000', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                onClick={() => setVideoStarted(true)}>
             <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
             </div>
           </div>
         ) : (
-          <div style={{ height: 160, background: 'linear-gradient(135deg, #1677ff20, #fa8c1640)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #1677ff20, #fa8c1640)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: 56 }}>🎫</span>
           </div>
         )}
