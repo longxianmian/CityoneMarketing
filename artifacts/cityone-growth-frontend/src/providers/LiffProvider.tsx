@@ -64,6 +64,13 @@ async function initLiff(
     const isInClient = liff.isInClient()
 
     // 3. 获取真实 LINE 用户资料
+    // 如果在 LINE 内置浏览器但 token 未注入（如直接访问非 LIFF 注册域名），触发登录
+    // 注意：redirectUri 必须与 LINE 后台注册的 LIFF Endpoint URL 域名一致
+    if (isInClient && !liff.isLoggedIn()) {
+      liff.login()
+      return
+    }
+
     if (isInClient && liff.isLoggedIn()) {
       const lineProfile = await liff.getProfile()
       if (signal.cancelled) return
