@@ -10,16 +10,27 @@ import { EditOutlined, InfoCircleOutlined, ReloadOutlined } from '@ant-design/ic
 import request from '../../api/request'
 import dayjs from 'dayjs'
 
-/* ─── 规则名称映射（中文硬编码）──────────────────────────────────────────── */
+/* ─── 规则名称映射（支持数据库实际 rule_type 值）─────────────────────────── */
 const RULE_LABELS: Record<string, { label: string; color: string; desc: string; unit: string }> = {
-  EARN_ORDER_COMPLETE:  { label: '完成订单',   color: 'green',    desc: '用户完成共享充电宝租借订单后获得积分', unit: '积分/次' },
-  EARN_SHARE_REGISTER:  { label: '分享注册',   color: 'blue',     desc: '被邀请用户通过分享链接注册后，邀请者获得积分', unit: '积分/次' },
-  EARN_DAILY_CHECKIN:   { label: '每日签到',   color: 'cyan',     desc: '用户每日签到获得积分（每天限1次）', unit: '积分/次' },
-  EARN_ACTIVITY:        { label: '参与活动',   color: 'purple',   desc: '用户参与指定营销活动获得积分', unit: '积分/次' },
-  EARN_SHARE_FOLLOW:    { label: '分享关注',   color: 'geekblue', desc: '被邀请用户关注LINE OA后，邀请者获得积分', unit: '积分/次' },
-  EARN_INVITE:          { label: '邀请好友',   color: 'volcano',  desc: '成功邀请新用户注册后获得积分', unit: '积分/次' },
-  SPEND_EXCHANGE:       { label: '积分兑换',   color: 'red',      desc: '用户兑换商城商品时消耗的积分', unit: '积分/次' },
-  SPEND_COUPON:         { label: '兑换卡券',   color: 'magenta',  desc: '用户使用积分兑换卡券时消耗的积分', unit: '积分/次' },
+  // ── 数据库实际存储的 rule_type ──────────────────────────────────────────
+  charge_consumption:   { label: '消费充电积分', color: 'green',    desc: '用户充电实付金额获得积分（1 THB = 1 积分）', unit: '积分/THB' },
+  share_follow:         { label: '分享关注',     color: 'geekblue', desc: '被邀请用户关注LINE OA后，邀请者获得积分', unit: '积分/次' },
+  share_register:       { label: '分享注册',     color: 'blue',     desc: '被邀请用户通过分享链接注册后，邀请者获得积分', unit: '积分/次' },
+  daily_checkin:        { label: '每日签到',     color: 'cyan',     desc: '用户每日签到获得积分（每天限1次）', unit: '积分/次' },
+  activity_participate: { label: '参与活动',     color: 'purple',   desc: '用户参与指定营销活动获得积分', unit: '积分/次' },
+  invite_friend:        { label: '邀请好友',     color: 'volcano',  desc: '成功邀请新用户注册后获得积分', unit: '积分/次' },
+  order_complete:       { label: '完成订单',     color: 'lime',     desc: '用户完成共享充电宝租借订单后获得积分', unit: '积分/次' },
+  mall_exchange:        { label: '积分兑换',     color: 'red',      desc: '用户兑换商城商品时消耗的积分', unit: '积分/次' },
+  coupon_exchange:      { label: '兑换卡券',     color: 'magenta',  desc: '用户使用积分兑换卡券时消耗的积分', unit: '积分/次' },
+  // ── 兼容旧版大写 key（如后续迁移需要）──────────────────────────────────
+  EARN_ORDER_COMPLETE:  { label: '完成订单',     color: 'green',    desc: '用户完成共享充电宝租借订单后获得积分', unit: '积分/次' },
+  EARN_SHARE_REGISTER:  { label: '分享注册',     color: 'blue',     desc: '被邀请用户通过分享链接注册后，邀请者获得积分', unit: '积分/次' },
+  EARN_DAILY_CHECKIN:   { label: '每日签到',     color: 'cyan',     desc: '用户每日签到获得积分（每天限1次）', unit: '积分/次' },
+  EARN_ACTIVITY:        { label: '参与活动',     color: 'purple',   desc: '用户参与指定营销活动获得积分', unit: '积分/次' },
+  EARN_SHARE_FOLLOW:    { label: '分享关注',     color: 'geekblue', desc: '被邀请用户关注LINE OA后，邀请者获得积分', unit: '积分/次' },
+  EARN_INVITE:          { label: '邀请好友',     color: 'volcano',  desc: '成功邀请新用户注册后获得积分', unit: '积分/次' },
+  SPEND_EXCHANGE:       { label: '积分兑换',     color: 'red',      desc: '用户兑换商城商品时消耗的积分', unit: '积分/次' },
+  SPEND_COUPON:         { label: '兑换卡券',     color: 'magenta',  desc: '用户使用积分兑换卡券时消耗的积分', unit: '积分/次' },
 }
 
 function getRuleMeta(ruleKey: string) {
