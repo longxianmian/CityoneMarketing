@@ -270,6 +270,12 @@ import {
   handleMediaViewUrl,
   handleMediaDelete,
 } from "./routes/media.js";
+import {
+  handleGetInviteConfig,
+  handleSaveInviteConfig,
+  handleGetInviteStats,
+  handleGetInviteRelations,
+} from "./routes/invite.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1318,6 +1324,20 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/growth/admin/points/attribution") {
       return handleAdminAttribution(req, res, url, sendJson);
+    }
+
+    // ── 邀请裂变配置 ─────────────────────────────────────────────────────────
+    if (req.method === "GET" && url.pathname === "/api/growth/invite/config") {
+      return handleGetInviteConfig(req, res, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/growth/invite/config/save") {
+      return handleSaveInviteConfig(req, res, sendJson, await readBody(req));
+    }
+    if (req.method === "GET" && url.pathname === "/api/growth/invite/stats") {
+      return handleGetInviteStats(req, res, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/growth/invite/relations") {
+      return handleGetInviteRelations(req, res, sendJson, url);
     }
 
     if (req.method === "POST" && url.pathname === "/api/translate") {
