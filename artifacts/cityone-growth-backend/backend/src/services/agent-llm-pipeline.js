@@ -293,14 +293,65 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
     finalText = await chatCompletion(messagesForFinal, { maxTokens: 256 });
   } catch (err) {
     console.error("[pipeline] LLM 最终回复失败:", err.message, err.stack?.slice(0, 200));
-    finalText = "查到了，但小城整理信息时出了点问题，请稍后再试。";
+  }
+
+  // 兜底：若 LLM 摘要为空，根据工具和数据生成有意义的回复
+  if (!finalText?.trim()) {
+    finalText = buildToolFallback(tc.name, toolResult, language);
   }
 
   return {
-    text:            finalText?.trim() || "已为你查询完毕，请查看上方卡片。",
+    text:            finalText.trim(),
     display_payload: toolResult?.display_payload || null,
     suggestions:     [],
     source:          "llm_tool",
     tool_used:       tc.name,
   };
+}
+
+/* ─── 工具兜底文案（LLM 摘要为空时使用）────────────────────────────────── */
+function buildToolFallback(toolName, toolResult, language) {
+  const res = toolResult?.tool_result || {};
+  const ok  = toolResult?.success !== false;
+
+  const T = {
+    query_points_balance: {
+      zh: ok ? `您当前可用积分 ${res.available_points ?? 0} 分，累计 ${res.total_points ?? 0} 分。` : "积分查询暂时不可用，请稍后再试。",
+      th: ok ? `คะแนนที่ใช้ได้ ${res.available_points ?? 0} คะแนน` : "ไม่สามารถดึงข้อมูลคะแนนได้",
+      en: ok ? `You have ${res.available_points ?? 0} available points.` : "Points query unavailable, please try again.",
+    },
+    query_coupons: {
+      zh: ok ? (res.count > 0 ? `您有 ${res.count} 张可用优惠券，快去使用吧～` : "目前您还没有可用的优惠券哦。") : "卡券查询暂时不可用。",
+      th: ok ? (res.count > 0 ? `คุณมีคูปองที่ใช้ได้ ${res.count} ใบ` : "ยังไม่มีคูปองที่ใช้ได้") : "ไม่สามารถดึงข้อมูลคูปองได้",
+      en: ok ? (res.count > 0 ? `You have ${res.count} usable coupon(s).` : "No coupons available at the moment.") : "Coupon query unavailable.",
+    },
+    recommend_coupon: {
+      zh: ok && res.coupon_id ? "为您推荐了一张最合适的优惠券，请查看详情～" : "目前暂无适合推荐的优惠券哦。",
+      th: ok && res.coupon_id ? "แนะนำคูปองที่เหมาะสมที่สุดให้คุณแล้ว" : "ยังไม่มีคูปองที่แนะนำได้",
+      en: ok && res.coupon_id ? "We found the best coupon for you." : "No suitable coupons to recommend right now.",
+    },
+    query_nearby_stations: {
+      zh: ok ? (res.total > 0 ? `附近共有 ${res.total} 个站点，可快速借还充电宝。` : "附近暂时没有找到站点信息。") : "站点查询暂时不可用。",
+      th: ok ? (res.total > 0 ? `พบสถานี ${res.total} แห่งในบริเวณใกล้เคียง` : "ยังไม่พบสถานีในบริเวณใกล้เคียง") : "ไม่สามารถดึงข้อมูลสถานีได้",
+      en: ok ? (res.total > 0 ? `Found ${res.total} station(s) nearby.` : "No stations found nearby.") : "Station query unavailable.",
+    },
+    query_benefits: {
+      zh: ok ? (res.count > 0 ? `还有 ${res.count} 项福利等您领取！` : "目前暂无可领取的福利哦。") : "福利查询暂时不可用。",
+      th: ok ? (res.count > 0 ? `มีสิทธิ์รับสวัสดิการ ${res.count} รายการ` : "ยังไม่มีสวัสดิการที่สามารถรับได้") : "ไม่สามารถดึงข้อมูลสวัสดิการได้",
+      en: ok ? (res.count > 0 ? `You have ${res.count} benefit(s) to claim!` : "No benefits available at the moment.") : "Benefits query unavailable.",
+    },
+    generate_invite_link: {
+      zh: ok ? "已为您生成专属邀请链接，分享给好友即可获得奖励～" : "邀请链接生成失败，请稍后再试。",
+      th: ok ? "สร้างลิงก์เชิญเฉพาะของคุณแล้ว แชร์ให้เพื่อนเพื่อรับรางวัล" : "ไม่สามารถสร้างลิงก์เชิญได้",
+      en: ok ? "Your invite link is ready. Share it with friends to earn rewards!" : "Failed to generate invite link, please try again.",
+    },
+    query_recent_orders: {
+      zh: ok ? (res.total > 0 ? `您最近共有 ${res.total} 条订单记录。` : "暂时没有找到最近的订单记录。") : "订单查询暂时不可用。",
+      th: ok ? (res.total > 0 ? `มีประวัติออเดอร์ ${res.total} รายการ` : "ยังไม่มีประวัติออเดอร์") : "ไม่สามารถดึงข้อมูลออเดอร์ได้",
+      en: ok ? (res.total > 0 ? `You have ${res.total} recent order(s).` : "No recent orders found.") : "Order query unavailable.",
+    },
+  };
+
+  const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
+  return T[toolName]?.[lang] ?? (ok ? { zh: "已为您查询完毕～", th: "ดึงข้อมูลเรียบร้อยแล้ว", en: "Query complete." }[lang] : { zh: "查询暂时不可用，请稍后再试。", th: "ไม่สามารถดึงข้อมูลได้", en: "Query unavailable, please try again." }[lang]);
 }
