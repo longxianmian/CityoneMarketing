@@ -95,6 +95,16 @@ export function createSession({ lineUserId, userId, siteId, entryType, entryCode
 export function getOrCreateSession({ lineUserId, userId, siteId, entryType, entryCode, language, identityTier, scene = "agent_main" }) {
   const existing = getLatestActiveSession(lineUserId, scene);
   if (existing) {
+    // 若旧 session 的 user_id 为空，用本次传入的设备 ID 补填，保证工具查询身份一致
+    if (!existing.user_id && userId) {
+      const list = loadJsonArray(SESSIONS_FILE);
+      const idx = list.findIndex((s) => s.session_id === existing.session_id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], user_id: userId };
+        saveJsonArray(SESSIONS_FILE, list);
+        existing.user_id = userId;
+      }
+    }
     touchSession(existing.session_id);
     return { session: existing, restored: true };
   }

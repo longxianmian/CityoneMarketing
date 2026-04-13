@@ -350,15 +350,21 @@ function buildToolFallback(toolName, toolResult, language) {
     get_user_account: {
       zh: ok
         ? `您当前可用积分 ${res.points?.available_points ?? 0} 分` +
-          (res.wallet?.count > 0 ? `，钱包里有 ${res.wallet.count} 张可用券。` : "，暂无可用优惠券。")
+          (res.wallet?.count > 0 ? `，钱包里有 ${res.wallet.count} 张可用券` : "") +
+          (res.prizes?.count > 0 ? `，另有 ${res.prizes.count} 张活动奖品` : "") +
+          ((res.wallet?.count || 0) + (res.prizes?.count || 0) === 0 ? "，暂无可用卡券。" : "。")
         : "账户信息查询暂时不可用，请稍后再试。",
       th: ok
         ? `คะแนนที่ใช้ได้ ${res.points?.available_points ?? 0} คะแนน` +
-          (res.wallet?.count > 0 ? ` มีคูปอง ${res.wallet.count} ใบ` : "")
+          (res.wallet?.count > 0 ? ` มีคูปอง ${res.wallet.count} ใบ` : "") +
+          (res.prizes?.count > 0 ? ` มีของรางวัล ${res.prizes.count} รายการ` : "") +
+          ((res.wallet?.count || 0) + (res.prizes?.count || 0) === 0 ? " ยังไม่มีคูปอง" : "")
         : "ไม่สามารถดึงข้อมูลบัญชีได้",
       en: ok
         ? `You have ${res.points?.available_points ?? 0} points` +
-          (res.wallet?.count > 0 ? ` and ${res.wallet.count} coupon(s) in your wallet.` : ", no coupons in your wallet.")
+          (res.wallet?.count > 0 ? `, ${res.wallet.count} coupon(s) in wallet` : "") +
+          (res.prizes?.count > 0 ? `, ${res.prizes.count} activity prize(s)` : "") +
+          ((res.wallet?.count || 0) + (res.prizes?.count || 0) === 0 ? ", no coupons yet." : ".")
         : "Account query unavailable.",
     },
     query_nearby_stations: {
