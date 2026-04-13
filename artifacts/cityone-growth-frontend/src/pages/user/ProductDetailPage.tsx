@@ -40,6 +40,11 @@ export default function ProductDetailPage() {
   const [videoPaused, setVideoPaused] = useState(false)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
 
+  const handleStartVideo = () => {
+    setVideoStarted(true)
+    heroVideoRef.current?.play().catch(() => {})
+  }
+
   const toggleVideoPlay = () => {
     const el = heroVideoRef.current
     if (!el) return
@@ -345,41 +350,44 @@ export default function ProductDetailPage() {
       />
 
       <div style={{ flexShrink: 0, width: '100%', aspectRatio: '16/9', background: '#f0f0f0', overflow: 'hidden', position: 'relative' } as React.CSSProperties}>
-        {videoStarted && coverVideo ? (
-          <div style={{ position: 'absolute', inset: 0, cursor: 'pointer' }} onClick={toggleVideoPlay}>
-            <video ref={heroVideoRef} src={coverVideo} autoPlay loop playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            {videoPaused && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : coverImage ? (
-          <div style={{ position: 'absolute', inset: 0, cursor: coverVideo ? 'pointer' : 'default' }}
-               onClick={coverVideo ? () => setVideoStarted(true) : undefined}>
-            <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} placeholderStyle={{ width: '100%', height: '100%' }} />
-            {coverVideo && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : coverVideo ? (
-          <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-               onClick={() => setVideoStarted(true)}>
+        {coverVideo && (
+          <video ref={heroVideoRef} src={coverVideo} loop playsInline
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                     visibility: videoStarted ? 'visible' : 'hidden' } as React.CSSProperties}
+            onClick={videoStarted ? toggleVideoPlay : undefined} />
+        )}
+        {videoStarted && videoPaused && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
             <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 13, color: '#fff', lineHeight: 1, marginLeft: 2 }}>▶</span>
             </div>
           </div>
-        ) : (
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #52c41a20, #52c41a40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 64 }}>🎫</span>
-          </div>
+        )}
+        {!videoStarted && (
+          coverImage ? (
+            <div style={{ position: 'absolute', inset: 0, cursor: coverVideo ? 'pointer' : 'default' }}
+                 onClick={coverVideo ? handleStartVideo : undefined}>
+              <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} placeholderStyle={{ width: '100%', height: '100%' }} />
+              {coverVideo && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(0,0,0,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 16, color: '#fff', lineHeight: 1, marginLeft: 3 }}>▶</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : coverVideo ? (
+            <div style={{ position: 'absolute', inset: 0, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                 onClick={handleStartVideo}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 16, color: '#fff', lineHeight: 1, marginLeft: 3 }}>▶</span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #52c41a20, #52c41a40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 64 }}>🎫</span>
+            </div>
+          )
         )}
       </div>
 
