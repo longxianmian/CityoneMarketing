@@ -6,24 +6,21 @@
  *   2. 用户返回 → 直接跳目标页（无任何验证步骤）
  *   3. 目标页含 auto= 参数 → 自动执行领取/参与操作
  */
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import useLineUserStore from '../../store/lineUser'
-import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useLiff } from '../../providers/LiffProvider'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-const SESSION_KEY = 'follow_oa_clicked'
 
 export default function FollowOAPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { language } = useI18n()
   const lineProfile = useLineUserStore((s) => s.profile)
-  const effectiveUserId = useEffectiveUserId()
   const { liffReady } = useLiff()
 
   const to   = params.get('to')   || '/welfare'
@@ -31,12 +28,10 @@ export default function FollowOAPage() {
   const back = params.get('back') || '/welfare'
 
   const [oaId, setOaId] = useState('')
-  const clickedRef = useRef(!!sessionStorage.getItem(SESSION_KEY))
 
-  // 若 LIFF 确认用户已关注（包括通过 A 系统关注的），直接跳目标页，无需再显示引导
+  // 若 LIFF 确认用户已关注，直接跳目标页
   useEffect(() => {
     if (liffReady && lineProfile?.isFriend === true) {
-      sessionStorage.removeItem(SESSION_KEY)
       navigate(to, { replace: true })
     }
   }, [liffReady, lineProfile?.isFriend, navigate, to])
@@ -52,38 +47,8 @@ export default function FollowOAPage() {
       .catch(() => {})
   }, [])
 
-  // 用户从 LINE 返回后 → 直接跳目标页，无任何额外验证
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.hidden) return
-      if (!clickedRef.current) return
-      sessionStorage.removeItem(SESSION_KEY)
-      navigate(to, { replace: true })
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [to, navigate])
-
   const handleFollow = () => {
     const id = oaId || '@cityone'
-    sessionStorage.setItem(SESSION_KEY, '1')
-    clickedRef.current = true
-
-    // 点击即视为即将关注 → 预写入 fans.json（无需等待 LINE webhook）
-    // 同时传 user_id（canonical）和 line_user_id（LINE UID），确保两个维度都能命中 check-follow
-    const userId = effectiveUserId
-    fetch(`${API_BASE}/api/user/set-fan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id:          userId,
-        line_user_id:     lineProfile?.lineUserId || userId,
-        line_display_name: lineProfile?.lineDisplayName || '',
-        line_picture_url:  lineProfile?.linePictureUrl  || '',
-      }),
-    }).catch(() => {})
-
-    // line:// 深链接在 LINE App 内打开原生加好友弹窗（无 QR 码页）
     window.location.href = `line://ti/p/${encodeURIComponent(id)}`
   }
 
@@ -93,7 +58,7 @@ export default function FollowOAPage() {
     desc:      { zh: '关注后即可享受专属福利，领取卡券、参与活动、兑换积分礼品，全部畅享无阻。', th: 'หลังจากติดตาม คุณจะได้รับสิทธิพิเศษ รับคูปอง เข้าร่วมกิจกรรม แลกของรางวัล', en: 'Follow to enjoy exclusive benefits: coupons, activities, and rewards.' }[language]!,
     step1:     { zh: '① 点击下方按钮，跳转关注页面', th: '① กดปุ่มด้านล่างเพื่อไปหน้าติดตาม', en: '① Tap below to go to the follow page' }[language]!,
     step2:     { zh: '② 点击「加入好友」关注 CityOne', th: '② กด "เพิ่มเพื่อน" เพื่อติดตาม CityOne', en: '② Tap "Add Friend" to follow CityOne' }[language]!,
-    step3:     { zh: '③ 返回后自动进入目标页面', th: '③ กลับมาจะเข้าสู่หน้าเป้าหมายอัตโนมัติ', en: '③ Return and you\'ll land on the target page automatically' }[language]!,
+    step3:     { zh: '③ 关注成功后返回即可继续', th: '③ ติดตามสำเร็จแล้วกลับมาเพื่อดำเนินการต่อ', en: '③ After following, return to continue' }[language]!,
     followBtn: { zh: '关注 LINE OA 并继续', th: 'ติดตาม LINE OA แล้วดำเนินการต่อ', en: 'Follow LINE OA & Continue' }[language]!,
     backBtn:   { zh: '返回', th: 'กลับ', en: 'Back' }[language]!,
     oaBadge:   { zh: '官方认证帐号', th: 'บัญชีที่ได้รับการยืนยัน', en: 'Verified Official Account' }[language]!,
@@ -108,7 +73,7 @@ export default function FollowOAPage() {
           <Button
             type="text"
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate(back)}
+            onClick={() => navigate(back, { replace: true })}
             style={{ paddingLeft: 0 }}
           >
             {L.backBtn}
