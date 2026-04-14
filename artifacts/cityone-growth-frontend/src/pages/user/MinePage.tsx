@@ -167,6 +167,8 @@ export default function MinePage() {
 
   const lineUserId = profile?.lineUserId || ''
   const effectiveUserId = useEffectiveUserId()
+  // 是否在 LINE 内置浏览器（含 LIFF）—— 用于 API 调用门控
+  const isInLine = /Line\/\d/i.test(navigator.userAgent)
 
   // LIFF 拿到的 LINE 数据最权威，优先于服务端缓存
   const lineDisplayName =
@@ -256,6 +258,8 @@ export default function MinePage() {
 
   // ── 加载用户资料（阶段三：从 /api/user/profile 接口） ────────────────────
   useEffect(() => {
+    // LINE 内置浏览器：等 LIFF 建立 lineUserId 后再请求，避免以 dev_... 设备 ID 查询
+    if (isInLine && !lineUserId) return
     const load = async () => {
       try {
         const res: any = await getUserProfile(lineUserId ? { line_user_id: lineUserId } : {})
@@ -272,6 +276,8 @@ export default function MinePage() {
 
   // ── 加载积分总览 ───────────────────────────────────────────────────────────
   useEffect(() => {
+    // LINE 内置浏览器：等 LIFF 建立 lineUserId 后再请求，避免以 dev_... 设备 ID 查询
+    if (isInLine && !lineUserId) return
     const load = async () => {
       try {
         const res: any = await getUserPointsSummary(
@@ -292,6 +298,7 @@ export default function MinePage() {
   }, [lineUserId])
 
   const loadLedger = useCallback(async () => {
+    if (isInLine && !lineUserId) return
     setLedgerLoading(true)
     try {
       const res: any = await getUserPointsLedger({
@@ -305,6 +312,7 @@ export default function MinePage() {
   }, [lineUserId])
 
   const loadRedeems = useCallback(async () => {
+    if (isInLine && !lineUserId) return
     setRedeemLoading(true)
     try {
       const res: any = await getUserPointsRedeems({
@@ -326,6 +334,7 @@ export default function MinePage() {
 
   // ── 阶段三：加载奖品记录 ──────────────────────────────────────────────────
   const loadPrizes = useCallback(async () => {
+    if (isInLine && !lineUserId) return
     setPrizeLoading(true)
     try {
       const res: any = await getUserPrizes({
@@ -350,6 +359,7 @@ export default function MinePage() {
   // ── 阶段三：加载权益记录（按 tab 状态过滤） ─────────────────────────────
   const loadBenefits = useCallback(
     async (status?: 'available' | 'used' | 'expired') => {
+      if (isInLine && !lineUserId) return
       setBenefitLoading(true)
       try {
         const res: any = await getUserBenefits({
@@ -380,6 +390,7 @@ export default function MinePage() {
 
   // ── 阶段三：加载订单记录（当前返回空列表+说明） ──────────────────────────
   const loadOrders = useCallback(async () => {
+    if (isInLine && !lineUserId) return
     setOrderLoading(true)
     try {
       const res: any = await getUserOrders({

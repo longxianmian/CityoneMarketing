@@ -161,12 +161,18 @@ export function useFollowGate() {
         }
 
         // ── Case 3: LINE 身份未建立（任一条件缺失）且在 LINE 内
-        //    → 写恢复状态 → 跳 LIFF URL 正门，/welfare 恢复器接管
+        //    → 写恢复状态到 localStorage（主）
+        //    → 把 returnPath 也编进 LIFF URL（liff.state 传回 /welfare，双保险）
+        //    → 跳 LIFF URL 正门，/welfare 恢复器接管
         if (!lineProfile?.lineUserId || !liffReady || lineProfile?.isFriend === undefined) {
           if (isInLine) {
             writeResumeKeys(fullReturn, backPath, label)
-            console.log('[useFollowGate] LINE identity not ready, jumping to LIFF URL')
-            window.location.href = LIFF_URL
+            // 把 returnPath 编进 LIFF URL：?rp=<encoded> ，liff.state 会携带它回 /welfare
+            const liffTarget = new URL(LIFF_URL)
+            liffTarget.searchParams.set('rp', fullReturn)
+            if (label) liffTarget.searchParams.set('ra', label)
+            console.log('[useFollowGate] jumping to LIFF URL with rp=', fullReturn)
+            window.location.href = liffTarget.toString()
             return
           }
         }

@@ -343,6 +343,22 @@ export default function WelfareHomePage() {
     if (recoveryRef.current) return
     recoveryRef.current = true
 
+    // ── 在 effect 启动时快照 URL 参数 ──────────────────────────────────────
+    // 优先级：①直接 URL ?rp=... ②liff.state 中提取 ?rp=... ③localStorage ④sessionStorage
+    const directRp      = searchParams.get('rp') || searchParams.get('resume_return') || ''
+    const rawLiffState  = searchParams.get('liff.state') || ''
+
+    /** 从 liff.state query-string 中读 rp / resume_return */
+    const rpFromLiffState = (): string => {
+      if (!rawLiffState) return ''
+      try {
+        const qIdx = rawLiffState.indexOf('?')
+        if (qIdx < 0) return ''
+        const lsParams = new URLSearchParams(rawLiffState.slice(qIdx + 1))
+        return lsParams.get('rp') || lsParams.get('resume_return') || ''
+      } catch { return '' }
+    }
+
     const clearAllResumeKeys = () => {
       // localStorage 主键（新版）
       ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
@@ -356,13 +372,18 @@ export default function WelfareHomePage() {
       ].forEach((k) => sessionStorage.removeItem(k))
     }
 
+    // 读取 returnPath：①URL直接参数 ②liff.state ③localStorage ④sessionStorage
     const readResumeReturnPath = (): string =>
+      directRp ||
+      rpFromLiffState() ||
       localStorage.getItem('cityone_resume_return_path') ||
       sessionStorage.getItem('cityone_resume_return_path') ||
       sessionStorage.getItem('cityone_follow_return_path') ||
       ''
 
+    // 判断是否有待恢复动作：URL参数有returnPath本身就说明需要恢复
     const hasPendingResume = (): boolean =>
+      !!(directRp || rpFromLiffState()) ||
       localStorage.getItem('cityone_resume_pending') === '1' ||
       sessionStorage.getItem('cityone_resume_pending') === '1' ||
       sessionStorage.getItem('cityone_follow_pending') === '1'
@@ -419,7 +440,7 @@ export default function WelfareHomePage() {
     }
 
     run()
-  }, [liffReady, mergeProfile, navigate])
+  }, [liffReady, mergeProfile, navigate, searchParams])
 
   // ── /welfare 内关注按钮处理（弹层主链路 + line:// 降级）──────────────────
   const handleFollowInModal = async () => {
