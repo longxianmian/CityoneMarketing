@@ -12,7 +12,7 @@ import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import useLineUserStore from '../../store/lineUser'
-import { useLiff } from '../../providers/LiffProvider'
+import { useLiff, getLiff } from '../../providers/LiffProvider'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -21,6 +21,7 @@ export default function FollowOAPage() {
   const [params] = useSearchParams()
   const { language } = useI18n()
   const lineProfile = useLineUserStore((s) => s.profile)
+  const setIsFriend = useLineUserStore((s) => s.setIsFriend)
   const { liffReady } = useLiff()
 
   const to   = params.get('to')   || '/welfare'
@@ -28,6 +29,7 @@ export default function FollowOAPage() {
   const back = params.get('back') || '/welfare'
 
   const [oaId, setOaId] = useState('')
+  const [checking, setChecking] = useState(false)
 
   // 若 LIFF 确认用户已关注，直接跳目标页
   useEffect(() => {
@@ -46,6 +48,29 @@ export default function FollowOAPage() {
       })
       .catch(() => {})
   }, [])
+
+  // 用户从 LINE 返回后：调 getFriendship() 做真实校验
+  // 已关注 → 更新 store + 跳回原业务页
+  // 未关注 → 停留，不放行，不死循环
+  useEffect(() => {
+    const onVisible = async () => {
+      if (document.hidden) return
+      const liff = getLiff()
+      if (!liff) return
+      setChecking(true)
+      try {
+        const friendship = await liff.getFriendship()
+        if (friendship.friendFlag) {
+          setIsFriend(true)
+          navigate(to, { replace: true })
+          return
+        }
+      } catch {}
+      setChecking(false)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [to, navigate, setIsFriend])
 
   const handleFollow = () => {
     const id = oaId || '@cityone'
@@ -152,17 +177,21 @@ export default function FollowOAPage() {
             size="large"
             block
             onClick={handleFollow}
+            loading={checking}
+            disabled={checking}
             style={{
               height: 52,
               borderRadius: 50,
               fontSize: 16,
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #06c755, #00a84e)',
+              background: checking ? '#52c41a' : 'linear-gradient(135deg, #06c755, #00a84e)',
               border: 'none',
               boxShadow: '0 4px 16px rgba(6,199,85,0.35)',
             }}
           >
-            {L.followBtn}
+            {checking
+              ? { zh: '正在验证关注状态…', th: 'กำลังตรวจสอบ…', en: 'Verifying…' }[language]
+              : L.followBtn}
           </Button>
         </div>
 
