@@ -56,7 +56,17 @@ export default function FollowOAPage() {
   // ── 主链路：liff.requestFriendship() ─────────────────────────────────────
   // LINE 官方 API，在 LINE 内弹出关注确认弹窗，LIFF WebView 全程不销毁，链路不丢
   const handleFollow = async () => {
+    console.log('[FollowOAPage] click follow')
     const liff = getLiff()
+    console.log('[FollowOAPage] hasLiff =', !!liff)
+    console.log('[FollowOAPage] liffReady =', liffReady)
+
+    if (liff) {
+      console.log('[FollowOAPage] isLoggedIn =', liff.isLoggedIn?.())
+      console.log('[FollowOAPage] context =', liff.getContext?.())
+      console.log('[FollowOAPage] requestFriendship available =', liff.isApiAvailable?.('requestFriendship'))
+    }
+
     if (!liff) return
 
     setChecking(true)
@@ -80,8 +90,14 @@ export default function FollowOAPage() {
       sessionStorage.removeItem(SK_PENDING)
       sessionStorage.removeItem(SK_TO)
       navigate(to, { replace: true })
-    } catch {
+    } catch (e: any) {
+      console.error('[FollowOAPage] requestFriendship failed:', e)
       setChecking(false)
+      alert(
+        '[FollowOAPage] requestFriendship failed\n' +
+        'code=' + (e?.code || '') + '\n' +
+        'message=' + (e?.message || String(e))
+      )
     }
   }
 
@@ -104,13 +120,18 @@ export default function FollowOAPage() {
             linePictureUrl:  p.pictureUrl || '',
             isFriend:        true,
           })
-        } catch { setIsFriend(true) }
+        } catch (e2: any) {
+          console.error('[FollowOAPage] verifyFallback getProfile failed:', e2)
+          setIsFriend(true)
+        }
         sessionStorage.removeItem(SK_PENDING)
         sessionStorage.removeItem(SK_TO)
         navigate(to, { replace: true })
         return
       }
-    } catch {}
+    } catch (e: any) {
+      console.error('[FollowOAPage] verifyFallback getFriendship failed:', e)
+    }
     busyRef.current = false
   }, [to, navigate, mergeProfile, setIsFriend])
 
