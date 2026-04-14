@@ -54,7 +54,7 @@ async function initLiff(
     _liffId = liffId  // 供 catch 块使用
 
     if (!liffId) {
-      onReady({ liffReady: false, inLineClient: false })
+      onReady({ liffReady: false, inLineClient: false, liffChecked: true })
       return
     }
 

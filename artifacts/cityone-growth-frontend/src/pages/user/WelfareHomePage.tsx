@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiff, getLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
-import { Drawer, Button, Tag, Carousel } from 'antd'
+import { Drawer, Button, Tag, Carousel, Modal } from 'antd'
 import {
   MenuOutlined,
   GlobalOutlined,
@@ -269,6 +269,12 @@ export default function WelfareHomePage() {
   const mergeProfile  = useLineUserStore((s) => s.mergeProfile)
   const recoveryRef   = useRef(false)
 
+  // 关注弹层状态（Step D：身份已建立但未关注）
+  const [showFollowModal,    setShowFollowModal]    = useState(false)
+  const [followReturnPath,   setFollowReturnPath]   = useState('/welfare')
+  const [followChecking,     setFollowChecking]     = useState(false)
+  const [followOaId,         setFollowOaId]         = useState('')
+
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
 
@@ -309,59 +315,142 @@ export default function WelfareHomePage() {
     sessionStorage.removeItem('liff_redirect')
   }, [])
 
-  // ── 关注恢复器：/welfare 作为稳定 LIFF 入口 ───────────────────────────────
-  // 触发条件：sessionStorage 存在 cityone_follow_pending=1 且 liffReady
-  // 覆盖场景：line:// 降级后 WebView 销毁重载、requestFriendship 后任何异常重载
+  // 拉取 OA ID（供关注弹层 line:// 降级使用）
+  useEffect(() => {
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+    fetch(`${API_BASE}/api/growth/line/config`)
+      .then((r) => r.json())
+      .then((j) => {
+        const id: string = j?.data?.officialAccountId || ''
+        if (id && id !== '@YOUR_OA_ID') setFollowOaId(id)
+      })
+      .catch(() => {})
+  }, [])
+
+  // ── 身份恢复器：/welfare 作为唯一身份恢复中心 ───────────────────────────────
+  // 触发键：cityone_resume_pending=1（useFollowGate/FollowOAPage 写入）
+  // 兼容键：cityone_follow_pending=1（旧版 FollowOAPage 写入）
+  //
+  // 步骤 A：getProfile → mergeProfile（建立头像/昵称）
+  // 步骤 B：getFriendship
+  // 步骤 C：已关注 → mergeProfile(isFriend:true) → navigate(returnPath)
+  // 步骤 D：未关注 → mergeProfile(isFriend:false) → 显示关注弹层
   useEffect(() => {
     if (!liffReady) return
-    if (sessionStorage.getItem('cityone_follow_pending') !== '1') return
+    const hasPending =
+      sessionStorage.getItem('cityone_resume_pending') === '1' ||
+      sessionStorage.getItem('cityone_follow_pending') === '1'
+    if (!hasPending) return
     if (recoveryRef.current) return
     recoveryRef.current = true
+
+    const clearAllResumeKeys = () => {
+      ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
+        'cityone_resume_action',  'cityone_resume_name',
+        'cityone_follow_pending', 'cityone_follow_return_path', 'cityone_follow_back_path',
+        'cityone_follow_action',  'cityone_follow_name',
+      ].forEach((k) => sessionStorage.removeItem(k))
+    }
 
     const runRecovery = async () => {
       const liff = getLiff()
       if (!liff) {
-        console.error('[WelfareHomePage] follow recovery: liff not available')
+        console.error('[WelfareHomePage] recovery: liff not available')
         recoveryRef.current = false
         return
       }
+
+      // 步骤 A：建立 LINE 身份（头像、昵称）
+      try {
+        const p = await liff.getProfile()
+        mergeProfile({
+          lineUserId:      p.userId,
+          lineDisplayName: p.displayName,
+          linePictureUrl:  p.pictureUrl || '',
+        })
+      } catch (e) {
+        console.error('[WelfareHomePage] recovery: getProfile failed', e)
+      }
+
+      // 步骤 B：验证关注状态
       try {
         const friendship = await liff.getFriendship()
-        if (!friendship.friendFlag) {
-          // 用户还没关注，不放行，停留福利中心
-          console.log('[WelfareHomePage] follow recovery: not followed, staying')
+        const returnPath =
+          sessionStorage.getItem('cityone_resume_return_path') ||
+          sessionStorage.getItem('cityone_follow_return_path') ||
+          '/welfare'
+
+        if (friendship.friendFlag) {
+          // 步骤 C：已关注 → 写 isFriend → 清理 → 跳回业务页
+          mergeProfile({ isFriend: true })
+          clearAllResumeKeys()
+          if (returnPath !== '/welfare') {
+            navigate(returnPath, { replace: true })
+          }
+        } else {
+          // 步骤 D：未关注 → 显示关注弹层，让用户在 /welfare 内完成关注
+          mergeProfile({ isFriend: false })
+          setFollowReturnPath(returnPath)
+          setShowFollowModal(true)
           recoveryRef.current = false
-          return
-        }
-        // 已关注 → 取资料 → 写 store → 跳回业务页
-        try {
-          const p = await liff.getProfile()
-          mergeProfile({
-            lineUserId:      p.userId,
-            lineDisplayName: p.displayName,
-            linePictureUrl:  p.pictureUrl || '',
-            isFriend:        true,
-          })
-        } catch (e2) {
-          console.error('[WelfareHomePage] follow recovery: getProfile failed', e2)
-        }
-        const returnPath = sessionStorage.getItem('cityone_follow_return_path') || '/welfare'
-        sessionStorage.removeItem('cityone_follow_pending')
-        sessionStorage.removeItem('cityone_follow_return_path')
-        sessionStorage.removeItem('cityone_follow_back_path')
-        sessionStorage.removeItem('cityone_follow_action')
-        sessionStorage.removeItem('cityone_follow_name')
-        if (returnPath !== '/welfare') {
-          navigate(returnPath, { replace: true })
         }
       } catch (e) {
-        console.error('[WelfareHomePage] follow recovery: getFriendship failed', e)
+        console.error('[WelfareHomePage] recovery: getFriendship failed', e)
         recoveryRef.current = false
       }
     }
 
     runRecovery()
   }, [liffReady, mergeProfile, navigate])
+
+  // ── /welfare 内关注按钮处理（弹层主链路 + line:// 降级）──────────────────
+  const handleFollowInModal = async () => {
+    const liff = getLiff()
+    if (!liff || !liffReady) {
+      console.error('[WelfareHomePage] follow modal: liff not ready, fallback line://')
+      const id = followOaId || '@cityone'
+      window.location.href = `line://ti/p/${encodeURIComponent(id)}`
+      return
+    }
+    setFollowChecking(true)
+    const canRequest = liff.isApiAvailable?.('requestFriendship') === true
+    if (canRequest) {
+      try {
+        await liff.requestFriendship()
+        const friendship = await liff.getFriendship()
+        if (!friendship.friendFlag) {
+          setFollowChecking(false)
+          return
+        }
+        const p = await liff.getProfile()
+        mergeProfile({
+          lineUserId:      p.userId,
+          lineDisplayName: p.displayName,
+          linePictureUrl:  p.pictureUrl || '',
+          isFriend:        true,
+        })
+        ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
+          'cityone_resume_action',  'cityone_resume_name',
+          'cityone_follow_pending', 'cityone_follow_return_path', 'cityone_follow_back_path',
+          'cityone_follow_action',  'cityone_follow_name',
+        ].forEach((k) => sessionStorage.removeItem(k))
+        setShowFollowModal(false)
+        setFollowChecking(false)
+        if (followReturnPath && followReturnPath !== '/welfare') {
+          navigate(followReturnPath, { replace: true })
+        }
+        return
+      } catch (e) {
+        console.error('[WelfareHomePage] follow modal: requestFriendship failed, fallback line://', e)
+        setFollowChecking(false)
+      }
+    } else {
+      setFollowChecking(false)
+    }
+    // 降级 line:// — 用户返回后恢复器继续接管（cityone_resume_pending 仍在）
+    const id = followOaId || '@cityone'
+    window.location.href = `line://ti/p/${encodeURIComponent(id)}`
+  }
 
   const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
   useEffect(() => {
@@ -693,6 +782,53 @@ export default function WelfareHomePage() {
           })}
         </div>
       </Drawer>
+
+      {/* ── 关注弹层（Step D：身份已建立但未关注，或 guard 写 resume_pending=1 后导航到此）── */}
+      <Modal
+        open={showFollowModal}
+        footer={null}
+        closable={false}
+        centered
+        styles={{ body: { padding: 0 } }}
+        width={320}
+      >
+        <div style={{ borderRadius: 20, overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(135deg, #06c755 0%, #00a84e 100%)', padding: '18px 24px', textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 6 }}>💬</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 4 }}>CityOne</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', display: 'inline-block', padding: '2px 10px', borderRadius: 20 }}>
+              {{ zh: '官方认证帐号', th: 'บัญชีที่ได้รับการยืนยัน', en: 'Verified Official Account' }[language]}
+            </div>
+          </div>
+          <div style={{ padding: '20px 20px 24px', background: '#fff' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: '#1a1a1a' }}>
+              {{ zh: '需先关注 CityOne LINE OA', th: 'กรุณาติดตาม CityOne LINE OA ก่อน', en: 'Follow CityOne LINE OA First' }[language]}
+            </div>
+            <div style={{ fontSize: 13, color: '#666', lineHeight: 1.7, marginBottom: 20 }}>
+              {{ zh: '关注后即可享受专属福利，领取卡券、参与活动、兑换积分礼品。', th: 'ติดตามเพื่อรับสิทธิพิเศษ คูปอง กิจกรรม และรางวัล', en: 'Follow to enjoy exclusive benefits: coupons, activities, and rewards.' }[language]}
+            </div>
+            <Button
+              type="primary"
+              size="large"
+              block
+              loading={followChecking}
+              disabled={followChecking}
+              onClick={handleFollowInModal}
+              style={{ height: 48, borderRadius: 50, fontSize: 15, fontWeight: 700, background: 'linear-gradient(135deg, #06c755, #00a84e)', border: 'none', boxShadow: '0 4px 16px rgba(6,199,85,0.35)', marginBottom: 10 }}
+            >
+              {{ zh: followChecking ? '正在验证…' : '关注 LINE OA 并继续', th: followChecking ? 'กำลังตรวจสอบ…' : 'ติดตาม LINE OA แล้วดำเนินการต่อ', en: followChecking ? 'Verifying…' : 'Follow LINE OA & Continue' }[language]}
+            </Button>
+            <Button
+              block
+              size="large"
+              onClick={() => setShowFollowModal(false)}
+              style={{ height: 44, borderRadius: 50, fontSize: 14, color: '#888', border: '1px solid #e8e8e8' }}
+            >
+              {{ zh: '稍后再说', th: 'ภายหลัง', en: 'Maybe Later' }[language]}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
