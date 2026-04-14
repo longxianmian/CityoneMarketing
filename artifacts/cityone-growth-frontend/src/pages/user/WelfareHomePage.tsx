@@ -299,14 +299,10 @@ export default function WelfareHomePage() {
     ],
     [t]
   )
-  // LIFF 端点重定向恢复：若 LiffProvider 因 URL 不匹配重定向到 /welfare，初始化成功后跳回原始路径
+  // 进入 /welfare 时清除 liff_redirect，防止用户从详情页返回后被再次跳走（死循环）
   useEffect(() => {
-    const redirect = sessionStorage.getItem('liff_redirect')
-    if (redirect) {
-      sessionStorage.removeItem('liff_redirect')
-      navigate(redirect, { replace: true })
-    }
-  }, [navigate])
+    sessionStorage.removeItem('liff_redirect')
+  }, [])
 
   const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
   useEffect(() => {
