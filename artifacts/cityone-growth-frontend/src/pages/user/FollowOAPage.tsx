@@ -31,6 +31,10 @@ export default function FollowOAPage() {
 
   const [oaId, setOaId] = useState('')
   const [checking, setChecking] = useState(false)
+  // 用户点击过"关注"按钮后显示"我已关注"手动确认按钮
+  // 解决 Android LINE 部分版本 visibilitychange 不触发的问题
+  const [followClicked, setFollowClicked] = useState(false)
+  const [notFollowedTip, setNotFollowedTip] = useState(false)
 
   // 若 LIFF 确认用户已关注，直接跳目标页
   useEffect(() => {
@@ -50,42 +54,52 @@ export default function FollowOAPage() {
       .catch(() => {})
   }, [])
 
-  // 用户从 LINE 返回后：getFriendship() 真实校验
-  // 已关注 → getProfile() 取头像昵称 → mergeProfile 写 store → 跳回原业务页
-  // 未关注 → 停留，不放行，不死循环
-  useEffect(() => {
-    const onVisible = async () => {
-      if (document.hidden) return
-      const liff = getLiff()
-      if (!liff) return
-      setChecking(true)
-      try {
-        const friendship = await liff.getFriendship()
-        if (friendship.friendFlag) {
-          // 取真实 LINE 用户资料，补全 store（确保"我的"页面能显示头像和昵称）
-          try {
-            const liffProfile = await liff.getProfile()
-            mergeProfile({
-              lineUserId:      liffProfile.userId,
-              lineDisplayName: liffProfile.displayName,
-              linePictureUrl:  liffProfile.pictureUrl || '',
-              isFriend:        true,
-            })
-          } catch {
-            // getProfile 失败时退化：至少写入 isFriend=true
-            setIsFriend(true)
-          }
-          navigate(to, { replace: true })
-          return
+  /**
+   * 核心验证逻辑：getFriendship() → getProfile() → mergeProfile → navigate(to)
+   * 被 visibilitychange（自动）和"我已关注"按钮（手动）共同调用
+   */
+  const verifyAndProceed = async () => {
+    const liff = getLiff()
+    if (!liff) return false
+    setChecking(true)
+    setNotFollowedTip(false)
+    try {
+      const friendship = await liff.getFriendship()
+      if (friendship.friendFlag) {
+        try {
+          const liffProfile = await liff.getProfile()
+          mergeProfile({
+            lineUserId:      liffProfile.userId,
+            lineDisplayName: liffProfile.displayName,
+            linePictureUrl:  liffProfile.pictureUrl || '',
+            isFriend:        true,
+          })
+        } catch {
+          setIsFriend(true)
         }
-      } catch {}
-      setChecking(false)
+        navigate(to, { replace: true })
+        return true
+      }
+    } catch {}
+    setChecking(false)
+    setNotFollowedTip(true)
+    return false
+  }
+
+  // visibilitychange：自动检测（iOS LINE 和部分 Android LINE 有效）
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.hidden) return
+      if (!followClicked) return   // 只在用户主动点过"关注"后才自动验证
+      verifyAndProceed()
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [to, navigate, setIsFriend, mergeProfile])
+  }, [followClicked, to, navigate, setIsFriend, mergeProfile])
 
   const handleFollow = () => {
+    setFollowClicked(true)
+    setNotFollowedTip(false)
     const id = oaId || '@cityone'
     window.location.href = `line://ti/p/${encodeURIComponent(id)}`
   }
@@ -184,26 +198,61 @@ export default function FollowOAPage() {
           background: 'rgba(240,254,244,0.95)',
           borderTop: '1px solid #e8f4e8',
           backdropFilter: 'blur(8px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
         }}>
+          {/* 未关注提示 */}
+          {notFollowedTip && (
+            <div style={{ fontSize: 13, color: '#cf1322', textAlign: 'center', background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 10, padding: '8px 12px' }}>
+              {{ zh: '尚未检测到关注，请先在 LINE 关注 CityOne OA', th: 'ยังไม่พบการติดตาม กรุณาติดตาม CityOne OA ใน LINE ก่อน', en: 'Not followed yet. Please follow CityOne OA in LINE first.' }[language]}
+            </div>
+          )}
+
+          {/* 用户点击"关注"后出现手动确认按钮（Android 兜底）*/}
+          {followClicked && (
+            <Button
+              size="large"
+              block
+              onClick={verifyAndProceed}
+              loading={checking}
+              disabled={checking}
+              style={{
+                height: 48,
+                borderRadius: 50,
+                fontSize: 15,
+                fontWeight: 700,
+                background: checking ? '#d9f7be' : '#f6ffed',
+                border: '1.5px solid #52c41a',
+                color: '#389e0d',
+                boxShadow: 'none',
+              }}
+            >
+              {checking
+                ? { zh: '正在验证…', th: 'กำลังตรวจสอบ…', en: 'Verifying…' }[language]
+                : { zh: '✅ 我已关注，点击继续', th: '✅ ติดตามแล้ว กดเพื่อดำเนินการต่อ', en: '✅ I followed, tap to continue' }[language]}
+            </Button>
+          )}
+
+          {/* 主按钮：关注 OA */}
           <Button
             type="primary"
             size="large"
             block
             onClick={handleFollow}
-            loading={checking}
             disabled={checking}
             style={{
               height: 52,
               borderRadius: 50,
               fontSize: 16,
               fontWeight: 700,
-              background: checking ? '#52c41a' : 'linear-gradient(135deg, #06c755, #00a84e)',
+              background: 'linear-gradient(135deg, #06c755, #00a84e)',
               border: 'none',
               boxShadow: '0 4px 16px rgba(6,199,85,0.35)',
             }}
           >
-            {checking
-              ? { zh: '正在验证关注状态…', th: 'กำลังตรวจสอบ…', en: 'Verifying…' }[language]
+            {followClicked
+              ? { zh: '重新打开关注页', th: 'เปิดหน้าติดตามอีกครั้ง', en: 'Open follow page again' }[language]
               : L.followBtn}
           </Button>
         </div>
