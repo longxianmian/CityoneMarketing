@@ -146,7 +146,7 @@ export default function FollowOAPage() {
       <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', height: '100%' }}>
 
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #e8f4e8' }}>
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(back, { replace: true })} style={{ paddingLeft: 0 }}>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ paddingLeft: 0 }}>
             {L.backBtn}
           </Button>
           <span style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, marginRight: 40 }}>
