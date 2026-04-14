@@ -1,5 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLiff, getLiff } from '../../providers/LiffProvider'
+import useLineUserStore from '../../store/lineUser'
 import { Drawer, Button, Tag, Carousel } from 'antd'
 import {
   MenuOutlined,
@@ -263,6 +265,9 @@ export default function WelfareHomePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { t, language, setLanguage } = useI18n()
+  const { liffReady } = useLiff()
+  const mergeProfile  = useLineUserStore((s) => s.mergeProfile)
+  const recoveryRef   = useRef(false)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
@@ -303,6 +308,60 @@ export default function WelfareHomePage() {
   useEffect(() => {
     sessionStorage.removeItem('liff_redirect')
   }, [])
+
+  // ── 关注恢复器：/welfare 作为稳定 LIFF 入口 ───────────────────────────────
+  // 触发条件：sessionStorage 存在 cityone_follow_pending=1 且 liffReady
+  // 覆盖场景：line:// 降级后 WebView 销毁重载、requestFriendship 后任何异常重载
+  useEffect(() => {
+    if (!liffReady) return
+    if (sessionStorage.getItem('cityone_follow_pending') !== '1') return
+    if (recoveryRef.current) return
+    recoveryRef.current = true
+
+    const runRecovery = async () => {
+      const liff = getLiff()
+      if (!liff) {
+        console.error('[WelfareHomePage] follow recovery: liff not available')
+        recoveryRef.current = false
+        return
+      }
+      try {
+        const friendship = await liff.getFriendship()
+        if (!friendship.friendFlag) {
+          // 用户还没关注，不放行，停留福利中心
+          console.log('[WelfareHomePage] follow recovery: not followed, staying')
+          recoveryRef.current = false
+          return
+        }
+        // 已关注 → 取资料 → 写 store → 跳回业务页
+        try {
+          const p = await liff.getProfile()
+          mergeProfile({
+            lineUserId:      p.userId,
+            lineDisplayName: p.displayName,
+            linePictureUrl:  p.pictureUrl || '',
+            isFriend:        true,
+          })
+        } catch (e2) {
+          console.error('[WelfareHomePage] follow recovery: getProfile failed', e2)
+        }
+        const returnPath = sessionStorage.getItem('cityone_follow_return_path') || '/welfare'
+        sessionStorage.removeItem('cityone_follow_pending')
+        sessionStorage.removeItem('cityone_follow_return_path')
+        sessionStorage.removeItem('cityone_follow_back_path')
+        sessionStorage.removeItem('cityone_follow_action')
+        sessionStorage.removeItem('cityone_follow_name')
+        if (returnPath !== '/welfare') {
+          navigate(returnPath, { replace: true })
+        }
+      } catch (e) {
+        console.error('[WelfareHomePage] follow recovery: getFriendship failed', e)
+        recoveryRef.current = false
+      }
+    }
+
+    runRecovery()
+  }, [liffReady, mergeProfile, navigate])
 
   const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
   useEffect(() => {

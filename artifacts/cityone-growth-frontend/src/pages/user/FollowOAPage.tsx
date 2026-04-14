@@ -4,7 +4,7 @@
  * 主链路：liff.requestFriendship() → LINE 原生弹窗 → 用户关注 → 验证 → navigate(to)
  * 全程闭环，LIFF WebView 不销毁，链路不丢。
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
@@ -13,31 +13,40 @@ import useLineUserStore from '../../store/lineUser'
 import { useLiff, getLiff } from '../../providers/LiffProvider'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-const SK_PENDING = 'cityone_follow_pending'
-const SK_TO      = 'cityone_follow_to'
+// sessionStorage keys — 与 WelfareHomePage 恢复器共享
+const SK_PENDING     = 'cityone_follow_pending'
+const SK_RETURN_PATH = 'cityone_follow_return_path'
+const SK_BACK_PATH   = 'cityone_follow_back_path'
+const SK_ACTION      = 'cityone_follow_action'
+const SK_NAME_KEY    = 'cityone_follow_name'
+
+function clearFollowKeys() {
+  sessionStorage.removeItem(SK_PENDING)
+  sessionStorage.removeItem(SK_RETURN_PATH)
+  sessionStorage.removeItem(SK_BACK_PATH)
+  sessionStorage.removeItem(SK_ACTION)
+  sessionStorage.removeItem(SK_NAME_KEY)
+}
 
 export default function FollowOAPage() {
   const navigate    = useNavigate()
   const [params]    = useSearchParams()
   const { language } = useI18n()
   const lineProfile  = useLineUserStore((s) => s.profile)
-  const setIsFriend  = useLineUserStore((s) => s.setIsFriend)
   const mergeProfile = useLineUserStore((s) => s.mergeProfile)
   const { liffReady } = useLiff()
 
-  const to   = params.get('to')   || sessionStorage.getItem(SK_TO) || '/welfare'
-  const name = params.get('name') || ''
-  const back = params.get('back') || '/welfare'
+  const to   = params.get('to')   || sessionStorage.getItem(SK_RETURN_PATH) || '/welfare'
+  const name = params.get('name') || sessionStorage.getItem(SK_NAME_KEY) || ''
+  const back = params.get('back') || sessionStorage.getItem(SK_BACK_PATH) || '/welfare'
 
-  const [oaId, setOaId]       = useState('')
+  const [oaId, setOaId]         = useState('')
   const [checking, setChecking] = useState(false)
-  const busyRef = useRef(false)
 
-  // store 已确认关注 → 直接跳目标页
+  // store 已确认关注 → 直接跳目标页（已关注用户不重复卡门控）
   useEffect(() => {
     if (liffReady && lineProfile?.isFriend === true) {
-      sessionStorage.removeItem(SK_PENDING)
-      sessionStorage.removeItem(SK_TO)
+      clearFollowKeys()
       navigate(to, { replace: true })
     }
   }, [liffReady, lineProfile?.isFriend, navigate, to])
@@ -53,101 +62,61 @@ export default function FollowOAPage() {
       .catch(() => {})
   }, [])
 
-  // ── 主链路：liff.requestFriendship() ─────────────────────────────────────
-  // LINE 官方 API，在 LINE 内弹出关注确认弹窗，LIFF WebView 全程不销毁，链路不丢
+  // ── 双轨链路：requestFriendship（主）+ line://（降级）────────────────────
   const handleFollow = async () => {
-    console.log('[FollowOAPage] click follow')
     const liff = getLiff()
-    console.log('[FollowOAPage] hasLiff =', !!liff)
-    console.log('[FollowOAPage] liffReady =', liffReady)
-
-    if (liff) {
-      console.log('[FollowOAPage] isLoggedIn =', liff.isLoggedIn?.())
-      console.log('[FollowOAPage] context =', liff.getContext?.())
-      console.log('[FollowOAPage] requestFriendship available =', liff.isApiAvailable?.('requestFriendship'))
+    if (!liff || !liffReady) {
+      console.error('[FollowOAPage] liff not ready')
+      return
     }
 
-    if (!liff) return
+    // 无论走哪条路，先写入恢复状态（/welfare 恢复器需要这些 key）
+    sessionStorage.setItem(SK_PENDING, '1')
+    sessionStorage.setItem(SK_RETURN_PATH, to)
+    sessionStorage.setItem(SK_BACK_PATH, back)
+    if (name) sessionStorage.setItem(SK_NAME_KEY, name)
+
+    const canRequest = liff.isApiAvailable?.('requestFriendship') === true
+    console.log('[FollowOAPage] requestFriendship available =', canRequest)
 
     setChecking(true)
-    try {
-      await liff.requestFriendship()
 
-      const friendship = await liff.getFriendship()
-      if (!friendship.friendFlag) {
-        setChecking(false)
-        return
-      }
-
-      const p = await liff.getProfile()
-      mergeProfile({
-        lineUserId:      p.userId,
-        lineDisplayName: p.displayName,
-        linePictureUrl:  p.pictureUrl || '',
-        isFriend:        true,
-      })
-
-      sessionStorage.removeItem(SK_PENDING)
-      sessionStorage.removeItem(SK_TO)
-      navigate(to, { replace: true })
-    } catch (e: any) {
-      console.error('[FollowOAPage] requestFriendship failed:', e)
-      setChecking(false)
-      alert(
-        '[FollowOAPage] requestFriendship failed\n' +
-        'code=' + (e?.code || '') + '\n' +
-        'message=' + (e?.message || String(e))
-      )
-    }
-  }
-
-  // ── 兜底链路：visibilitychange + focus ────────────────────────────────────
-  // 仅在 sessionStorage 有 pending 标记时生效（非主流程，降级保护）
-  const verifyFallback = useCallback(async () => {
-    if (busyRef.current) return
-    if (sessionStorage.getItem(SK_PENDING) !== '1') return
-    busyRef.current = true
-    const liff = getLiff()
-    if (!liff) { busyRef.current = false; return }
-    try {
-      const friendship = await liff.getFriendship()
-      if (friendship.friendFlag) {
-        try {
-          const p = await liff.getProfile()
-          mergeProfile({
-            lineUserId:      p.userId,
-            lineDisplayName: p.displayName,
-            linePictureUrl:  p.pictureUrl || '',
-            isFriend:        true,
-          })
-        } catch (e2: any) {
-          console.error('[FollowOAPage] verifyFallback getProfile failed:', e2)
-          setIsFriend(true)
+    if (canRequest) {
+      // ── 主链路：requestFriendship — LINE 原生弹窗，WebView 不销毁 ──────
+      try {
+        await liff.requestFriendship()
+        const friendship = await liff.getFriendship()
+        if (!friendship.friendFlag) {
+          console.log('[FollowOAPage] user did not follow')
+          setChecking(false)
+          return
         }
-        sessionStorage.removeItem(SK_PENDING)
-        sessionStorage.removeItem(SK_TO)
+        const p = await liff.getProfile()
+        mergeProfile({
+          lineUserId:      p.userId,
+          lineDisplayName: p.displayName,
+          linePictureUrl:  p.pictureUrl || '',
+          isFriend:        true,
+        })
+        clearFollowKeys()
         navigate(to, { replace: true })
         return
+      } catch (e: any) {
+        console.error('[FollowOAPage] requestFriendship failed, falling back to line://', e?.code, e?.message)
+        setChecking(false)
+        // requestFriendship 失败 → 降级 line://，恢复状态已写入 sessionStorage
+        // /welfare 恢复器将在用户返回后接管
       }
-    } catch (e: any) {
-      console.error('[FollowOAPage] verifyFallback getFriendship failed:', e)
+    } else {
+      // ── 降级链路：requestFriendship 不可用 ────────────────────────────
+      console.log('[FollowOAPage] requestFriendship not available, using line://')
+      setChecking(false)
     }
-    busyRef.current = false
-  }, [to, navigate, mergeProfile, setIsFriend])
 
-  useEffect(() => {
-    if (!liffReady) return
-    // 页面重载后恢复（兜底）
-    if (sessionStorage.getItem(SK_PENDING) === '1') verifyFallback()
-    const onVisible = () => { if (!document.hidden) verifyFallback() }
-    const onFocus   = () => verifyFallback()
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', onFocus)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', onFocus)
-    }
-  }, [liffReady, verifyFallback])
+    // 降级：line:// 跳转 — WebView 可能被销毁，/welfare 恢复器接管
+    const id = oaId || '@cityone'
+    window.location.href = `line://ti/p/${encodeURIComponent(id)}`
+  }
 
   const L = {
     pageTitle: { zh: '关注 LINE OA', th: 'ติดตาม LINE OA',   en: 'Follow LINE OA' }[language]!,
