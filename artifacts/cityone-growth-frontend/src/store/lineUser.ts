@@ -34,6 +34,12 @@ interface LineUserState {
   setIsFriend: (isFriend: boolean) => void
   /** 更新 identity_tag（identify 接口返回后同步）*/
   setIdentityTag: (tag: IdentityTag) => void
+  /**
+   * 局部合并 profile 字段（profile 为空时以默认值创建）
+   * 用于关注成功后写入 lineUserId/昵称/头像/isFriend，
+   * 即使 LIFF 初始化时 profile 尚未写入也能保证数据完整
+   */
+  mergeProfile: (partial: Partial<LineUserProfile>) => void
 }
 
 const useLineUserStore = create<LineUserState>()(
@@ -48,6 +54,20 @@ const useLineUserStore = create<LineUserState>()(
         set((s) => s.profile ? { profile: { ...s.profile, isFriend } } : s),
       setIdentityTag: (tag: IdentityTag) =>
         set((s) => s.profile ? { profile: { ...s.profile, identityTag: tag } } : s),
+      mergeProfile: (partial: Partial<LineUserProfile>) =>
+        set((s) => ({
+          profile: {
+            lineUserId: '',
+            lineDisplayName: '',
+            linePictureUrl: '',
+            memberLevel: 'standard',
+            points: 0,
+            couponCount: 0,
+            deposit: 0,
+            ...(s.profile ?? {}),
+            ...partial,
+          },
+        })),
     }),
     {
       name: 'cityone-line-user',

@@ -22,6 +22,7 @@ export default function FollowOAPage() {
   const { language } = useI18n()
   const lineProfile = useLineUserStore((s) => s.profile)
   const setIsFriend = useLineUserStore((s) => s.setIsFriend)
+  const mergeProfile = useLineUserStore((s) => s.mergeProfile)
   const { liffReady } = useLiff()
 
   const to   = params.get('to')   || '/welfare'
@@ -49,8 +50,8 @@ export default function FollowOAPage() {
       .catch(() => {})
   }, [])
 
-  // 用户从 LINE 返回后：调 getFriendship() 做真实校验
-  // 已关注 → 更新 store + 跳回原业务页
+  // 用户从 LINE 返回后：getFriendship() 真实校验
+  // 已关注 → getProfile() 取头像昵称 → mergeProfile 写 store → 跳回原业务页
   // 未关注 → 停留，不放行，不死循环
   useEffect(() => {
     const onVisible = async () => {
@@ -61,7 +62,19 @@ export default function FollowOAPage() {
       try {
         const friendship = await liff.getFriendship()
         if (friendship.friendFlag) {
-          setIsFriend(true)
+          // 取真实 LINE 用户资料，补全 store（确保"我的"页面能显示头像和昵称）
+          try {
+            const liffProfile = await liff.getProfile()
+            mergeProfile({
+              lineUserId:      liffProfile.userId,
+              lineDisplayName: liffProfile.displayName,
+              linePictureUrl:  liffProfile.pictureUrl || '',
+              isFriend:        true,
+            })
+          } catch {
+            // getProfile 失败时退化：至少写入 isFriend=true
+            setIsFriend(true)
+          }
           navigate(to, { replace: true })
           return
         }
@@ -70,7 +83,7 @@ export default function FollowOAPage() {
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [to, navigate, setIsFriend])
+  }, [to, navigate, setIsFriend, mergeProfile])
 
   const handleFollow = () => {
     const id = oaId || '@cityone'
