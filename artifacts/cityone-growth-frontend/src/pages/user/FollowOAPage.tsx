@@ -64,21 +64,25 @@ export default function FollowOAPage() {
 
   // ── 双轨链路：requestFriendship（主）+ line://（降级）────────────────────
   const handleFollow = async () => {
-    const liff = getLiff()
-    if (!liff || !liffReady) {
-      console.error('[FollowOAPage] liff not ready')
-      return
-    }
-
-    // 无论走哪条路，先写入恢复状态（/welfare 恢复器需要这些 key）
+    // 1. 先无条件写恢复状态（无论哪条路都必须有，/welfare 恢复器依赖这些 key）
     sessionStorage.setItem(SK_PENDING, '1')
     sessionStorage.setItem(SK_RETURN_PATH, to)
     sessionStorage.setItem(SK_BACK_PATH, back)
     if (name) sessionStorage.setItem(SK_NAME_KEY, name)
 
+    const liff = getLiff()
+
+    // 2. liff 未就绪时，不静默 return，直接降级 line://
+    if (!liff || !liffReady) {
+      console.error('[FollowOAPage] liff not ready, fallback to line://')
+      alert('[FollowOAPage] LIFF not ready, fallback to LINE OA')
+      const id = oaId || '@cityone'
+      window.location.href = `line://ti/p/${encodeURIComponent(id)}`
+      return
+    }
+
     const canRequest = liff.isApiAvailable?.('requestFriendship') === true
     console.log('[FollowOAPage] requestFriendship available =', canRequest)
-
     setChecking(true)
 
     if (canRequest) {
@@ -102,18 +106,17 @@ export default function FollowOAPage() {
         navigate(to, { replace: true })
         return
       } catch (e: any) {
-        console.error('[FollowOAPage] requestFriendship failed, falling back to line://', e?.code, e?.message)
+        console.error('[FollowOAPage] requestFriendship failed, fallback to line://', e?.code, e?.message)
         setChecking(false)
-        // requestFriendship 失败 → 降级 line://，恢复状态已写入 sessionStorage
         // /welfare 恢复器将在用户返回后接管
       }
     } else {
-      // ── 降级链路：requestFriendship 不可用 ────────────────────────────
+      // requestFriendship 不可用，统一降级
       console.log('[FollowOAPage] requestFriendship not available, using line://')
       setChecking(false)
     }
 
-    // 降级：line:// 跳转 — WebView 可能被销毁，/welfare 恢复器接管
+    // 3. 统一降级出口：line:// 跳转，WebView 可能销毁，/welfare 恢复器接管
     const id = oaId || '@cityone'
     window.location.href = `line://ti/p/${encodeURIComponent(id)}`
   }
