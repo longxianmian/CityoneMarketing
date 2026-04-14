@@ -19,7 +19,8 @@ import { useLiff } from '../providers/LiffProvider'
 const API_BASE  = import.meta.env.VITE_API_BASE_URL || ''
 const LIFF_URL  = 'https://liff.line.me/2009152040-0m567HUo'
 
-// sessionStorage 恢复键（与 WelfareHomePage 共享）
+// localStorage 恢复键（跨 LIFF 页面销毁/重载均可恢复，与 WelfareHomePage 共享）
+// 注意：必须用 localStorage，sessionStorage 在 LIFF 跨域跳转后会丢失
 const SK_PENDING     = 'cityone_resume_pending'
 const SK_RETURN_PATH = 'cityone_resume_return_path'
 const SK_BACK_PATH   = 'cityone_resume_back_path'
@@ -27,11 +28,11 @@ const SK_ACTION      = 'cityone_resume_action'
 const SK_NAME        = 'cityone_resume_name'
 
 export function writeResumeKeys(returnPath: string, back: string, label: string) {
-  sessionStorage.setItem(SK_PENDING, '1')
-  sessionStorage.setItem(SK_RETURN_PATH, returnPath)
-  sessionStorage.setItem(SK_BACK_PATH, back)
-  if (label) sessionStorage.setItem(SK_ACTION, label)
-  if (label) sessionStorage.setItem(SK_NAME, label)
+  localStorage.setItem(SK_PENDING, '1')
+  localStorage.setItem(SK_RETURN_PATH, returnPath)
+  localStorage.setItem(SK_BACK_PATH, back)
+  if (label) localStorage.setItem(SK_ACTION, label)
+  if (label) localStorage.setItem(SK_NAME, label)
 }
 
 async function fetchFanStatus(userId: string): Promise<boolean> {

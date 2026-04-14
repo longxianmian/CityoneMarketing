@@ -327,24 +327,28 @@ export default function WelfareHomePage() {
       .catch(() => {})
   }, [])
 
-  // ── 身份恢复器：/welfare 作为唯一身份恢复中心 ───────────────────────────────
-  // 触发键：cityone_resume_pending=1（useFollowGate/FollowOAPage 写入）
-  // 兼容键：cityone_follow_pending=1（旧版 FollowOAPage 写入）
+  // ── 身份 + 关注恢复器：/welfare 作为唯一身份恢复中心 ────────────────────────
   //
-  // 步骤 A：getProfile → mergeProfile（建立头像/昵称）
-  // 步骤 B：getFriendship
-  // 步骤 C：已关注 → mergeProfile(isFriend:true) → navigate(returnPath)
-  // 步骤 D：未关注 → mergeProfile(isFriend:false) → 显示关注弹层
+  // 无条件触发（只要 liffReady=true）：
+  //   步骤 A：getProfile → mergeProfile（头像/昵称无条件写入，不依赖 pending 标记）
+  //   步骤 B：getFriendship
+  //   步骤 C：已关注 → mergeProfile(isFriend:true)
+  //           若 localStorage 有 pending → 读取 returnPath → 清理所有键 → navigate(returnPath)
+  //   步骤 D：未关注 → mergeProfile(isFriend:false)
+  //           若 localStorage 有 pending → 显示关注弹层（不清理键，弹层完成后再清）
+  //
+  // 恢复键存储优先级：localStorage（主） > sessionStorage（兼容旧版）
   useEffect(() => {
     if (!liffReady) return
-    const hasPending =
-      sessionStorage.getItem('cityone_resume_pending') === '1' ||
-      sessionStorage.getItem('cityone_follow_pending') === '1'
-    if (!hasPending) return
     if (recoveryRef.current) return
     recoveryRef.current = true
 
     const clearAllResumeKeys = () => {
+      // localStorage 主键（新版）
+      ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
+        'cityone_resume_action',  'cityone_resume_name',
+      ].forEach((k) => localStorage.removeItem(k))
+      // sessionStorage 兼容键（旧版）
       ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
         'cityone_resume_action',  'cityone_resume_name',
         'cityone_follow_pending', 'cityone_follow_return_path', 'cityone_follow_back_path',
@@ -352,15 +356,26 @@ export default function WelfareHomePage() {
       ].forEach((k) => sessionStorage.removeItem(k))
     }
 
-    const runRecovery = async () => {
+    const readResumeReturnPath = (): string =>
+      localStorage.getItem('cityone_resume_return_path') ||
+      sessionStorage.getItem('cityone_resume_return_path') ||
+      sessionStorage.getItem('cityone_follow_return_path') ||
+      ''
+
+    const hasPendingResume = (): boolean =>
+      localStorage.getItem('cityone_resume_pending') === '1' ||
+      sessionStorage.getItem('cityone_resume_pending') === '1' ||
+      sessionStorage.getItem('cityone_follow_pending') === '1'
+
+    const run = async () => {
       const liff = getLiff()
       if (!liff) {
-        console.error('[WelfareHomePage] recovery: liff not available')
+        console.error('[WelfareHomePage] identity recovery: liff not available')
         recoveryRef.current = false
         return
       }
 
-      // 步骤 A：建立 LINE 身份（头像、昵称）
+      // 步骤 A：无条件建立 LINE 身份（头像、昵称）—— 不依赖 pending 标记
       try {
         const p = await liff.getProfile()
         mergeProfile({
@@ -368,39 +383,42 @@ export default function WelfareHomePage() {
           lineDisplayName: p.displayName,
           linePictureUrl:  p.pictureUrl || '',
         })
+        console.log('[WelfareHomePage] identity: getProfile OK', p.userId)
       } catch (e) {
-        console.error('[WelfareHomePage] recovery: getProfile failed', e)
+        console.error('[WelfareHomePage] identity: getProfile failed', e)
       }
 
       // 步骤 B：验证关注状态
       try {
         const friendship = await liff.getFriendship()
-        const returnPath =
-          sessionStorage.getItem('cityone_resume_return_path') ||
-          sessionStorage.getItem('cityone_follow_return_path') ||
-          '/welfare'
+        const pending = hasPendingResume()
+        const returnPath = readResumeReturnPath()
 
         if (friendship.friendFlag) {
-          // 步骤 C：已关注 → 写 isFriend → 清理 → 跳回业务页
+          // 步骤 C：已关注
           mergeProfile({ isFriend: true })
           clearAllResumeKeys()
-          if (returnPath !== '/welfare') {
+          if (pending && returnPath && returnPath !== '/welfare') {
+            console.log('[WelfareHomePage] recovery: following confirmed, navigating to', returnPath)
             navigate(returnPath, { replace: true })
           }
         } else {
-          // 步骤 D：未关注 → 显示关注弹层，让用户在 /welfare 内完成关注
+          // 步骤 D：未关注
           mergeProfile({ isFriend: false })
-          setFollowReturnPath(returnPath)
-          setShowFollowModal(true)
+          if (pending && returnPath) {
+            console.log('[WelfareHomePage] recovery: not followed, showing modal for', returnPath)
+            setFollowReturnPath(returnPath)
+            setShowFollowModal(true)
+          }
           recoveryRef.current = false
         }
       } catch (e) {
-        console.error('[WelfareHomePage] recovery: getFriendship failed', e)
+        console.error('[WelfareHomePage] identity: getFriendship failed', e)
         recoveryRef.current = false
       }
     }
 
-    runRecovery()
+    run()
   }, [liffReady, mergeProfile, navigate])
 
   // ── /welfare 内关注按钮处理（弹层主链路 + line:// 降级）──────────────────
@@ -429,6 +447,10 @@ export default function WelfareHomePage() {
           linePictureUrl:  p.pictureUrl || '',
           isFriend:        true,
         })
+        // 清理 localStorage（主键）+ sessionStorage（兼容键）
+        ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
+          'cityone_resume_action',  'cityone_resume_name',
+        ].forEach((k) => localStorage.removeItem(k))
         ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
           'cityone_resume_action',  'cityone_resume_name',
           'cityone_follow_pending', 'cityone_follow_return_path', 'cityone_follow_back_path',

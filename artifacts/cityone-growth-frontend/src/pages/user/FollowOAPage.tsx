@@ -19,13 +19,13 @@ export default function FollowOAPage() {
     const name = params.get('name') || ''
     const back = params.get('back') || '/welfare'
 
-    // 写入恢复键，供 /welfare 恢复器读取
-    sessionStorage.setItem('cityone_resume_pending', '1')
-    sessionStorage.setItem('cityone_resume_return_path', to)
-    sessionStorage.setItem('cityone_resume_back_path', back)
+    // 写入恢复键（localStorage 保证跨 LIFF 跳转后不丢失），供 /welfare 恢复器读取
+    localStorage.setItem('cityone_resume_pending', '1')
+    localStorage.setItem('cityone_resume_return_path', to)
+    localStorage.setItem('cityone_resume_back_path', back)
     if (name) {
-      sessionStorage.setItem('cityone_resume_action', name)
-      sessionStorage.setItem('cityone_resume_name', name)
+      localStorage.setItem('cityone_resume_action', name)
+      localStorage.setItem('cityone_resume_name', name)
     }
 
     // 立即跳到 /welfare，恢复器在那里接管
