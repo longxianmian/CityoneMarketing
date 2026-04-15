@@ -344,18 +344,32 @@ export default function WelfareHomePage() {
     recoveryRef.current = true
 
     // ── 在 effect 启动时快照 URL 参数 ──────────────────────────────────────
-    // 优先级：①直接 URL ?rp=... ②liff.state 中提取 ?rp=... ③localStorage ④sessionStorage
-    const directRp      = searchParams.get('rp') || searchParams.get('resume_return') || ''
-    const rawLiffState  = searchParams.get('liff.state') || ''
+    // 读取优先级：①直接 URL ?rp= ②liff.state 解码后提取 ?rp= ③localStorage ④sessionStorage
+    const directRp     = searchParams.get('rp') || searchParams.get('resume_return') || ''
+    const rawLiffState = searchParams.get('liff.state') || ''
 
-    /** 从 liff.state query-string 中读 rp / resume_return */
+    // 调试日志（方便 staging 排查 liff.state 是否携带 rp）
+    console.log('[resume] url.rp=',    directRp)
+    console.log('[resume] liff.state=', rawLiffState)
+    console.log('[resume] local.rp=',  localStorage.getItem('cityone_resume_return_path'))
+
+    /**
+     * 从 liff.state 中解析 rp 参数。
+     *
+     * LINE 官方行为：LIFF URL https://liff.line.me/{id}/?rp=...&back=...&action=...
+     * → 重定向到 https://endpoint/welfare?liff.state=%2F%3Frp%3D...
+     * → searchParams.get('liff.state') 解码一次得到 "/?rp=%2F...&back=...&action=..."
+     * → 再用 URLSearchParams 解码一次得到真实路径
+     */
     const rpFromLiffState = (): string => {
       if (!rawLiffState) return ''
       try {
         const qIdx = rawLiffState.indexOf('?')
         if (qIdx < 0) return ''
         const lsParams = new URLSearchParams(rawLiffState.slice(qIdx + 1))
-        return lsParams.get('rp') || lsParams.get('resume_return') || ''
+        const parsed = lsParams.get('rp') || lsParams.get('resume_return') || ''
+        console.log('[resume] parsed.rp=', parsed)
+        return parsed
       } catch { return '' }
     }
 

@@ -162,17 +162,20 @@ export function useFollowGate() {
 
         // ── Case 3: LINE 身份未建立（任一条件缺失）且在 LINE 内
         //    → 写恢复状态到 localStorage（主）
-        //    → 把 returnPath 也编进 LIFF URL（liff.state 传回 /welfare，双保险）
+        //    → 把 returnPath 编进 LIFF URL path（LINE 官方格式：liffId/ 后接路径+参数）
         //    → 跳 LIFF URL 正门，/welfare 恢复器接管
+        //
+        //    正确格式：https://liff.line.me/{liffId}/?rp=...&back=...&action=...
+        //    错误格式：https://liff.line.me/{liffId}?rp=...  ← 不加斜杠 LINE 会丢参数
         if (!lineProfile?.lineUserId || !liffReady || lineProfile?.isFriend === undefined) {
           if (isInLine) {
             writeResumeKeys(fullReturn, backPath, label)
-            // 把 returnPath 编进 LIFF URL：?rp=<encoded> ，liff.state 会携带它回 /welfare
-            const liffTarget = new URL(LIFF_URL)
-            liffTarget.searchParams.set('rp', fullReturn)
-            if (label) liffTarget.searchParams.set('ra', label)
-            console.log('[useFollowGate] jumping to LIFF URL with rp=', fullReturn)
-            window.location.href = liffTarget.toString()
+            const next =
+              `${LIFF_URL}/?rp=${encodeURIComponent(fullReturn)}` +
+              `&back=${encodeURIComponent(backPath)}` +
+              `&action=${encodeURIComponent(label || '')}`
+            console.log('[useFollowGate] jumping to LIFF URL', next)
+            window.location.href = next
             return
           }
         }
