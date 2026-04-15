@@ -481,7 +481,52 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
         );
       }
 
-      return { already_joined: false, participation: partRows[0] };
+      // 发放活动绑定卡券（生产级：统一走 activity_product_bindings）
+      const issuedCoupons = [];
+      const { rows: bindings } = await client.query(
+        `SELECT product_id
+           FROM activity_product_bindings
+          WHERE activity_code = $1
+            AND binding_type = 'coupon'
+            AND trigger_event = 'participate'
+            AND status::text IN ('1', 'active', 'enabled')
+          ORDER BY sort_no ASC, id ASC`,
+        [id]
+      );
+
+      for (const binding of bindings) {
+        const couponId = String(binding.product_id || '').trim();
+        if (!couponId) continue;
+
+        // 幂等去重：同一用户 + 同一活动 + 同一券，不重复发
+        const { rows: existsRows } = await client.query(
+          `SELECT id
+             FROM user_coupons
+            WHERE coupon_id = $1
+              AND source_activity_id = $2
+              AND (user_id = $3 OR line_user_id = $4)
+            LIMIT 1`,
+          [couponId, id, userId, body.line_user_id || userId]
+        );
+
+        if (existsRows.length > 0) {
+          issuedCoupons.push({ coupon_id: couponId, duplicated: true });
+          continue;
+        }
+
+        const userCouponId = `uc_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+
+        await client.query(
+          `INSERT INTO user_coupons
+             (id, user_id, line_user_id, coupon_id, product_status, source_type, source_activity_id, claimed_at, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,'claimed','activity',$5,$6,$6,$6)`,
+          [userCouponId, userId, body.line_user_id || userId, couponId, id, now]
+        );
+
+        issuedCoupons.push({ coupon_id: couponId, duplicated: false });
+      }
+
+      return { already_joined: false, participation: partRows[0], issued_coupons: issuedCoupons };
     });
 
     if (result.already_joined) {
@@ -496,6 +541,7 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
       already_joined: false,
       points_awarded: rewardPoints,
       participation: result.participation,
+      issued_coupons: result.issued_coupons || [],
     });
   } catch (err) {
     return sendError(res, sendJson, 500, "SERVER_ERROR", err.message || "参与失败");
