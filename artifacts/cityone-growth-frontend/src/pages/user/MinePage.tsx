@@ -874,7 +874,7 @@ export default function MinePage() {
                   benefitItems.map((item, i) => (
                     <div
                       key={item.user_product_id || i}
-                      onClick={() => item.product_id && navigate(`/coupon/${item.product_id}`)}
+                      onClick={() => item.product_id && navigate(`/coupon/${item.product_id}?owned=1`)}
                       style={{
                         border: '1px solid #ECF1F6',
                         borderRadius: 14,
@@ -916,7 +916,7 @@ export default function MinePage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/coupon/${item.product_id}`)
+                            navigate(`/coupon/${item.product_id}?owned=1`)
                           }}
                           style={{
                             border: `1.5px solid #2CDBCE`,

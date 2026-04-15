@@ -62,8 +62,9 @@ export default function CouponUserPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [claiming, setClaiming] = useState(false)
-  const [step, setStep] = useState<Step>('detail')
-  const [alreadyClaimed, setAlreadyClaimed] = useState(false)
+  // owned=1 时直接跳过 detail，显示"已领取"态
+  const [step, setStep] = useState<Step>(() => (searchParams.get('owned') === '1' ? 'success' : 'detail'))
+  const [alreadyClaimed, setAlreadyClaimed] = useState(() => searchParams.get('owned') === '1')
   const [videoStarted, setVideoStarted] = useState(false)
   const [videoPaused, setVideoPaused] = useState(false)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
@@ -81,6 +82,8 @@ export default function CouponUserPage() {
   }
   const { guard, checking } = useFollowGate()
   const effectiveUserId = useEffectiveUserId()
+  // owned=1：从「我的权益」跳入，用户已拥有该券，直接展示已拥有态，不走 claim 流程
+  const owned = searchParams.get('owned') === '1'
 
   // 实物卡券配送弹窗
   const [deliveryOpen, setDeliveryOpen] = useState(false)
@@ -105,12 +108,14 @@ export default function CouponUserPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  // 来自 FollowOAPage 回跳：auto=claim → 自动领取
+  // 来自关注门控回跳：auto=claim → 自动领取
+  // owned=1 时跳过（用户已拥有该券，不需要再 claim）
   useEffect(() => {
+    if (owned) return
     if (searchParams.get('auto') === 'claim' && coupon && !claiming) {
       doClaim()
     }
-  }, [coupon, searchParams.get('auto')])
+  }, [coupon, owned, searchParams.get('auto')])
 
   // 加载已保存收货地址
   const loadSavedAddresses = async () => {
@@ -199,6 +204,7 @@ export default function CouponUserPage() {
   // ── i18n ────────────────────────────────────────────────────────────────────
   const L = {
     back:             { zh: '返回福利中心', th: 'กลับศูนย์สิทธิพิเศษ', en: 'Back to Benefits' }[language]!,
+    backToMine:       { zh: '返回我的权益', th: 'กลับสิทธิพิเศษของฉัน', en: 'Back to My Benefits' }[language]!,
     claimBtn:         { zh: '立即领取', th: 'รับสิทธิ์ทันที', en: 'Claim Now' }[language]!,
     shareBtn:         { zh: '分享给好友', th: 'แชร์ให้เพื่อน', en: 'Share' }[language]!,
     mineBtn:          { zh: '查看我的卡券', th: 'ดูคูปองของฉัน', en: 'My Coupons' }[language]!,
@@ -207,8 +213,10 @@ export default function CouponUserPage() {
     benefit:          { zh: 'CityOne 专属权益', th: 'สิทธิพิเศษ CityOne', en: 'CityOne Exclusive Benefit' }[language]!,
     checkingLabel:    { zh: '验证中...', th: 'กำลังตรวจสอบ...', en: 'Checking...' }[language]!,
     successTitle:     { zh: '领取成功！', th: 'รับสำเร็จ!', en: 'Claimed!' }[language]!,
+    ownedTitle:       { zh: '您已拥有此券', th: 'คุณมีคูปองนี้แล้ว', en: 'You Own This Coupon' }[language]!,
     alreadyTitle:     { zh: '您已领取过此券', th: 'คุณรับคูปองนี้แล้ว', en: 'Already Claimed' }[language]!,
     successDesc:      { zh: '卡券已存入您的账户，可在「我的 → 卡券」中查看使用。', th: 'คูปองถูกเพิ่มในบัญชีของคุณแล้ว ดูได้ที่ "ของฉัน → คูปอง"', en: 'Coupon added to your account. Find it under "Mine → Coupons".' }[language]!,
+    ownedDesc:        { zh: '该卡券已在您的权益列表中，可随时使用。', th: 'คูปองนี้อยู่ในรายการสิทธิพิเศษของคุณแล้ว', en: 'This coupon is already in your benefits list.' }[language]!,
     alreadyDesc:      { zh: '您之前已领取过该卡券，请前往「我的 → 卡券」查看。', th: 'คุณเคยรับคูปองนี้แล้ว ดูได้ที่ "ของฉัน → คูปอง"', en: 'You have already claimed this coupon. Check "Mine → Coupons".' }[language]!,
   }
 
@@ -242,19 +250,23 @@ export default function CouponUserPage() {
 
   // ── Step: Success ────────────────────────────────────────────────────────────
   if (step === 'success') {
+    // owned：从「我的权益」跳入，图标绿色，使用专用文案
+    const successIcon  = owned ? '#52c41a' : (alreadyClaimed ? '#aaa' : '#52c41a')
+    const successTitle = owned ? L.ownedTitle : (alreadyClaimed ? L.alreadyTitle : L.successTitle)
+    const successDesc  = owned ? L.ownedDesc  : (alreadyClaimed ? L.alreadyDesc  : L.successDesc)
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #1677ff 0%, #69b1ff 100%)', padding: '24px 16px' }}>
         <div style={{ maxWidth: 460, margin: '0 auto' }}>
           <Card style={{ borderRadius: 20, overflow: 'hidden', textAlign: 'center', padding: '24px 16px' }}>
-            <CheckCircleOutlined style={{ fontSize: 64, color: alreadyClaimed ? '#aaa' : '#52c41a', marginBottom: 16 }} />
+            <CheckCircleOutlined style={{ fontSize: 64, color: successIcon, marginBottom: 16 }} />
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
-              {alreadyClaimed ? L.alreadyTitle : L.successTitle}
+              {successTitle}
             </div>
             <div style={{ fontSize: 14, color: '#555', lineHeight: 1.8, marginBottom: 20 }}>
-              {alreadyClaimed ? L.alreadyDesc : L.successDesc}
+              {successDesc}
             </div>
 
-            {!alreadyClaimed && (
+            {!alreadyClaimed && !owned && (
               <div style={{
                 background: 'linear-gradient(135deg, #f6ffed 0%, #e8f5e9 100%)',
                 border: '1px solid #b7eb8f',
@@ -271,8 +283,8 @@ export default function CouponUserPage() {
               <Button type="primary" size="large" block onClick={() => navigate('/mine?tab=benefit')}>
                 {L.mineBtn}
               </Button>
-              <Button size="large" block onClick={() => navigate('/welfare')}>
-                {L.back}
+              <Button size="large" block onClick={() => owned ? navigate(-1) : navigate('/welfare')}>
+                {owned ? L.backToMine : L.back}
               </Button>
             </Space>
           </Card>

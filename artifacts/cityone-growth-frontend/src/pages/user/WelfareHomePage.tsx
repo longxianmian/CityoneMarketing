@@ -348,37 +348,21 @@ export default function WelfareHomePage() {
     const directRp     = searchParams.get('rp') || searchParams.get('resume_return') || ''
     const rawLiffState = searchParams.get('liff.state') || ''
 
-    // 调试日志（方便 staging 排查 liff.state 是否携带 rp）
-    console.log('[resume] url.rp=',    directRp)
-    console.log('[resume] liff.state=', rawLiffState)
-    console.log('[resume] local.rp=',  localStorage.getItem('cityone_resume_return_path'))
-
-    /**
-     * 从 liff.state 中解析 rp 参数。
-     *
-     * LINE 官方行为：LIFF URL https://liff.line.me/{id}/?rp=...&back=...&action=...
-     * → 重定向到 https://endpoint/welfare?liff.state=%2F%3Frp%3D...
-     * → searchParams.get('liff.state') 解码一次得到 "/?rp=%2F...&back=...&action=..."
-     * → 再用 URLSearchParams 解码一次得到真实路径
-     */
+    /** 从 liff.state query-string 中解析 rp 参数（LINE 官方格式：liffId/?rp=...） */
     const rpFromLiffState = (): string => {
       if (!rawLiffState) return ''
       try {
         const qIdx = rawLiffState.indexOf('?')
         if (qIdx < 0) return ''
         const lsParams = new URLSearchParams(rawLiffState.slice(qIdx + 1))
-        const parsed = lsParams.get('rp') || lsParams.get('resume_return') || ''
-        console.log('[resume] parsed.rp=', parsed)
-        return parsed
+        return lsParams.get('rp') || lsParams.get('resume_return') || ''
       } catch { return '' }
     }
 
     const clearAllResumeKeys = () => {
-      // localStorage 主键（新版）
       ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
         'cityone_resume_action',  'cityone_resume_name',
       ].forEach((k) => localStorage.removeItem(k))
-      // sessionStorage 兼容键（旧版）
       ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
         'cityone_resume_action',  'cityone_resume_name',
         'cityone_follow_pending', 'cityone_follow_return_path', 'cityone_follow_back_path',
@@ -395,60 +379,79 @@ export default function WelfareHomePage() {
       sessionStorage.getItem('cityone_follow_return_path') ||
       ''
 
-    // 判断是否有待恢复动作：URL参数有returnPath本身就说明需要恢复
     const hasPendingResume = (): boolean =>
       !!(directRp || rpFromLiffState()) ||
       localStorage.getItem('cityone_resume_pending') === '1' ||
       sessionStorage.getItem('cityone_resume_pending') === '1' ||
       sessionStorage.getItem('cityone_follow_pending') === '1'
 
+    /** 用服务端 check-follow 判断关注状态（getFriendship 失败时的兜底） */
+    const checkFollowViaApi = async (lineUserId: string): Promise<boolean | null> => {
+      try {
+        const base = import.meta.env.VITE_API_BASE_URL || ''
+        const res  = await fetch(`${base}/api/user/check-follow?user_id=${encodeURIComponent(lineUserId)}`)
+        const json = await res.json()
+        return json?.data?.is_fan === true ? true : false
+      } catch {
+        return null  // 服务端也查不了，返回 null 表示未知
+      }
+    }
+
     const run = async () => {
       const liff = getLiff()
       if (!liff) {
-        console.error('[WelfareHomePage] identity recovery: liff not available')
         recoveryRef.current = false
         return
       }
 
       // 步骤 A：无条件建立 LINE 身份（头像、昵称）—— 不依赖 pending 标记
+      let lineUserId = ''
       try {
         const p = await liff.getProfile()
+        lineUserId = p.userId
         mergeProfile({
           lineUserId:      p.userId,
           lineDisplayName: p.displayName,
           linePictureUrl:  p.pictureUrl || '',
         })
-        console.log('[WelfareHomePage] identity: getProfile OK', p.userId)
-      } catch (e) {
-        console.error('[WelfareHomePage] identity: getProfile failed', e)
+      } catch {
+        // dev 环境 LIFF 未初始化，忽略
       }
 
       // 步骤 B：验证关注状态
+      //   主路：liff.getFriendship()
+      //   兜底：若 LIFF scope 不支持或抛异常 → 调 /api/user/check-follow
+      let friendFlag: boolean | null = null
       try {
         const friendship = await liff.getFriendship()
-        const pending = hasPendingResume()
-        const returnPath = readResumeReturnPath()
-
-        if (friendship.friendFlag) {
-          // 步骤 C：已关注
-          mergeProfile({ isFriend: true })
-          clearAllResumeKeys()
-          if (pending && returnPath && returnPath !== '/welfare') {
-            console.log('[WelfareHomePage] recovery: following confirmed, navigating to', returnPath)
-            navigate(returnPath, { replace: true })
-          }
-        } else {
-          // 步骤 D：未关注
-          mergeProfile({ isFriend: false })
-          if (pending && returnPath) {
-            console.log('[WelfareHomePage] recovery: not followed, showing modal for', returnPath)
-            setFollowReturnPath(returnPath)
-            setShowFollowModal(true)
-          }
-          recoveryRef.current = false
+        friendFlag = friendship.friendFlag
+      } catch {
+        // getFriendship 失败（scope 未开通等），用服务端粉丝列表兜底
+        if (lineUserId) {
+          friendFlag = await checkFollowViaApi(lineUserId)
         }
-      } catch (e) {
-        console.error('[WelfareHomePage] identity: getFriendship failed', e)
+      }
+
+      const pending    = hasPendingResume()
+      const returnPath = readResumeReturnPath()
+
+      if (friendFlag === true) {
+        // 步骤 C：已关注
+        mergeProfile({ isFriend: true })
+        clearAllResumeKeys()
+        if (pending && returnPath && returnPath !== '/welfare') {
+          navigate(returnPath, { replace: true })
+        }
+      } else if (friendFlag === false) {
+        // 步骤 D：未关注
+        mergeProfile({ isFriend: false })
+        if (pending && returnPath) {
+          setFollowReturnPath(returnPath)
+          setShowFollowModal(true)
+        }
+        recoveryRef.current = false
+      } else {
+        // null：两路均查不到（开发环境/网络异常），不阻断用户
         recoveryRef.current = false
       }
     }
@@ -460,7 +463,6 @@ export default function WelfareHomePage() {
   const handleFollowInModal = async () => {
     const liff = getLiff()
     if (!liff || !liffReady) {
-      console.error('[WelfareHomePage] follow modal: liff not ready, fallback line://')
       const id = followOaId || '@cityone'
       window.location.href = `line://ti/p/${encodeURIComponent(id)}`
       return
@@ -497,8 +499,7 @@ export default function WelfareHomePage() {
           navigate(followReturnPath, { replace: true })
         }
         return
-      } catch (e) {
-        console.error('[WelfareHomePage] follow modal: requestFriendship failed, fallback line://', e)
+      } catch {
         setFollowChecking(false)
       }
     } else {
