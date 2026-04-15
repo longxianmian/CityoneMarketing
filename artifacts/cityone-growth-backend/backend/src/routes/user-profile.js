@@ -239,7 +239,7 @@ export async function handleUserBenefits(req, res, url, sendJson) {
         uc.used_at,
         c.valid_to                    AS expire_at,
         uc.source_type                AS source,
-        uc.source_landing_id,
+        NULL::text AS source_landing_id,
         uc.source_channel_id,
         uc.updated_at
       FROM user_coupons uc
