@@ -28,6 +28,9 @@ const toMlObj = toMLObj
 
 const pickText = (v: any, lang = 'zh'): string => pickML(v, lang)
 
+const normalizeRewardCouponNames = (value: any): MultiLangValue[] =>
+  Array.isArray(value) ? value.map((item) => toMlObj(item)) : []
+
 export default function ActivityManage() {
   const { t } = useI18n()
   const pick = useMLPick()
@@ -84,7 +87,7 @@ export default function ActivityManage() {
     partnerDept: a.partner_dept || '',
     couponName: a.coupon_name || '',
     rewardCouponIds: Array.isArray(a.reward_coupon_ids) ? a.reward_coupon_ids : [],
-    rewardCouponNames: Array.isArray(a.reward_coupon_names) ? a.reward_coupon_names : [],
+    rewardCouponNames: normalizeRewardCouponNames(a.reward_coupon_names),
     rewardBindingCount: Number(a.reward_binding_count || 0),
     rewardReady: !!a.reward_ready,
     highlights: toMlObj(a.highlights),
@@ -184,7 +187,11 @@ export default function ActivityManage() {
         pickText(item.name, 'zh').includes(kw) ||
         pickText(item.name, 'en').includes(kw) ||
         (item.couponName || '').includes(kw) ||
-        (item.rewardCouponNames || []).some((name: string) => String(name || '').includes(kw)) ||
+        (item.rewardCouponNames || []).some((name: MultiLangValue) =>
+          pickText(name, 'zh').includes(kw) ||
+          pickText(name, 'en').includes(kw) ||
+          pickText(name, 'th').includes(kw)
+        ) ||
         pickText(item.subTitle, 'zh').includes(kw)
       const okStatus = !statusFilter || item.status === statusFilter
       const okGoal = goalFilter === 'all' || item.goal === goalFilter
@@ -388,7 +395,7 @@ export default function ActivityManage() {
     {
       title: am('colCoupon'), dataIndex: 'rewardCouponNames', key: 'rewardCouponNames', width: 220,
       render: (_: any, row: any) => {
-        const names: string[] = row.rewardCouponNames || []
+        const names: MultiLangValue[] = row.rewardCouponNames || []
         if (names.length === 0) {
           return row.rewardReady
             ? <Tag color="blue">积分/游戏奖励</Tag>
@@ -397,7 +404,9 @@ export default function ActivityManage() {
         return (
           <div style={{ display: 'grid', gap: 4 }}>
             {names.slice(0, 2).map((name, index) => (
-              <span key={`${row.id}_${index}`} style={{ lineHeight: 1.4 }}>{name}</span>
+              <span key={`${row.id}_${index}`} style={{ lineHeight: 1.4 }}>
+                {pick(name) || pickText(name, 'zh') || '--'}
+              </span>
             ))}
             {names.length > 2 && <span style={{ color: '#888', fontSize: 12 }}>+{names.length - 2} 张奖励券</span>}
           </div>
