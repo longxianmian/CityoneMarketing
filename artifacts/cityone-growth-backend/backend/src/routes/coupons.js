@@ -99,7 +99,7 @@ async function getCouponRewardBindingStats(couponId) {
       COUNT(*) AS total_count,
       COUNT(*) FILTER (WHERE a.status = 'active') AS active_count
     FROM activity_product_bindings apb
-    LEFT JOIN activities a ON a.activity_id = apb.activity_code
+    JOIN activities a ON a.activity_id = apb.activity_code
     WHERE apb.product_id = $1
       AND apb.binding_type = 'coupon'
       AND apb.trigger_event = 'participate'
@@ -426,6 +426,16 @@ export async function handleCouponDelete(req, res, url, sendJson, readBody) {
 
     const { id } = body;
     if (!id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少券ID");
+
+    await query(
+      `DELETE FROM activity_product_bindings apb
+        WHERE apb.product_id = $1
+          AND apb.binding_type = 'coupon'
+          AND NOT EXISTS (
+            SELECT 1 FROM activities a WHERE a.activity_id = apb.activity_code
+          )`,
+      [id]
+    );
 
     const rewardBindingStats = await getCouponRewardBindingStats(id);
     if (rewardBindingStats.totalCount > 0) {

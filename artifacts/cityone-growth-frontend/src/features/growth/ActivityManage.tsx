@@ -317,6 +317,12 @@ export default function ActivityManage() {
       if (values.spinResultDelay != null)       gameConfig.spinResultDelay = values.spinResultDelay
       if (values.scratchRevealThreshold != null) gameConfig.scratchRevealThreshold = values.scratchRevealThreshold
 
+      const isLegacyLocalMedia = (value: string) => String(value || '').trim().startsWith('/uploads/')
+      const currentCoverImage = String(coverImage || '').trim()
+      const currentCoverVideo = String(coverVideo || '').trim()
+      const originalCoverImage = String(editingRecord?.coverImage || '').trim()
+      const originalCoverVideo = String(editingRecord?.coverVideo || '').trim()
+
       const backendPayload: Record<string, unknown> = {
         activity_name: mlValues.name,
         activity_subtitle: mlValues.subTitle,
@@ -338,13 +344,19 @@ export default function ActivityManage() {
         participation_guide: mlValues.participationGuide,
         reward_guide: mlValues.rewardGuide,
         notice_text: mlValues.noticeText,
-        cover_image: coverImage,
-        cover_video: coverVideo,
         template_id: values.template_id || '',
         status: values.status || 'draft',
         reward_coupon_ids: values.rewardCouponIds || [],
         station_scope: stationScope,
       }
+
+      if (!(isEdit && isLegacyLocalMedia(currentCoverImage) && currentCoverImage === originalCoverImage)) {
+        backendPayload.cover_image = currentCoverImage
+      }
+      if (!(isEdit && isLegacyLocalMedia(currentCoverVideo) && currentCoverVideo === originalCoverVideo)) {
+        backendPayload.cover_video = currentCoverVideo
+      }
+
       if (isEdit && editingRecord) {
         await updateActivity(editingRecord.id, backendPayload)
         message.success(am('editSuccess'))
@@ -358,7 +370,7 @@ export default function ActivityManage() {
       setFormVisible(false)
       loadList()
     } catch (e: any) {
-      message.error('保存失败，请重试')
+      message.error(e?.response?.data?.msg || '保存失败，请重试')
     } finally {
       setSaving(false)
     }

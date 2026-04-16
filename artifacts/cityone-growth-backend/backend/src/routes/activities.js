@@ -613,7 +613,16 @@ export async function handleActivityDelete(req, res, url, sendJson) {
   try {
     const id = idFromPath(url.pathname, /^\/api\/activities\/([^/]+)$/);
     if (!id) return sendError(res, sendJson, 400, "MISSING_ID", "缺少活动ID");
-    const { rows } = await query("DELETE FROM activities WHERE activity_id=$1 RETURNING activity_id", [id]);
+    const { rows } = await withTransaction(async (client) => {
+      await client.query(
+        "DELETE FROM activity_product_bindings WHERE activity_code = $1",
+        [id]
+      );
+      return client.query(
+        "DELETE FROM activities WHERE activity_id=$1 RETURNING activity_id",
+        [id]
+      );
+    });
     if (rows.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到活动");
     return sendOk(res, sendJson, "活动已删除", null);
   } catch (err) {
