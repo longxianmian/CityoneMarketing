@@ -78,6 +78,7 @@ export function createSession({ lineUserId, userId, siteId, entryType, entryCode
     scene,
     status: "active",
     message_count: 0,
+    out_of_domain_count: 0,
     created_at: now,
     last_active_at: now,
     updated_at: now
@@ -128,6 +129,32 @@ export function touchSession(sessionId) {
     list[idx] = { ...list[idx], last_active_at: now, updated_at: now };
     saveJsonArray(SESSIONS_FILE, list);
   }
+}
+
+export function patchSession(sessionId, patch = {}) {
+  const list = loadJsonArray(SESSIONS_FILE);
+  const idx = list.findIndex((s) => s.session_id === sessionId);
+  if (idx < 0) return null;
+  const now = new Date().toISOString();
+  list[idx] = {
+    ...list[idx],
+    ...patch,
+    last_active_at: now,
+    updated_at: now,
+  };
+  saveJsonArray(SESSIONS_FILE, list);
+  return list[idx];
+}
+
+export function incrementOutOfDomainCount(sessionId) {
+  const session = getSession(sessionId);
+  const next = Number(session?.out_of_domain_count || 0) + 1;
+  patchSession(sessionId, { out_of_domain_count: next });
+  return next;
+}
+
+export function resetOutOfDomainCount(sessionId) {
+  patchSession(sessionId, { out_of_domain_count: 0 });
 }
 
 export function updateSessionCount(sessionId) {

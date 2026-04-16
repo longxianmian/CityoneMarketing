@@ -27,7 +27,9 @@ import {
   getLatestActiveSession,
   touchSession,
   addMessage,
-  getSessionMessages
+  getSessionMessages,
+  incrementOutOfDomainCount,
+  resetOutOfDomainCount,
 } from "../services/agent-session-service.js";
 import { resolveAgentIdentity } from "../services/agent-identity-service.js";
 import { writeAgentLog, queryAgentLogs, computeAgentMetrics } from "../services/agent-log-service.js";
@@ -35,7 +37,7 @@ import {
   loadAgentConfig, saveAgentConfig,
   loadAgentIntents, saveAgentIntents
 } from "../services/agent-config-service.js";
-import { checkLLMHealth } from "../services/agent-llm-service.js";
+import { checkLLMHealth, classifyMessageDomain, generateGeneralChatReply } from "../services/agent-llm-service.js";
 import { runLLMPipeline } from "../services/agent-llm-pipeline.js";
 import { checkPolicy, POLICY_RESULTS } from "../services/agent-policy-service.js";
 
@@ -215,7 +217,7 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
       || {};
 
     // 3. 加载历史消息（最近 8 条）
-    const sessionHistory = getSessionMessages(sessionId, 8);
+    const sessionHistory = getSessionMessages(sessionId, 8).filter((msg) => msg.message_id !== userMsg.message_id);
 
     // 4. LLM Function Calling 主管道
     //    关键词模板检查 → LLM 自主调工具 → 工具执行 → LLM 生成回复
@@ -226,6 +228,72 @@ export async function handleAgentSendMessage(req, res, url, sendJson, readBody) 
       user_id:       session.user_id || "",
       site_id:       session.site_id || "",
     };
+
+    const domainResult = await classifyMessageDomain(text, language, sessionHistory);
+
+    if (domainResult.domain === "out_of_domain") {
+      const outOfDomainCount = incrementOutOfDomainCount(sessionId);
+      const limitReached = outOfDomainCount > 3;
+      const replyText = limitReached
+        ? ({
+            zh: "抱歉，我只是提供共享充电宝相关服务的。你可以问我站点、优惠、卡券、积分、订单等问题。",
+            th: "ขออภัย ฉันให้บริการเกี่ยวกับพาวเวอร์แบงก์共享เท่านั้น คุณถามเรื่องสถานี โปรโมชัน คูปอง คะแนน หรือออเดอร์ได้",
+            en: "Sorry, I only provide help for CityOne power bank services. Ask me about stations, promotions, coupons, points, or orders.",
+          }[language] || "抱歉，我只是提供共享充电宝相关服务的。")
+        : (await generateGeneralChatReply(text, language, sessionHistory));
+
+      const replyPayload = {
+        reply_type: "text",
+        text: replyText,
+        cards: [],
+        suggestions: [],
+        source: limitReached ? "out_of_domain_limit_reached" : "general_llm_out_of_domain",
+        intent_code: limitReached ? "out_of_domain_limit_reached" : "general_chat",
+        dispatch_mode: "chat_only",
+        out_of_domain_count: outOfDomainCount,
+      };
+
+      const agentMsg = addMessage({
+        sessionId,
+        role: "agent",
+        type: "text",
+        text: replyText,
+        intentCode: replyPayload.intent_code,
+        payload: replyPayload,
+      });
+
+      touchSession(sessionId);
+      writeAgentLog({
+        sessionId,
+        messageId: userMsg.message_id,
+        lineUserId: session.line_user_id,
+        userId: session.user_id,
+        identityTier: identity.identity_tier,
+        inputText: text,
+        intentCode: replyPayload.intent_code,
+        intentConfidence: domainResult.confidence || 0.6,
+        toolCode: "",
+        toolResultStatus: replyPayload.source,
+        needConfirm: false,
+        finalAction: limitReached ? "out_of_domain_refused" : "out_of_domain_llm",
+      });
+
+      return sendOk(res, sendJson, "message processed", {
+        user_message_id: userMsg.message_id,
+        agent_message_id: agentMsg.message_id,
+        intent: {
+          code: replyPayload.intent_code,
+          name: replyPayload.intent_code,
+          confidence: domainResult.confidence || 0.6,
+          recognition_mode: replyPayload.source,
+        },
+        identity_tier: identity.identity_tier,
+        policy_result: "allowed",
+        reply: replyPayload,
+      });
+    }
+
+    resetOutOfDomainCount(sessionId);
 
     const pipelineResult = await runLLMPipeline(text, sessionHistory, roleKeywords, userContext);
 

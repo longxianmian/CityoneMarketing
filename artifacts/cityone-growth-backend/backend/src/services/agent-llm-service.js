@@ -180,6 +180,92 @@ ${intentList.map((i) => `- ${i.code}：${i.desc}`).join("\n")}
   }
 }
 
+export async function classifyMessageDomain(text, language = "zh", conversationHistory = []) {
+  const langLabel = { zh: "中文", th: "泰文", en: "英文" }[language] || "中文";
+  const historyText = (conversationHistory || [])
+    .slice(-4)
+    .map((m) => `${m.role === "user" ? "用户" : "助理"}: ${String(m.text || "").slice(0, 120)}`)
+    .join("\n");
+
+  const messages = [
+    {
+      role: "system",
+      content: `你是 CityOne 共享充电宝助手的域内/域外分类器。
+目标：判断当前用户消息是否属于 CityOne 系统相关服务。
+
+算作 in_domain 的范围：
+- 共享充电宝借还、充电、站点、地图、附近站点
+- 活动、福利、卡券、优惠、积分、会员、邀请、订单、押金、售后、兑换
+- LINE OA、关注、登录、身份绑定
+- 用户询问“你是谁/你能做什么/怎么用这个系统”
+
+算作 out_of_domain 的范围：
+- 明显与 CityOne 业务无关的泛聊天、百科、翻译、天气、情感、闲聊、创作等
+
+当不确定时，优先判定为 in_domain。
+输出严格 JSON：
+{"domain":"in_domain|out_of_domain","confidence":0.0,"reason":"简短原因"}
+回复语言说明：${langLabel}`,
+    },
+    ...(historyText ? [{ role: "user", content: `最近对话：\n${historyText}` }] : []),
+    { role: "user", content: `当前用户消息：${String(text || "").slice(0, 500)}` },
+  ];
+
+  try {
+    const raw = await chatCompletion(messages, { jsonMode: true, maxTokens: 128 });
+    const parsed = JSON.parse(raw);
+    return {
+      domain: parsed.domain === "out_of_domain" ? "out_of_domain" : "in_domain",
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.7,
+      reason: String(parsed.reason || ""),
+    };
+  } catch {
+    const broadInDomainRe = /充电宝|共享充电|充电|借电|还电|站点|附近|地图|卡券|优惠|折扣|活动|福利|积分|会员|订单|押金|退款|售后|兑换|邀请|分享|line|oa|liff|关注|coupon|discount|promotion|points|station|order|member|refund|power.?bank|charging|benefit|พาวเวอร์แบงก์|สถานี|คูปอง|โปรโมชัน|คะแนน|สมาชิก|ออเดอร์|คืนเงิน|ติดตาม/i;
+    return {
+      domain: broadInDomainRe.test(String(text || "")) ? "in_domain" : "out_of_domain",
+      confidence: 0.51,
+      reason: "fallback_regex",
+    };
+  }
+}
+
+export async function generateGeneralChatReply(text, language = "zh", conversationHistory = []) {
+  const langLabel = { zh: "中文", th: "ไทย", en: "English" }[language] || "中文";
+  const historyMessages = (conversationHistory || [])
+    .slice(-6)
+    .map((m) => ({
+      role: m.role === "user" ? "user" : "assistant",
+      content: String(m.text || "").trim(),
+    }))
+    .filter((m) => m.content);
+
+  const messages = [
+    {
+      role: "system",
+      content: `你是 CityOne 的助手“小城”。
+现在用户问的是非系统功能类问题，请像正常助手一样简短自然回答。
+要求：
+1. 用${langLabel}回复
+2. 友好、正常，不装傻，不生硬拐回业务
+3. 不超过80字
+4. 不虚构 CityOne 业务事实
+5. 如果用户只是打招呼、确认你在不在，就自然回应即可`,
+    },
+    ...historyMessages,
+    { role: "user", content: String(text || "").slice(0, 500) },
+  ];
+
+  try {
+    return (await chatCompletion(messages, { maxTokens: 128 })).trim();
+  } catch {
+    return {
+      zh: "我在呢，你可以继续说。",
+      th: "ฉันอยู่นี่นะ พิมพ์ต่อได้เลย",
+      en: "I'm here — go ahead.",
+    }[language] || "我在呢，你可以继续说。";
+  }
+}
+
 /**
  * 自然语言回复生成：基于工具结果和上下文生成友好回复文本
  * @param {string} intentCode

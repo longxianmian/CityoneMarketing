@@ -123,12 +123,10 @@ const INTENT_ACTION_CARDS: Record<string, IntentCardFn> = {
     type: 'order',
     title: { zh: '💳 押金退还申请', th: '💳 ขอคืนเงินมัดจำ', en: '💳 Deposit Refund Request' }[l],
     subtitle: {
-      zh: '请回复您注册的手机号码，客服将在 1 个工作日内处理退款',
-      th: 'กรุณาตอบกลับพร้อมเบอร์โทรที่ลงทะเบียน ทีมงานจัดการคืนเงินภายใน 1 วันทำการ',
-      en: 'Reply with your registered phone number — we\'ll process the refund within 1 business day',
+      zh: '押金缴纳和退款都在共享充电宝系统内处理，请按首次扫码方式重新扫描设备二维码',
+      th: 'การชำระและคืนเงินมัดจำต้องทำในระบบพาวเวอร์แบงก์เดิม กรุณาสแกนด้วยวิธีเดิมอีกครั้ง',
+      en: 'Deposit payment and refund are handled in the power bank system. Please scan the device again using your original method',
     }[l],
-    ctaPrimary: { text: { zh: '前往押金设置 →', th: 'ไปที่การตั้งค่ามัดจำ →', en: 'Go to Deposit Settings →' }[l], route: '/mine?tab=member' },
-    ctaSecondary: { text: { zh: '查看我的账户 →', th: 'ดูบัญชีของฉัน →', en: 'View My Account →' }[l], route: '/mine' },
   }),
 }
 
@@ -214,26 +212,6 @@ function normalizeRawCard(c: any): AgentCard {
       ? { text: c.action_text_secondary, route: c.route_secondary }
       : undefined,
   }
-}
-
-// ─── Frontend intent fallback (keyword-based, used when backend returns intent_unknown) ──
-// Backend handles real NLU; this only selects which action card to show when backend can't.
-
-function detectFrontendIntent(text: string): string {
-  const t = text.toLowerCase()
-  if (/划算|便宜|免费|省钱|打折|折扣|省一点|更便宜|free|cheaper|discount|save money|any deal|คุ้ม|ถูกกว่า|ฟรีไหม|ส่วนลด/.test(t)) return 'growth_saving_intent'
-  if (/券|优惠|有活动|coupon|voucher|promo|offer|คูปอง|โปรโมชัน/.test(t)) return 'coupon_list_query'
-  if (/积分|兑换|point|redeem|คะแนน|แลก/.test(t)) return 'points_redeem_help'
-  if (/邀请|好友|推荐|分享.*福利|分享.*活动|分享.*卡券|invite|refer|share.*benefit|ชวน|เชิญ|แชร์/.test(t)) return 'invite_help'
-  if (/海报|poster/.test(t)) return 'invite_poster_generate'
-  if (/借|borrow|ยืม/.test(t)) return 'borrow_help'
-  if (/还|归还|return|คืน/.test(t)) return 'return_help'
-  if (/站点|地图|附近|station|map|nearby|สถานี|แผนที่|ใกล้/.test(t)) return 'nearby_sites_query'
-  if (/订单|记录|历史|order|history|คำสั่งซื้อ|ประวัติ/.test(t)) return 'recent_orders_query'
-  if (/福利|benefit|welfare|สิทธิ/.test(t)) return 'benefit_claim_query'
-  if (/押金|退押金|押金退还|deposit.*refund|refund.*deposit|เงินมัดจำ|คืนเงินมัดจำ|มัดจำ/.test(t)) return 'deposit_refund'
-  if (/售后|退款|投诉|refund|complaint|คืนเงิน|ร้องเรียน/.test(t)) return 'after_sale_apply'
-  return ''
 }
 
 // ─── Page constants ────────────────────────────────────────────────────────────
@@ -356,7 +334,7 @@ export default function AgentChatPage() {
   }, [])
 
   // ─ Build displayable AgentMessages from backend response data ─────────────
-  const buildAIMessages = useCallback((responseData: any, userText = ''): AgentMessage[] => {
+  const buildAIMessages = useCallback((responseData: any): AgentMessage[] => {
     if (!responseData) return []
 
     const reply = responseData.reply
@@ -366,9 +344,7 @@ export default function AgentChatPage() {
     const tier: string = identityTier || responseData.identity_tier || ''
     const policy: string = responseData.policy_result || 'allowed'
 
-    // Effective intent: backend code if recognized, otherwise detect from user's message text
-    const isUnknown = !backendCode || backendCode === 'unknown' || backendCode === 'intent_unknown'
-    const intentCode = isUnknown ? detectFrontendIntent(userText) : backendCode
+    const intentCode = backendCode
 
     if (!reply) {
       const text = responseData.text || responseData.message
@@ -458,7 +434,7 @@ export default function AgentChatPage() {
       if (sessionId) {
         const res = await sendAgentMessage(sessionId, { text: text.trim(), language: lang })
         const data = res.data?.data || res.data
-        const aiMsgs = buildAIMessages(data, text.trim())
+        const aiMsgs = buildAIMessages(data)
         if (aiMsgs.length > 0) addMessages(aiMsgs)
       } else {
         addMessage(makeText(uid(), {
