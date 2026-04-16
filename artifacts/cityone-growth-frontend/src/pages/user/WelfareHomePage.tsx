@@ -359,6 +359,15 @@ export default function WelfareHomePage() {
     // 这里补上“待恢复动作 -> 关注弹层”的显示，避免用户点击领取/参加后没有任何提示。
     if (liffReady || isInLineBrowser || !followOaId) return
 
+    const hasStoredPending =
+      localStorage.getItem('cityone_resume_pending') === '1' ||
+      sessionStorage.getItem('cityone_resume_pending') === '1' ||
+      sessionStorage.getItem('cityone_follow_pending') === '1'
+
+    // 生产级规则：只有 guard 真实写下“待恢复动作”标记时，/welfare 才允许恢复。
+    // 不能仅凭 URL 上残留的 rp/back/action 就把首页误判成“需要先关注”。
+    if (!hasStoredPending) return
+
     const directRp = searchParams.get('rp') || searchParams.get('resume_return') || ''
     const rawLiffState = searchParams.get('liff.state') || ''
     const rpFromLiffState = (() => {
@@ -381,13 +390,7 @@ export default function WelfareHomePage() {
       sessionStorage.getItem('cityone_follow_return_path') ||
       ''
 
-    const pending =
-      !!(directRp || rpFromLiffState) ||
-      localStorage.getItem('cityone_resume_pending') === '1' ||
-      sessionStorage.getItem('cityone_resume_pending') === '1' ||
-      sessionStorage.getItem('cityone_follow_pending') === '1'
-
-    if (pending && returnPath) {
+    if (returnPath) {
       setFollowReturnPath(returnPath)
       setShowFollowModal(true)
     }
@@ -446,7 +449,6 @@ export default function WelfareHomePage() {
       ''
 
     const hasPendingResume = (): boolean =>
-      !!(directRp || rpFromLiffState()) ||
       localStorage.getItem('cityone_resume_pending') === '1' ||
       sessionStorage.getItem('cityone_resume_pending') === '1' ||
       sessionStorage.getItem('cityone_follow_pending') === '1'
