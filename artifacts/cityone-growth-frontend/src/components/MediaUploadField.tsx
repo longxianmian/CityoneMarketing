@@ -143,6 +143,7 @@ export default function MediaUploadField({ value, onChange, type, placeholder, m
       }
     } catch (err: any) {
       console.error('Upload error:', err)
+      message.error(err?.displayMsg || err?.response?.data?.msg || copy.uploadFail)
     } finally {
       setUploading(false)
     }
