@@ -539,7 +539,6 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
         attribution.source_station_code,
         attribution.source_a_system_station_id,
         attribution.source_device_code,
-        attribution.source_device_code,
         body.a_system_user_id || null,
         deliveryType,
         deliveryName,
