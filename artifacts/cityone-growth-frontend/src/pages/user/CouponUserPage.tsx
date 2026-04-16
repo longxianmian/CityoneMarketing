@@ -192,6 +192,11 @@ export default function CouponUserPage() {
         id: coupon?.id || ownedBenefit?.product_id || id,
       }
     : coupon
+  const coverUrl = detailData?.cover_image || null
+  const coverVideoUrl = detailData?.cover_video || null
+  const resolvedCoverImageUrl = useOssUrl(coverUrl || undefined)
+  const resolvedCoverVideoUrl = useOssUrl(coverVideoUrl || undefined)
+  const videoReady = !!resolvedCoverVideoUrl
 
   const ownedStatus = ownedBenefit?.status || 'available'
   const primaryAction = owned
@@ -413,12 +418,6 @@ export default function CouponUserPage() {
     detailData.valid_to || detailData.expire_at
       ? `${validFromText} ~ ${validToText}`
       : validFromText
-  const coverUrl = detailData.cover_image || null
-  const coverVideoUrl = detailData.cover_video || null
-  const resolvedCoverImageUrl = useOssUrl(coverUrl || undefined)
-  const resolvedCoverVideoUrl = useOssUrl(coverVideoUrl || undefined)
-  const videoReady = !!resolvedCoverVideoUrl
-
   if (step === 'success') {
     const successTitle = alreadyClaimed ? L.alreadyTitle : L.successTitle
     const successDesc = alreadyClaimed ? L.alreadyDesc : L.successDesc

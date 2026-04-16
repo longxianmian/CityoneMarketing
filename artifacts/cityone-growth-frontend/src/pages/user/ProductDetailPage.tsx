@@ -78,6 +78,12 @@ export default function ProductDetailPage() {
     return ''
   }
 
+  const coverImage = product?.cover_image || ''
+  const coverVideo = product?.cover_video || ''
+  const resolvedCoverImage = useOssUrl(coverImage || undefined)
+  const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
+  const videoReady = !!resolvedCoverVideo
+
   // 来自 FollowOAPage 回跳：auto=redeem → 自动打开确认弹窗
   useEffect(() => {
     if (searchParams.get('auto') === 'redeem' && product) {
@@ -313,11 +319,6 @@ export default function ProductDetailPage() {
   const benefitContent = highlights.join('\n')
   const usageRules = rules.join('\n')
   const redeemNotice = ''
-  const coverImage = product.cover_image || ''
-  const coverVideo = product.cover_video || ''
-  const resolvedCoverImage = useOssUrl(coverImage || undefined)
-  const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
-  const videoReady = !!resolvedCoverVideo
   const pointsPrice = couponExchangeMode ? 0 : (product.points_required || 0)
   const cashPrice = (product.exchange_mode === 'mix' && product.price_thb) ? product.price_thb : 0
   const isPhysical = product.item_type === 'physical'
