@@ -26,6 +26,7 @@ import request from '../../api/request'
 import { isObjectKey, useOssUrl } from '../../components/OssImage'
 import { prefetchActivity } from '../../cache/activityCache'
 import { setRuntimeLineConfig, resolveRuntimeLiffUrl } from '../../lib/line'
+import { hasFreshResumePending } from '../../hooks/useFollowGate'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -44,6 +45,21 @@ type LocalizedField = Partial<Record<AppLanguage, string>>
 const CACHE_TTL_MS = 2 * 60 * 1000           // 内存：2 分钟内不重复请求
 const LS_KEY = 'cityone_welfare_v3'
 const LS_TTL_MS = 30 * 60 * 1000             // localStorage：30 分钟有效
+const RESUME_KEYS = [
+  'cityone_resume_pending',
+  'cityone_resume_at',
+  'cityone_resume_return_path',
+  'cityone_resume_back_path',
+  'cityone_resume_action',
+  'cityone_resume_name',
+]
+const FOLLOW_SESSION_KEYS = [
+  'cityone_follow_pending',
+  'cityone_follow_return_path',
+  'cityone_follow_back_path',
+  'cityone_follow_action',
+  'cityone_follow_name',
+]
 
 function isLegacyLocalUpload(value: any) {
   return typeof value === 'string' && value.trim().startsWith('/uploads/')
@@ -359,14 +375,22 @@ export default function WelfareHomePage() {
     // 这里补上“待恢复动作 -> 关注弹层”的显示，避免用户点击领取/参加后没有任何提示。
     if (liffReady || isInLineBrowser || !followOaId) return
 
+    const clearStaleResumeKeys = () => {
+      RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
+      ;[...RESUME_KEYS, ...FOLLOW_SESSION_KEYS].forEach((k) => sessionStorage.removeItem(k))
+    }
+
     const hasStoredPending =
-      localStorage.getItem('cityone_resume_pending') === '1' ||
-      sessionStorage.getItem('cityone_resume_pending') === '1' ||
+      hasFreshResumePending(localStorage) ||
+      hasFreshResumePending(sessionStorage as Storage) ||
       sessionStorage.getItem('cityone_follow_pending') === '1'
 
     // 生产级规则：只有 guard 真实写下“待恢复动作”标记时，/welfare 才允许恢复。
     // 不能仅凭 URL 上残留的 rp/back/action 就把首页误判成“需要先关注”。
-    if (!hasStoredPending) return
+    if (!hasStoredPending) {
+      clearStaleResumeKeys()
+      return
+    }
 
     const directRp = searchParams.get('rp') || searchParams.get('resume_return') || ''
     const rawLiffState = searchParams.get('liff.state') || ''
@@ -429,14 +453,8 @@ export default function WelfareHomePage() {
     }
 
     const clearAllResumeKeys = () => {
-      ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
-        'cityone_resume_action',  'cityone_resume_name',
-      ].forEach((k) => localStorage.removeItem(k))
-      ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
-        'cityone_resume_action',  'cityone_resume_name',
-        'cityone_follow_pending', 'cityone_follow_return_path', 'cityone_follow_back_path',
-        'cityone_follow_action',  'cityone_follow_name',
-      ].forEach((k) => sessionStorage.removeItem(k))
+      RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
+      ;[...RESUME_KEYS, ...FOLLOW_SESSION_KEYS].forEach((k) => sessionStorage.removeItem(k))
     }
 
     // 读取 returnPath：①URL直接参数 ②liff.state ③localStorage ④sessionStorage
@@ -449,8 +467,8 @@ export default function WelfareHomePage() {
       ''
 
     const hasPendingResume = (): boolean =>
-      localStorage.getItem('cityone_resume_pending') === '1' ||
-      sessionStorage.getItem('cityone_resume_pending') === '1' ||
+      hasFreshResumePending(localStorage) ||
+      hasFreshResumePending(sessionStorage as Storage) ||
       sessionStorage.getItem('cityone_follow_pending') === '1'
 
     /** 用服务端 check-follow 判断关注状态（getFriendship 失败时的兜底） */
@@ -587,14 +605,8 @@ export default function WelfareHomePage() {
           isFriend:        true,
         })
         // 清理 localStorage（主键）+ sessionStorage（兼容键）
-        ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
-          'cityone_resume_action',  'cityone_resume_name',
-        ].forEach((k) => localStorage.removeItem(k))
-        ;['cityone_resume_pending', 'cityone_resume_return_path', 'cityone_resume_back_path',
-          'cityone_resume_action',  'cityone_resume_name',
-          'cityone_follow_pending', 'cityone_follow_return_path', 'cityone_follow_back_path',
-          'cityone_follow_action',  'cityone_follow_name',
-        ].forEach((k) => sessionStorage.removeItem(k))
+        RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
+        ;[...RESUME_KEYS, ...FOLLOW_SESSION_KEYS].forEach((k) => sessionStorage.removeItem(k))
         setShowFollowModal(false)
         setFollowChecking(false)
         if (followReturnPath && followReturnPath !== '/welfare') {

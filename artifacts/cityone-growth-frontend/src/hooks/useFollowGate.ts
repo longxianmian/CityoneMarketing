@@ -27,9 +27,21 @@ const SK_RETURN_PATH = 'cityone_resume_return_path'
 const SK_BACK_PATH   = 'cityone_resume_back_path'
 const SK_ACTION      = 'cityone_resume_action'
 const SK_NAME        = 'cityone_resume_name'
+const SK_AT         = 'cityone_resume_at'
+const RESUME_TTL_MS = 5 * 60 * 1000
+
+export function hasFreshResumePending(storage: Pick<Storage, 'getItem'> = localStorage) {
+  const pending = storage.getItem(SK_PENDING) === '1'
+  if (!pending) return false
+  const rawAt = storage.getItem(SK_AT)
+  const at = Number(rawAt || 0)
+  if (!Number.isFinite(at) || at <= 0) return false
+  return Date.now() - at <= RESUME_TTL_MS
+}
 
 export function writeResumeKeys(returnPath: string, back: string, label: string) {
   localStorage.setItem(SK_PENDING, '1')
+  localStorage.setItem(SK_AT, String(Date.now()))
   localStorage.setItem(SK_RETURN_PATH, returnPath)
   localStorage.setItem(SK_BACK_PATH, back)
   if (label) localStorage.setItem(SK_ACTION, label)
