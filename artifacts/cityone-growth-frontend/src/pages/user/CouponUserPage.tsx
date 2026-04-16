@@ -23,7 +23,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
-import OssImage from '../../components/OssImage'
+import OssImage, { useOssUrl } from '../../components/OssImage'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 import { useFollowGate } from '../../hooks/useFollowGate'
@@ -204,19 +204,14 @@ export default function CouponUserPage() {
       })
     : null
 
-  const handleStartVideo = () => {
+  const handleStartVideo = async () => {
     setVideoStarted(true)
-    heroVideoRef.current?.play().catch(() => {})
-  }
-
-  const toggleVideoPlay = () => {
     const el = heroVideoRef.current
     if (!el) return
-    if (el.paused) {
-      el.play().catch(() => {})
-      setVideoPaused(false)
-    } else {
-      el.pause()
+    setVideoPaused(false)
+    try {
+      await el.play()
+    } catch {
       setVideoPaused(true)
     }
   }
@@ -420,6 +415,9 @@ export default function CouponUserPage() {
       : validFromText
   const coverUrl = detailData.cover_image || null
   const coverVideoUrl = detailData.cover_video || null
+  const resolvedCoverImageUrl = useOssUrl(coverUrl || undefined)
+  const resolvedCoverVideoUrl = useOssUrl(coverVideoUrl || undefined)
+  const videoReady = !!resolvedCoverVideoUrl
 
   if (step === 'success') {
     const successTitle = alreadyClaimed ? L.alreadyTitle : L.successTitle
@@ -660,12 +658,15 @@ export default function CouponUserPage() {
       </Modal>
 
       <div style={{ flexShrink: 0, width: '100%', aspectRatio: '16/9', background: '#f0f0f0', overflow: 'hidden', position: 'relative' } as React.CSSProperties}>
-        {coverVideoUrl && (
+        {videoReady && (
           <video
             ref={heroVideoRef}
-            src={coverVideoUrl}
+            src={resolvedCoverVideoUrl}
             loop
             playsInline
+            controls={videoStarted}
+            preload="metadata"
+            poster={resolvedCoverImageUrl || undefined}
             style={{
               position: 'absolute',
               inset: 0,
@@ -675,7 +676,8 @@ export default function CouponUserPage() {
               display: 'block',
               visibility: videoStarted ? 'visible' : 'hidden',
             } as React.CSSProperties}
-            onClick={videoStarted ? toggleVideoPlay : undefined}
+            onPlay={() => setVideoPaused(false)}
+            onPause={() => setVideoPaused(videoStarted)}
           />
         )}
         {videoStarted && videoPaused && (
@@ -687,9 +689,9 @@ export default function CouponUserPage() {
         )}
         {!videoStarted && (
           coverUrl ? (
-            <div style={{ position: 'absolute', inset: 0, cursor: coverVideoUrl ? 'pointer' : 'default' }} onClick={coverVideoUrl ? handleStartVideo : undefined}>
+            <div style={{ position: 'absolute', inset: 0, cursor: videoReady ? 'pointer' : 'default' }} onClick={videoReady ? handleStartVideo : undefined}>
               <OssImage src={coverUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              {coverVideoUrl && (
+              {videoReady && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(0,0,0,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ fontSize: 16, color: '#fff', lineHeight: 1, marginLeft: 3 }}>▶</span>
@@ -697,7 +699,7 @@ export default function CouponUserPage() {
                 </div>
               )}
             </div>
-          ) : coverVideoUrl ? (
+          ) : videoReady ? (
             <div style={{ position: 'absolute', inset: 0, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} onClick={handleStartVideo}>
               <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 16, color: '#fff', lineHeight: 1, marginLeft: 3 }}>▶</span>

@@ -5,7 +5,7 @@ import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-d
 import { useQuery } from '@tanstack/react-query'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
-import OssImage from '../../components/OssImage'
+import OssImage, { useOssUrl } from '../../components/OssImage'
 import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useFollowGate } from '../../hooks/useFollowGate'
 import { activityQueryKey, fetchActivityById } from '../../cache/activityCache'
@@ -46,16 +46,16 @@ export default function ActivityDetailPage() {
   const { guard, checking } = useFollowGate()
   const effectiveUserId = useEffectiveUserId()
 
-  const handleStartVideo = () => {
+  const handleStartVideo = async () => {
     setVideoStarted(true)
-    heroVideoRef.current?.play().catch(() => {})
-  }
-
-  const toggleVideoPlay = () => {
     const el = heroVideoRef.current
     if (!el) return
-    if (el.paused) { el.play(); setVideoPaused(false) }
-    else { el.pause(); setVideoPaused(true) }
+    setVideoPaused(false)
+    try {
+      await el.play()
+    } catch {
+      setVideoPaused(true)
+    }
   }
 
   // 来自 FollowOAPage 回跳：auto=participate → 自动参与
@@ -97,6 +97,9 @@ export default function ActivityDetailPage() {
   const noticeText = pick(activity?.notice_text || activity?.noticeText) || ''
   const coverImage = activity?.cover_image || activity?.coverImage || ''
   const coverVideo = activity?.cover_video || activity?.coverVideo || ''
+  const resolvedCoverImage = useOssUrl(coverImage || undefined)
+  const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
+  const videoReady = !!resolvedCoverVideo
   const linkedProducts: any[] = activity?.linkedProducts || []
   const buttonText = activity?.buttonText ? pick(activity.buttonText) : typeBtnText
   const isInteractive = ['lucky_wheel', 'spin_wheel', 'scratch_card', 'thai_fortune_draw'].includes(actType)
@@ -241,11 +244,20 @@ export default function ActivityDetailPage() {
 
       <div style={{ flexShrink: 0, width: '100%', aspectRatio: '16/9', background: '#f0f0f0', overflow: 'hidden', position: 'relative' } as React.CSSProperties}>
         {/* 视频始终保留在DOM，避免安卓重新挂载后autoPlay不在手势上下文 */}
-        {coverVideo && (
-          <video ref={heroVideoRef} src={coverVideo} loop playsInline
+        {videoReady && (
+          <video
+            ref={heroVideoRef}
+            src={resolvedCoverVideo}
+            loop
+            playsInline
+            controls={videoStarted}
+            preload="metadata"
+            poster={resolvedCoverImage || undefined}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block',
                      visibility: videoStarted ? 'visible' : 'hidden' } as React.CSSProperties}
-            onClick={videoStarted ? toggleVideoPlay : undefined} />
+            onPlay={() => setVideoPaused(false)}
+            onPause={() => setVideoPaused(videoStarted)}
+          />
         )}
         {/* 暂停提示 */}
         {videoStarted && videoPaused && (
@@ -258,10 +270,10 @@ export default function ActivityDetailPage() {
         {/* 未播放时：封面图 + 播放按钮叠加层 */}
         {!videoStarted && (
           coverImage ? (
-            <div style={{ position: 'absolute', inset: 0, cursor: coverVideo ? 'pointer' : 'default' }}
-                 onClick={coverVideo ? handleStartVideo : undefined}>
+            <div style={{ position: 'absolute', inset: 0, cursor: videoReady ? 'pointer' : 'default' }}
+                 onClick={videoReady ? handleStartVideo : undefined}>
               <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} placeholderStyle={{ width: '100%', height: '100%' }} />
-              {coverVideo && (
+              {videoReady && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(0,0,0,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ fontSize: 16, color: '#fff', lineHeight: 1, marginLeft: 3 }}>▶</span>
@@ -269,7 +281,7 @@ export default function ActivityDetailPage() {
                 </div>
               )}
             </div>
-          ) : coverVideo ? (
+          ) : videoReady ? (
             <div style={{ position: 'absolute', inset: 0, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                  onClick={handleStartVideo}>
               <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

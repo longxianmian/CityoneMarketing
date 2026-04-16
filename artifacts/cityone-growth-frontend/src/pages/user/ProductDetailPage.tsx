@@ -6,7 +6,7 @@ import {
   CarOutlined, EnvironmentOutlined, BoxPlotOutlined, ShopOutlined,
 } from '@ant-design/icons'
 import { useI18n, type AppLanguage } from '../../i18n'
-import OssImage from '../../components/OssImage'
+import OssImage, { useOssUrl } from '../../components/OssImage'
 import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
@@ -43,16 +43,16 @@ export default function ProductDetailPage() {
   const [videoPaused, setVideoPaused] = useState(false)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
 
-  const handleStartVideo = () => {
+  const handleStartVideo = async () => {
     setVideoStarted(true)
-    heroVideoRef.current?.play().catch(() => {})
-  }
-
-  const toggleVideoPlay = () => {
     const el = heroVideoRef.current
     if (!el) return
-    if (el.paused) { el.play(); setVideoPaused(false) }
-    else { el.pause(); setVideoPaused(true) }
+    setVideoPaused(false)
+    try {
+      await el.play()
+    } catch {
+      setVideoPaused(true)
+    }
   }
 
   const ACTION_MAP: Record<string, { text: string; color: string }> = {
@@ -315,6 +315,9 @@ export default function ProductDetailPage() {
   const redeemNotice = ''
   const coverImage = product.cover_image || ''
   const coverVideo = product.cover_video || ''
+  const resolvedCoverImage = useOssUrl(coverImage || undefined)
+  const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
+  const videoReady = !!resolvedCoverVideo
   const pointsPrice = couponExchangeMode ? 0 : (product.points_required || 0)
   const cashPrice = (product.exchange_mode === 'mix' && product.price_thb) ? product.price_thb : 0
   const isPhysical = product.item_type === 'physical'
@@ -373,11 +376,20 @@ export default function ProductDetailPage() {
       />
 
       <div style={{ flexShrink: 0, width: '100%', aspectRatio: '16/9', background: '#f0f0f0', overflow: 'hidden', position: 'relative' } as React.CSSProperties}>
-        {coverVideo && (
-          <video ref={heroVideoRef} src={coverVideo} loop playsInline
+        {videoReady && (
+          <video
+            ref={heroVideoRef}
+            src={resolvedCoverVideo}
+            loop
+            playsInline
+            controls={videoStarted}
+            preload="metadata"
+            poster={resolvedCoverImage || undefined}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block',
                      visibility: videoStarted ? 'visible' : 'hidden' } as React.CSSProperties}
-            onClick={videoStarted ? toggleVideoPlay : undefined} />
+            onPlay={() => setVideoPaused(false)}
+            onPause={() => setVideoPaused(videoStarted)}
+          />
         )}
         {videoStarted && videoPaused && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
@@ -388,10 +400,10 @@ export default function ProductDetailPage() {
         )}
         {!videoStarted && (
           coverImage ? (
-            <div style={{ position: 'absolute', inset: 0, cursor: coverVideo ? 'pointer' : 'default' }}
-                 onClick={coverVideo ? handleStartVideo : undefined}>
+            <div style={{ position: 'absolute', inset: 0, cursor: videoReady ? 'pointer' : 'default' }}
+                 onClick={videoReady ? handleStartVideo : undefined}>
               <OssImage src={coverImage} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} placeholderStyle={{ width: '100%', height: '100%' }} />
-              {coverVideo && (
+              {videoReady && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(0,0,0,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ fontSize: 16, color: '#fff', lineHeight: 1, marginLeft: 3 }}>▶</span>
@@ -399,7 +411,7 @@ export default function ProductDetailPage() {
                 </div>
               )}
             </div>
-          ) : coverVideo ? (
+          ) : videoReady ? (
             <div style={{ position: 'absolute', inset: 0, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                  onClick={handleStartVideo}>
               <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
