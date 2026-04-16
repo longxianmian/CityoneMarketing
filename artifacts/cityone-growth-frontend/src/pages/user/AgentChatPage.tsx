@@ -88,8 +88,8 @@ const INTENT_ACTION_CARDS: Record<string, IntentCardFn> = {
   }),
   invite_help: (l) => ({
     type: 'invite',
-    title: { zh: '📢 把活动/卡券分享给好友赚积分', th: '📢 แชร์กิจกรรม/คูปองให้เพื่อนรับคะแนน', en: '📢 Share Activities or Coupons — Earn Points Together' }[l],
-    subtitle: { zh: '把你喜欢的活动或优惠券分享给好友，好友参与后双方都获得积分奖励，比直接邀请转化率更高！', th: 'แชร์กิจกรรมหรือคูปองที่ชอบให้เพื่อน เพื่อนเข้าร่วมแล้วทั้งคู่ได้คะแนน', en: 'Share an activity or coupon you like — when friends join, both of you earn points!' }[l],
+    title: { zh: '📢 分享详情页给好友赚积分', th: '📢 แชร์ลิงก์รายละเอียดให้เพื่อนรับคะแนน', en: '📢 Share Detail Links to Earn Points' }[l],
+    subtitle: { zh: '把活动、卡券或商品详情页链接分享给好友，好友关注 LINE OA 后你即可获得积分奖励。', th: 'แชร์ลิงก์หน้ารายละเอียดกิจกรรม คูปอง หรือสินค้าให้เพื่อน เมื่อเพื่อนติดตาม LINE OA แล้วคุณจะได้คะแนน', en: 'Share activity, coupon, or product detail links with friends. Once they follow the LINE OA, you earn points.' }[l],
     ctaPrimary: { text: { zh: '去挑一个活动分享 →', th: 'เลือกกิจกรรมแชร์ →', en: 'Pick an Activity to Share →' }[l], route: '/welfare' },
     ctaSecondary: { text: { zh: '分享我的卡券 →', th: 'แชร์คูปองของฉัน →', en: 'Share My Coupons →' }[l], route: '/my-coupons' },
   }),
@@ -103,7 +103,7 @@ const INTENT_ACTION_CARDS: Record<string, IntentCardFn> = {
   growth_saving_intent: (l) => ({
     type: 'invite',
     title: { zh: '💰 分享内容给好友赚积分', th: '💰 แชร์เนื้อหาให้เพื่อนได้คะแนน', en: '💰 Share Content & Earn Points' }[l],
-    subtitle: { zh: '挑一个活动或卡券分享出去，好友看到优惠，你也攒到积分兑奖励，双赢！', th: 'เลือกกิจกรรมหรือคูปองแชร์ให้เพื่อน เพื่อนได้โปร คุณได้คะแนน ได้ทั้งคู่!', en: 'Pick an activity or coupon to share — your friends see the deal, you earn points. Win-win!' }[l],
+    subtitle: { zh: '挑一个活动、卡券或商品详情页链接分享出去，好友关注 LINE OA 后你就能攒积分兑奖励。', th: 'แชร์ลิงก์รายละเอียดกิจกรรม คูปอง หรือสินค้า เมื่อเพื่อนติดตาม LINE OA แล้วคุณจะได้คะแนน', en: 'Share an activity, coupon, or product detail link. Once your friend follows the LINE OA, you earn points.' }[l],
     ctaPrimary: { text: { zh: '去挑内容分享 →', th: 'เลือกเนื้อหาแชร์ →', en: 'Pick Content to Share →' }[l], route: '/welfare' },
     ctaSecondary: { text: { zh: '分享我的卡券 →', th: 'แชร์คูปองของฉัน →', en: 'Share My Coupons →' }[l], route: '/my-coupons' },
   }),
@@ -123,9 +123,9 @@ const INTENT_ACTION_CARDS: Record<string, IntentCardFn> = {
     type: 'order',
     title: { zh: '💳 押金退还申请', th: '💳 ขอคืนเงินมัดจำ', en: '💳 Deposit Refund Request' }[l],
     subtitle: {
-      zh: '押金缴纳和退款都在共享充电宝系统内处理，请按首次扫码方式重新扫描设备二维码',
-      th: 'การชำระและคืนเงินมัดจำต้องทำในระบบพาวเวอร์แบงก์เดิม กรุณาสแกนด้วยวิธีเดิมอีกครั้ง',
-      en: 'Deposit payment and refund are handled in the power bank system. Please scan the device again using your original method',
+      zh: '押金缴纳和退款都在共享充电宝系统内处理，请按首次扫码方式扫描任意 CityOne 充电柜二维码',
+      th: 'การชำระและคืนเงินมัดจำต้องทำในระบบเดิม กรุณาใช้วิธีสแกนเดิมกับ QR บนตู้ชาร์จ CityOne ใดก็ได้',
+      en: 'Deposit payment and refund are handled in the original power bank flow. Use your original scan method on any CityOne cabinet QR code',
     }[l],
   }),
 }

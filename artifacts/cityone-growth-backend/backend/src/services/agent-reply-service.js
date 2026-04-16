@@ -221,14 +221,14 @@ function buildInfoReply(intentCode, language, suggestions) {
       en: "Return steps: 1. Go to any station 2. Insert powerbank into empty slot 3. Wait for confirmation."
     },
     invite_help: {
-      zh: "邀请好友步骤：点击「生成邀请链接」获取你的专属链接，分享给朋友即可。好友完成首借后，你和好友都能获得奖励！",
-      th: "วิธีเชิญเพื่อน: กด 'สร้างลิงก์เชิญ' รับลิงก์ส่วนตัว แชร์ให้เพื่อน เมื่อเพื่อนยืมครั้งแรก ทั้งคู่ได้รับรางวัล",
-      en: "Invite steps: Tap 'Generate invite link', share it with friends. Both of you earn rewards when they complete first borrow!"
+      zh: "除了参与活动外，你也可以把活动、卡券或商品详情页链接分享给好友。好友通过你的链接关注 LINE OA 后，你就能获得积分奖励；后续也可以继续把积分拿去兑换券和礼品。",
+      th: "นอกจากเข้าร่วมกิจกรรมแล้ว คุณยังสามารถแชร์ลิงก์หน้ารายละเอียดกิจกรรม คูปอง หรือสินค้าให้เพื่อนได้ เมื่อเพื่อนกดจากลิงก์ของคุณแล้วติดตาม LINE OA คุณจะได้รับคะแนนสะสม",
+      en: "Besides joining activities, you can also share activity, coupon, or product detail links with friends. Once they follow the LINE OA through your link, you earn points."
     },
     points_redeem_help: {
-      zh: "积分兑换说明：进入福利中心 → 积分兑换，选择心仪商品，确认兑换即可。积分可兑换券、礼品等。",
-      th: "วิธีแลกคะแนน: ไปที่ศูนย์สิทธิ์ → แลกคะแนน เลือกสินค้าที่ต้องการ ยืนยันการแลก",
-      en: "Points redemption: Go to Welfare Center → Redeem Points, choose item, confirm. Redeem coupons, gifts, etc."
+      zh: "积分既可以通过参与活动获得，也可以通过分享活动、卡券或商品详情页给好友来赚取。好友通过你的分享链接关注 LINE OA 后，你就会获得积分；积分可在福利中心兑换优惠券、礼品等。",
+      th: "คะแนนสามารถได้จากการเข้าร่วมกิจกรรม และยังได้จากการแชร์ลิงก์หน้ารายละเอียดกิจกรรม คูปอง หรือสินค้าให้เพื่อน เมื่อเพื่อนติดตาม LINE OA ผ่านลิงก์ของคุณ คุณจะได้คะแนน และนำคะแนนไปแลกคูปองหรือของรางวัลได้",
+      en: "You can earn points by joining activities, and also by sharing activity, coupon, or product detail links with friends. When they follow the LINE OA through your link, you receive points, which can be redeemed for coupons or gifts."
     }
   };
 
