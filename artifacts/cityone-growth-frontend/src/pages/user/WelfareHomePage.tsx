@@ -42,8 +42,27 @@ type LocalizedField = Partial<Record<AppLanguage, string>>
 //
 // 效果：即使用户完全关闭 LINE 再打开，内容仍在 ~0ms 显示，刷新在背后静默完成
 const CACHE_TTL_MS = 2 * 60 * 1000           // 内存：2 分钟内不重复请求
-const LS_KEY = 'cityone_welfare_v2'
+const LS_KEY = 'cityone_welfare_v3'
 const LS_TTL_MS = 30 * 60 * 1000             // localStorage：30 分钟有效
+
+function isLegacyLocalUpload(value: any) {
+  return typeof value === 'string' && value.trim().startsWith('/uploads/')
+}
+
+function sanitizeCachedCard(card: ContentCard): ContentCard {
+  if (!isLegacyLocalUpload(card?.cover)) return card
+  return { ...card, cover: '' }
+}
+
+function sanitizeCachedBanner(banner: any) {
+  if (!banner || typeof banner !== 'object') return banner
+  if (!isLegacyLocalUpload(banner.image_url) && !isLegacyLocalUpload(banner.cover)) return banner
+  return {
+    ...banner,
+    image_url: isLegacyLocalUpload(banner.image_url) ? '' : banner.image_url,
+    cover: isLegacyLocalUpload(banner.cover) ? '' : banner.cover,
+  }
+}
 
 function lsLoad(): { banners: any[]; activities: ContentCard[]; coupons: ContentCard[]; mallItems: ContentCard[] } | null {
   try {
@@ -51,7 +70,12 @@ function lsLoad(): { banners: any[]; activities: ContentCard[]; coupons: Content
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (Date.now() - (parsed.savedAt || 0) > LS_TTL_MS) return null
-    return parsed
+    return {
+      banners: Array.isArray(parsed?.banners) ? parsed.banners.map(sanitizeCachedBanner) : [],
+      activities: Array.isArray(parsed?.activities) ? parsed.activities.map(sanitizeCachedCard) : [],
+      coupons: Array.isArray(parsed?.coupons) ? parsed.coupons.map(sanitizeCachedCard) : [],
+      mallItems: Array.isArray(parsed?.mallItems) ? parsed.mallItems.map(sanitizeCachedCard) : [],
+    }
   } catch { return null }
 }
 
@@ -598,7 +622,7 @@ export default function WelfareHomePage() {
         type: 'coupon' as const,
         title: (c.name && typeof c.name === 'object' && !Array.isArray(c.name)) ? c.name : { zh: c.name, th: c.name, en: c.name },
         badge: { zh: '卡券', th: 'คูปอง', en: 'Coupon' },
-        cover: c.cover_image || DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed,
+        cover: isLegacyLocalUpload(c.cover_image) ? (DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed) : (c.cover_image || DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed),
         views: c.claimed_count || 0,
         price: fmtPrice(c),
         points: 0,
@@ -638,7 +662,7 @@ export default function WelfareHomePage() {
         type: 'activity' as const,
         title: toML(a.activity_name || a.activity_title, { zh: '活动', th: 'กิจกรรม', en: 'Activity' }),
         badge: GOAL_BADGE[a.goal] || { zh: '活动', th: 'กิจกรรม', en: 'Activity' },
-        cover: a.cover_image || COVER_GRADIENTS[idx % COVER_GRADIENTS.length],
+        cover: isLegacyLocalUpload(a.cover_image) ? COVER_GRADIENTS[idx % COVER_GRADIENTS.length] : (a.cover_image || COVER_GRADIENTS[idx % COVER_GRADIENTS.length]),
         views: 0,
         route: `/activity/${a.activity_id}`,
       }))
@@ -666,7 +690,7 @@ export default function WelfareHomePage() {
           type: 'redeem' as const,
           title: toML(item.name, { zh: '商品', th: 'สินค้า', en: 'Item' }),
           badge: { zh: '积分兑换', th: 'แลกพอยต์', en: 'Redeem' },
-          cover: item.cover_image || ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital,
+          cover: isLegacyLocalUpload(item.cover_image) ? (ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital) : (item.cover_image || ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital),
           views: 0,
           price: item.price_thb ? `THB ${item.price_thb}` : undefined,
           points: item.points_required || 0,
