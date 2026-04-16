@@ -25,7 +25,7 @@ import { getActivities } from '../../api/growth'
 import request from '../../api/request'
 import { isObjectKey, useOssUrl } from '../../components/OssImage'
 import { prefetchActivity } from '../../cache/activityCache'
-import { setRuntimeLineConfig } from '../../lib/line'
+import { setRuntimeLineConfig, resolveRuntimeLiffUrl } from '../../lib/line'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -530,6 +530,7 @@ export default function WelfareHomePage() {
     const liff = getLiff()
     if (!liff || !liffReady) {
       const id = followOaId || ''
+      const liffUrl = resolveRuntimeLiffUrl()
       if (!id) {
         Modal.warning({
           title: 'LINE OA 未完成正式配置',
@@ -537,6 +538,32 @@ export default function WelfareHomePage() {
         })
         return
       }
+
+      // 非 LINE 浏览器下，“关注并继续”不能只跳到 OA 首页，否则原动作无法恢复。
+      // 这里优先带着 resume 参数进入正式 LIFF URL，让用户在 LINE / LIFF 完成登录与关注后，
+      // /welfare 恢复器继续接管原动作。
+      if (liffUrl) {
+        const returnPath =
+          followReturnPath ||
+          localStorage.getItem('cityone_resume_return_path') ||
+          sessionStorage.getItem('cityone_resume_return_path') ||
+          '/welfare'
+        const backPath =
+          localStorage.getItem('cityone_resume_back_path') ||
+          sessionStorage.getItem('cityone_resume_back_path') ||
+          '/welfare'
+        const actionName =
+          localStorage.getItem('cityone_resume_action') ||
+          sessionStorage.getItem('cityone_resume_action') ||
+          ''
+        const next =
+          `${liffUrl}/?rp=${encodeURIComponent(returnPath)}` +
+          `&back=${encodeURIComponent(backPath)}` +
+          `&action=${encodeURIComponent(actionName)}`
+        window.location.href = next
+        return
+      }
+
       window.location.href = `line://ti/p/${encodeURIComponent(id)}`
       return
     }
