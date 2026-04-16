@@ -41,14 +41,14 @@
     "dispatch_mode": "tool_then_card",
     "tool_name": "query_nearby_stations",
     "card_template_key": "task_result",
-    "similarity_threshold": 0.70,
+    "similarity_threshold": 0.60,
     "intent_scope": "in_scope",
     "requires_confirmation": false,
     "requires_payment": false,
     "enabled": true,
     "need_confirm": false,
     "phrases": {
-      "zh": ["附近站点","最近的站点","在哪里借","附近哪里有","离我最近","找站点","周边站点"],
+      "zh": ["附近站点","最近的站点","在哪里借","附近哪里有","离我最近","找站点","周边站点","附近哪里可以借充电宝","附近哪里能借充电宝","离我最近的充电宝站点","最近哪里可以借充电宝","附近借充电宝","哪里有充电宝可以借"],
       "th": ["สถานีใกล้เคียง","ยืมที่ไหน","ใกล้ๆ นี้","หาสถานี"],
       "en": ["nearby station","nearest station","where to borrow","find station","close station"]
     }
@@ -95,14 +95,14 @@
     "dispatch_mode": "tool_then_card",
     "tool_name": "get_user_account",
     "card_template_key": "task_result",
-    "similarity_threshold": 0.66,
+    "similarity_threshold": 0.60,
     "intent_scope": "in_scope",
     "requires_confirmation": false,
     "requires_payment": false,
     "enabled": true,
     "need_confirm": false,
     "phrases": {
-      "zh": ["我的券","有哪些券","可用的券","我的优惠券","查看券","我的卡券","券包","我有哪些卡券","我的优惠包","我还能用什么券"],
+      "zh": ["我的券","有哪些券","可用的券","我的优惠券","查看券","我的卡券","券包","我有哪些卡券","我的优惠包","我还能用什么券","我的券有哪些","我有什么券","看看我的券","我现在有哪些优惠券","还有什么券可以用"],
       "th": ["คูปองของฉัน","คูปองที่ใช้ได้","ดูคูปอง","มีคูปองอะไรบ้าง","คูปองของฉันใช้ได้ไหม"],
       "en": ["my coupons","available coupon","check my coupon","what coupon do I have","show my coupons","which coupons can I use"]
     }
@@ -113,14 +113,14 @@
     "dispatch_mode": "tool_then_card",
     "tool_name": "search_platform_content",
     "card_template_key": "benefit_recommend",
-    "similarity_threshold": 0.66,
+    "similarity_threshold": 0.60,
     "intent_scope": "in_scope",
     "requires_confirmation": false,
     "requires_payment": false,
     "enabled": true,
     "need_confirm": false,
     "phrases": {
-      "zh": ["今天有什么优惠","现在有什么优惠","有什么优惠","有优惠吗","现在有折扣吗","今天有什么活动","当前活动","最新活动","平台优惠","当前优惠","最近有什么活动"],
+      "zh": ["今天有什么优惠","现在有什么优惠","有什么优惠","有优惠吗","现在有折扣吗","今天有什么活动","当前活动","最新活动","平台优惠","当前优惠","最近有什么活动","今天有啥优惠","现在有啥优惠","最近有什么优惠","有什么福利活动","现在有什么福利","最近有什么福利","今天有什么可领的优惠"],
       "th": ["มีโปรโมชันอะไรบ้าง","มีส่วนลดไหม","มีกิจกรรมอะไรบ้าง","โปรโมชันตอนนี้","มีข้อเสนออะไรวันนี้"],
       "en": ["what promotions are available","any offers today","any promotion now","current promotions","what deals are available"]
     }
@@ -149,14 +149,14 @@
     "dispatch_mode": "tool_then_confirm",
     "tool_name": "search_platform_content",
     "card_template_key": "action_confirm",
-    "similarity_threshold": 0.67,
+    "similarity_threshold": 0.60,
     "intent_scope": "in_scope",
     "requires_confirmation": true,
     "requires_payment": false,
     "enabled": true,
     "need_confirm": true,
     "phrases": {
-      "zh": ["帮我领券","领取优惠券","领优惠券","领券","我要领券","帮我领取优惠","帮我拿优惠券"],
+      "zh": ["帮我领券","领取优惠券","领优惠券","领券","我要领券","帮我领取优惠","帮我拿优惠券","帮我领优惠券","我要领取优惠券","现在帮我领券","帮我把券领了","给我领张券"],
       "th": ["รับคูปอง","ช่วยรับคูปอง","ขอคูปอง","รับส่วนลด"],
       "en": ["claim coupon","help me claim a coupon","get coupon","claim discount"]
     }
