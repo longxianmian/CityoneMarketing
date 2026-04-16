@@ -311,6 +311,7 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
 
       const pointsRequired = Number(item.points_required) || 0;
       if (pointsRequired <= 0) return { error: { code: 400, key: "NO_POINTS_PRICE", msg: "该商品无积分兑换价格" } };
+      const deductedPoints = -pointsRequired;
 
       // 2. 检查库存
       if (Number(item.stock) >= 0) {
@@ -371,12 +372,12 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
       // 5. UPSERT 积分账户
       await client.query(`
         INSERT INTO points_accounts (user_id, line_user_id, available_points, consumed_points, updated_at)
-        VALUES ($1, $2, -$3, $3, NOW())
+        VALUES ($1, $2, $4, $3, NOW())
         ON CONFLICT (user_id) DO UPDATE SET
           available_points = points_accounts.available_points - $3,
           consumed_points  = points_accounts.consumed_points  + $3,
           updated_at       = NOW()
-      `, [userId, userId, pointsRequired]);
+      `, [userId, userId, pointsRequired, deductedPoints]);
 
       // 6. 写兑换记录（数字商品: status=success; 实物: status=processing/待配送）
       const redeemId = `mr_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
