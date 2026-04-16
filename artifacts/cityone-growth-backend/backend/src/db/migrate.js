@@ -10,6 +10,22 @@ import { query } from './pool.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname  = path.dirname(__filename)
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations')
+const OPTIONAL_MIGRATIONS = new Set([
+  '015_wenwen_intent_labels'
+])
+
+function shouldSkipMigration(version, err) {
+  if (!OPTIONAL_MIGRATIONS.has(version)) {
+    return false
+  }
+
+  const message = String(err?.message || '').toLowerCase()
+  return (
+    message.includes('permission denied to create extension') ||
+    message.includes('type "vector" does not exist') ||
+    message.includes('extension "vector" is not available')
+  )
+}
 
 async function ensureMigrationsTable() {
   await query(`
@@ -45,9 +61,17 @@ export async function runMigrations() {
 
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8')
     console.log(`[DB] Running migration: ${file}`)
-    await query(sql)
-    await recordMigration(version)
-    ran++
+    try {
+      await query(sql)
+      await recordMigration(version)
+      ran++
+    } catch (err) {
+      if (!shouldSkipMigration(version, err)) {
+        throw err
+      }
+
+      console.warn(`[DB] Optional migration skipped: ${file} (${err.message})`)
+    }
   }
 
   if (ran === 0) {
