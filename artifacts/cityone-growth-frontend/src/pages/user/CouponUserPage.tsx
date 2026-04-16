@@ -221,6 +221,22 @@ export default function CouponUserPage() {
     }
   }
 
+  const toggleVideoPlay = async () => {
+    const el = heroVideoRef.current
+    if (!el) return
+    if (el.paused) {
+      try {
+        await el.play()
+        setVideoPaused(false)
+      } catch {
+        setVideoPaused(true)
+      }
+      return
+    }
+    el.pause()
+    setVideoPaused(true)
+  }
+
   const loadSavedAddresses = async () => {
     try {
       const res: any = await (request.get as any)(
@@ -663,7 +679,6 @@ export default function CouponUserPage() {
             src={resolvedCoverVideoUrl}
             loop
             playsInline
-            controls={videoStarted}
             preload="metadata"
             poster={resolvedCoverImageUrl || undefined}
             style={{
@@ -675,6 +690,7 @@ export default function CouponUserPage() {
               display: 'block',
               visibility: videoStarted ? 'visible' : 'hidden',
             } as React.CSSProperties}
+            onClick={toggleVideoPlay}
             onPlay={() => setVideoPaused(false)}
             onPause={() => setVideoPaused(videoStarted)}
           />

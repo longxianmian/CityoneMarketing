@@ -55,6 +55,22 @@ export default function ProductDetailPage() {
     }
   }
 
+  const toggleVideoPlay = async () => {
+    const el = heroVideoRef.current
+    if (!el) return
+    if (el.paused) {
+      try {
+        await el.play()
+        setVideoPaused(false)
+      } catch {
+        setVideoPaused(true)
+      }
+      return
+    }
+    el.pause()
+    setVideoPaused(true)
+  }
+
   const ACTION_MAP: Record<string, { text: string; color: string }> = {
     free_claim: { text: t('productDetail.actionFreeClaim'), color: 'linear-gradient(135deg, #52c41a, #73d13d)' },
     points_redeem: { text: t('productDetail.actionPointsRedeem'), color: 'linear-gradient(135deg, #1677ff, #4096ff)' },
@@ -383,11 +399,11 @@ export default function ProductDetailPage() {
             src={resolvedCoverVideo}
             loop
             playsInline
-            controls={videoStarted}
             preload="metadata"
             poster={resolvedCoverImage || undefined}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block',
                      visibility: videoStarted ? 'visible' : 'hidden' } as React.CSSProperties}
+            onClick={toggleVideoPlay}
             onPlay={() => setVideoPaused(false)}
             onPause={() => setVideoPaused(videoStarted)}
           />

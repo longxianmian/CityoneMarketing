@@ -58,6 +58,22 @@ export default function ActivityDetailPage() {
     }
   }
 
+  const toggleVideoPlay = async () => {
+    const el = heroVideoRef.current
+    if (!el) return
+    if (el.paused) {
+      try {
+        await el.play()
+        setVideoPaused(false)
+      } catch {
+        setVideoPaused(true)
+      }
+      return
+    }
+    el.pause()
+    setVideoPaused(true)
+  }
+
   // 来自 FollowOAPage 回跳：auto=participate → 自动参与
   useEffect(() => {
     if (searchParams.get('auto') === 'participate' && activity && !participating) {
@@ -250,11 +266,11 @@ export default function ActivityDetailPage() {
             src={resolvedCoverVideo}
             loop
             playsInline
-            controls={videoStarted}
             preload="metadata"
             poster={resolvedCoverImage || undefined}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block',
                      visibility: videoStarted ? 'visible' : 'hidden' } as React.CSSProperties}
+            onClick={toggleVideoPlay}
             onPlay={() => setVideoPaused(false)}
             onPause={() => setVideoPaused(videoStarted)}
           />
