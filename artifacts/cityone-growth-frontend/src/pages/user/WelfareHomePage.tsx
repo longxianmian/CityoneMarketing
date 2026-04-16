@@ -293,6 +293,7 @@ export default function WelfareHomePage() {
   const { liffReady } = useLiff()
   const mergeProfile  = useLineUserStore((s) => s.mergeProfile)
   const recoveryRef   = useRef(false)
+  const isInLineBrowser = /Line\/\d/i.test(navigator.userAgent)
 
   // 关注弹层状态（Step D：身份已建立但未关注）
   const [showFollowModal,    setShowFollowModal]    = useState(false)
@@ -352,6 +353,45 @@ export default function WelfareHomePage() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    // 非 LINE 浏览器没有 LIFF 恢复链路，但 guard 仍会把用户带回 /welfare。
+    // 这里补上“待恢复动作 -> 关注弹层”的显示，避免用户点击领取/参加后没有任何提示。
+    if (liffReady || isInLineBrowser || !followOaId) return
+
+    const directRp = searchParams.get('rp') || searchParams.get('resume_return') || ''
+    const rawLiffState = searchParams.get('liff.state') || ''
+    const rpFromLiffState = (() => {
+      if (!rawLiffState) return ''
+      try {
+        const qIdx = rawLiffState.indexOf('?')
+        if (qIdx < 0) return ''
+        const lsParams = new URLSearchParams(rawLiffState.slice(qIdx + 1))
+        return lsParams.get('rp') || lsParams.get('resume_return') || ''
+      } catch {
+        return ''
+      }
+    })()
+
+    const returnPath =
+      directRp ||
+      rpFromLiffState ||
+      localStorage.getItem('cityone_resume_return_path') ||
+      sessionStorage.getItem('cityone_resume_return_path') ||
+      sessionStorage.getItem('cityone_follow_return_path') ||
+      ''
+
+    const pending =
+      !!(directRp || rpFromLiffState) ||
+      localStorage.getItem('cityone_resume_pending') === '1' ||
+      sessionStorage.getItem('cityone_resume_pending') === '1' ||
+      sessionStorage.getItem('cityone_follow_pending') === '1'
+
+    if (pending && returnPath) {
+      setFollowReturnPath(returnPath)
+      setShowFollowModal(true)
+    }
+  }, [followOaId, isInLineBrowser, liffReady, searchParams])
 
   // ── 身份 + 关注恢复器：/welfare 作为唯一身份恢复中心 ────────────────────────
   //
