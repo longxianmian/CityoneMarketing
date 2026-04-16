@@ -13,7 +13,7 @@ import { createEmbedding, recognizeIntentWithLLM } from "./agent-llm-service.js"
 import { loadAgentIntents } from "./agent-config-service.js";
 
 /* ─── 全局阈值 ──────────────────────────────────────────────────────────────── */
-const GLOBAL_SIMILARITY_THRESHOLD = 0.62; // 低于此值判定为 out_of_scope
+const GLOBAL_SIMILARITY_THRESHOLD = 0.60; // 低于此值判定为 out_of_scope
 
 /* ─── 向量库是否可用（启动时检测一次）────────────────────────────────────────── */
 let _vectorReady = null; // null=未检测 true=可用 false=不可用
