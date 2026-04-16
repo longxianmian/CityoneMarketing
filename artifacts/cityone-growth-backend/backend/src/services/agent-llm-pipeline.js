@@ -115,6 +115,13 @@ async function classifyScopeFallback(text) {
   }
 }
 
+function inferAccountIntentFromText(text = "") {
+  const t = String(text || "").toLowerCase();
+  if (/券|卡券|优惠券|coupon|voucher|wallet|คูปอง/.test(t)) return "coupon_list_query";
+  if (/积分|点数|points|score|คะแนน/.test(t)) return "points_balance_query";
+  return "coupon_list_query";
+}
+
 /* ─── 系统提示词 ────────────────────────────────────────────────────────────── */
 function buildSystemPrompt(roleKeywords, userContext, intentContext = "") {
   const langMap = { zh: "中文", th: "ไทย", en: "English" };
@@ -528,18 +535,20 @@ async function runFallbackPipeline(userText, sessionHistory, roleKeywords, userC
   // 工具名 → intent_code 映射，确保前端能选到正确的 INTENT_ACTION_CARDS
   const TOOL_TO_INTENT = {
     search_platform_content: "coupon_recommend",
-    get_user_account:        "points_balance_query",
     query_nearby_stations:   "nearby_sites_query",
     generate_invite_link:    "invite_help",
     get_user_orders:         "recent_orders_query",
   };
+  const resolvedIntentCode = tc.name === "get_user_account"
+    ? inferAccountIntentFromText(userText)
+    : (TOOL_TO_INTENT[tc.name] || "");
 
   return {
     text:            finalText.trim(),
     display_payload: toolResult?.display_payload || null,
     suggestions:     [],
     source:          "fallback_llm_tool",
-    intent_code:     TOOL_TO_INTENT[tc.name] || "",
+    intent_code:     resolvedIntentCode,
     tool_used:       tc.name,
     dispatch_mode:   "tool_then_card",
   };

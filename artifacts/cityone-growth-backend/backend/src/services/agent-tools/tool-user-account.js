@@ -5,28 +5,12 @@
  *
  * 一次调用返回用户的完整账户状态：
  *   - 积分余额（真实 DB）
- *   - 已领到的钱包券（user-products.json）
+ *   - 已领到的钱包券（user_coupons + coupons，和个人中心同源）
  *
  * 覆盖原 tool-points-query + tool-coupon-list + tool-coupon-recommend（三个合并为一）
  */
 
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { query as dbQuery } from "../../db/pool.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, "..", "..", "..", "data");
-
-function loadJson(file) {
-  const fp = path.join(DATA_DIR, file);
-  if (!fs.existsSync(fp)) return [];
-  try {
-    const p = JSON.parse(fs.readFileSync(fp, "utf-8"));
-    return Array.isArray(p) ? p : [];
-  } catch { return []; }
-}
 
 function pickText(v, lang = "zh") {
   if (!v) return "";
@@ -45,16 +29,6 @@ export async function execute(slots = {}, identity = {}) {
       tool_code: "tool-user-account",
       error_message: "无法识别用户身份，请先关注公众号。",
     };
-  }
-
-  /**
-   * 判断某条记录是否属于当前用户（user_id OR line_user_id 任一匹配即可）
-   * 避免因 line_user_id 与设备 user_id 不同而漏查
-   */
-  function isOwned(record) {
-    if (userId && (record.user_id === userId || record.line_user_id === userId)) return true;
-    if (lineUserId && (record.user_id === lineUserId || record.line_user_id === lineUserId)) return true;
-    return false;
   }
 
   /* ── 1. 积分余额（DB，UPSERT 初始化）──────────────────────────────── */
@@ -79,44 +53,53 @@ export async function execute(slots = {}, identity = {}) {
     console.error("[tool-user-account] DB error:", err.message);
   }
 
-  /* ── 2. 钱包券（user-products.json，当前可用的）──────────────────── */
-  const now          = new Date();
-  const userProducts = loadJson("user-products.json");
-  const products     = loadJson("digital-products.json");
+  /* ── 2. 钱包券（DB，和个人中心 user_coupons 同源）────────────────── */
+  let ownedCoupons = [];
+  try {
+    const res = await dbQuery(
+      `SELECT
+         uc.id            AS user_product_id,
+         uc.coupon_id     AS product_id,
+         c.name           AS product_name,
+         c.coupon_type    AS product_type,
+         c.discount_type,
+         c.discount_value,
+         c.valid_to       AS expire_at,
+         uc.product_status
+       FROM user_coupons uc
+       LEFT JOIN coupons c ON c.id = uc.coupon_id
+       WHERE (uc.user_id = $1 OR uc.line_user_id = $1 OR uc.user_id = $2 OR uc.line_user_id = $2)
+         AND uc.product_status = 'claimed'
+       ORDER BY uc.claimed_at DESC NULLS LAST
+       LIMIT 20`,
+      [userId, lineUserId || userId]
+    );
 
-  const ownedCoupons = userProducts.filter((up) => {
-    if (!isOwned(up)) return false;
-    if (!["claimed", "unused"].includes(up.product_status)) return false;
-    if (up.expired_at && new Date(up.expired_at) < now) return false;
-    return true;
-  }).map((up) => {
-    const prod = products.find((p) => p.product_id === up.product_id) || {};
-    return {
-      product_id:   up.product_id,
-      name:         pickText(prod.product_name || up.product_name, lang) || up.product_id,
-      product_type: prod.product_type || "coupon",
-      status:       up.product_status,
-    };
-  });
+    function buildBenefitText(discountType, discountValue) {
+      const val = Number(discountValue || 0);
+      if (discountType === "percentage_off") return val ? `${val}% off` : "";
+      if (discountType === "free_minutes" || discountType === "free_time") return val ? `免费充电 ${val} 分钟` : "";
+      if (discountType === "fixed_off") return val ? `减 ฿${val}` : "";
+      if (discountType === "free_order") return val ? `免费商品 (价值 ฿${val})` : "";
+      return "";
+    }
 
-  /* ── 3. 活动奖品（activity-interactions.json，result_type=prize）── */
-  const interactions  = loadJson("activity-interactions.json");
-  const actPrizes     = loadJson("activity-prizes.json");
+    ownedCoupons = (res.rows || []).map((row) => ({
+      user_product_id: row.user_product_id,
+      product_id: row.product_id,
+      product_name: pickText(row.product_name, lang) || row.product_id || "权益卡券",
+      name: pickText(row.product_name, lang) || row.product_id || "权益卡券",
+      product_type: row.product_type || "coupon",
+      status: row.product_status || "claimed",
+      expire_at: row.expire_at ? new Date(row.expire_at).toISOString() : "",
+      short_benefit_text: buildBenefitText(row.discount_type, row.discount_value),
+    }));
+  } catch (err) {
+    console.error("[tool-user-account] coupon DB error:", err.message);
+  }
 
-  const userPrizes = interactions
-    .filter((ia) => isOwned(ia) && ia.result_type === "prize")
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 5)
-    .map((ia) => {
-      const prize = actPrizes.find((p) => p.prize_id === ia.action_result_id) || {};
-      return {
-        prize_id:   ia.action_result_id || "",
-        prize_name: prize.prize_name || ia.prize_name || "活动奖品",
-        prize_type: prize.prize_type || "coupon",
-        status:     ia.prize_status || "granted",
-        created_at: ia.created_at,
-      };
-    });
+  /* ── 3. 活动奖品（当前先不混入“我的卡券”口径）────────────────────── */
+  const userPrizes = [];
 
   /* ── 4. 最优推荐（钱包券优先，其次奖品）─────────────────────────── */
   const recommended = ownedCoupons[0] || (userPrizes[0] ? { name: userPrizes[0].prize_name, product_type: userPrizes[0].prize_type, status: userPrizes[0].status } : null);
