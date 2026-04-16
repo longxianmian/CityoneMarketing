@@ -70,6 +70,12 @@ const CustomerManage = lazy(() => import('./features/growth/CustomerManage'))
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
+  const logout = useAuthStore((s) => s.logout)
+  const isLocalDevHost = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  if (token === 'dev-bypass-token' && !isLocalDevHost) {
+    logout()
+    return <Navigate to="/admin/login" replace />
+  }
   if (!token) return <Navigate to="/admin/login" replace />
   return <>{children}</>
 }

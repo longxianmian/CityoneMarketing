@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Form, Input, Button, Card, Alert } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -7,8 +7,6 @@ import useAuthStore from '../store/auth'
 import { useI18n } from '../i18n'
 import request from '../api/request'
 
-const DEV_BYPASS = import.meta.env.VITE_DEV_BYPASS_AUTH === 'true'
-
 export default function Login() {
   const nav = useNavigate()
   const [loading, setLoading] = useState(false)
@@ -16,6 +14,11 @@ export default function Login() {
   const { setToken, setUserInfo } = useAuthStore()
   const { t } = useI18n()
   const { message } = AntdApp.useApp()
+  const isLocalDevHost = useMemo(
+    () => ['localhost', '127.0.0.1'].includes(window.location.hostname),
+    []
+  )
+  const devBypassEnabled = import.meta.env.VITE_DEV_BYPASS_AUTH === 'true' && isLocalDevHost
 
   const lk = (key: string) => t(`login.${key}`)
 
@@ -23,7 +26,7 @@ export default function Login() {
     setErrorMsg('')
     setLoading(true)
     try {
-      if (DEV_BYPASS) {
+      if (devBypassEnabled) {
         // 仅在 VITE_DEV_BYPASS_AUTH=true 时可用（本地开发）
         setToken('dev-bypass-token')
         setUserInfo({
@@ -92,7 +95,7 @@ export default function Login() {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 28, fontWeight: 700, color: '#1677ff' }}>CityOne</div>
           <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>{lk('subtitle')}</div>
-          {DEV_BYPASS && (
+          {devBypassEnabled && (
             <div style={{ fontSize: 12, color: '#fa8c16', marginTop: 8 }}>
               {lk('previewMode')}
             </div>
@@ -114,7 +117,7 @@ export default function Login() {
           onFinish={onFinish}
           size="large"
           autoComplete="off"
-          initialValues={DEV_BYPASS ? { username: 'admin', password: '123456' } : {}}
+          initialValues={devBypassEnabled ? { username: 'admin', password: '123456' } : {}}
         >
           <Form.Item name="username" rules={[{ required: true, message: lk('usernameRequired') }]}>
             <Input
