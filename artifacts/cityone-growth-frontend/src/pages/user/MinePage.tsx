@@ -885,6 +885,10 @@ export default function MinePage() {
                         couponId: item.product_id,
                         userProductId: item.user_product_id,
                       })
+                      const primaryActionRoute =
+                        primaryAction.type === 'benefit_detail'
+                          ? detailRoute
+                          : primaryAction.route
 
                       return (
                         <div
@@ -931,8 +935,8 @@ export default function MinePage() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                if (!primaryAction.disabled && primaryAction.route) {
-                                  navigate(primaryAction.route)
+                                if (!primaryAction.disabled && primaryActionRoute) {
+                                  navigate(primaryActionRoute)
                                 }
                               }}
                               disabled={primaryAction.disabled}
