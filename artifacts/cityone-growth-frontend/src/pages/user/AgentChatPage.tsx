@@ -50,6 +50,12 @@ const INTENT_ACTION_CARDS: Record<string, IntentCardFn> = {
     subtitle: { zh: '查看所有可用优惠券，选一张最适合的', th: 'ดูคูปองที่ใช้ได้ทั้งหมด เลือกที่เหมาะสุด', en: 'View all available coupons and pick the best one' }[l],
     ctaPrimary: { text: { zh: '查看卡券 →', th: 'ดูคูปอง →', en: 'View Coupons →' }[l], route: '/my-coupons' },
   }),
+  platform_promotion_query: (l) => ({
+    type: 'benefit',
+    title: { zh: '🎁 查看当前优惠', th: '🎁 ดูโปรโมชันตอนนี้', en: '🎁 View Current Promotions' }[l],
+    subtitle: { zh: '去福利中心看看正在进行的活动、卡券和限时福利', th: 'ไปดูโปรโมชัน คูปอง และสิทธิ์พิเศษที่กำลังมีอยู่', en: 'Browse active promotions, coupons, and limited-time benefits in the welfare center' }[l],
+    ctaPrimary: { text: { zh: '去福利中心 →', th: 'ไปศูนย์สิทธิ์ →', en: 'Go to Welfare →' }[l], route: '/welfare' },
+  }),
   coupon_recommend: (l) => ({
     type: 'coupon',
     title: { zh: '🎟️ 领取优惠券', th: '🎟️ รับคูปอง', en: '🎟️ Get Coupons' }[l],

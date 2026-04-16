@@ -82,10 +82,14 @@ const TOOL_DEFINITIONS = [
 
 /* ─── 超范围回复 ────────────────────────────────────────────────────────────── */
 const OUT_OF_SCOPE_REPLY = {
-  zh: "抱歉哦，我只提供跟充电宝相关的服务哦",
-  th: "ขอโทษนะคะ หนูให้บริการเฉพาะเรื่องที่เกี่ยวกับพาวเวอร์แบงก์เท่านั้นค่ะ",
-  en: "Sorry, I only provide services related to power banks.",
+  zh: "这个问题我不太确定，但如果你想查附近站点、优惠活动、卡券、积分、订单或会员福利，我可以马上帮你。",
+  th: "คำถามนี้ฉันอาจยังตอบได้ไม่ครบ แต่ถ้าคุณต้องการดูสถานีใกล้เคียง โปรโมชัน คูปอง คะแนน ออเดอร์ หรือสิทธิสมาชิก ฉันช่วยได้ทันที",
+  en: "I may not be the best at that one, but I can help right away with nearby stations, promotions, coupons, points, orders, and membership benefits.",
 };
+
+const GREETING_RE = /^(在吗|在不在|有人吗|你好|你好啊|嗨|哈喽|hi|hello|hey|สวัสดี|มีคนไหม|อยู่ไหม)[!?？。～~ ]*$/i;
+const SAVING_RE = /划算|便宜|免费|省钱|打折|折扣|省一点|更便宜|save money|cheaper|free|discount|deal|คุ้ม|ถูกกว่า|ฟรีไหม|ส่วนลด/i;
+const PROMOTION_RE = /优惠|活动|福利|coupon|voucher|promo|promotion|offer|คูปอง|โปรโมชัน/i;
 
 /* ─── 降级路径：IN_SCOPE 快速通道（pgvector 不可用时使用）─────────────────── */
 const IN_SCOPE_RE = /充电宝|共享充电|充电|电宝|站点|卡券|优惠|折扣|活动|特惠|促销|积分|借电|还电|会员|订单|福利|邀请|领取|兑换|coupon|discount|promotion|deal|offer|points|power.?bank|powerbank|charging|station|order|member|welfare|โปรโมชัน|ส่วนลด|พาวเวอร์แบงก์|แบตสำรอง|คูปอง|คะแนน|ออเดอร์|สมาชิก|สถานี|你是谁|你叫什么|你能做什么|介绍.*自己|你好|hello|hi\b|สวัสดี|who are you|what can you do/i;
@@ -262,6 +266,7 @@ function buildToolFallback(toolName, toolResult, language) {
 export async function runLLMPipeline(userText, sessionHistory, roleKeywords, userContext) {
   const language = userContext.language || "zh";
   const lang = ["zh", "th", "en"].includes(language) ? language : "zh";
+  const trimmedText = String(userText || "").trim();
 
   /* ── Step 1: 关键词模板检查（管理端配置的快速回复）────────────────────── */
   const templateCheck = checkKeywordTemplate(userText, language);
@@ -273,6 +278,52 @@ export async function runLLMPipeline(userText, sessionHistory, roleKeywords, use
       source:          "keyword_template",
       intent_code:     templateCheck.intent_code,
       dispatch_mode:   "chat_only",
+    };
+  }
+
+  /* ── Step 1b: 高频问法强规则兜底（避免 greeting / 省钱类被误打成 out_of_scope） ─ */
+  if (GREETING_RE.test(trimmedText)) {
+    return {
+      text: {
+        zh: "你好呀，我在～你可以直接问我优惠、卡券、积分、附近站点，或者让我帮你找更划算的用法。",
+        th: "สวัสดีค่ะ ฉันอยู่ตรงนี้นะ ถามเรื่องโปรโมชัน คูปอง คะแนน หรือสถานีใกล้เคียงได้เลย",
+        en: "Hi, I'm here. Ask me about promotions, coupons, points, nearby stations, or how to save more.",
+      }[lang],
+      display_payload: null,
+      suggestions: [],
+      source: "rule_greeting",
+      intent_code: "greeting",
+      dispatch_mode: "chat_only",
+    };
+  }
+
+  if (SAVING_RE.test(trimmedText)) {
+    return {
+      text: {
+        zh: "有的，我可以先帮你从优惠券、活动和积分兑换这几个方向看看怎么更划算。",
+        th: "ได้เลย ฉันช่วยดูให้ก่อนว่าใช้คูปอง โปรโมชัน หรือคะแนนแบบไหนจะคุ้มที่สุด",
+        en: "Yes — I can help you save by checking coupons, promotions, and points redemption first.",
+      }[lang],
+      display_payload: null,
+      suggestions: [],
+      source: "rule_growth_saving",
+      intent_code: "growth_saving_intent",
+      dispatch_mode: "card_only",
+    };
+  }
+
+  if (PROMOTION_RE.test(trimmedText) && /今天|现在|当前|最近|today|now|current|ล่าสุด|ตอนนี้/.test(trimmedText)) {
+    return {
+      text: {
+        zh: "我来帮你看下当前有哪些优惠和活动。",
+        th: "ฉันช่วยดูให้ว่าตอนนี้มีโปรโมชันและกิจกรรมอะไรบ้าง",
+        en: "Let me help you check the current promotions and activities.",
+      }[lang],
+      display_payload: null,
+      suggestions: [],
+      source: "rule_platform_promotion",
+      intent_code: "platform_promotion_query",
+      dispatch_mode: "card_only",
     };
   }
 
