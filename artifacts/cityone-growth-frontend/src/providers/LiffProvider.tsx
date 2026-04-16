@@ -69,10 +69,12 @@ async function initLiff(
     const isInClient = liff.isInClient()
 
     // 3. 获取真实 LINE 用户资料
-    // 如果在 LINE 内置浏览器但 token 未注入（如直接访问非 LIFF 注册域名），触发登录
-    // 注意：redirectUri 必须与 LINE 后台注册的 LIFF Endpoint URL 域名一致
-    if (isInClient && !liff.isLoggedIn()) {
-      liff.login()
+    // 生产级流程要求：首页允许先浏览，只做静默识别。
+    // 若当前还没有 LINE 登录态，则保持未登录状态，交由业务动作阶段的 useFollowGate 再触发登录/关注门控。
+    if (!liff.isLoggedIn()) {
+      if (!signal.cancelled) {
+        onReady({ liffReady: false, inLineClient: isInClient, liffChecked: true })
+      }
       return
     }
 
@@ -129,8 +131,10 @@ async function initLiff(
         // identify 失败不阻塞用户，降级使用 LINE User ID 作为 canonical ID
         useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
       }
-    } else if (!isInClient && !liff.isLoggedIn() && import.meta.env.PROD) {
-      liff.login()
+    } else if (!isInClient) {
+      if (!signal.cancelled) {
+        onReady({ liffReady: false, inLineClient: false, liffChecked: true })
+      }
       return
     }
 
