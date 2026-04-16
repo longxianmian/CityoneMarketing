@@ -394,7 +394,7 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
                 $9,$10,$11,$12,$13,
                 $14,$15,$16,
                 $17,$18,$19,$20,$21,
-                $22,$22)
+                $22,$23,$23)
       `, [
         redeemId, userId, userId, itemId, toJsonb(item.name), pointsRequired,
         redeemStatus, ledgerId,
