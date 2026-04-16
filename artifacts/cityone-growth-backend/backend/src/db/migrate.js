@@ -13,6 +13,33 @@ const MIGRATIONS_DIR = path.join(__dirname, 'migrations')
 const OPTIONAL_MIGRATIONS = new Set([
   '015_wenwen_intent_labels'
 ])
+const VECTOR_MIGRATION_VERSION = '015_wenwen_intent_labels'
+
+async function shouldPreSkipMigration(version) {
+  if (version !== VECTOR_MIGRATION_VERSION) {
+    return false
+  }
+
+  try {
+    const availableRes = await query(
+      "SELECT installed_version FROM pg_available_extensions WHERE name = 'vector' LIMIT 1"
+    )
+    if (availableRes.rows.length === 0) {
+      console.warn('[DB] Optional migration skipped: 015_wenwen_intent_labels.sql (vector extension is not available in this PostgreSQL instance)')
+      return true
+    }
+
+    const installedVersion = availableRes.rows[0]?.installed_version || null
+    if (!installedVersion) {
+      console.warn('[DB] Optional migration skipped: 015_wenwen_intent_labels.sql (vector extension is available but not installed; app user cannot install it)')
+      return true
+    }
+  } catch (err) {
+    console.warn(`[DB] Optional migration precheck failed for ${version}: ${err.message}`)
+  }
+
+  return false
+}
 
 function shouldSkipMigration(version, err) {
   if (!OPTIONAL_MIGRATIONS.has(version)) {
@@ -58,6 +85,7 @@ export async function runMigrations() {
   for (const file of files) {
     const version = file.replace('.sql', '')
     if (executed.has(version)) continue
+    if (await shouldPreSkipMigration(version)) continue
 
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8')
     console.log(`[DB] Running migration: ${file}`)
