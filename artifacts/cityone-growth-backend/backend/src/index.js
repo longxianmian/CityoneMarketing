@@ -800,6 +800,7 @@ const server = http.createServer(async (req, res) => {
         officialAccountId: cfg.officialAccountId || "",
         liffId: cfg.liffId || "",
         requireFollow: !!cfg.requireFollow,
+        isReadyForFollowGate: !!cfg.channelId && !!cfg.officialAccountId && !!cfg.liffId,
         hasChannelSecret: !!cfg.channelSecret,
         hasChannelAccessToken: !!cfg.channelAccessToken
       });
@@ -807,17 +808,26 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/growth/line/config/save") {
       const body = await readBody(req);
+      const requireFollow = !!body.requireFollow;
+      const officialAccountId = String(body.officialAccountId || "").trim();
+      const liffId = String(body.liffId || "").trim();
 
       if (!body.channelId || !String(body.channelId).trim()) {
         return fail(res, 400, "channelId 必填");
+      }
+      if (requireFollow && !officialAccountId) {
+        return fail(res, 400, "开启关注门控时必须填写真实 LINE 官方账号 ID");
+      }
+      if (requireFollow && !liffId) {
+        return fail(res, 400, "开启关注门控时必须填写真实 LINE LIFF ID");
       }
 
       const current = loadLineConfig() || {};
       const nextConfig = {
         channelId: String(body.channelId || "").trim(),
-        officialAccountId: String(body.officialAccountId || "").trim(),
-        liffId: String(body.liffId || "").trim(),
-        requireFollow: !!body.requireFollow,
+        officialAccountId,
+        liffId,
+        requireFollow,
         // 留空保持不变
         channelSecret:
           body.channelSecret && String(body.channelSecret).trim()
@@ -837,6 +847,7 @@ const server = http.createServer(async (req, res) => {
         officialAccountId: nextConfig.officialAccountId,
         liffId: nextConfig.liffId,
         requireFollow: nextConfig.requireFollow,
+        isReadyForFollowGate: !!nextConfig.channelId && !!nextConfig.officialAccountId && !!nextConfig.liffId,
         hasChannelSecret: !!nextConfig.channelSecret,
         hasChannelAccessToken: !!nextConfig.channelAccessToken
       }, "保存成功");

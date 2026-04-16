@@ -12,13 +12,13 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { message } from 'antd'
 import { getDeviceUserId } from '../utils/deviceUserId'
 import useLineUserStore from '../store/lineUser'
 import { useLiff } from '../providers/LiffProvider'
-import { FALLBACK_LIFF_URL } from '../lib/line'
+import { getRuntimeLineConfig, resolveRuntimeLiffUrl } from '../lib/line'
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL || ''
-const LIFF_URL  = FALLBACK_LIFF_URL
 
 // localStorage 恢复键（跨 LIFF 页面销毁/重载均可恢复，与 WelfareHomePage 共享）
 // 注意：必须用 localStorage，sessionStorage 在 LIFF 跨域跳转后会丢失
@@ -170,9 +170,21 @@ export function useFollowGate() {
         //    错误格式：https://liff.line.me/{liffId}?rp=...  ← 不加斜杠 LINE 会丢参数
         if (!lineProfile?.lineUserId || !liffReady || lineProfile?.isFriend === undefined) {
           if (isInLine) {
+            const lineConfig = getRuntimeLineConfig()
+            const liffUrl = resolveRuntimeLiffUrl()
+            if (!liffUrl) {
+              message.error('LINE OA 尚未完成正式配置，请联系管理员补齐 LIFF ID 后再试')
+              navigate('/welfare', { replace: true })
+              return
+            }
+            if (!lineConfig.officialAccountId) {
+              message.error('LINE OA 尚未完成正式配置，请联系管理员补齐官方账号 ID 后再试')
+              navigate('/welfare', { replace: true })
+              return
+            }
             writeResumeKeys(fullReturn, backPath, label)
             const next =
-              `${LIFF_URL}/?rp=${encodeURIComponent(fullReturn)}` +
+              `${liffUrl}/?rp=${encodeURIComponent(fullReturn)}` +
               `&back=${encodeURIComponent(backPath)}` +
               `&action=${encodeURIComponent(label || '')}`
             window.location.href = next

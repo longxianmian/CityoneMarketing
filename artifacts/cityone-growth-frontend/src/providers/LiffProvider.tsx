@@ -8,7 +8,7 @@
  */
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import useLineUserStore from '../store/lineUser'
-import { resolveRuntimeLiffId } from '../lib/line'
+import { resolveRuntimeLiffId, setRuntimeLineConfig } from '../lib/line'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -51,6 +51,7 @@ async function initLiff(
     // 1. 从后端拉取 LIFF ID
     const res = await fetch(`${API_BASE}/api/growth/line/config`)
     const json = await res.json()
+    setRuntimeLineConfig(json?.data || null)
     const liffId: string = resolveRuntimeLiffId(json?.data?.liffId)
     _liffId = liffId  // 供 catch 块使用
 
@@ -147,7 +148,7 @@ async function initLiff(
       window.location.replace('/welfare')
       return
     }
-    console.warn('[LIFF] init failed, falling back to device user:', err)
+    console.warn('[LIFF] init failed, production LINE identity is unavailable:', err)
     onReady({ liffReady: false, inLineClient: false, liffChecked: true })
   }
 }

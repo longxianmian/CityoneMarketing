@@ -25,6 +25,7 @@ import { getActivities } from '../../api/growth'
 import request from '../../api/request'
 import { isObjectKey, useOssUrl } from '../../components/OssImage'
 import { prefetchActivity } from '../../cache/activityCache'
+import { setRuntimeLineConfig } from '../../lib/line'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -321,6 +322,7 @@ export default function WelfareHomePage() {
     fetch(`${API_BASE}/api/growth/line/config`)
       .then((r) => r.json())
       .then((j) => {
+        setRuntimeLineConfig(j?.data || null)
         const id: string = j?.data?.officialAccountId || ''
         if (id && id !== '@YOUR_OA_ID') setFollowOaId(id)
       })
@@ -463,7 +465,14 @@ export default function WelfareHomePage() {
   const handleFollowInModal = async () => {
     const liff = getLiff()
     if (!liff || !liffReady) {
-      const id = followOaId || '@cityone'
+      const id = followOaId || ''
+      if (!id) {
+        Modal.warning({
+          title: 'LINE OA 未完成正式配置',
+          content: '当前系统尚未配置真实 LINE Official Account，请先在管理端完成 OA 配置后再测试关注链路。',
+        })
+        return
+      }
       window.location.href = `line://ti/p/${encodeURIComponent(id)}`
       return
     }
@@ -506,7 +515,14 @@ export default function WelfareHomePage() {
       setFollowChecking(false)
     }
     // 降级 line:// — 用户返回后恢复器继续接管（cityone_resume_pending 仍在）
-    const id = followOaId || '@cityone'
+    const id = followOaId || ''
+    if (!id) {
+      Modal.warning({
+        title: 'LINE OA 未完成正式配置',
+        content: '当前系统尚未配置真实 LINE Official Account，请先在管理端完成 OA 配置后再测试关注链路。',
+      })
+      return
+    }
     window.location.href = `line://ti/p/${encodeURIComponent(id)}`
   }
 

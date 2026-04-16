@@ -50,6 +50,16 @@ export default function LineConfig() {
   const handleSave = async () => {
     try {
       const vals = await form.validateFields()
+      if (requireFollow) {
+        if (!vals.officialAccountId?.trim()) {
+          message.error(lt('officialAccountIdRequiredWhenFollow'))
+          return
+        }
+        if (!vals.liffId?.trim()) {
+          message.error(lt('liffIdRequiredWhenFollow'))
+          return
+        }
+      }
       setSaving(true)
 
       const payload: Record<string, any> = {
@@ -81,17 +91,22 @@ export default function LineConfig() {
   }
 
   const isConfigured = !!config?.channelId
+  const isProdReady = !!config?.channelId && !!config?.officialAccountId && !!config?.liffId
 
   return (
     <div style={{ padding: 24, maxWidth: 700 }}>
       <Card title={<span><SettingOutlined /> {lt('title')}</span>} loading={loading}>
         {isConfigured ? (
           <Alert
-            type="success"
+            type={isProdReady ? 'success' : 'warning'}
             icon={<CheckCircleOutlined />}
             showIcon
-            message={lt('configured')}
-            description={`${lt('configuredDescPrefix')}: ${config?.channelId || '--'} · ${lt('configuredDescMiddle')}: ${config?.officialAccountId || '--'}`}
+            message={isProdReady ? lt('configured') : lt('configuredIncomplete')}
+            description={
+              isProdReady
+                ? `${lt('configuredDescPrefix')}: ${config?.channelId || '--'} · ${lt('configuredDescMiddle')}: ${config?.officialAccountId || '--'}`
+                : lt('configuredIncompleteDesc')
+            }
             style={{ marginBottom: 20 }}
           />
         ) : (
@@ -122,11 +137,19 @@ export default function LineConfig() {
             <Input.Password placeholder={lt('tokenPlaceholder')} />
           </Form.Item>
 
-          <Form.Item name="officialAccountId" label={lt('officialAccountId')}>
+          <Form.Item
+            name="officialAccountId"
+            label={lt('officialAccountId')}
+            rules={requireFollow ? [{ required: true, message: lt('officialAccountIdRequiredWhenFollow') }] : undefined}
+          >
             <Input placeholder={lt('officialAccountIdPlaceholder')} />
           </Form.Item>
 
-          <Form.Item name="liffId" label={lt('liffId')}>
+          <Form.Item
+            name="liffId"
+            label={lt('liffId')}
+            rules={requireFollow ? [{ required: true, message: lt('liffIdRequiredWhenFollow') }] : undefined}
+          >
             <Input placeholder={lt('liffIdPlaceholder')} />
           </Form.Item>
 
