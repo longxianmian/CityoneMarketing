@@ -20,12 +20,92 @@ const discountTypeColors: Record<string, string> = {
 export default function CouponManage() {
   const { t, language } = useI18n()
   const pick = useMLPick()
+  const copy = React.useMemo(() => {
+    const dict = {
+      zh: {
+        benefitDetail: '权益说明页',
+        chargeScan: '扫码充电',
+        productExchange: '商品兑换',
+        physicalDelivery: '查看领取信息',
+        benefitAction: '权益动作',
+        linkedItem: '关联商品',
+        onShelf: '已上架',
+        offShelf: '已下架',
+        totalRows: '共 {count} 条',
+        sourceLang: '输入语言 / Input Language',
+        itemType: '商品类型',
+        itemDigital: '🎟 数字券（充电/折扣）',
+        itemPhysical: '📦 实物礼品（需配送）',
+        linkedExchangeItem: '关联兑换商品',
+        linkedExchangeExtra: '商品兑换券请选择一个积分商城商品',
+        linkedExchangeEmpty: '非商品兑换动作可留空',
+        linkedExchangeRequired: '商品兑换券必须绑定一个积分商城商品',
+        linkedExchangeNeedSelect: '请选择必须绑定的商品',
+        linkedExchangeNoNeed: '当前动作无需绑定商品',
+        saveFailed: '保存失败，请重试',
+        confirm: '确定',
+        cancel: '取消',
+        requiredSuffix: ' 必填',
+      },
+      th: {
+        benefitDetail: 'หน้าคำอธิบายสิทธิ์',
+        chargeScan: 'สแกนเพื่อชาร์จ',
+        productExchange: 'แลกสินค้า',
+        physicalDelivery: 'ดูข้อมูลการรับสิทธิ์',
+        benefitAction: 'การดำเนินการสิทธิ์',
+        linkedItem: 'สินค้าที่เชื่อม',
+        onShelf: 'วางขายอยู่',
+        offShelf: 'ปิดการขาย',
+        totalRows: 'ทั้งหมด {count} รายการ',
+        sourceLang: 'ภาษาที่กรอก / Input Language',
+        itemType: 'ประเภทสินค้า',
+        itemDigital: '🎟 คูปองดิจิทัล (ชาร์จ/ส่วนลด)',
+        itemPhysical: '📦 ของขวัญจริง (ต้องจัดส่ง)',
+        linkedExchangeItem: 'สินค้าแลก',
+        linkedExchangeExtra: 'คูปองแลกสินค้าต้องเลือกสินค้าจาก Points Mall',
+        linkedExchangeEmpty: 'หากไม่ใช่การแลกสินค้า เว้นว่างได้',
+        linkedExchangeRequired: 'คูปองแลกสินค้าต้องผูกกับสินค้าใน Points Mall',
+        linkedExchangeNeedSelect: 'โปรดเลือกสินค้าที่ต้องผูก',
+        linkedExchangeNoNeed: 'การดำเนินการนี้ไม่ต้องผูกสินค้า',
+        saveFailed: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง',
+        confirm: 'ยืนยัน',
+        cancel: 'ยกเลิก',
+        requiredSuffix: ' จำเป็นต้องกรอก',
+      },
+      en: {
+        benefitDetail: 'Benefit Detail Page',
+        chargeScan: 'Scan to Charge',
+        productExchange: 'Product Exchange',
+        physicalDelivery: 'View Claim Info',
+        benefitAction: 'Benefit Action',
+        linkedItem: 'Linked Product',
+        onShelf: 'On Shelf',
+        offShelf: 'Off Shelf',
+        totalRows: '{count} items',
+        sourceLang: 'Input Language',
+        itemType: 'Item Type',
+        itemDigital: '🎟 Digital Coupon (charging/discount)',
+        itemPhysical: '📦 Physical Gift (delivery required)',
+        linkedExchangeItem: 'Linked Exchange Product',
+        linkedExchangeExtra: 'Product-exchange coupons must be bound to a Points Mall product',
+        linkedExchangeEmpty: 'Leave empty for non-product-exchange actions',
+        linkedExchangeRequired: 'Product-exchange coupons must be bound to a Points Mall product',
+        linkedExchangeNeedSelect: 'Select the required linked product',
+        linkedExchangeNoNeed: 'No product binding required for this action',
+        saveFailed: 'Save failed, please try again',
+        confirm: 'OK',
+        cancel: 'Cancel',
+        requiredSuffix: ' is required',
+      },
+    } as const
+    return dict[language] || dict.en
+  }, [language])
 
   const benefitActionOptions = [
-    { value: 'benefit_detail', label: '权益说明页' },
-    { value: 'charge_scan', label: '扫码充电' },
-    { value: 'product_exchange', label: '商品兑换' },
-    { value: 'physical_delivery', label: '查看领取信息' },
+    { value: 'benefit_detail', label: copy.benefitDetail },
+    { value: 'charge_scan', label: copy.chargeScan },
+    { value: 'product_exchange', label: copy.productExchange },
+    { value: 'physical_delivery', label: copy.physicalDelivery },
   ]
   const benefitActionMap = Object.fromEntries(benefitActionOptions.map(item => [item.value, item.label]))
 
@@ -179,7 +259,7 @@ export default function CouponManage() {
       setFormVisible(false)
       fetchData()
     } catch (e: any) {
-      message.error(e?.response?.data?.msg || '保存失败，请重试')
+      message.error(e?.response?.data?.msg || copy.saveFailed)
     } finally {
       setSaving(false)
     }
@@ -214,11 +294,11 @@ export default function CouponManage() {
       render: (v: string) => <Tag color={discountTypeColors[v] || 'default'}>{discountTypeMap[v] || v}</Tag>,
     },
     {
-      title: '权益动作', dataIndex: 'benefit_action_type', key: 'benefit_action_type', width: 120,
-      render: (v: string) => <Tag color={v === 'product_exchange' ? 'purple' : v === 'charge_scan' ? 'cyan' : 'default'}>{benefitActionMap[v] || v || '权益说明页'}</Tag>,
+      title: copy.benefitAction, dataIndex: 'benefit_action_type', key: 'benefit_action_type', width: 120,
+      render: (v: string) => <Tag color={v === 'product_exchange' ? 'purple' : v === 'charge_scan' ? 'cyan' : 'default'}>{benefitActionMap[v] || v || copy.benefitDetail}</Tag>,
     },
     {
-      title: '关联商品', key: 'linked_mall_item', width: 220,
+      title: copy.linkedItem, key: 'linked_mall_item', width: 220,
       render: (_: any, r: any) => {
         if (!r.linked_mall_item_id) return <span style={{ color: '#bbb' }}>—</span>
         const itemName = pickML(r.linked_mall_item_name, language || 'zh') || r.linked_mall_item_id
@@ -229,7 +309,7 @@ export default function CouponManage() {
               <Tag style={{ marginInlineEnd: 0 }}>{r.linked_mall_item_id}</Tag>
               {r.linked_mall_item_on_shelf == null ? null : (
                 <Tag color={r.linked_mall_item_on_shelf ? 'green' : 'default'} style={{ marginInlineEnd: 0 }}>
-                  {r.linked_mall_item_on_shelf ? '已上架' : '已下架'}
+                  {r.linked_mall_item_on_shelf ? copy.onShelf : copy.offShelf}
                 </Tag>
               )}
             </Space>
@@ -270,7 +350,7 @@ export default function CouponManage() {
         <Space size="small">
           <Button type="link" size="small" onClick={() => handleEdit(record)}>{t('couponManage.actionEdit')}</Button>
           <Button type="link" size="small" icon={<ShareAltOutlined />} onClick={() => setShareRecord(record)} style={{ color: '#06C755' }}>{t('couponManage.actionPromo')}</Button>
-          <Popconfirm title={t('couponManage.deleteTitle')} onConfirm={() => handleDelete(record)} okText="确定" cancelText="取消">
+          <Popconfirm title={t('couponManage.deleteTitle')} onConfirm={() => handleDelete(record)} okText={copy.confirm} cancelText={copy.cancel}>
             <Button type="link" size="small" danger>{t('couponManage.actionDelete')}</Button>
           </Popconfirm>
         </Space>
@@ -306,7 +386,7 @@ export default function CouponManage() {
           rowKey="id" columns={columns} dataSource={data} loading={loading} scroll={{ x: 960 }}
           pagination={{
             current: page, pageSize, total, showSizeChanger: true,
-            showTotal: (tot) => `共 ${tot} 条`,
+            showTotal: (tot) => copy.totalRows.replace('{count}', String(tot)),
             onChange: (p, ps) => { setPage(p); setPageSize(ps); fetchData(p, ps) },
           }}
         />
@@ -328,10 +408,10 @@ export default function CouponManage() {
       >
         <Form form={form} layout="vertical">
           {isEdit && <Form.Item name="id" hidden><Input /></Form.Item>}
-          <Form.Item name="name" label={t('couponManage.formName')} rules={[{ required: true, message: t('couponManage.formName') + ' 必填' }]}>
+          <Form.Item name="name" label={t('couponManage.formName')} rules={[{ required: true, message: t('couponManage.formName') + copy.requiredSuffix }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="_sourceLang" label="输入语言 / Input Language" initialValue="zh">
+          <Form.Item name="_sourceLang" label={copy.sourceLang} initialValue="zh">
             <Select options={LANG_OPTIONS} style={{ width: 160 }} />
           </Form.Item>
           <Row gutter={16}>
@@ -341,10 +421,10 @@ export default function CouponManage() {
               </Form.Item>
             </Col>
             <Col xs={24} sm={8}>
-              <Form.Item name="itemType" label="商品类型" initialValue="digital" rules={[{ required: true }]}>
+              <Form.Item name="itemType" label={copy.itemType} initialValue="digital" rules={[{ required: true }]}>
                 <Select options={[
-                  { value: 'digital', label: '🎟 数字券（充电/折扣）' },
-                  { value: 'physical', label: '📦 实物礼品（需配送）' },
+                  { value: 'digital', label: copy.itemDigital },
+                  { value: 'physical', label: copy.itemPhysical },
                 ]} />
               </Form.Item>
             </Col>
@@ -356,7 +436,7 @@ export default function CouponManage() {
           </Row>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
-              <Form.Item name="benefitActionType" label="权益动作" initialValue="benefit_detail">
+              <Form.Item name="benefitActionType" label={copy.benefitAction} initialValue="benefit_detail">
                 <Select options={benefitActionOptions} />
               </Form.Item>
             </Col>
@@ -373,10 +453,10 @@ export default function CouponManage() {
                   return (
                     <Form.Item
                       name="linkedMallItemId"
-                      label="关联兑换商品"
-                      extra={actionType === 'product_exchange' ? '商品兑换券请选择一个积分商城商品' : '非商品兑换动作可留空'}
+                      label={copy.linkedExchangeItem}
+                      extra={actionType === 'product_exchange' ? copy.linkedExchangeExtra : copy.linkedExchangeEmpty}
                       rules={actionType === 'product_exchange'
-                        ? [{ required: true, message: '商品兑换券必须绑定一个积分商城商品' }]
+                        ? [{ required: true, message: copy.linkedExchangeRequired }]
                         : []}
                     >
                       <Select
@@ -385,7 +465,7 @@ export default function CouponManage() {
                         showSearch
                         optionFilterProp="label"
                         options={mallItemOptions}
-                        placeholder={actionType === 'product_exchange' ? '请选择必须绑定的商品' : '当前动作无需绑定商品'}
+                        placeholder={actionType === 'product_exchange' ? copy.linkedExchangeNeedSelect : copy.linkedExchangeNoNeed}
                       />
                     </Form.Item>
                   )

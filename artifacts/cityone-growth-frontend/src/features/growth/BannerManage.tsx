@@ -14,25 +14,6 @@ const LANG_OPTIONS = [
   { value: 'en', label: 'English' },
 ]
 
-const LINK_TYPE_OPTIONS = [
-  { value: 'internal', label: '站内链接' },
-  { value: 'external', label: '站外链接' },
-]
-
-const AD_SLOT_OPTIONS = [
-  { value: 'home_top',      label: '首页 · 顶部轮播' },
-  { value: 'home_middle',   label: '首页 · 中部插屏' },
-  { value: 'charge_top',    label: '充电页 · 顶部' },
-  { value: 'activity_top',  label: '活动中心页 · 顶部' },
-  { value: 'mall_top',      label: '积分商城页 · 顶部' },
-  { value: 'mine_top',      label: '我的页面 · 顶部' },
-  { value: 'other',         label: '其他（自定义）' },
-]
-
-function getSlotLabel(key: string) {
-  return AD_SLOT_OPTIONS.find(o => o.value === key)?.label ?? key ?? '—'
-}
-
 function pickText(v: any, lang = 'zh'): string {
   if (!v) return ''
   if (typeof v === 'string') return v
@@ -42,6 +23,59 @@ function pickText(v: any, lang = 'zh'): string {
 export default function BannerManage() {
   const { t, language } = useI18n()
   const bm = (key: string) => t(`admin.banner.${key}`)
+  const copy = ({
+    zh: {
+      linkInternal: '站内链接',
+      linkExternal: '站外链接',
+      slotHomeTop: '首页 · 顶部轮播',
+      slotHomeMiddle: '首页 · 中部插屏',
+      slotChargeTop: '充电页 · 顶部',
+      slotActivityTop: '活动中心页 · 顶部',
+      slotMallTop: '积分商城页 · 顶部',
+      slotMineTop: '我的页面 · 顶部',
+      slotOther: '其他（自定义）',
+      confirm: '确定',
+      cancel: '取消',
+    },
+    th: {
+      linkInternal: 'ลิงก์ภายในระบบ',
+      linkExternal: 'ลิงก์ภายนอก',
+      slotHomeTop: 'หน้าแรก · แบนเนอร์ด้านบน',
+      slotHomeMiddle: 'หน้าแรก · แทรกกลางหน้า',
+      slotChargeTop: 'หน้าชาร์จ · ด้านบน',
+      slotActivityTop: 'หน้ากิจกรรม · ด้านบน',
+      slotMallTop: 'Points Mall · ด้านบน',
+      slotMineTop: 'หน้าของฉัน · ด้านบน',
+      slotOther: 'อื่น ๆ (กำหนดเอง)',
+      confirm: 'ยืนยัน',
+      cancel: 'ยกเลิก',
+    },
+    en: {
+      linkInternal: 'Internal Link',
+      linkExternal: 'External Link',
+      slotHomeTop: 'Home · Top Banner',
+      slotHomeMiddle: 'Home · Mid Insert',
+      slotChargeTop: 'Charging Page · Top',
+      slotActivityTop: 'Activity Center · Top',
+      slotMallTop: 'Points Mall · Top',
+      slotMineTop: 'My Page · Top',
+      slotOther: 'Other (Custom)',
+      confirm: 'OK',
+      cancel: 'Cancel',
+    },
+  } as const)[language] || ({
+    linkInternal: 'Internal Link',
+    linkExternal: 'External Link',
+    slotHomeTop: 'Home · Top Banner',
+    slotHomeMiddle: 'Home · Mid Insert',
+    slotChargeTop: 'Charging Page · Top',
+    slotActivityTop: 'Activity Center · Top',
+    slotMallTop: 'Points Mall · Top',
+    slotMineTop: 'My Page · Top',
+    slotOther: 'Other (Custom)',
+    confirm: 'OK',
+    cancel: 'Cancel',
+  })
 
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -156,6 +190,23 @@ export default function BannerManage() {
 
   const lang = (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh'
 
+  const linkTypeOptions = [
+    { value: 'internal', label: copy.linkInternal },
+    { value: 'external', label: copy.linkExternal },
+  ]
+
+  const adSlotOptions = [
+    { value: 'home_top', label: copy.slotHomeTop },
+    { value: 'home_middle', label: copy.slotHomeMiddle },
+    { value: 'charge_top', label: copy.slotChargeTop },
+    { value: 'activity_top', label: copy.slotActivityTop },
+    { value: 'mall_top', label: copy.slotMallTop },
+    { value: 'mine_top', label: copy.slotMineTop },
+    { value: 'other', label: copy.slotOther },
+  ]
+
+  const getSlotLabel = (key: string) => adSlotOptions.find(o => o.value === key)?.label ?? key ?? '—'
+
   const columns = [
     {
       title: bm('colImage'), dataIndex: 'image_url', key: 'image', width: 80,
@@ -204,7 +255,7 @@ export default function BannerManage() {
       render: (_: any, r: any) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>{bm('btnEdit')}</Button>
-          <Popconfirm title={bm('confirmDelete')} onConfirm={() => handleDelete(r)} okText="确定" cancelText="取消">
+          <Popconfirm title={bm('confirmDelete')} onConfirm={() => handleDelete(r)} okText={copy.confirm} cancelText={copy.cancel}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -244,7 +295,7 @@ export default function BannerManage() {
             label={bm('formSlot')}
             rules={[{ required: true, message: bm('formSlotRequired') }]}
           >
-            <Select options={AD_SLOT_OPTIONS} placeholder={bm('formSlotHint')} />
+            <Select options={adSlotOptions} placeholder={bm('formSlotHint')} />
           </Form.Item>
 
           <Form.Item label={bm('formImage')}>
@@ -267,7 +318,7 @@ export default function BannerManage() {
           <div style={{ display: 'flex', gap: 12 }}>
             <Form.Item name="link_type" label={bm('formLinkType')} style={{ flex: 1 }}>
               <Select
-                options={LINK_TYPE_OPTIONS}
+                options={linkTypeOptions}
                 onChange={(v) => setLinkType(v)}
               />
             </Form.Item>

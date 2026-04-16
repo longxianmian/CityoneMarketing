@@ -5,6 +5,7 @@
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
 import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
+import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -262,9 +263,12 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
       linkedMallItemId,
       couponStatus: safeNum(status, 1),
     });
+    const translatedFields = await completeMlFieldMap({
+      name,
+    }, body._sourceLang || body.sourceLang || "zh");
 
     const id = await nextCouponId();
-    const nameVal = JSON.stringify(name); // 确保 JSONB 合法（字符串自动加引号）
+    const nameVal = JSON.stringify(normalizeMlValue(translatedFields.name)); // 确保 JSONB 合法（字符串自动加引号）
 
     const stationScope = body.station_scope ? JSON.stringify(body.station_scope) : "{}";
 
@@ -296,6 +300,7 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
     ]);
 
     const created = await getCouponById(result.rows[0].id);
+    await syncMlSnapshotToOss("coupon", id, translatedFields).catch(() => null);
     return sendOk(res, sendJson, "创建成功", couponRow(created || result.rows[0]));
   } catch (err) {
     return sendError(
@@ -338,6 +343,10 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
       linkedMallItemId: nextLinkedMallItemId,
       couponStatus: nextStatus,
     });
+    const translatedFields = await completeMlFieldMap(
+      name != null ? { name } : {},
+      body._sourceLang || body.sourceLang || "zh"
+    );
 
     if (nextStatus !== 1 && Number(existingCoupon.status ?? 1) === 1) {
       const rewardBindingStats = await getCouponRewardBindingStats(id);
@@ -358,7 +367,7 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
 
     const addSet = (col, val) => { sets.push(`${col} = $${idx++}`); params.push(val); };
 
-    if (name          != null) addSet("name",           JSON.stringify(name));
+    if (name          != null) addSet("name",           JSON.stringify(normalizeMlValue(translatedFields.name)));
     if (couponType    != null) addSet("coupon_type",    couponType);
     if (itemType      != null) addSet("item_type",      itemType);
     if (discountType  != null) addSet("discount_type",  discountType);
@@ -393,6 +402,9 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
     );
 
     const updated = await getCouponById(result.rows[0].id);
+    if (translatedFields.name) {
+      await syncMlSnapshotToOss("coupon", id, translatedFields).catch(() => null);
+    }
     return sendOk(res, sendJson, "更新成功", couponRow(updated || result.rows[0]));
   } catch (err) {
     return sendError(

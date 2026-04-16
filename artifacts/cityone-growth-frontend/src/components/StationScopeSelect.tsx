@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Select, Space, Button } from 'antd'
 import { EnvironmentOutlined } from '@ant-design/icons'
 import request from '../api/request'
+import { useI18n } from '../i18n'
 
 interface District { code: string; zh: string; th: string; en: string }
 interface CityItem { code: string; zh: string; th: string; en: string; districts: District[] }
@@ -20,11 +21,57 @@ interface Props {
 }
 
 export default function StationScopeSelect({ value, onChange }: Props) {
+  const { language } = useI18n()
   const [cityDistricts, setCityDistricts] = useState<CityItem[]>([])
   const [stations, setStations] = useState<Station[]>([])
   const [loadingStations, setLoadingStations] = useState(false)
 
   const scope: StationScope = value || { type: 'all' }
+  const copy = ({
+    zh: {
+      title: '适用站点范围',
+      allStations: '全部站点',
+      selectedStations: '站点选择',
+      city: '选择城市',
+      cityPlaceholder: '请选择城市',
+      district: '选择区域（可选）',
+      districtPlaceholder: '请选择区域（不选则包含该城市所有区域）',
+      stations: '指定站点（可多选，不选则包含上方城市/区域所有站点）',
+      stationsPlaceholder: '搜索并选择站点（可留空）',
+    },
+    th: {
+      title: 'ขอบเขตสถานีที่ใช้ได้',
+      allStations: 'ทุกสถานี',
+      selectedStations: 'เลือกสถานี',
+      city: 'เลือกเมือง',
+      cityPlaceholder: 'กรุณาเลือกเมือง',
+      district: 'เลือกเขต (ไม่บังคับ)',
+      districtPlaceholder: 'กรุณาเลือกเขต (หากไม่เลือกจะครอบคลุมทุกเขตของเมืองนี้)',
+      stations: 'ระบุสถานี (เลือกได้หลายแห่ง หากไม่เลือกจะครอบคลุมสถานีทั้งหมดด้านบน)',
+      stationsPlaceholder: 'ค้นหาและเลือกสถานี (เว้นว่างได้)',
+    },
+    en: {
+      title: 'Applicable Station Scope',
+      allStations: 'All Stations',
+      selectedStations: 'Select Stations',
+      city: 'Select City',
+      cityPlaceholder: 'Please select a city',
+      district: 'Select District (Optional)',
+      districtPlaceholder: 'Please select a district (leave empty to include all districts in this city)',
+      stations: 'Specific Stations (multi-select, leave empty to include all stations in the city/district above)',
+      stationsPlaceholder: 'Search and select stations (optional)',
+    },
+  } as const)[language] || ({
+    title: 'Applicable Station Scope',
+    allStations: 'All Stations',
+    selectedStations: 'Select Stations',
+    city: 'Select City',
+    cityPlaceholder: 'Please select a city',
+    district: 'Select District (Optional)',
+    districtPlaceholder: 'Please select a district (leave empty to include all districts in this city)',
+    stations: 'Specific Stations (multi-select, leave empty to include all stations in the city/district above)',
+    stationsPlaceholder: 'Search and select stations (optional)',
+  })
 
   useEffect(() => {
     request.get('/stations/city-districts').then((res: any) => {
@@ -44,13 +91,14 @@ export default function StationScopeSelect({ value, onChange }: Props) {
     }).catch(() => {}).finally(() => setLoadingStations(false))
   }
 
-  const cityOptions = cityDistricts.map(c => ({ value: c.code, label: `${c.zh} / ${c.en}` }))
+  const displayLang = language === 'zh' || language === 'th' || language === 'en' ? language : 'en'
+  const cityOptions = cityDistricts.map(c => ({ value: c.code, label: c[displayLang] || c.en || c.zh }))
 
   const districtOptions = (cityDistricts.find(c => c.code === scope.city)?.districts || [])
-    .map(d => ({ value: d.code, label: `${d.zh} / ${d.en}` }))
+    .map(d => ({ value: d.code, label: d[displayLang] || d.en || d.zh }))
 
   // station_code 为正式业务标识，id 仅做兼容兜底（后端 rowToStation 已将 id 设为 station_code）
-  const stationOptions = stations.map(s => ({ value: s.station_code || s.id, label: `${s.station_code || s.id}  ${s.name.zh}` }))
+  const stationOptions = stations.map(s => ({ value: s.station_code || s.id, label: `${s.station_code || s.id}  ${s.name?.[displayLang] || s.name?.en || s.name?.zh || s.station_code || s.id}` }))
 
   const handleCityChange = (city: string) => {
     onChange?.({ type: 'selected', city, district: '', station_ids: [] })
@@ -66,7 +114,7 @@ export default function StationScopeSelect({ value, onChange }: Props) {
     <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 14, background: '#fafafa' }}>
       <div style={{ marginBottom: 10, fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
         <EnvironmentOutlined style={{ color: '#2CDBCE' }} />
-        适用站点范围
+        {copy.title}
       </div>
 
       <Space style={{ marginBottom: 12 }}>
@@ -76,7 +124,7 @@ export default function StationScopeSelect({ value, onChange }: Props) {
           onClick={() => onChange?.({ type: 'all' })}
           style={scope.type === 'all' ? { background: '#2CDBCE', borderColor: '#2CDBCE' } : {}}
         >
-          全部站点
+          {copy.allStations}
         </Button>
         <Button
           type={scope.type === 'selected' ? 'primary' : 'default'}
@@ -86,17 +134,17 @@ export default function StationScopeSelect({ value, onChange }: Props) {
           }}
           style={scope.type === 'selected' ? { background: '#2CDBCE', borderColor: '#2CDBCE' } : {}}
         >
-          站点选择
+          {copy.selectedStations}
         </Button>
       </Space>
 
       {scope.type === 'selected' && (
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
           <div>
-            <div style={{ marginBottom: 5, fontSize: 13, color: '#6b7280' }}>选择城市</div>
+            <div style={{ marginBottom: 5, fontSize: 13, color: '#6b7280' }}>{copy.city}</div>
             <Select
               style={{ width: '100%' }}
-              placeholder="请选择城市"
+              placeholder={copy.cityPlaceholder}
               options={cityOptions}
               value={scope.city || undefined}
               onChange={handleCityChange}
@@ -107,10 +155,10 @@ export default function StationScopeSelect({ value, onChange }: Props) {
 
           {scope.city && (
             <div>
-              <div style={{ marginBottom: 5, fontSize: 13, color: '#6b7280' }}>选择区域（可选）</div>
+              <div style={{ marginBottom: 5, fontSize: 13, color: '#6b7280' }}>{copy.district}</div>
               <Select
                 style={{ width: '100%' }}
-                placeholder="请选择区域（不选则包含该城市所有区域）"
+                placeholder={copy.districtPlaceholder}
                 options={districtOptions}
                 value={scope.district || undefined}
                 onChange={handleDistrictChange}
@@ -123,12 +171,12 @@ export default function StationScopeSelect({ value, onChange }: Props) {
           {scope.city && (
             <div>
               <div style={{ marginBottom: 5, fontSize: 13, color: '#6b7280' }}>
-                指定站点（可多选，不选则包含上方城市/区域所有站点）
+                {copy.stations}
               </div>
               <Select
                 mode="multiple"
                 style={{ width: '100%' }}
-                placeholder="搜索并选择站点（可留空）"
+                placeholder={copy.stationsPlaceholder}
                 showSearch
                 filterOption={(input, opt) =>
                   String(opt?.label || '').toLowerCase().includes(input.toLowerCase())

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
 import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
+import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
 
 const VALID_ACTIVITY_TYPES = [
   "general", "sos", "lightning_coupon", "lucky_wheel", "scratch_card", "thai_fortune_draw", "invite_reward",
@@ -37,6 +38,10 @@ function mlStr(v) {
   if (!v) return "";
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
+}
+
+function serializeMlText(v) {
+  return JSON.stringify(normalizeMlValue(v));
 }
 
 function normalizeRewardCouponIds(rawValue) {
@@ -411,7 +416,15 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
     const activityId = `act_${String(lastNum + 1).padStart(3, "0")}`;
 
     const rewardCouponIds = normalizeRewardCouponIds(body.reward_coupon_ids);
-    const actName = typeof rawName === "object" ? rawName : { zh: String(rawName || ""), th: "", en: "" };
+    const translatedFields = await completeMlFieldMap({
+      activity_name: body.activity_name,
+      activity_subtitle: body.activity_subtitle,
+      activity_desc: body.activity_desc,
+      highlights: body.highlights,
+      participation_guide: body.participation_guide,
+      reward_guide: body.reward_guide,
+      notice_text: body.notice_text,
+    }, body._sourceLang || body.sourceLang || "zh");
     const result = await withTransaction(async (client) => {
       const { rows } = await client.query(
         `INSERT INTO activities
@@ -428,8 +441,8 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44)
          RETURNING *`,
         [
-          activityId, activityType, JSON.stringify(actName),
-          body.activity_title || "", mlStr(body.activity_subtitle), mlStr(body.activity_desc),
+          activityId, activityType, serializeMlText(translatedFields.activity_name),
+          body.activity_title || "", serializeMlText(translatedFields.activity_subtitle), serializeMlText(translatedFields.activity_desc),
           body.template_id || "", body.usage_mode || "public",
           body.game_program_id || "",
           body.game_config ? JSON.stringify(body.game_config) : "{}",
@@ -442,8 +455,8 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
           !!body.share_enabled, body.share_title || "", body.share_desc || "", body.share_cover || "",
           body.campaign_id || "", body.share_status || "disabled",
           body.goal || "", body.department || "", body.owner_dept || "", body.partner_dept || "",
-          body.coupon_name || "", mlStr(body.highlights), mlStr(body.participation_guide),
-          mlStr(body.reward_guide), mlStr(body.notice_text),
+          body.coupon_name || "", serializeMlText(translatedFields.highlights), serializeMlText(translatedFields.participation_guide),
+          serializeMlText(translatedFields.reward_guide), serializeMlText(translatedFields.notice_text),
           revertOssUrl(body.cover_image) || "", revertOssUrl(body.cover_video) || "",
           Number(body.reward_points) || 0, Number(body.sort_order) || 0, !!body.is_featured,
           body.landing_code || "", body.entry_ref_code || "", body.banner_code || "",
@@ -464,6 +477,15 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
 
       return rows[0];
     });
+    await syncMlSnapshotToOss("activity", activityId, {
+      activity_name: translatedFields.activity_name,
+      activity_subtitle: translatedFields.activity_subtitle,
+      activity_desc: translatedFields.activity_desc,
+      highlights: translatedFields.highlights,
+      participation_guide: translatedFields.participation_guide,
+      reward_guide: translatedFields.reward_guide,
+      notice_text: translatedFields.notice_text,
+    }).catch(() => null);
     const [enriched] = await enrichActivitiesWithRewards([result]);
     return sendOk(res, sendJson, "activity created", rowToActivity(enriched || result));
   } catch (err) {
@@ -511,6 +533,14 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
     const rewardCouponIds = body.reward_coupon_ids !== undefined
       ? normalizeRewardCouponIds(body.reward_coupon_ids)
       : null;
+    const mlFieldsToTranslate = {};
+    for (const field of ["activity_name", "activity_subtitle", "activity_desc", "highlights", "participation_guide", "reward_guide", "notice_text"]) {
+      if (body[field] !== undefined) mlFieldsToTranslate[field] = body[field];
+    }
+    const translatedFields = await completeMlFieldMap(
+      mlFieldsToTranslate,
+      body._sourceLang || body.sourceLang || "zh"
+    );
 
     const targetStatus = body.status !== undefined ? String(body.status) : String(existing.status || "draft");
     const targetActivityType = body.activity_type !== undefined ? String(body.activity_type) : String(existing.activity_type || "general");
@@ -523,11 +553,12 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       for (const [bodyKey, transform] of Object.entries(fieldMap)) {
         if (body[bodyKey] === undefined) continue;
         const dbCol = bodyKey === "template_id" ? "template_code" : bodyKey;
+        const nextValue = translatedFields[bodyKey] !== undefined ? translatedFields[bodyKey] : body[bodyKey];
         if (!transform && bodyKey === "template_id") {
-          params.push(String(body[bodyKey]));
+          params.push(String(nextValue));
           sets.push(`template_code = $${params.length}`);
         } else if (transform) {
-          params.push(transform(body[bodyKey]));
+          params.push(transform(nextValue));
           sets.push(`${dbCol} = $${params.length}`);
         }
       }
@@ -556,6 +587,9 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       const { rows } = await client.query("SELECT * FROM activities WHERE activity_id = $1", [id]);
       return rows[0];
     });
+    if (Object.keys(translatedFields).length) {
+      await syncMlSnapshotToOss("activity", id, translatedFields).catch(() => null);
+    }
 
     const [enriched] = await enrichActivitiesWithRewards([updated]);
     return sendOk(res, sendJson, "activity updated", rowToActivity(enriched || updated));

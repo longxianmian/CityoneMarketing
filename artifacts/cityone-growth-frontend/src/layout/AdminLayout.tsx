@@ -140,11 +140,11 @@ export default function AdminLayout() {
       {
         key: 'incentive',
         icon: <RiseOutlined />,
-        label: '积分管理',
+        label: lt('incentiveGroup'),
         children: [
-          { key: '/admin/growth/points/rules',    label: '积分规则' },
-          { key: '/admin/growth/points/accounts', label: '用户积分' },
-          { key: '/admin/growth/points/ledger',   label: '积分流水' },
+          { key: '/admin/growth/points/rules',    label: lt('pointsRules') },
+          { key: '/admin/growth/points/accounts', label: lt('customerPoints') },
+          { key: '/admin/growth/points/ledger',   label: lt('pointsLedger') },
         ],
       },
       // === 5. AI Agent ===
@@ -168,10 +168,10 @@ export default function AdminLayout() {
       {
         key: 'customer-manage',
         icon: <TeamOutlined style={{ color: '#1677ff' }} />,
-        label: '客户管理',
+        label: lt('customerManageGroup'),
         children: [
-          { key: '/admin/member/list', icon: <TeamOutlined />, label: '客户列表' },
-          { key: '/admin/member/benefits', icon: <ThunderboltOutlined />, label: '权益配置 & 对接口' },
+          { key: '/admin/member/list', icon: <TeamOutlined />, label: lt('customerList') },
+          { key: '/admin/member/benefits', icon: <ThunderboltOutlined />, label: lt('customerBenefits') },
         ],
       },
       // === 7. 系统配置 ===
@@ -186,7 +186,7 @@ export default function AdminLayout() {
           { key: '/admin/growth/message', label: lt('messageReach') },
           { key: '/admin/system/params', label: lt('sysParams') },
           ...(canManageAccounts && !isSuperAdmin
-            ? [{ key: '/admin/system/accounts', icon: <TeamOutlined />, label: '账户管理' }]
+            ? [{ key: '/admin/system/accounts', icon: <TeamOutlined />, label: lt('accountManage') }]
             : []),
         ],
       },
@@ -196,9 +196,9 @@ export default function AdminLayout() {
             {
               key: 'superadmin-center',
               icon: <CrownOutlined style={{ color: '#722ed1' }} />,
-              label: <span style={{ color: '#722ed1', fontWeight: 600 }}>超管中心</span>,
+              label: <span style={{ color: '#722ed1', fontWeight: 600 }}>{lt('superadminCenter')}</span>,
               children: [
-                { key: '/admin/superadmin/accounts', icon: <TeamOutlined />, label: '账户管理' },
+                { key: '/admin/superadmin/accounts', icon: <TeamOutlined />, label: lt('accountManage') },
               ],
             },
           ]

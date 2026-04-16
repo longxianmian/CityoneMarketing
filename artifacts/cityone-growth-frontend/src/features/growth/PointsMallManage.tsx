@@ -24,6 +24,59 @@ export default function PointsMallManage() {
   const { t, language } = useI18n()
   const pick = useMLPick()
   const pm = (key: string) => t(`pointsMall.${key}`)
+  const copy = React.useMemo(() => {
+    const dict = {
+      zh: {
+        deliveryType: '配送方式 / Delivery Type',
+        deliveryCourier: '快递配送 / Courier',
+        deliveryPickup: '站点自取 / Station Pickup',
+        deliveryBoth: '快递/自取均可 / Both',
+        flashOn: '限时促销',
+        flashOff: '普通',
+        flashTag: '限时促销',
+        sourceLang: '输入语言 / Input Language',
+        productNamePlaceholder: '商品名称 / ชื่อสินค้า / Product name',
+        highlightsPlaceholder: '每行一条，保存时自动翻译',
+        rulesPlaceholder: '每行一条规则',
+        confirm: '确定',
+        cancel: '取消',
+        saveFailed: '保存失败，请重试',
+      },
+      th: {
+        deliveryType: 'วิธีจัดส่ง / Delivery Type',
+        deliveryCourier: 'จัดส่งพัสดุ / Courier',
+        deliveryPickup: 'รับที่สถานี / Station Pickup',
+        deliveryBoth: 'ทั้งจัดส่งและรับเอง / Both',
+        flashOn: 'โปรจำกัดเวลา',
+        flashOff: 'ปกติ',
+        flashTag: 'โปรจำกัดเวลา',
+        sourceLang: 'ภาษาที่กรอก / Input Language',
+        productNamePlaceholder: 'ชื่อสินค้า / Product name',
+        highlightsPlaceholder: 'หนึ่งบรรทัดต่อหนึ่งจุดเด่น ระบบจะแปลให้อัตโนมัติเมื่อบันทึก',
+        rulesPlaceholder: 'หนึ่งบรรทัดต่อหนึ่งกติกา',
+        confirm: 'ยืนยัน',
+        cancel: 'ยกเลิก',
+        saveFailed: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง',
+      },
+      en: {
+        deliveryType: 'Delivery Type',
+        deliveryCourier: 'Courier',
+        deliveryPickup: 'Station Pickup',
+        deliveryBoth: 'Courier / Pickup',
+        flashOn: 'Flash Sale',
+        flashOff: 'Standard',
+        flashTag: 'Flash Sale',
+        sourceLang: 'Input Language',
+        productNamePlaceholder: 'Product name',
+        highlightsPlaceholder: 'One highlight per line. Missing languages will be auto-translated on save.',
+        rulesPlaceholder: 'One rule per line',
+        confirm: 'OK',
+        cancel: 'Cancel',
+        saveFailed: 'Save failed, please try again',
+      },
+    } as const
+    return dict[language] || dict.en
+  }, [language])
 
   const typeOptions = [
     { label: pm('typeDigital'), value: 'digital' },
@@ -199,7 +252,7 @@ export default function PointsMallManage() {
       setModalOpen(false)
       loadItems(itemPage)
     } catch (err: any) {
-      message.error(err?.message || '保存失败，请重试')
+      message.error(err?.message || copy.saveFailed)
     } finally {
       setSaving(false)
     }
@@ -241,7 +294,7 @@ export default function PointsMallManage() {
           <Space direction="vertical" size={2}>
             <Tag color={typeColor[r.item_type] || 'default'} style={{ marginBottom: 0 }}>{typeLabel}</Tag>
             {subLabel && <Tag color="default" style={{ fontSize: 11, marginTop: 2 }}>{subLabel}</Tag>}
-            {r.is_flash_sale && <Tag color="red" style={{ fontSize: 11, marginTop: 2 }}>限时促销</Tag>}
+            {r.is_flash_sale && <Tag color="red" style={{ fontSize: 11, marginTop: 2 }}>{copy.flashTag}</Tag>}
           </Space>
         )
       },
@@ -272,7 +325,7 @@ export default function PointsMallManage() {
           <Tooltip title={pm('btnShare')}>
             <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleShareItem(r)} />
           </Tooltip>
-          <Popconfirm title={pm('confirmDelete')} onConfirm={() => handleDelete(r)} okText="确定" cancelText="取消">
+          <Popconfirm title={pm('confirmDelete')} onConfirm={() => handleDelete(r)} okText={copy.confirm} cancelText={copy.cancel}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -332,25 +385,25 @@ export default function PointsMallManage() {
                     </div>
                     {itemType === 'digital' && (
                       <Form.Item name="sub_type" label={pm('formSubType')}>
-                        <Select options={subTypeOptions} allowClear placeholder="选择数字商品小类（可选）" />
+                        <Select options={subTypeOptions} allowClear placeholder={pm('formSubType')} />
                       </Form.Item>
                     )}
                     {itemType === 'physical' && (
-                      <Form.Item name="delivery_type" label="配送方式 / Delivery Type" initialValue="courier">
+                      <Form.Item name="delivery_type" label={copy.deliveryType} initialValue="courier">
                         <Select options={[
-                          { value: 'courier', label: '快递配送 / Courier' },
-                          { value: 'pickup',  label: '站点自取 / Station Pickup' },
-                          { value: 'both',    label: '快递/自取均可 / Both' },
+                          { value: 'courier', label: copy.deliveryCourier },
+                          { value: 'pickup',  label: copy.deliveryPickup },
+                          { value: 'both',    label: copy.deliveryBoth },
                         ]} />
                       </Form.Item>
                     )}
                     <Form.Item name="is_flash_sale" label={pm('formIsFlashSale')} valuePropName="checked" initialValue={false}>
-                      <Switch checkedChildren="限时促销" unCheckedChildren="普通" />
+                      <Switch checkedChildren={copy.flashOn} unCheckedChildren={copy.flashOff} />
                     </Form.Item>
                     <Form.Item name="name" label={pm('formTitle')} rules={[{ required: true }]}>
-                      <Input placeholder="商品名称 / ชื่อสินค้า / Product name" />
+                      <Input placeholder={copy.productNamePlaceholder} />
                     </Form.Item>
-                    <Form.Item name="_sourceLang" label="输入语言 / Input Language" initialValue="zh">
+                    <Form.Item name="_sourceLang" label={copy.sourceLang} initialValue="zh">
                       <Select options={LANG_OPTIONS} style={{ width: 160 }} />
                     </Form.Item>
                     <Form.Item label={pm('formCoverImage')}>
@@ -391,10 +444,10 @@ export default function PointsMallManage() {
                     </div>
                     <Form.Item name="detailTitle" label={pm('formDetailTitle')}><Input /></Form.Item>
                     <Form.Item name="highlights" label={pm('formHighlights')}>
-                      <Input.TextArea rows={3} placeholder="每行一条，保存时自动翻译" />
+                      <Input.TextArea rows={3} placeholder={copy.highlightsPlaceholder} />
                     </Form.Item>
                     <Form.Item name="rules" label={pm('formRules')}>
-                      <Input.TextArea rows={3} placeholder="每行一条规则" />
+                      <Input.TextArea rows={3} placeholder={copy.rulesPlaceholder} />
                     </Form.Item>
                     <Form.Item name="on_shelf" label={pm('formEnabled')} valuePropName="checked">
                       <Switch checkedChildren={pm('statusOn')} unCheckedChildren={pm('statusOff')} />

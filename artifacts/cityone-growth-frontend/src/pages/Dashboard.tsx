@@ -40,11 +40,56 @@ interface ActivityRow {
 }
 
 export default function Dashboard() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [channelData, setChannelData] = useState<ChannelRow[]>([])
   const [activityData, setActivityData] = useState<ActivityRow[]>([])
+  const copy = ({
+    zh: {
+      pendingASystem: '待接A系统',
+      aSystemSuffix: '待A系统',
+      statusRunning: '进行中',
+      statusDraft: '草稿',
+      participants: '参与用户',
+      interactions: '互动次数',
+      noChannelDataHint: '暂无渠道数据（互动记录中 utm_source 为空时统一归入 LINE OA）',
+      noChannelData: '暂无渠道数据',
+      noActivityData: '暂无活动数据',
+    },
+    th: {
+      pendingASystem: 'รอเชื่อม A System',
+      aSystemSuffix: 'รอ A System',
+      statusRunning: 'กำลังดำเนินการ',
+      statusDraft: 'ฉบับร่าง',
+      participants: 'ผู้เข้าร่วม',
+      interactions: 'จำนวนการโต้ตอบ',
+      noChannelDataHint: 'ยังไม่มีข้อมูลช่องทาง (หาก utm_source ว่างจะถูกรวมใน LINE OA)',
+      noChannelData: 'ยังไม่มีข้อมูลช่องทาง',
+      noActivityData: 'ยังไม่มีข้อมูลกิจกรรม',
+    },
+    en: {
+      pendingASystem: 'Pending A-System',
+      aSystemSuffix: 'Awaiting A-System',
+      statusRunning: 'Running',
+      statusDraft: 'Draft',
+      participants: 'Participants',
+      interactions: 'Interactions',
+      noChannelDataHint: 'No channel data yet (records without utm_source are grouped into LINE OA)',
+      noChannelData: 'No channel data',
+      noActivityData: 'No activity data',
+    },
+  } as const)[language] || ({
+    pendingASystem: 'Pending A-System',
+    aSystemSuffix: 'Awaiting A-System',
+    statusRunning: 'Running',
+    statusDraft: 'Draft',
+    participants: 'Participants',
+    interactions: 'Interactions',
+    noChannelDataHint: 'No channel data yet (records without utm_source are grouped into LINE OA)',
+    noChannelData: 'No channel data',
+    noActivityData: 'No activity data',
+  })
 
   const load = () => {
     setLoading(true)
@@ -66,7 +111,7 @@ export default function Dashboard() {
     { title: t('dashboard.colVisits'), dataIndex: 'visits', key: 'visits' },
     { title: t('dashboard.colNewUsers'), dataIndex: 'users', key: 'users' },
     { title: t('dashboard.colOrders'), dataIndex: 'orders', key: 'orders',
-      render: (v: number) => v === 0 ? <span style={{ color: '#bbb' }}>待接A系统</span> : v },
+      render: (v: number) => v === 0 ? <span style={{ color: '#bbb' }}>{copy.pendingASystem}</span> : v },
     {
       title: t('dashboard.colRate'),
       dataIndex: 'rate',
@@ -82,17 +127,19 @@ export default function Dashboard() {
       dataIndex: 'status',
       key: 'status',
       render: (v: string) => (
-        <Tag color={v === '进行中' ? 'green' : v === '草稿' ? 'gold' : 'default'}>{v}</Tag>
+        <Tag color={v === '进行中' || v === 'running' ? 'green' : v === '草稿' || v === 'draft' ? 'gold' : 'default'}>
+          {v === '进行中' || v === 'running' ? copy.statusRunning : v === '草稿' || v === 'draft' ? copy.statusDraft : v}
+        </Tag>
       ),
     },
-    { title: '参与用户', dataIndex: 'participants', key: 'participants' },
-    { title: '互动次数', dataIndex: 'interactions', key: 'interactions' },
+    { title: copy.participants, dataIndex: 'participants', key: 'participants' },
+    { title: copy.interactions, dataIndex: 'interactions', key: 'interactions' },
     { title: t('dashboard.colRewards'), dataIndex: 'rewards', key: 'rewards' },
     {
       title: t('dashboard.colDrivenOrders'),
       dataIndex: 'orders',
       key: 'orders',
-      render: (v: number) => v === 0 ? <span style={{ color: '#bbb' }}>待接A系统</span> : v,
+      render: (v: number) => v === 0 ? <span style={{ color: '#bbb' }}>{copy.pendingASystem}</span> : v,
     },
   ]
 
@@ -147,7 +194,7 @@ export default function Dashboard() {
                   title={t('dashboard.attributedOrders')}
                   value={stats?.attributedOrders ?? 0}
                   prefix={<FileTextOutlined style={{ color: '#eb2f96' }} />}
-                  suffix={<span style={{ fontSize: 12, color: '#bbb' }}>待A系统</span>}
+                  suffix={<span style={{ fontSize: 12, color: '#bbb' }}>{copy.aSystemSuffix}</span>}
                 />
               </Card>
             </Col>
@@ -176,7 +223,7 @@ export default function Dashboard() {
             <Col xs={24} md={10}>
               <Card title={t('dashboard.channelOverview')}>
                 {channelData.length === 0 ? (
-                  <Empty description="暂无渠道数据（互动记录中 utm_source 为空时统一归入 LINE OA）" />
+                  <Empty description={copy.noChannelDataHint} />
                 ) : (
                   <div style={{ display: 'grid', gap: 16 }}>
                     {channelData.map((item) => (
@@ -201,7 +248,7 @@ export default function Dashboard() {
                   dataSource={channelData}
                   pagination={false}
                   size="small"
-                  locale={{ emptyText: '暂无渠道数据' }}
+                  locale={{ emptyText: copy.noChannelData }}
                 />
               </Card>
             </Col>
@@ -215,7 +262,7 @@ export default function Dashboard() {
                   columns={activityColumns}
                   dataSource={activityData}
                   pagination={false}
-                  locale={{ emptyText: '暂无活动数据' }}
+                  locale={{ emptyText: copy.noActivityData }}
                 />
               </Card>
             </Col>

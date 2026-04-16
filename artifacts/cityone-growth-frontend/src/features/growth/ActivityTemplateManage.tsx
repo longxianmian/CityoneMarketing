@@ -16,6 +16,23 @@ const LANG_OPTIONS = [{ value: 'zh', label: '中文' }, { value: 'th', label: '�
 
 export default function ActivityTemplateManage() {
   const { t, language } = useI18n()
+  const copy = ({
+    zh: {
+      sourceLang: '输入语言 / Input Language',
+      saveFailed: '保存失败，请重试',
+    },
+    th: {
+      sourceLang: 'ภาษาที่กรอก / Input Language',
+      saveFailed: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง',
+    },
+    en: {
+      sourceLang: 'Input Language',
+      saveFailed: 'Save failed, please try again',
+    },
+  } as const)[language] || ({
+    sourceLang: 'Input Language',
+    saveFailed: 'Save failed, please try again',
+  })
 
   const BUTTON_TYPES = [
     { value: 'join', label: t('adminTemplate.activity.btnJoin') },
@@ -129,7 +146,7 @@ export default function ActivityTemplateManage() {
       setFormVisible(false)
       fetchData()
     } catch (err: any) {
-      message.error(err?.message || '保存失败，请重试')
+      message.error(err?.message || copy.saveFailed)
     } finally {
       setSaving(false)
     }
@@ -178,7 +195,7 @@ export default function ActivityTemplateManage() {
           <Form.Item name="name" label={t('adminTemplate.common.templateName')} rules={[{ required: true }]}>
             <Input placeholder={t('adminTemplate.common.internalName')} />
           </Form.Item>
-          <Form.Item name="_sourceLang" label="输入语言 / Input Language" initialValue="zh">
+          <Form.Item name="_sourceLang" label={copy.sourceLang} initialValue="zh">
             <Select options={LANG_OPTIONS} style={{ width: 160 }} />
           </Form.Item>
 

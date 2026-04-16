@@ -8,6 +8,7 @@
  */
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import useLineUserStore from '../store/lineUser'
+import { resolveRuntimeLiffId } from '../lib/line'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -50,7 +51,7 @@ async function initLiff(
     // 1. 从后端拉取 LIFF ID
     const res = await fetch(`${API_BASE}/api/growth/line/config`)
     const json = await res.json()
-    const liffId: string = json?.data?.liffId || ''
+    const liffId: string = resolveRuntimeLiffId(json?.data?.liffId)
     _liffId = liffId  // 供 catch 块使用
 
     if (!liffId) {

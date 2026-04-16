@@ -5,6 +5,7 @@
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
 import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
+import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -123,6 +124,14 @@ export async function handleCreateMallItem(req, res, sendJson, body) {
   try {
     const countRes = await query("SELECT COUNT(*) AS cnt FROM mall_items");
     const sortOrder = Number(body.sort_order ?? Number(countRes.rows[0].cnt));
+    const translatedFields = await completeMlFieldMap({
+      name: body.name,
+      description: body.description,
+      detail_title: body.detail_title || body.detailTitle,
+      highlights: body.highlights,
+      rules: body.rules,
+    }, body._sourceLang || body.sourceLang || "zh");
+    const itemId = generateId();
 
     const result = await query(`
       INSERT INTO mall_items
@@ -133,8 +142,8 @@ export async function handleCreateMallItem(req, res, sendJson, body) {
         ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW(),NOW())
       RETURNING *
     `, [
-      generateId(),
-      toJsonb(body.name) || "",
+      itemId,
+      toJsonb(normalizeMlValue(translatedFields.name)) || "",
       body.item_type     || "digital",
       body.sub_type      || null,
       body.is_flash_sale === true || body.is_flash_sale === "true",
@@ -145,16 +154,17 @@ export async function handleCreateMallItem(req, res, sendJson, body) {
       body.on_shelf      !== false,
       revertOssUrl(body.cover_image) || "",
       revertOssUrl(body.cover_video) || "",
-      toJsonb(body.description),
-      toJsonb(body.detail_title || body.detailTitle),
-      toJsonb(body.highlights),
-      toJsonb(body.rules),
+      toJsonb(normalizeMlValue(translatedFields.description)),
+      toJsonb(normalizeMlValue(translatedFields.detail_title)),
+      toJsonb(normalizeMlValue(translatedFields.highlights)),
+      toJsonb(normalizeMlValue(translatedFields.rules)),
       body.tag           || null,
       body.badge         || null,
       sortOrder,
       body.delivery_type || "courier",
     ]);
 
+    await syncMlSnapshotToOss("mall_item", itemId, translatedFields).catch(() => null);
     return sendOk(res, sendJson, "created", itemRow(result.rows[0]));
   } catch (err) {
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
@@ -184,10 +194,17 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
     const sets   = [];
     const params = [];
     let   idx    = 1;
+    const translatedFields = await completeMlFieldMap({
+      ...(body.name != null ? { name: body.name } : {}),
+      ...(body.description != null ? { description: body.description } : {}),
+      ...((body.detail_title != null || body.detailTitle != null) ? { detail_title: body.detail_title ?? body.detailTitle } : {}),
+      ...(body.highlights != null ? { highlights: body.highlights } : {}),
+      ...(body.rules != null ? { rules: body.rules } : {}),
+    }, body._sourceLang || body.sourceLang || "zh");
 
     const addSet = (col, val) => { sets.push(`${col} = $${idx++}`); params.push(val); };
 
-    if (body.name             != null) addSet("name",            toJsonb(body.name));
+    if (body.name             != null) addSet("name",            toJsonb(normalizeMlValue(translatedFields.name)));
     if (body.item_type        != null) addSet("item_type",       body.item_type);
     if (body.sub_type         !== undefined) addSet("sub_type",  body.sub_type || null);
     if (body.is_flash_sale    != null) addSet("is_flash_sale",   body.is_flash_sale === true || body.is_flash_sale === "true");
@@ -198,11 +215,11 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
     if (body.on_shelf          != null) addSet("on_shelf",         Boolean(body.on_shelf));
     if (body.cover_image       != null) addSet("cover_image",      revertOssUrl(body.cover_image));
     if (body.cover_video       != null) addSet("cover_video",      revertOssUrl(body.cover_video));
-    if (body.description       != null) addSet("description",      toJsonb(body.description));
-    if (body.detail_title      != null) addSet("detail_title",     toJsonb(body.detail_title));
-    if (body.detailTitle       != null) addSet("detail_title",     toJsonb(body.detailTitle));
-    if (body.highlights        != null) addSet("highlights",       toJsonb(body.highlights));
-    if (body.rules             != null) addSet("rules",            toJsonb(body.rules));
+    if (body.description       != null) addSet("description",      toJsonb(normalizeMlValue(translatedFields.description)));
+    if (body.detail_title      != null) addSet("detail_title",     toJsonb(normalizeMlValue(translatedFields.detail_title)));
+    if (body.detailTitle       != null) addSet("detail_title",     toJsonb(normalizeMlValue(translatedFields.detail_title)));
+    if (body.highlights        != null) addSet("highlights",       toJsonb(normalizeMlValue(translatedFields.highlights)));
+    if (body.rules             != null) addSet("rules",            toJsonb(normalizeMlValue(translatedFields.rules)));
     if (body.tag               != null) addSet("tag",              body.tag);
     if (body.badge             != null) addSet("badge",            body.badge);
     if (body.sort_order        != null) addSet("sort_order",       Number(body.sort_order));
@@ -215,6 +232,9 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
       params
     );
 
+    if (Object.keys(translatedFields).length) {
+      await syncMlSnapshotToOss("mall_item", itemId, translatedFields).catch(() => null);
+    }
     return sendOk(res, sendJson, "updated", itemRow(result.rows[0]));
   } catch (err) {
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);

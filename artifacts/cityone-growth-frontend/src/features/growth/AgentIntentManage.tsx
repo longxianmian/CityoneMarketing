@@ -72,12 +72,121 @@ function strToPhrases(s?: string) {
 }
 
 export default function AgentIntentManage() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
   const [form] = Form.useForm()
+  const copy = ({
+    zh: {
+      dispatchMode: '分发方式',
+      actionConfig: '动作配置',
+      toolTag: '工具',
+      cardTag: '卡片',
+      needConfirm: '需确认',
+      needPay: '需支付',
+      threshold: '阈值',
+      phrasesPreview: '关键词预览',
+      statsDesc: (total: number, enabled: number, confirm: number, pay: number) => `当前共 ${total} 条意图，已启用 ${enabled} 条，其中需确认 ${confirm} 条、需支付 ${pay} 条。`,
+      exampleCode: '例：platform_promotion_query',
+      exampleName: '例：查询平台当前优惠',
+      tool: '工具',
+      noTool: '无工具可留空',
+      cardTemplate: '卡片模板',
+      noCard: '无卡片可留空',
+      intentScope: '意图范围',
+      hitThreshold: '命中阈值',
+      priority: '优先级',
+      enabled: '启用',
+      legacyNeedConfirm: '兼容旧确认标记',
+      triggerPhrases: '触发关键词',
+      respPreset: '命中时预设回复',
+      zhRespPlaceholder: '（中文预设回复，为空则交给 LLM 或卡片链路）',
+      thRespPlaceholder: '（泰文预设回复，选填）',
+      enRespPlaceholder: '（英文预设回复，选填）',
+    },
+    th: {
+      dispatchMode: 'รูปแบบการกระจาย',
+      actionConfig: 'การตั้งค่าการทำงาน',
+      toolTag: 'เครื่องมือ',
+      cardTag: 'การ์ด',
+      needConfirm: 'ต้องยืนยัน',
+      needPay: 'ต้องชำระเงิน',
+      threshold: 'เกณฑ์',
+      phrasesPreview: 'ตัวอย่างคีย์เวิร์ด',
+      statsDesc: (total: number, enabled: number, confirm: number, pay: number) => `ขณะนี้มี intent ทั้งหมด ${total} รายการ เปิดใช้งาน ${enabled} รายการ โดยมี ${confirm} รายการที่ต้องยืนยัน และ ${pay} รายการที่ต้องชำระเงิน`,
+      exampleCode: 'เช่น platform_promotion_query',
+      exampleName: 'เช่น สอบถามโปรโมชันปัจจุบันของแพลตฟอร์ม',
+      tool: 'เครื่องมือ',
+      noTool: 'หากไม่ใช้เครื่องมือสามารถเว้นว่างได้',
+      cardTemplate: 'เทมเพลตการ์ด',
+      noCard: 'หากไม่มีการ์ดสามารถเว้นว่างได้',
+      intentScope: 'ขอบเขต intent',
+      hitThreshold: 'เกณฑ์การจับคู่',
+      priority: 'ลำดับความสำคัญ',
+      enabled: 'เปิดใช้งาน',
+      legacyNeedConfirm: 'รองรับธงยืนยันแบบเดิม',
+      triggerPhrases: 'คำที่ใช้กระตุ้น',
+      respPreset: 'คำตอบตั้งต้นเมื่อจับคู่สำเร็จ',
+      zhRespPlaceholder: '(คำตอบภาษาจีน หากว่างจะให้ LLM หรือ card flow จัดการ)',
+      thRespPlaceholder: '(คำตอบภาษาไทย แบบเลือกใส่)',
+      enRespPlaceholder: '(คำตอบภาษาอังกฤษ แบบเลือกใส่)',
+    },
+    en: {
+      dispatchMode: 'Dispatch Mode',
+      actionConfig: 'Action Config',
+      toolTag: 'Tool',
+      cardTag: 'Card',
+      needConfirm: 'Requires Confirm',
+      needPay: 'Requires Payment',
+      threshold: 'Threshold',
+      phrasesPreview: 'Phrase Preview',
+      statsDesc: (total: number, enabled: number, confirm: number, pay: number) => `There are ${total} intents in total, ${enabled} enabled, with ${confirm} requiring confirmation and ${pay} requiring payment.`,
+      exampleCode: 'e.g. platform_promotion_query',
+      exampleName: 'e.g. Query current platform promotions',
+      tool: 'Tool',
+      noTool: 'Leave empty if no tool is needed',
+      cardTemplate: 'Card Template',
+      noCard: 'Leave empty if no card is needed',
+      intentScope: 'Intent Scope',
+      hitThreshold: 'Similarity Threshold',
+      priority: 'Priority',
+      enabled: 'Enabled',
+      legacyNeedConfirm: 'Legacy Confirm Flag',
+      triggerPhrases: 'Trigger Phrases',
+      respPreset: 'Preset Response on Match',
+      zhRespPlaceholder: '(Chinese preset reply; leave empty to let LLM or card flow handle it)',
+      thRespPlaceholder: '(Thai preset reply, optional)',
+      enRespPlaceholder: '(English preset reply, optional)',
+    },
+  } as const)[language] || ({
+    dispatchMode: 'Dispatch Mode',
+    actionConfig: 'Action Config',
+    toolTag: 'Tool',
+    cardTag: 'Card',
+    needConfirm: 'Requires Confirm',
+    needPay: 'Requires Payment',
+    threshold: 'Threshold',
+    phrasesPreview: 'Phrase Preview',
+    statsDesc: (total: number, enabled: number, confirm: number, pay: number) => `There are ${total} intents in total, ${enabled} enabled, with ${confirm} requiring confirmation and ${pay} requiring payment.`,
+    exampleCode: 'e.g. platform_promotion_query',
+    exampleName: 'e.g. Query current platform promotions',
+    tool: 'Tool',
+    noTool: 'Leave empty if no tool is needed',
+    cardTemplate: 'Card Template',
+    noCard: 'Leave empty if no card is needed',
+    intentScope: 'Intent Scope',
+    hitThreshold: 'Similarity Threshold',
+    priority: 'Priority',
+    enabled: 'Enabled',
+    legacyNeedConfirm: 'Legacy Confirm Flag',
+    triggerPhrases: 'Trigger Phrases',
+    respPreset: 'Preset Response on Match',
+    zhRespPlaceholder: '(Chinese preset reply; leave empty to let LLM or card flow handle it)',
+    thRespPlaceholder: '(Thai preset reply, optional)',
+    enRespPlaceholder: '(English preset reply, optional)',
+  })
 
   const load = async () => {
     setLoading(true)
@@ -209,20 +318,20 @@ export default function AgentIntentManage() {
       width: 160,
     },
     {
-      title: '分发方式',
+      title: copy.dispatchMode,
       dataIndex: 'dispatch_mode',
       width: 150,
       render: (value: string) => <Tag color={dispatchColor[value] || 'default'}>{value}</Tag>,
     },
     {
-      title: '动作配置',
+      title: copy.actionConfig,
       width: 240,
       render: (_: unknown, row: any) => (
         <Space wrap size={[4, 4]}>
-          {row.tool_name && <Tag color="green">工具：{row.tool_name}</Tag>}
-          {row.card_template_key && <Tag color="purple">卡片：{row.card_template_key}</Tag>}
-          {row.requires_confirmation && <Tag color="orange">需确认</Tag>}
-          {row.requires_payment && <Tag color="volcano">需支付</Tag>}
+          {row.tool_name && <Tag color="green">{copy.toolTag}: {row.tool_name}</Tag>}
+          {row.card_template_key && <Tag color="purple">{copy.cardTag}: {row.card_template_key}</Tag>}
+          {row.requires_confirmation && <Tag color="orange">{copy.needConfirm}</Tag>}
+          {row.requires_payment && <Tag color="volcano">{copy.needPay}</Tag>}
           {!row.tool_name && !row.card_template_key && !row.requires_confirmation && !row.requires_payment && (
             <span style={{ color: '#bbb' }}>-</span>
           )}
@@ -230,13 +339,13 @@ export default function AgentIntentManage() {
       ),
     },
     {
-      title: '阈值',
+      title: copy.threshold,
       dataIndex: 'similarity_threshold',
       width: 90,
       render: (value: number) => (typeof value === 'number' ? value.toFixed(2) : '-'),
     },
     {
-      title: '关键词预览',
+      title: copy.phrasesPreview,
       width: 260,
       render: (_: unknown, row: any) => {
         const all = [
@@ -281,7 +390,7 @@ export default function AgentIntentManage() {
         type="info"
         showIcon
         message={t('agentIntentManage.bannerTip')}
-        description={`当前共 ${stats.total} 条意图，已启用 ${stats.enabled} 条，其中需确认 ${stats.confirm} 条、需支付 ${stats.pay} 条。`}
+        description={copy.statsDesc(stats.total, stats.enabled, stats.confirm, stats.pay)}
         style={{ marginBottom: 16 }}
       />
 
@@ -307,53 +416,53 @@ export default function AgentIntentManage() {
         <Form form={form} layout="vertical">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item label={t('agentIntentManage.formCode')} name="code" rules={[{ required: true }]}>
-              <Input placeholder="例：platform_promotion_query" disabled={!!editing} />
+              <Input placeholder={copy.exampleCode} disabled={!!editing} />
             </Form.Item>
             <Form.Item label={t('agentIntentManage.formName')} name="name" rules={[{ required: true }]}>
-              <Input placeholder="例：查询平台当前优惠" />
+              <Input placeholder={copy.exampleName} />
             </Form.Item>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <Form.Item label="分发方式" name="dispatch_mode" rules={[{ required: true }]}>
+            <Form.Item label={copy.dispatchMode} name="dispatch_mode" rules={[{ required: true }]}>
               <Select options={DISPATCH_OPTIONS} />
             </Form.Item>
-            <Form.Item label="工具" name="tool_name">
-              <Select allowClear options={TOOL_OPTIONS} placeholder="无工具可留空" />
+            <Form.Item label={copy.tool} name="tool_name">
+              <Select allowClear options={TOOL_OPTIONS} placeholder={copy.noTool} />
             </Form.Item>
-            <Form.Item label="卡片模板" name="card_template_key">
-              <Select allowClear options={CARD_TEMPLATE_OPTIONS} placeholder="无卡片可留空" />
+            <Form.Item label={copy.cardTemplate} name="card_template_key">
+              <Select allowClear options={CARD_TEMPLATE_OPTIONS} placeholder={copy.noCard} />
             </Form.Item>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <Form.Item label="意图范围" name="intent_scope" rules={[{ required: true }]}>
+            <Form.Item label={copy.intentScope} name="intent_scope" rules={[{ required: true }]}>
               <Select options={SCOPE_OPTIONS} />
             </Form.Item>
-            <Form.Item label="命中阈值" name="similarity_threshold">
+            <Form.Item label={copy.hitThreshold} name="similarity_threshold">
               <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label="优先级" name="priority">
+            <Form.Item label={copy.priority} name="priority">
               <InputNumber min={1} max={999} style={{ width: '100%' }} />
             </Form.Item>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
-            <Form.Item label="启用" name="enabled" valuePropName="checked">
+            <Form.Item label={copy.enabled} name="enabled" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="需确认" name="requires_confirmation" valuePropName="checked">
+            <Form.Item label={copy.needConfirm} name="requires_confirmation" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="需支付" name="requires_payment" valuePropName="checked">
+            <Form.Item label={copy.needPay} name="requires_payment" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="兼容旧确认标记" name="need_confirm" valuePropName="checked">
+            <Form.Item label={copy.legacyNeedConfirm} name="need_confirm" valuePropName="checked">
               <Switch />
             </Form.Item>
           </div>
 
-          <div style={{ fontWeight: 600, marginBottom: 8, color: '#333' }}>触发关键词</div>
+          <div style={{ fontWeight: 600, marginBottom: 8, color: '#333' }}>{copy.triggerPhrases}</div>
           <Form.Item label={t('agentIntentManage.formPhrasesZh')} name="phrases_zh">
             <TextArea rows={3} placeholder={'今天有什么优惠\n平台活动\n现在有折扣吗'} />
           </Form.Item>
@@ -364,15 +473,15 @@ export default function AgentIntentManage() {
             <TextArea rows={2} placeholder={'what promotions are available\nany offers today'} />
           </Form.Item>
 
-          <div style={{ fontWeight: 600, marginBottom: 8, color: '#333', marginTop: 8 }}>命中时预设回复</div>
+          <div style={{ fontWeight: 600, marginBottom: 8, color: '#333', marginTop: 8 }}>{copy.respPreset}</div>
           <Form.Item label={t('agentIntentManage.formRespZh')} name="resp_zh">
-            <TextArea rows={2} placeholder="（中文预设回复，为空则交给 LLM 或卡片链路）" />
+            <TextArea rows={2} placeholder={copy.zhRespPlaceholder} />
           </Form.Item>
           <Form.Item label={t('agentIntentManage.formRespTh')} name="resp_th">
-            <TextArea rows={2} placeholder="（泰文预设回复，选填）" />
+            <TextArea rows={2} placeholder={copy.thRespPlaceholder} />
           </Form.Item>
           <Form.Item label={t('agentIntentManage.formRespEn')} name="resp_en">
-            <TextArea rows={2} placeholder="（英文预设回复，选填）" />
+            <TextArea rows={2} placeholder={copy.enRespPlaceholder} />
           </Form.Item>
         </Form>
       </Modal>

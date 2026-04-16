@@ -8,6 +8,7 @@ import React, { useState } from 'react'
 import { Button, Tooltip, message, Progress } from 'antd'
 import { TranslationOutlined, LoadingOutlined } from '@ant-design/icons'
 import request from '../api/request'
+import { useI18n } from '../i18n'
 
 type ItemType = 'coupon' | 'activity' | 'mall_item' | 'digital_product' | 'all'
 
@@ -25,8 +26,42 @@ interface BatchResult {
 }
 
 export default function TranslateBatchButton({ type, label, onDone }: Props) {
+  const { language } = useI18n()
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<BatchResult | null>(null)
+  const copy = ({
+    zh: {
+      success: (done: number, skipped: number) => `翻译完成：补译 ${done} 条，已跳过 ${skipped} 条`,
+      noop: '所有数据已有完整翻译，无需补译',
+      failed: '批量翻译失败，请检查 AI 服务是否可用',
+      tooltipResult: (done: number, total: number) => `上次结果：补译 ${done} / 共 ${total} 条`,
+      tooltipDefault: '将数据库中泰文/英文为空的内容自动翻译补全',
+      button: '一键补译',
+    },
+    th: {
+      success: (done: number, skipped: number) => `แปลเสร็จแล้ว: เติมคำแปล ${done} รายการ, ข้าม ${skipped} รายการ`,
+      noop: 'ข้อมูลทั้งหมดมีคำแปลครบแล้ว ไม่ต้องเติมเพิ่ม',
+      failed: 'แปลแบบกลุ่มไม่สำเร็จ โปรดตรวจสอบว่า AI service พร้อมใช้งาน',
+      tooltipResult: (done: number, total: number) => `ผลล่าสุด: เติมคำแปล ${done} / ทั้งหมด ${total} รายการ`,
+      tooltipDefault: 'เติมคำแปลอัตโนมัติสำหรับข้อมูลที่ยังไม่มีภาษาไทย/อังกฤษ',
+      button: 'เติมคำแปลอัตโนมัติ',
+    },
+    en: {
+      success: (done: number, skipped: number) => `Translation complete: filled ${done}, skipped ${skipped}`,
+      noop: 'All records already have complete translations',
+      failed: 'Batch translation failed. Please check whether the AI service is available',
+      tooltipResult: (done: number, total: number) => `Last result: filled ${done} / ${total}`,
+      tooltipDefault: 'Automatically fill missing Thai/English translations in the database',
+      button: 'Auto-fill Translations',
+    },
+  } as const)[language] || ({
+    success: (done: number, skipped: number) => `Translation complete: filled ${done}, skipped ${skipped}`,
+    noop: 'All records already have complete translations',
+    failed: 'Batch translation failed. Please check whether the AI service is available',
+    tooltipResult: (done: number, total: number) => `Last result: filled ${done} / ${total}`,
+    tooltipDefault: 'Automatically fill missing Thai/English translations in the database',
+    button: 'Auto-fill Translations',
+  })
 
   const handleClick = async () => {
     setLoading(true)
@@ -52,21 +87,21 @@ export default function TranslateBatchButton({ type, label, onDone }: Props) {
 
       setResult(r)
       if (r.done > 0) {
-        message.success(`翻译完成：补译 ${r.done} 条，已跳过 ${r.skipped} 条`)
+        message.success(copy.success(r.done, r.skipped))
         onDone?.()
       } else {
-        message.info(`所有数据已有完整翻译，无需补译`)
+        message.info(copy.noop)
       }
     } catch (err: any) {
-      message.error('批量翻译失败，请检查 AI 服务是否可用')
+      message.error(copy.failed)
     } finally {
       setLoading(false)
     }
   }
 
   const tooltipTitle = result
-    ? `上次结果：补译 ${result.done} / 共 ${result.total} 条`
-    : '将数据库中泰文/英文为空的内容自动翻译补全'
+    ? copy.tooltipResult(result.done, result.total)
+    : copy.tooltipDefault
 
   return (
     <Tooltip title={tooltipTitle}>
@@ -77,7 +112,7 @@ export default function TranslateBatchButton({ type, label, onDone }: Props) {
         loading={loading}
         style={{ borderColor: '#2CDBCE', color: '#2CDBCE' }}
       >
-        {label || '一键补译'}
+        {label || copy.button}
       </Button>
     </Tooltip>
   )
