@@ -24,6 +24,15 @@ function createHttpError(statusCode, errorCode, message) {
   err.errorCode = errorCode;
   return err;
 }
+
+function allowLegacyLocalAssetOnNoopUpdate(nextValue, existingValue, fieldName) {
+  const next = String(nextValue || "").trim();
+  const existing = String(existingValue || "").trim();
+  if (next && next === existing && next.startsWith("/uploads/")) {
+    return next;
+  }
+  return normalizeManagedAssetRef(next, fieldName);
+}
 function idFromPath(pathname, pattern) {
   return pathname.match(pattern)?.[1] || "";
 }
@@ -517,14 +526,15 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       entry_scope_json: (v) => JSON.stringify(v), site_scope_json: (v) => JSON.stringify(v),
       channel_scope_json: (v) => JSON.stringify(v),
       share_enabled: (v) => !!v, share_title: (v) => String(v), share_desc: (v) => String(v),
-      share_cover: (v) => normalizeManagedAssetRef(String(v), "share_cover"), campaign_id: (v) => String(v), share_status: (v) => String(v),
+      share_cover: (v) => allowLegacyLocalAssetOnNoopUpdate(v, existing.share_cover, "share_cover"), campaign_id: (v) => String(v), share_status: (v) => String(v),
       goal: (v) => String(v), department: (v) => String(v), owner_dept: (v) => String(v),
       partner_dept: (v) => String(v), coupon_name: (v) => String(v),
       highlights: (v) => mlStr(v),
       participation_guide: (v) => mlStr(v),
       reward_guide: (v) => mlStr(v),
       notice_text: (v) => mlStr(v),
-      cover_image: (v) => normalizeManagedAssetRef(String(v), "cover_image"), cover_video: (v) => normalizeManagedAssetRef(String(v), "cover_video"),
+      cover_image: (v) => allowLegacyLocalAssetOnNoopUpdate(v, existing.cover_image, "cover_image"),
+      cover_video: (v) => allowLegacyLocalAssetOnNoopUpdate(v, existing.cover_video, "cover_video"),
       reward_points: (v) => Number(v) || 0,
       landing_code: (v) => String(v), entry_ref_code: (v) => String(v), banner_code: (v) => String(v),
       sort_order: (v) => Number(v) || 0, is_featured: (v) => !!v,
