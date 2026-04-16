@@ -13,6 +13,7 @@ const OSS_AK_SECRET  = process.env.ALIYUN_OSS_ACCESS_KEY_SECRET || "";
 const URL_EXPIRES    = parseInt(process.env.ALIYUN_OSS_URL_EXPIRES || "86400", 10); // 默认 24h
 
 export const OSS_CONFIGURED = !!(OSS_REGION && OSS_BUCKET && OSS_AK_ID && OSS_AK_SECRET);
+export const LOCAL_MEDIA_FALLBACK_ALLOWED = String(process.env.ALLOW_LOCAL_MEDIA_FALLBACK || "").trim().toLowerCase() === "true";
 
 let _client = null;
 function getClient() {
@@ -106,6 +107,39 @@ export function revertOssUrl(value) {
     if (u.hostname.includes("aliyuncs.com")) return u.pathname.slice(1);
   } catch {}
   return value;
+}
+
+function createMediaRefError(fieldName, message) {
+  const err = new Error(message);
+  err.statusCode = 400;
+  err.errorCode = "INVALID_MEDIA_REF";
+  err.fieldName = fieldName;
+  return err;
+}
+
+/**
+ * 生产级媒体字段规范：
+ * - 允许空值
+ * - 允许 OSS object key
+ * - 允许临时传入 aliyuncs.com 签名 URL（会被还原成 object key）
+ * - 不允许本地 /uploads/... 路径
+ * - 不允许任意外链 http(s) 地址
+ */
+export function normalizeManagedAssetRef(value, fieldName = "media") {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const normalized = revertOssUrl(raw);
+  if (!normalized) return "";
+
+  if (normalized.startsWith("/uploads/")) {
+    throw createMediaRefError(fieldName, `${fieldName} 不能再保存为本地 /uploads 路径，请重新通过 OSS 上传后再保存`);
+  }
+  if (/^https?:\/\//i.test(normalized)) {
+    throw createMediaRefError(fieldName, `${fieldName} 必须使用 OSS 存储，不支持直接保存外链地址`);
+  }
+
+  return normalized;
 }
 
 /**

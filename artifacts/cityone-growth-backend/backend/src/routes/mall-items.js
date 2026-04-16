@@ -4,7 +4,7 @@
  */
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
-import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
+import { resolveOssUrl, normalizeManagedAssetRef } from "../services/ossService.js";
 import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ export async function handleGetMallItemById(req, res, sendJson, itemId) {
     if (!result.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
     return sendOk(res, sendJson, "ok", itemRow(result.rows[0]));
   } catch (err) {
-    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "DB_ERROR", err.message);
   }
 }
 
@@ -113,7 +113,7 @@ export async function handleGetMallItems(req, res, sendJson, url) {
       total,
     });
   } catch (err) {
-    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "DB_ERROR", err.message);
   }
 }
 
@@ -152,8 +152,8 @@ export async function handleCreateMallItem(req, res, sendJson, body) {
       body.points_required != null ? Number(body.points_required) : null,
       body.stock         == null  ? -1 : Number(body.stock),
       body.on_shelf      !== false,
-      revertOssUrl(body.cover_image) || "",
-      revertOssUrl(body.cover_video) || "",
+      normalizeManagedAssetRef(body.cover_image, "cover_image") || "",
+      normalizeManagedAssetRef(body.cover_video, "cover_video") || "",
       toJsonb(normalizeMlValue(translatedFields.description)),
       toJsonb(normalizeMlValue(translatedFields.detail_title)),
       toJsonb(normalizeMlValue(translatedFields.highlights)),
@@ -213,8 +213,8 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
     if (body.points_required  != null) addSet("points_required", Number(body.points_required));
     if (body.stock             != null) addSet("stock",            Number(body.stock));
     if (body.on_shelf          != null) addSet("on_shelf",         Boolean(body.on_shelf));
-    if (body.cover_image       != null) addSet("cover_image",      revertOssUrl(body.cover_image));
-    if (body.cover_video       != null) addSet("cover_video",      revertOssUrl(body.cover_video));
+    if (body.cover_image       != null) addSet("cover_image",      normalizeManagedAssetRef(body.cover_image, "cover_image"));
+    if (body.cover_video       != null) addSet("cover_video",      normalizeManagedAssetRef(body.cover_video, "cover_video"));
     if (body.description       != null) addSet("description",      toJsonb(normalizeMlValue(translatedFields.description)));
     if (body.detail_title      != null) addSet("detail_title",     toJsonb(normalizeMlValue(translatedFields.detail_title)));
     if (body.detailTitle       != null) addSet("detail_title",     toJsonb(normalizeMlValue(translatedFields.detail_title)));

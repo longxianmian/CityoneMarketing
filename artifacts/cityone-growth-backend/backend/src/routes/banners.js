@@ -1,5 +1,5 @@
 import { query } from "../db/pool.js";
-import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
+import { resolveOssUrl, normalizeManagedAssetRef } from "../services/ossService.js";
 
 function sendOk(res, sendJson, msg, data) {
   return sendJson(res, 200, { code: 200, msg, data });
@@ -62,7 +62,7 @@ export async function handleGetBanners(req, res, sendJson, url) {
     const list = rows.map(rowToClient);
     return sendOk(res, sendJson, "ok", { list, total: list.length });
   } catch (err) {
-    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "DB_ERROR", err.message);
   }
 }
 
@@ -102,7 +102,7 @@ export async function handleCreateBanner(req, res, sendJson, body) {
         bannerCode,
         JSON.stringify(toML(body.title)),
         JSON.stringify(toML(body.sub_title)),
-        revertOssUrl(body.image_url) || "",
+        normalizeManagedAssetRef(body.image_url, "image_url") || "",
         body.position_key || "home_top",
         body.jump_type || body.link_type || "external",
         body.jump_target_id || "",
@@ -121,7 +121,7 @@ export async function handleCreateBanner(req, res, sendJson, body) {
     );
     return sendOk(res, sendJson, "created", rowToClient(rows[0]));
   } catch (err) {
-    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "DB_ERROR", err.message);
   }
 }
 
@@ -160,7 +160,7 @@ export async function handleUpdateBanner(req, res, sendJson, body, bannerId) {
       [
         body.title !== undefined ? JSON.stringify(toML(body.title)) : null,
         body.sub_title !== undefined ? JSON.stringify(toML(body.sub_title)) : null,
-        body.image_url !== undefined ? revertOssUrl(body.image_url) : null,
+        body.image_url !== undefined ? normalizeManagedAssetRef(body.image_url, "image_url") : null,
         body.position_key !== undefined ? body.position_key : null,
         body.jump_type !== undefined ? body.jump_type : null,
         body.jump_target_id !== undefined ? body.jump_target_id : null,

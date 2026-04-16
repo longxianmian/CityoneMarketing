@@ -1,6 +1,6 @@
 /**
  * 媒体资产路由
- * POST   /api/media/upload     上传图片/视频到 OSS（或降级到本地）
+ * POST   /api/media/upload     上传图片/视频到 OSS（生产级规范：默认不再降级到本地）
  * GET    /api/media/view-url   刷新签名预览 URL
  * DELETE /api/media/:id        软删除媒体资产（预留）
  */
@@ -13,6 +13,7 @@ import { createRequire } from "node:module";
 
 import {
   OSS_CONFIGURED,
+  LOCAL_MEDIA_FALLBACK_ALLOWED,
   buildObjectKey,
   putObject,
   signedUrl,
@@ -75,9 +76,15 @@ export function handleMediaUpload(req, res, sendJson) {
     return sendJson(res, 400, { code: 400, msg: "请求必须为 multipart/form-data", error: "BAD_REQUEST" });
   }
 
-  const moduleType = "uploads";
+  let moduleType = "uploads";
   let settled = false;
   const bb = busboy({ headers: req.headers, limits: { fileSize: MAX_VIDEO_BYTES + 1 } });
+
+  bb.on("field", (field, value) => {
+    if (field !== "moduleType") return;
+    const next = String(value || "").trim().replace(/[^a-z0-9/_-]/gi, "").replace(/^\/|\/$/g, "");
+    if (next) moduleType = next;
+  });
 
   bb.on("file", (_field, fileStream, info) => {
     const { mimeType } = info;
@@ -130,13 +137,19 @@ export function handleMediaUpload(req, res, sendJson) {
           objectKey = buildObjectKey(moduleType, finalExt);
           const result = await putObject(finalBuffer, objectKey, finalMime);
           url = result.previewUrl;
-        } else {
+        } else if (LOCAL_MEDIA_FALLBACK_ALLOWED) {
           // 降级：保存到本地 uploads/
           ensureDirs();
           const saveName = `${Date.now()}_${crypto.randomBytes(6).toString("hex")}.${finalExt}`;
           fs.writeFileSync(path.join(UPLOADS_DIR, saveName), finalBuffer);
           url = `/uploads/${saveName}`;
           objectKey = null;
+        } else {
+          return sendJson(res, 503, {
+            code: 503,
+            msg: "OSS 未配置，生产级媒体上传已禁止本地降级，请先配置 OSS",
+            error: "OSS_NOT_CONFIGURED",
+          });
         }
 
         const asset = {

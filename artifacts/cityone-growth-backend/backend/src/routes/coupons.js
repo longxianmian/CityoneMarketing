@@ -4,7 +4,7 @@
  */
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
-import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
+import { resolveOssUrl, normalizeManagedAssetRef } from "../services/ossService.js";
 import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
@@ -292,8 +292,8 @@ export async function handleCouponAdd(req, res, url, sendJson, readBody) {
       safeNum(status,        1),
       validFrom     || null,
       validTo       || null,
-      revertOssUrl(coverImage) || "",
-      revertOssUrl(coverVideo) || "",
+      normalizeManagedAssetRef(coverImage, "cover_image") || "",
+      normalizeManagedAssetRef(coverVideo, "cover_video") || "",
       stationScope,
       normalizedConfig.benefitActionType,
       normalizedConfig.linkedMallItemId,
@@ -377,8 +377,8 @@ export async function handleCouponUpdate(req, res, url, sendJson, readBody) {
     if (status        != null) addSet("status",         safeNum(status, 1));
     if (validFrom     != null) addSet("valid_from",     validFrom || null);
     if (validTo       != null) addSet("valid_to",       validTo   || null);
-    if (coverImage    != null) addSet("cover_image",    revertOssUrl(coverImage));
-    if (coverVideo    != null) addSet("cover_video",    revertOssUrl(coverVideo));
+    if (coverImage    != null) addSet("cover_image",    normalizeManagedAssetRef(coverImage, "cover_image"));
+    if (coverVideo    != null) addSet("cover_video",    normalizeManagedAssetRef(coverVideo, "cover_video"));
     if (body.station_scope != null) addSet("station_scope", JSON.stringify(body.station_scope));
     if (
       benefitActionType != null ||

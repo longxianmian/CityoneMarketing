@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
-import { resolveOssUrl, revertOssUrl } from "../services/ossService.js";
+import { resolveOssUrl, normalizeManagedAssetRef } from "../services/ossService.js";
 import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
 
 const VALID_ACTIVITY_TYPES = [
@@ -215,7 +215,7 @@ function rowToActivity(r) {
     share_enabled: r.share_enabled || false,
     share_title: r.share_title || "",
     share_desc: r.share_desc || "",
-    share_cover: r.share_cover || "",
+    share_cover: resolveOssUrl(r.share_cover || ""),
     campaign_id: r.campaign_id || "",
     share_status: r.share_status || "disabled",
     goal: r.goal || "",
@@ -452,12 +452,12 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
           body.entry_scope_json ? JSON.stringify(body.entry_scope_json) : null,
           body.site_scope_json ? JSON.stringify(body.site_scope_json) : null,
           body.channel_scope_json ? JSON.stringify(body.channel_scope_json) : null,
-          !!body.share_enabled, body.share_title || "", body.share_desc || "", body.share_cover || "",
+          !!body.share_enabled, body.share_title || "", body.share_desc || "", normalizeManagedAssetRef(body.share_cover, "share_cover") || "",
           body.campaign_id || "", body.share_status || "disabled",
           body.goal || "", body.department || "", body.owner_dept || "", body.partner_dept || "",
           body.coupon_name || "", serializeMlText(translatedFields.highlights), serializeMlText(translatedFields.participation_guide),
           serializeMlText(translatedFields.reward_guide), serializeMlText(translatedFields.notice_text),
-          revertOssUrl(body.cover_image) || "", revertOssUrl(body.cover_video) || "",
+          normalizeManagedAssetRef(body.cover_image, "cover_image") || "", normalizeManagedAssetRef(body.cover_video, "cover_video") || "",
           Number(body.reward_points) || 0, Number(body.sort_order) || 0, !!body.is_featured,
           body.landing_code || "", body.entry_ref_code || "", body.banner_code || "",
           body.source_entry_id || "", body.source_banner_id || "", body.source_channel_id || "",
@@ -517,14 +517,14 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       entry_scope_json: (v) => JSON.stringify(v), site_scope_json: (v) => JSON.stringify(v),
       channel_scope_json: (v) => JSON.stringify(v),
       share_enabled: (v) => !!v, share_title: (v) => String(v), share_desc: (v) => String(v),
-      share_cover: (v) => String(v), campaign_id: (v) => String(v), share_status: (v) => String(v),
+      share_cover: (v) => normalizeManagedAssetRef(String(v), "share_cover"), campaign_id: (v) => String(v), share_status: (v) => String(v),
       goal: (v) => String(v), department: (v) => String(v), owner_dept: (v) => String(v),
       partner_dept: (v) => String(v), coupon_name: (v) => String(v),
       highlights: (v) => mlStr(v),
       participation_guide: (v) => mlStr(v),
       reward_guide: (v) => mlStr(v),
       notice_text: (v) => mlStr(v),
-      cover_image: (v) => revertOssUrl(String(v)), cover_video: (v) => revertOssUrl(String(v)),
+      cover_image: (v) => normalizeManagedAssetRef(String(v), "cover_image"), cover_video: (v) => normalizeManagedAssetRef(String(v), "cover_video"),
       reward_points: (v) => Number(v) || 0,
       landing_code: (v) => String(v), entry_ref_code: (v) => String(v), banner_code: (v) => String(v),
       sort_order: (v) => Number(v) || 0, is_featured: (v) => !!v,

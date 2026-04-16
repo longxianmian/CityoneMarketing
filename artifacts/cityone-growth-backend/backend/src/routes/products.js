@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chatCompletion } from "../services/agent-llm-service.js";
+import { normalizeManagedAssetRef } from "../services/ossService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -182,7 +183,7 @@ export async function handleProductTemplateCreate(req, res, url, sendJson, readB
     saveJsonArray(PRODUCT_TEMPLATES_FILE, list);
     return sendOk(res, sendJson, "product template created", item);
   } catch (err) {
-    return sendError(res, sendJson, 500, "CREATE_FAILED", err.message || "创建失败");
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "CREATE_FAILED", err.message || "创建失败");
   }
 }
 
@@ -208,7 +209,7 @@ export async function handleProductTemplateUpdate(req, res, url, sendJson, readB
     saveJsonArray(PRODUCT_TEMPLATES_FILE, list);
     return sendOk(res, sendJson, "product template updated", updated);
   } catch (err) {
-    return sendError(res, sendJson, 500, "UPDATE_FAILED", err.message || "更新失败");
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "UPDATE_FAILED", err.message || "更新失败");
   }
 }
 
@@ -246,8 +247,8 @@ export async function handleDigitalProductCreate(req, res, url, sendJson, readBo
       product_subtitle: toML(body.product_subtitle || ""),
       short_benefit_text: toML(body.short_benefit_text || ""),
       template_id: body.template_id || "",
-      cover_image: body.cover_image || "",
-      cover_video: body.cover_video || "",
+      cover_image: normalizeManagedAssetRef(body.cover_image, "cover_image") || "",
+      cover_video: normalizeManagedAssetRef(body.cover_video, "cover_video") || "",
       source_mode: sourceMode,
       cash_enabled: !!body.cash_enabled,
       cash_price: Number(body.cash_price || 0),
@@ -270,7 +271,7 @@ export async function handleDigitalProductCreate(req, res, url, sendJson, readBo
       share_enabled: !!body.share_enabled,
       share_title: body.share_title || "",
       share_desc: body.share_desc || "",
-      share_cover: body.share_cover || "",
+      share_cover: normalizeManagedAssetRef(body.share_cover, "share_cover") || "",
       campaign_id: body.campaign_id || "",
       created_at: now,
       updated_at: now,
@@ -281,7 +282,7 @@ export async function handleDigitalProductCreate(req, res, url, sendJson, readBo
     backgroundTranslateProduct(item.product_id).catch(() => {});
     return sendOk(res, sendJson, "digital product created", item);
   } catch (err) {
-    return sendError(res, sendJson, 500, "CREATE_FAILED", err.message || "创建失败");
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "CREATE_FAILED", err.message || "创建失败");
   }
 }
 
@@ -309,6 +310,9 @@ export async function handleDigitalProductUpdate(req, res, url, sendJson, readBo
     for (const f of plainFields) {
       if (body[f] !== undefined) updated[f] = body[f];
     }
+    if (body.cover_image !== undefined) updated.cover_image = normalizeManagedAssetRef(body.cover_image, "cover_image");
+    if (body.cover_video !== undefined) updated.cover_video = normalizeManagedAssetRef(body.cover_video, "cover_video");
+    if (body.share_cover !== undefined) updated.share_cover = normalizeManagedAssetRef(body.share_cover, "share_cover");
     updated.updated_at = new Date().toISOString();
     list[idx] = updated;
     saveJsonArray(DIGITAL_PRODUCTS_FILE, list);
@@ -316,7 +320,7 @@ export async function handleDigitalProductUpdate(req, res, url, sendJson, readBo
     backgroundTranslateProduct(id).catch(() => {});
     return sendOk(res, sendJson, "digital product updated", updated);
   } catch (err) {
-    return sendError(res, sendJson, 500, "UPDATE_FAILED", err.message || "更新失败");
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "UPDATE_FAILED", err.message || "更新失败");
   }
 }
 
