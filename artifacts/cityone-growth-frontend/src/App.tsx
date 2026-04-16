@@ -16,6 +16,7 @@ const MinePage = lazy(() => import('./pages/user/MinePage'))
 const ActivityUserPage = lazy(() => import('./pages/user/ActivityUserPage'))
 const ActivityDetailPage = lazy(() => import('./pages/user/ActivityDetailPage'))
 const CouponUserPage = lazy(() => import('./pages/user/CouponUserPage'))
+const BenefitUsePage = lazy(() => import('./pages/user/BenefitUsePage'))
 const RedeemUserPage = lazy(() => import('./pages/user/RedeemUserPage'))
 const ProductDetailPage = lazy(() => import('./pages/user/ProductDetailPage'))
 const SystemDescPage = lazy(() => import('./pages/user/SystemDescPage'))
@@ -45,6 +46,7 @@ const StationPromoPage = lazy(() => import('./features/growth/StationPromoPage')
 const CouponVerifyPage = lazy(() => import('./features/growth/CouponVerifyPage'))
 const AgentConfigManage = lazy(() => import('./features/growth/AgentConfigManage'))
 const AgentIntentManage = lazy(() => import('./features/growth/AgentIntentManage'))
+const AgentIntentTester = lazy(() => import('./features/growth/AgentIntentTester'))
 const AgentToolManage = lazy(() => import('./features/growth/AgentToolManage'))
 const AgentLogManage = lazy(() => import('./features/growth/AgentLogManage'))
 const AgentMetrics = lazy(() => import('./features/growth/AgentMetrics'))
@@ -62,8 +64,7 @@ const StationManage = lazy(() => import('./features/growth/StationManage'))
 const AttributionCenter = lazy(() => import('./features/growth/AttributionCenter'))
 
 const AgentWenwenPage = lazy(() => import('./features/growth/AgentWenwenPage'))
-const AgentBizPage = lazy(() => import('./features/growth/AgentBizPage'))
-const AgentSysOpsPage = lazy(() => import('./features/growth/AgentSysOpsPage'))
+const AgentReservedPage = lazy(() => import('./features/growth/AgentReservedPage'))
 const AccountManage = lazy(() => import('./features/growth/AccountManage'))
 const CustomerManage = lazy(() => import('./features/growth/CustomerManage'))
 
@@ -99,6 +100,7 @@ export default function App() {
         <Route path="/activity/fortune/:id" element={<ThaiFortuneDrawPage />} />
         <Route path="/activity/:id" element={<ActivityDetailPage />} />
         <Route path="/coupon/:id" element={<CouponUserPage />} />
+        <Route path="/benefit/use/:kind" element={<BenefitUsePage />} />
         <Route path="/my-coupons" element={<Navigate to="/mine?tab=benefits" replace />} />
         <Route path="/my-points" element={<Navigate to="/mine?tab=member" replace />} />
         <Route path="/my-addresses" element={<MyAddressPage />} />
@@ -132,7 +134,6 @@ export default function App() {
           {/* 福利中心 */}
           <Route path="growth/coupon" element={<CouponManage />} />
           <Route path="growth/activity" element={<ActivityManage />} />
-          <Route path="growth/stations" element={<StationManage />} />
 
           <Route path="growth/interaction-records" element={<InteractionRecords />} />
           <Route path="welfare/game" element={<GameProgram />} />
@@ -145,6 +146,10 @@ export default function App() {
 
           {/* 卡券核销 */}
           <Route path="growth/coupon/verify" element={<CouponVerifyPage />} />
+
+          {/* 站点管理 */}
+          <Route path="growth/stations" element={<StationManage />} />
+          <Route path="growth/station-benefits" element={<StationManage />} />
 
           {/* 入口与分发 */}
           <Route path="growth/station-promo" element={<StationPromoPage />} />
@@ -161,12 +166,14 @@ export default function App() {
 
           {/* AI Agent */}
           <Route path="agent/wenwen" element={<AgentWenwenPage />} />
-          <Route path="agent/biz/commerce" element={<AgentBizPage />} />
-          <Route path="agent/biz/marketing" element={<AgentBizPage />} />
-          <Route path="agent/biz/ops" element={<AgentBizPage />} />
-          <Route path="agent/sysops" element={<AgentSysOpsPage />} />
+          <Route path="agent/biz" element={<AgentReservedPage />} />
+          <Route path="agent/biz/commerce" element={<AgentReservedPage />} />
+          <Route path="agent/biz/marketing" element={<AgentReservedPage />} />
+          <Route path="agent/biz/ops" element={<AgentReservedPage />} />
+          <Route path="agent/sysops" element={<AgentReservedPage />} />
           <Route path="growth/agent/config" element={<AgentConfigManage />} />
           <Route path="growth/agent/intents" element={<AgentIntentManage />} />
+          <Route path="growth/agent/intent-tester" element={<AgentIntentTester />} />
           <Route path="growth/agent/tools" element={<AgentToolManage />} />
           <Route path="growth/agent/logs" element={<AgentLogManage />} />
           <Route path="growth/agent/metrics" element={<AgentMetrics />} />

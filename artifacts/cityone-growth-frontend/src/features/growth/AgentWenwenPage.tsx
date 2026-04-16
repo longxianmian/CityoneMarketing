@@ -7,7 +7,7 @@ import {
 import {
   RobotOutlined, EditOutlined, PlusOutlined, DeleteOutlined,
   SaveOutlined, WarningOutlined, CodeOutlined, FileTextOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined
+  CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, GiftOutlined
 } from '@ant-design/icons'
 import {
   getAgentsList, updateAgent, toggleAgent,
@@ -45,6 +45,14 @@ const POLICY_TYPES = [
   { value: 'user_agreement', label: '用户协议' },
   { value: 'privacy_policy', label: '隐私政策' },
   { value: 'service_terms', label: '服务条款' },
+]
+
+const BENEFIT_CAPABILITIES = [
+  { key: 'coupon_list', label: '我的可用券', desc: '查询当前可用券与卡包状态' },
+  { key: 'coupon_recommend', label: '最优优惠推荐', desc: '给用户推荐最划算的券和福利' },
+  { key: 'benefit_claim', label: '可领取福利', desc: '承接福利中心可领取权益与活动奖励' },
+  { key: 'activity_guide', label: '活动引导', desc: '把用户引导到合适的活动、卡券或入口' },
+  { key: 'nearby_station', label: '附近站点', desc: '配合站点福利和借还场景给出附近站点指引' },
 ]
 
 function validateJson(str: string) {
@@ -327,6 +335,53 @@ export default function AgentWenwenPage() {
             </Paragraph>
           </div>
         </Space>
+      </Card>
+
+      <Card title={<Space><GiftOutlined />当前上线范围</Space>}>
+        <Alert
+          type="success"
+          showIcon
+          message="问问当前优先承接优惠问答、卡券推荐、福利领取与活动引导"
+          description="这层是当前 AI Agent 里最适合先上线的部分。它直接对应用户侧的福利中心、卡券、活动、附近站点和身份门控，不需要先把内部经营/运维 Agent 做完。"
+          style={{ marginBottom: 16 }}
+        />
+        <Row gutter={[12, 12]}>
+          <Col xs={24} lg={10}>
+            <div style={{ background: '#f7fbff', border: '1px solid #d6e4ff', borderRadius: 12, padding: 16, height: '100%' }}>
+              <Space direction="vertical" size={10} style={{ width: '100%' }}>
+                <div>
+                  <Text strong>当前建议定位</Text>
+                  <Paragraph type="secondary" style={{ margin: '6px 0 0' }}>
+                    问问是用户侧的优惠与权益承接 Agent，负责把“咨询 → 识别身份 → 推荐优惠 → 引导领取/使用”这条链路接起来。
+                  </Paragraph>
+                </div>
+                <div>
+                  <Text strong>当前已保留资产</Text>
+                  <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <Tag color="blue">10 个 Skills</Tag>
+                    <Tag color="cyan">6 个卡片模板</Tag>
+                    <Tag color="green">5 份协议/规则内容</Tag>
+                    <Tag color="purple">身份分层门控</Tag>
+                  </div>
+                </div>
+              </Space>
+            </div>
+          </Col>
+          <Col xs={24} lg={14}>
+            <Row gutter={[12, 12]}>
+              {BENEFIT_CAPABILITIES.map((item) => (
+                <Col xs={24} sm={12} key={item.key}>
+                  <div style={{ border: '1px solid #f0f0f0', borderRadius: 12, padding: 14, background: '#fff' }}>
+                    <Text strong>{item.label}</Text>
+                    <Paragraph type="secondary" style={{ margin: '6px 0 0', minHeight: 44 }}>
+                      {item.desc}
+                    </Paragraph>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Col>
+        </Row>
       </Card>
 
       {/* 1. 基础信息编辑区 */}

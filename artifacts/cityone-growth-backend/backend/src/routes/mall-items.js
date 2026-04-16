@@ -15,6 +15,19 @@ function sendError(res, sendJson, statusCode, errorCode, msg) {
   return sendJson(res, statusCode, { code: statusCode, msg, error: errorCode });
 }
 
+function buildAttributionSnapshot(source = {}) {
+  return {
+    source_entry_id: String(source.source_entry_id || "").trim(),
+    source_activity_id: String(source.source_activity_id || "").trim(),
+    source_landing_id: String(source.source_landing_id || "").trim(),
+    source_banner_id: String(source.source_banner_id || "").trim(),
+    source_channel_id: String(source.source_channel_id || "").trim(),
+    source_station_code: String(source.source_station_code || "").trim(),
+    source_a_system_station_id: String(source.source_a_system_station_id || "").trim(),
+    source_device_code: String(source.source_device_code || source.device_code || "").trim(),
+  };
+}
+
 /** 将 pg mall_items 行规范化为 API 格式 */
 function itemRow(row) {
   return {
@@ -51,6 +64,17 @@ function generateId() {
 function toJsonb(v) {
   if (v == null) return null;
   return JSON.stringify(v);
+}
+
+async function countLinkedCoupons(itemId, { activeOnly = false } = {}) {
+  const result = await query(
+    `SELECT COUNT(*) AS cnt
+       FROM coupons
+      WHERE linked_mall_item_id = $1
+        ${activeOnly ? "AND benefit_action_type = 'product_exchange' AND status = 1" : ""}`,
+    [itemId]
+  );
+  return Number(result.rows[0]?.cnt || 0);
 }
 
 // ── GET /api/growth/mall/items/:id  — 单件商品 ──────────────────────────────
@@ -144,6 +168,19 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
     const existing = await query("SELECT id FROM mall_items WHERE id = $1", [itemId]);
     if (!existing.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
 
+    if (body.on_shelf === false || body.on_shelf === "false") {
+      const activeLinkedCoupons = await countLinkedCoupons(itemId, { activeOnly: true });
+      if (activeLinkedCoupons > 0) {
+        return sendError(
+          res,
+          sendJson,
+          400,
+          "ITEM_LINKED_BY_ACTIVE_COUPONS",
+          "该商品仍被启用中的商品兑换券绑定，请先停用或解绑相关卡券"
+        );
+      }
+    }
+
     const sets   = [];
     const params = [];
     let   idx    = 1;
@@ -188,6 +225,17 @@ export async function handleUpdateMallItem(req, res, sendJson, body, itemId) {
 export async function handleDeleteMallItem(req, res, sendJson, itemId) {
   if (!req._admin) return sendJson(res, 401, { code: 401, msg: "未登录", error: "UNAUTH" });
   try {
+    const linkedCoupons = await countLinkedCoupons(itemId);
+    if (linkedCoupons > 0) {
+      return sendError(
+        res,
+        sendJson,
+        400,
+        "ITEM_LINKED_BY_COUPONS",
+        "该商品已被卡券绑定，请先在卡券管理中解除绑定后再删除"
+      );
+    }
+
     const result = await query("DELETE FROM mall_items WHERE id = $1 RETURNING id", [itemId]);
     if (!result.rows.length) return sendError(res, sendJson, 404, "NOT_FOUND", "Item not found");
     return sendOk(res, sendJson, "deleted", null);
@@ -226,6 +274,7 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
     const body   = await readBody(req);
     const userId = String(body.user_id || body.line_user_id || "").trim();
     const itemId = String(body.item_id || "").trim();
+    const attribution = buildAttributionSnapshot(body);
 
     if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "user_id 必填");
     if (!itemId) return sendError(res, sendJson, 400, "MISSING_ITEM_ID", "item_id 必填");
@@ -298,9 +347,26 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
       // 4. 写积分流水（debit）
       await client.query(`
         INSERT INTO points_ledger
-          (id, user_id, line_user_id, type, points, ref_type, ref_id, reason, created_at)
-        VALUES ($1,$2,$3,'debit',$4,'exchange',$5,$6,$7)
-      `, [ledgerId, userId, userId, pointsRequired, itemId, `积分兑换：${itemNameDisplay}`, now]);
+          (id, user_id, line_user_id, type, points, ref_type, ref_id, reason,
+           source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
+           source_station_code, source_a_system_station_id, source_device_code,
+           created_at)
+        VALUES ($1,$2,$3,'debit',$4,'exchange',$5,$6,
+                $7,$8,$9,$10,$11,
+                $12,$13,$14,
+                $15)
+      `, [
+        ledgerId, userId, userId, pointsRequired, itemId, `积分兑换：${itemNameDisplay}`,
+        attribution.source_entry_id,
+        attribution.source_activity_id,
+        attribution.source_landing_id,
+        attribution.source_banner_id,
+        attribution.source_channel_id,
+        attribution.source_station_code,
+        attribution.source_a_system_station_id,
+        attribution.source_device_code,
+        now,
+      ]);
 
       // 5. UPSERT 积分账户
       await client.query(`
@@ -320,12 +386,26 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
       await client.query(`
         INSERT INTO mall_redeems
           (id, user_id, line_user_id, item_id, item_name, points_spent, status, ledger_id,
+           source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
+           source_station_code, source_a_system_station_id, source_device_code,
            delivery_type, delivery_name, delivery_phone, delivery_address, delivery_station_id,
            shipping_status, created_at, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
+                $9,$10,$11,$12,$13,
+                $14,$15,$16,
+                $17,$18,$19,$20,$21,
+                $22,$22)
       `, [
         redeemId, userId, userId, itemId, toJsonb(item.name), pointsRequired,
         redeemStatus, ledgerId,
+        attribution.source_entry_id,
+        attribution.source_activity_id,
+        attribution.source_landing_id,
+        attribution.source_banner_id,
+        attribution.source_channel_id,
+        attribution.source_station_code,
+        attribution.source_a_system_station_id,
+        attribution.source_device_code,
         isPhysical ? effectiveDeliveryType : null,
         deliveryName, deliveryPhone, deliveryAddress, deliveryStationId,
         isPhysical ? "pending" : null, now,

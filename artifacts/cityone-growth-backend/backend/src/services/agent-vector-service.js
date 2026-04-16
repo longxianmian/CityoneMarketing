@@ -49,6 +49,69 @@ function getIntentIndex() {
   return _intentIndex;
 }
 
+function normalizeText(text = "") {
+  return String(text).trim().toLowerCase();
+}
+
+function computePhraseSimilarity(input, phrase) {
+  const source = normalizeText(input);
+  const target = normalizeText(phrase);
+  if (!source || !target) return 0;
+  if (source === target) return 0.99;
+  if (source.includes(target)) return 0.93;
+  if (target.includes(source)) return 0.9;
+
+  const sourceChars = [...new Set(source.replace(/\s+/g, ""))];
+  const targetChars = [...new Set(target.replace(/\s+/g, ""))];
+  if (!sourceChars.length || !targetChars.length) return 0;
+
+  const shared = sourceChars.filter((char) => targetChars.includes(char)).length;
+  const overlap = shared / Math.max(targetChars.length, 1);
+  if (overlap < 0.35) return 0;
+  return 0.55 + Math.min(overlap, 1) * 0.35;
+}
+
+function classifyIntentLocally(userText, topK = 3) {
+  const intents = loadAgentIntents().filter((intent) => intent.enabled !== false);
+  const ranked = intents
+    .map((intent) => {
+      const phrases = [
+        ...(intent.phrases?.zh || []),
+        ...(intent.phrases?.th || []),
+        ...(intent.phrases?.en || []),
+      ];
+      let bestScore = 0;
+      for (const phrase of phrases) {
+        bestScore = Math.max(bestScore, computePhraseSimilarity(userText, phrase));
+      }
+      return {
+        intent_code: intent.intent_code,
+        intent_name: intent.intent_name,
+        dispatch_mode: intent.dispatch_mode || "tool_then_card",
+        tool_name: intent.tool_name || null,
+        card_template_key: intent.card_template_key || null,
+        oss_content_key: intent.oss_content_key || null,
+        intent_scope: intent.intent_scope || "in_scope",
+        requires_confirmation: !!intent.requires_confirmation,
+        requires_payment: !!intent.requires_payment,
+        similarity_threshold: intent.similarity_threshold || 0.68,
+        priority: intent.priority || 10,
+        similarity: parseFloat(bestScore.toFixed(4)),
+      };
+    })
+    .filter((item) => item.similarity > 0)
+    .sort((a, b) => b.similarity - a.similarity || a.priority - b.priority)
+    .slice(0, topK);
+
+  const topIntent =
+    ranked.length > 0 &&
+    ranked[0].similarity >= Math.max(GLOBAL_SIMILARITY_THRESHOLD, (ranked[0].similarity_threshold || 0.68) - 0.08)
+      ? ranked[0]
+      : null;
+
+  return { ready: true, results: ranked, topIntent };
+}
+
 /**
  * LLM 分类意图（当 pgvector embedding 不可用时作为降级）
  * 复用 agent-llm-service.js 的 recognizeIntentWithLLM（已有的稳定实现）
@@ -92,7 +155,8 @@ async function classifyIntentByLLM(userText, language = "zh") {
     return { ready: true, results: [intentRow], topIntent: intentRow };
   } catch (err) {
     console.error("[vector] LLM 分类失败:", err.message);
-    return { ready: false, results: [], topIntent: null };
+    console.warn("[vector] 使用本地短语匹配兜底");
+    return classifyIntentLocally(userText, 3);
   }
 }
 
@@ -153,7 +217,12 @@ export async function searchIntent(userText, topK = 3, language = "zh") {
 
   /* ── 路径 2：LLM 分类（embedding 不可用或 pgvector 查询失败时）─────────── */
   console.log("[vector] 使用 LLM 分类意图");
-  return classifyIntentByLLM(userText, language);
+  const fallback = await classifyIntentByLLM(userText, language);
+  if (fallback.ready && (fallback.topIntent || fallback.results.length > 0)) {
+    return fallback;
+  }
+  console.warn("[vector] LLM 分类未命中，使用本地短语匹配兜底");
+  return classifyIntentLocally(userText, topK);
 }
 
 /* ─── 意图种子写入 ──────────────────────────────────────────────────────────── */
@@ -270,9 +339,17 @@ export async function reEmbedIntent(intentCode) {
   const intents = loadAgentIntents();
   const intent = intents.find((i) => i.intent_code === intentCode);
   if (!intent) throw new Error(`意图 ${intentCode} 不存在`);
-  const result = await upsertIntentWithEmbedding(intent);
-  resetVectorReadyCache();
-  return result;
+  try {
+    const result = await upsertIntentWithEmbedding(intent);
+    resetVectorReadyCache();
+    return result;
+  } catch (err) {
+    return {
+      intent_code: intentCode,
+      embedded: false,
+      error: err.message || "database unavailable",
+    };
+  }
 }
 
 /* ─── 召回测试（管理端测试台）──────────────────────────────────────────────── */
@@ -317,6 +394,21 @@ export async function listIntentLabels() {
     );
     return res.rows;
   } catch {
-    return [];
+    return loadAgentIntents().map((intent, index) => ({
+      id: index + 1,
+      intent_code: intent.intent_code,
+      intent_name: intent.intent_name,
+      dispatch_mode: intent.dispatch_mode || "tool_then_card",
+      tool_name: intent.tool_name || null,
+      card_template_key: intent.card_template_key || null,
+      intent_scope: intent.intent_scope || "in_scope",
+      requires_confirmation: !!intent.requires_confirmation,
+      requires_payment: !!intent.requires_payment,
+      similarity_threshold: intent.similarity_threshold || 0.68,
+      priority: intent.priority || 10,
+      is_enabled: intent.enabled !== false,
+      updated_at: new Date().toISOString(),
+      has_embedding: false,
+    }));
   }
 }

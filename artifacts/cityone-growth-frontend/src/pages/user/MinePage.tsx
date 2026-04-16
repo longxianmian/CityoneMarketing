@@ -27,6 +27,10 @@ import {
   getUserOrders,
 } from '../../api/growth'
 import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
+import {
+  buildOwnedBenefitDetailPath,
+  getBenefitPrimaryAction,
+} from './benefitAction'
 
 // 将 UTC 时间戳转换为曼谷时间（UTC+7）显示
 function fmtBKK(iso?: string | null): string {
@@ -872,68 +876,84 @@ export default function MinePage() {
                   </div>
                 ) : (
                   benefitItems.map((item, i) => (
-                    <div
-                      key={item.user_product_id || i}
-                      onClick={() => item.product_id && navigate(`/coupon/${item.product_id}?owned=1`)}
-                      style={{
-                        border: '1px solid #ECF1F6',
-                        borderRadius: 14,
-                        padding: '12px 14px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 12,
-                        cursor: item.product_id ? 'pointer' : 'default',
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ marginBottom: 4 }}>
-                          <Tag color={couponStatusLabel[couponSub].color}>
-                            {couponStatusLabel[couponSub].text}
-                          </Tag>
-                        </div>
-                        <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
-                          {typeof item.product_name === 'object' && item.product_name
-                            ? (item.product_name[language] || item.product_name.en || item.product_name.zh || item.product_name.th || t('mine.defaultProductName'))
-                            : (item.product_name || t('mine.defaultProductName'))}
-                        </div>
-                        {item.short_benefit_text && (
-                          <div
-                            style={{ color: '#FF7A59', fontWeight: 700, fontSize: 13, marginBottom: 4 }}
-                          >
-                            {item.short_benefit_text}
-                          </div>
-                        )}
-                        <div style={{ color: '#A0A7B3', fontSize: 12 }}>
-                          {item.expire_at
-                            ? `${t('mine.expireAtPrefix')}${fmtBKK(item.expire_at).slice(0, 10)}`
-                            : item.issued_at
-                            ? `${t('mine.issuedAtPrefix')}${fmtBKK(item.issued_at).slice(0, 10)}`
-                            : ''}
-                        </div>
-                      </div>
-                      {couponSub === 'available' && item.product_id && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/coupon/${item.product_id}?owned=1`)
-                          }}
+                    (() => {
+                      const detailRoute = buildOwnedBenefitDetailPath(item)
+                      const primaryAction = getBenefitPrimaryAction({
+                        benefit: item,
+                        status: item.status,
+                        language,
+                        couponId: item.product_id,
+                        userProductId: item.user_product_id,
+                      })
+
+                      return (
+                        <div
+                          key={item.user_product_id || i}
+                          onClick={() => item.product_id && navigate(detailRoute)}
                           style={{
-                            border: `1.5px solid #2CDBCE`,
-                            borderRadius: 20,
-                            padding: '6px 14px',
-                            background: 'transparent',
-                            color: '#2CDBCE',
-                            fontWeight: 700,
-                            fontSize: 13,
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
+                            border: '1px solid #ECF1F6',
+                            borderRadius: 14,
+                            padding: '12px 14px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 12,
+                            cursor: item.product_id ? 'pointer' : 'default',
                           }}
                         >
-                          {t('mine.useNowCoupon')}
-                        </button>
-                      )}
-                    </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ marginBottom: 4 }}>
+                              <Tag color={couponStatusLabel[couponSub].color}>
+                                {couponStatusLabel[couponSub].text}
+                              </Tag>
+                            </div>
+                            <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
+                              {typeof item.product_name === 'object' && item.product_name
+                                ? (item.product_name[language] || item.product_name.en || item.product_name.zh || item.product_name.th || t('mine.defaultProductName'))
+                                : (item.product_name || t('mine.defaultProductName'))}
+                            </div>
+                            {item.short_benefit_text && (
+                              <div
+                                style={{ color: '#FF7A59', fontWeight: 700, fontSize: 13, marginBottom: 4 }}
+                              >
+                                {item.short_benefit_text}
+                              </div>
+                            )}
+                            <div style={{ color: '#A0A7B3', fontSize: 12 }}>
+                              {item.expire_at
+                                ? `${t('mine.expireAtPrefix')}${fmtBKK(item.expire_at).slice(0, 10)}`
+                                : item.issued_at
+                                ? `${t('mine.issuedAtPrefix')}${fmtBKK(item.issued_at).slice(0, 10)}`
+                                : ''}
+                            </div>
+                          </div>
+                          {couponSub === 'available' && item.product_id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (!primaryAction.disabled && primaryAction.route) {
+                                  navigate(primaryAction.route)
+                                }
+                              }}
+                              disabled={primaryAction.disabled}
+                              style={{
+                                border: `1.5px solid ${primaryAction.disabled ? '#D0D5DD' : '#2CDBCE'}`,
+                                borderRadius: 20,
+                                padding: '6px 14px',
+                                background: 'transparent',
+                                color: primaryAction.disabled ? '#98A2B3' : '#2CDBCE',
+                                fontWeight: 700,
+                                fontSize: 13,
+                                cursor: primaryAction.disabled ? 'not-allowed' : 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {primaryAction.label}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })()
                   ))
                 )}
               </Spin>

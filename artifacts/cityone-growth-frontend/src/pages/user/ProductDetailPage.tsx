@@ -22,6 +22,9 @@ export default function ProductDetailPage() {
   const [searchParams] = useSearchParams()
   const { language, t } = useI18n()
   const lang = language as AppLanguage
+  const couponExchangeMode = searchParams.get('coupon_owned') === '1' && !!searchParams.get('coupon_id')
+  const couponId = searchParams.get('coupon_id') || ''
+  const couponUserProductId = searchParams.get('up') || ''
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
@@ -87,11 +90,19 @@ export default function ProductDetailPage() {
     setActing(true)
     try {
       const userId = effectiveUserId
-      const res: any = await (request.post as any)('/growth/mall/redeem', {
-        user_id: userId,
-        item_id: product.id,
-        ...extraFields,
-      })
+      const res: any = couponExchangeMode
+        ? await (request.post as any)('/user/coupons/exchange-mall-item', {
+            user_id: userId,
+            coupon_id: couponId,
+            user_product_id: couponUserProductId || undefined,
+            item_id: product.id,
+            ...extraFields,
+          })
+        : await (request.post as any)('/growth/mall/redeem', {
+            user_id: userId,
+            item_id: product.id,
+            ...extraFields,
+          })
       const data = res?.data || res
       if (data?.error === 'INSUFFICIENT_POINTS' || res?.code === 400) {
         message.error(lang === 'zh' ? '积分不足，无法兑换' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient points')
@@ -143,7 +154,7 @@ export default function ProductDetailPage() {
       async () => {
         const userId = effectiveUserId
         const pointsRequired = Number(product.points_required) || 0
-        if (pointsRequired > 0) {
+        if (!couponExchangeMode && pointsRequired > 0) {
           try {
             const summaryRes: any = await (request.get as any)(`/growth/user/points/summary?user_id=${encodeURIComponent(userId)}`)
             const summaryData = summaryRes?.data || summaryRes
@@ -167,7 +178,9 @@ export default function ProductDetailPage() {
       },
       {
         label: productName,
-        returnPath: `/redeem/${id}?auto=redeem`,
+        returnPath: couponExchangeMode
+          ? `/redeem/${id}?auto=redeem&coupon_owned=1&coupon_id=${encodeURIComponent(couponId)}${couponUserProductId ? `&up=${encodeURIComponent(couponUserProductId)}` : ''}`
+          : `/redeem/${id}?auto=redeem`,
         back: `/redeem/${id}`,
       }
     )
@@ -219,15 +232,19 @@ export default function ProductDetailPage() {
   // ── 兑换成功页 ──────────────────────────────────────────────────────────────
   if (redeemSuccess && product) {
     const title = pick(product.name)
-    const pointsSpent = product.points_required || 0
+    const pointsSpent = couponExchangeMode ? 0 : (product.points_required || 0)
     const successColor = redeemIsPhysical ? 'linear-gradient(180deg, #fa8c16 0%, #ffc53d 100%)' : 'linear-gradient(180deg, #1677ff 0%, #69b1ff 100%)'
     const successIcon = redeemIsPhysical ? <BoxPlotOutlined style={{ fontSize: 64, color: '#fa8c16', marginBottom: 16 }} /> : <CheckCircleOutlined style={{ fontSize: 64, color: '#52c41a', marginBottom: 16 }} />
     const successTitle = redeemIsPhysical
       ? (lang === 'zh' ? '订单已提交！' : lang === 'th' ? 'สั่งซื้อสำเร็จ!' : 'Order Placed!')
-      : (lang === 'zh' ? '兑换成功！' : lang === 'th' ? 'แลกสำเร็จ!' : 'Redeemed!')
+      : couponExchangeMode
+        ? (lang === 'zh' ? '用券成功！' : lang === 'th' ? 'ใช้คูปองสำเร็จ!' : 'Coupon Applied!')
+        : (lang === 'zh' ? '兑换成功！' : lang === 'th' ? 'แลกสำเร็จ!' : 'Redeemed!')
     const successDesc = redeemIsPhysical
       ? (lang === 'zh' ? '实物商品订单已提交，我们将尽快审核并安排配送，请留意站内通知。' : lang === 'th' ? 'คำสั่งสินค้าจริงถูกส่งแล้ว เราจะรีวิวและจัดส่งโดยเร็ว โปรดตรวจสอบการแจ้งเตือน' : 'Your physical order has been submitted. We\'ll process and ship it soon.')
-      : (lang === 'zh' ? '数字商品已成功兑换，即时发放到账户。' : lang === 'th' ? 'สินค้าดิจิทัลแลกสำเร็จแล้ว ส่งไปยังบัญชีของคุณทันที' : 'Your digital item has been redeemed and delivered to your account.')
+      : couponExchangeMode
+        ? (lang === 'zh' ? '该商品已按卡券权益兑换成功。' : lang === 'th' ? 'สินค้านี้ถูกใช้สิทธิ์จากคูปองเรียบร้อยแล้ว' : 'This item has been redeemed through your coupon benefit.')
+        : (lang === 'zh' ? '数字商品已成功兑换，即时发放到账户。' : lang === 'th' ? 'สินค้าดิจิทัลแลกสำเร็จแล้ว ส่งไปยังบัญชีของคุณทันที' : 'Your digital item has been redeemed and delivered to your account.')
     return (
       <div style={{ minHeight: '100vh', background: successColor, padding: '24px 16px' }}>
         <div style={{ maxWidth: 460, margin: '0 auto' }}>
@@ -238,15 +255,19 @@ export default function ProductDetailPage() {
             <div style={{ background: 'linear-gradient(135deg, #f0f5ff 0%, #e6f4ff 100%)', border: '1px solid #adc6ff', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#333', marginBottom: 8 }}>{title}</div>
               <div style={{ fontSize: 13, color: '#1677ff' }}>
-                { lang === 'zh' ? `消耗 ${pointsSpent} 积分` : lang === 'th' ? `ใช้ ${pointsSpent} คะแนน` : `${pointsSpent} pts spent` }
+                {couponExchangeMode
+                  ? (lang === 'zh' ? '已使用绑定卡券兑换' : lang === 'th' ? 'ใช้คูปองที่ผูกไว้ในการแลก' : 'Redeemed with linked coupon')
+                  : (lang === 'zh' ? `消耗 ${pointsSpent} 积分` : lang === 'th' ? `ใช้ ${pointsSpent} คะแนน` : `${pointsSpent} pts spent`)}
               </div>
             </div>
             <Space direction="vertical" style={{ width: '100%' }}>
               <Button type="primary" size="large" block onClick={() => nav('/welfare')}>
                 { lang === 'zh' ? '返回福利中心' : lang === 'th' ? 'กลับศูนย์สิทธิ์' : 'Back to Benefits' }
               </Button>
-              <Button size="large" block onClick={() => nav('/mine?tab=member')}>
-                { lang === 'zh' ? '查看我的积分' : lang === 'th' ? 'ดูคะแนนของฉัน' : 'My Points' }
+              <Button size="large" block onClick={() => nav(couponExchangeMode ? '/mine?tab=benefit' : '/mine?tab=member')}>
+                { couponExchangeMode
+                  ? (lang === 'zh' ? '查看我的权益' : lang === 'th' ? 'ดูสิทธิ์ของฉัน' : 'My Benefits')
+                  : (lang === 'zh' ? '查看我的积分' : lang === 'th' ? 'ดูคะแนนของฉัน' : 'My Points') }
               </Button>
             </Space>
           </div>
@@ -294,7 +315,7 @@ export default function ProductDetailPage() {
   const redeemNotice = ''
   const coverImage = product.cover_image || ''
   const coverVideo = product.cover_video || ''
-  const pointsPrice = product.points_required || 0
+  const pointsPrice = couponExchangeMode ? 0 : (product.points_required || 0)
   const cashPrice = (product.exchange_mode === 'mix' && product.price_thb) ? product.price_thb : 0
   const isPhysical = product.item_type === 'physical'
   const deliveryType = product.delivery_type || 'courier'
@@ -315,6 +336,8 @@ export default function ProductDetailPage() {
   const actionType = isOutOfStock ? 'out_of_stock' : isPhysical ? 'physical_redeem' : pointsPrice > 0 ? 'points_redeem' : 'free_claim'
   const actionText = isOutOfStock
     ? (lang === 'zh' ? '已售罄' : lang === 'th' ? 'สินค้าหมด' : 'Out of Stock')
+    : couponExchangeMode
+      ? (lang === 'zh' ? '立即用券兑换' : lang === 'th' ? 'ใช้คูปองแลกทันที' : 'Redeem with Coupon')
     : isPhysical
       ? (lang === 'zh' ? '立即兑换' : lang === 'th' ? 'แลกเดี๋ยวนี้' : 'Redeem Now')
       : ACTION_MAP[actionType]?.text || t('productDetail.actionFreeClaim')
@@ -432,7 +455,15 @@ export default function ProductDetailPage() {
           </ProdSection>
         )}
 
-        {pointsPrice === 0 && cashPrice === 0 && (
+        {couponExchangeMode && (
+          <ProdSection title={lang === 'zh' ? '兑换方式' : lang === 'th' ? 'วิธีใช้งาน' : 'Redemption Method'}>
+            <span style={{ fontSize: 20, fontWeight: 700, color: '#722ed1' }}>
+              {lang === 'zh' ? '已绑定卡券兑换' : lang === 'th' ? 'แลกด้วยคูปองที่ผูกไว้' : 'Redeem with Linked Coupon'}
+            </span>
+          </ProdSection>
+        )}
+
+        {!couponExchangeMode && pointsPrice === 0 && cashPrice === 0 && (
           <ProdSection title={t('productDetail.sectionGetMethod')}>
             <span style={{ fontSize: 20, fontWeight: 700, color: '#52c41a' }}>{t('productDetail.freeClaim')}</span>
           </ProdSection>
@@ -493,7 +524,9 @@ export default function ProductDetailPage() {
 
       {/* 确认兑换弹窗（数字商品） */}
       <Modal
-        title={lang === 'zh' ? '确认积分兑换' : lang === 'th' ? 'ยืนยันการแลกคะแนน' : 'Confirm Redemption'}
+        title={couponExchangeMode
+          ? (lang === 'zh' ? '确认用券兑换' : lang === 'th' ? 'ยืนยันการใช้คูปองแลก' : 'Confirm Coupon Redemption')
+          : (lang === 'zh' ? '确认积分兑换' : lang === 'th' ? 'ยืนยันการแลกคะแนน' : 'Confirm Redemption')}
         open={confirmOpen}
         onCancel={() => setConfirmOpen(false)}
         onOk={() => doRedeem()}
@@ -506,14 +539,16 @@ export default function ProductDetailPage() {
             <strong>{lang === 'zh' ? '商品名称：' : lang === 'th' ? 'สินค้า: ' : 'Item: '}</strong>
             {pick(product?.name)}
           </div>
-          {(product?.points_required || 0) > 0 && (
+          {!couponExchangeMode && (product?.points_required || 0) > 0 && (
             <div>
               <strong>{lang === 'zh' ? '所需积分：' : lang === 'th' ? 'คะแนนที่ใช้: ' : 'Points: '}</strong>
               {product.points_required} {lang === 'zh' ? '积分' : lang === 'th' ? 'คะแนน' : 'pts'}
             </div>
           )}
           <div style={{ fontSize: 13, color: '#888', background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
-            {lang === 'zh' ? '确认兑换后积分立即扣除，数字商品即时到账。' : lang === 'th' ? 'หลังยืนยัน คะแนนจะถูกหักทันที สินค้าดิจิทัลส่งถึงบัญชีทันที' : 'Points will be deducted immediately and the digital item delivered instantly.'}
+            {couponExchangeMode
+              ? (lang === 'zh' ? '确认后将直接消耗这张已拥有卡券，并完成商品兑换。' : lang === 'th' ? 'หลังยืนยัน ระบบจะใช้คูปองใบนี้และแลกสินค้าให้ทันที' : 'Confirming will consume this owned coupon and complete the linked item redemption.')
+              : (lang === 'zh' ? '确认兑换后积分立即扣除，数字商品即时到账。' : lang === 'th' ? 'หลังยืนยัน คะแนนจะถูกหักทันที สินค้าดิจิทัลส่งถึงบัญชีทันที' : 'Points will be deducted immediately and the digital item delivered instantly.')}
           </div>
         </div>
       </Modal>
@@ -537,11 +572,17 @@ export default function ProductDetailPage() {
         <div style={{ paddingTop: 8 }}>
           {/* 消耗积分提示 */}
           <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#d46b08' }}>
-            {lang === 'zh'
-              ? `兑换将消耗 ${product?.points_required || 0} 积分，确认后立即扣除`
-              : lang === 'th'
-                ? `การแลกจะใช้ ${product?.points_required || 0} คะแนน หักทันทีหลังยืนยัน`
-                : `Redeeming will use ${product?.points_required || 0} pts, deducted immediately`}
+            {couponExchangeMode
+              ? (lang === 'zh'
+                  ? '本次将直接消耗这张已拥有卡券，不再扣减积分'
+                  : lang === 'th'
+                    ? 'ครั้งนี้จะใช้คูปองใบนี้โดยตรง และจะไม่หักคะแนน'
+                    : 'This action will consume the owned coupon directly and will not deduct points.')
+              : (lang === 'zh'
+                  ? `兑换将消耗 ${product?.points_required || 0} 积分，确认后立即扣除`
+                  : lang === 'th'
+                    ? `การแลกจะใช้ ${product?.points_required || 0} คะแนน หักทันทีหลังยืนยัน`
+                    : `Redeeming will use ${product?.points_required || 0} pts, deducted immediately`)}
           </div>
 
           {/* 已保存地址选择区（快递模式） */}

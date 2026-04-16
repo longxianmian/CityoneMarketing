@@ -17,7 +17,7 @@ import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
 import { toMLObj, pickML, useMLPick } from '../../lib/ml'
 
-import { getActivities, createActivity, updateActivity, deleteActivity } from '../../api/growth'
+import { getActivities, createActivity, updateActivity, deleteActivity, getCouponList } from '../../api/growth'
 import request from '../../api/request'
 import StationScopeSelect, { type StationScope } from '../../components/StationScopeSelect'
 import TranslateBatchButton, { asyncTranslateItem } from '../../components/TranslateBatchButton'
@@ -68,10 +68,6 @@ export default function ActivityManage() {
     ended: { label: am('statusEnded'), color: 'red' },
   }
 
-  const mockCoupons = [
-    am('coupon1'), am('coupon2'), am('coupon3'), am('coupon4'), am('coupon5'),
-  ]
-
   const toLocal = (a: any) => ({
     id: a.activity_id,
     name: toMlObj(a.activity_name || a.activity_title),
@@ -87,6 +83,10 @@ export default function ActivityManage() {
     ownerDept: a.owner_dept || '',
     partnerDept: a.partner_dept || '',
     couponName: a.coupon_name || '',
+    rewardCouponIds: Array.isArray(a.reward_coupon_ids) ? a.reward_coupon_ids : [],
+    rewardCouponNames: Array.isArray(a.reward_coupon_names) ? a.reward_coupon_names : [],
+    rewardBindingCount: Number(a.reward_binding_count || 0),
+    rewardReady: !!a.reward_ready,
     highlights: toMlObj(a.highlights),
     participationGuide: toMlObj(a.participation_guide),
     rewardGuide: toMlObj(a.reward_guide),
@@ -117,6 +117,22 @@ export default function ActivityManage() {
 
   useEffect(() => { loadList() }, [])
 
+  useEffect(() => {
+    getCouponList({ pageNum: 1, pageSize: 200 })
+      .then((res: any) => {
+        const rows = res?.data?.rows || res?.data?.list || []
+        setCouponOptions(
+          rows
+            .filter((item: any) => Number(item.status) === 1)
+            .map((item: any) => ({
+              value: String(item.id),
+              label: `${pickText(item.name, 'zh') || item.id} (${item.id})`,
+            }))
+        )
+      })
+      .catch(() => setCouponOptions([]))
+  }, [])
+
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [goalFilter, setGoalFilter] = useState<string>('all')
@@ -135,6 +151,7 @@ export default function ActivityManage() {
   const [stationScope, setStationScope] = useState<StationScope>({ type: 'all' })
   const [gameProgramOptions, setGameProgramOptions] = useState<any[]>([])
   const [gameProgramLoading, setGameProgramLoading] = useState(false)
+  const [couponOptions, setCouponOptions] = useState<{ value: string; label: string }[]>([])
   const activityTypeInForm = Form.useWatch('activityType', form)
 
   const GAME_TYPES_SET = new Set(['lucky_wheel', 'scratch_card'])
@@ -167,6 +184,7 @@ export default function ActivityManage() {
         pickText(item.name, 'zh').includes(kw) ||
         pickText(item.name, 'en').includes(kw) ||
         (item.couponName || '').includes(kw) ||
+        (item.rewardCouponNames || []).some((name: string) => String(name || '').includes(kw)) ||
         pickText(item.subTitle, 'zh').includes(kw)
       const okStatus = !statusFilter || item.status === statusFilter
       const okGoal = goalFilter === 'all' || item.goal === goalFilter
@@ -223,6 +241,7 @@ export default function ActivityManage() {
       participationGuide: pickText(record.participationGuide, lang),
       rewardGuide:        pickText(record.rewardGuide, lang),
       noticeText:         pickText(record.noticeText, lang),
+      rewardCouponIds:    record.rewardCouponIds || [],
       dateRange: record.start_at && record.end_at ? [dayjs(record.start_at), dayjs(record.end_at)] : undefined,
       gameProgramId: record.gameProgramId || record.game_program_id || undefined,
       mode: record.mode || undefined,
@@ -241,8 +260,8 @@ export default function ActivityManage() {
       await updateActivity(record.id, { status: nextStatus })
       message.success(am('statusUpdated'))
       loadList()
-    } catch {
-      message.error('状态更新失败，请重试')
+    } catch (e: any) {
+      message.error(e?.response?.data?.msg || '状态更新失败，请重试')
     }
   }
 
@@ -316,6 +335,7 @@ export default function ActivityManage() {
         cover_video: coverVideo,
         template_id: values.template_id || '',
         status: values.status || 'draft',
+        reward_coupon_ids: values.rewardCouponIds || [],
         station_scope: stationScope,
       }
       if (isEdit && editingRecord) {
@@ -366,8 +386,23 @@ export default function ActivityManage() {
     { title: am('colOwnerDept'), dataIndex: 'ownerDept', key: 'ownerDept', width: 120 },
     { title: am('colPartnerDept'), dataIndex: 'partnerDept', key: 'partnerDept', width: 120 },
     {
-      title: am('colCoupon'), dataIndex: 'couponName', key: 'couponName', width: 160,
-      render: (v: string) => v || '--',
+      title: am('colCoupon'), dataIndex: 'rewardCouponNames', key: 'rewardCouponNames', width: 220,
+      render: (_: any, row: any) => {
+        const names: string[] = row.rewardCouponNames || []
+        if (names.length === 0) {
+          return row.rewardReady
+            ? <Tag color="blue">积分/游戏奖励</Tag>
+            : <Tag color="red">未配置奖励</Tag>
+        }
+        return (
+          <div style={{ display: 'grid', gap: 4 }}>
+            {names.slice(0, 2).map((name, index) => (
+              <span key={`${row.id}_${index}`} style={{ lineHeight: 1.4 }}>{name}</span>
+            ))}
+            {names.length > 2 && <span style={{ color: '#888', fontSize: 12 }}>+{names.length - 2} 张奖励券</span>}
+          </div>
+        )
+      },
     },
     {
       title: am('colStatus'), dataIndex: 'status', key: 'status', width: 100,
@@ -638,6 +673,21 @@ export default function ActivityManage() {
             </Col>
           </Row>
 
+          <Form.Item
+            name="rewardCouponIds"
+            label="奖励卡券"
+            extra="活动参与成功后自动发放；如果上线时没有配置积分、奖励卡券或游戏方案，系统会禁止发布"
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={couponOptions}
+              placeholder="选择要自动发放的奖励卡券"
+            />
+          </Form.Item>
+
           {activityTypeInForm && GAME_TYPES_SET.has(activityTypeInForm) && (
             <Row gutter={16}>
               <Col xs={24} sm={16}>
@@ -671,7 +721,7 @@ export default function ActivityManage() {
             {(!activityTypeInForm || activityTypeInForm === 'general') && (
               <Col xs={24} sm={12}>
                 <Form.Item name="couponName" label={am('formCoupon')}>
-                  <Select allowClear showSearch options={mockCoupons.map(item => ({ value: item, label: item }))} placeholder={am('formCouponPlaceholder')} />
+                  <Input placeholder="运营备注用，实际发券以“奖励卡券”绑定配置为准" />
                 </Form.Item>
               </Col>
             )}

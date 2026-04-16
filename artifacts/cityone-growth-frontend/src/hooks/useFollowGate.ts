@@ -174,7 +174,6 @@ export function useFollowGate() {
               `${LIFF_URL}/?rp=${encodeURIComponent(fullReturn)}` +
               `&back=${encodeURIComponent(backPath)}` +
               `&action=${encodeURIComponent(label || '')}`
-            console.log('[useFollowGate] jumping to LIFF URL', next)
             window.location.href = next
             return
           }

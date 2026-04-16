@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { query } from "../db/pool.js";
+import { resolveOssUrl } from "../services/ossService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +28,43 @@ function sendOk(res, sendJson, msg, data) {
 
 function sendError(res, sendJson, status, code, msg) {
   return sendJson(res, status, { code: status, error: code, msg });
+}
+
+function resolveBenefitActionType(row) {
+  const explicit = String(row?.benefit_action_type || "").trim();
+  if (
+    explicit === "charge_scan" ||
+    explicit === "product_exchange" ||
+    explicit === "physical_delivery" ||
+    explicit === "benefit_detail"
+  ) {
+    return explicit;
+  }
+
+  const itemType = String(row?.item_type || "").toLowerCase();
+  const couponType = String(row?.coupon_type || "").toLowerCase();
+  const discountType = String(row?.discount_type || "").toLowerCase();
+
+  if (itemType === "physical") return "physical_delivery";
+  if (
+    discountType === "free_order" ||
+    couponType.includes("exchange") ||
+    couponType.includes("gift") ||
+    couponType.includes("product")
+  ) {
+    return "product_exchange";
+  }
+  if (
+    discountType === "free_time" ||
+    discountType === "free_minutes" ||
+    discountType === "fixed" ||
+    discountType === "fixed_off" ||
+    discountType === "percent" ||
+    discountType === "percentage_off"
+  ) {
+    return "charge_scan";
+  }
+  return "benefit_detail";
 }
 
 // ─── 用户身份规则映射 ─────────────────────────────────────────────────────────
@@ -231,19 +269,36 @@ export async function handleUserBenefits(req, res, url, sendJson) {
         uc.coupon_id                  AS product_id,
         c.name                        AS product_name,
         c.coupon_type                 AS product_type,
+        c.coupon_type                 AS coupon_type,
         c.item_type,
         c.discount_type,
         c.discount_value,
+        c.cover_image,
+        c.cover_video,
+        c.benefit_action_type,
+        c.linked_mall_item_id,
+        mi.name                       AS linked_mall_item_name,
+        mi.on_shelf                   AS linked_mall_item_on_shelf,
         uc.product_status,
         uc.claimed_at                 AS issued_at,
         uc.used_at,
+        c.valid_from,
         c.valid_to                    AS expire_at,
+        c.min_amount,
+        c.total_count,
+        c.claimed_count,
         uc.source_type                AS source,
-        NULL::text AS source_landing_id,
+        uc.source_entry_id,
+        uc.source_landing_id,
+        uc.source_banner_id,
         uc.source_channel_id,
+        uc.source_station_code,
+        uc.source_a_system_station_id,
+        uc.source_device_code,
         uc.updated_at
       FROM user_coupons uc
       LEFT JOIN coupons c ON c.id = uc.coupon_id
+      LEFT JOIN mall_items mi ON mi.id = c.linked_mall_item_id
       WHERE ${dataWhere}
       ORDER BY uc.claimed_at DESC NULLS LAST
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
@@ -271,17 +326,35 @@ export async function handleUserBenefits(req, res, url, sendJson) {
       product_id:         row.product_id  || "",
       product_name:       row.product_name || "权益卡券",   // JSONB {zh,th,en} 或 null
       product_type:       row.product_type || "coupon",
+      coupon_type:        row.coupon_type  || row.product_type || "general",
       item_type:          row.item_type    || "digital",
+      discount_type:      row.discount_type || "",
+      discount_value:     Number(row.discount_value || 0),
+      cover_image:        resolveOssUrl(row.cover_image || ""),
+      cover_video:        resolveOssUrl(row.cover_video || ""),
+      linked_mall_item_id: row.linked_mall_item_id || "",
+      linked_mall_item_name: row.linked_mall_item_name || null,
+      linked_mall_item_on_shelf: row.linked_mall_item_on_shelf == null ? null : Boolean(row.linked_mall_item_on_shelf),
       product_subtitle:   "",
       short_benefit_text: buildBenefitText(row.discount_type, row.discount_value),
       status:             mapStatus(row.product_status),
       product_status:     row.product_status,
       issued_at:          row.issued_at   ? new Date(row.issued_at).toISOString()  : "",
       used_at:            row.used_at     ? new Date(row.used_at).toISOString()    : "",
+      valid_from:         row.valid_from  ? new Date(row.valid_from).toISOString() : "",
       expire_at:          row.expire_at   ? new Date(row.expire_at).toISOString()  : "",
+      min_amount:         Number(row.min_amount || 0),
+      total_count:        Number(row.total_count || 0),
+      claimed_count:      Number(row.claimed_count || 0),
       source:             row.source      || "system",
+      source_entry_id:    row.source_entry_id || "",
       source_landing_id:  row.source_landing_id  || "",
+      source_banner_id:   row.source_banner_id || "",
       source_channel_id:  row.source_channel_id  || "",
+      source_station_code: row.source_station_code || "",
+      source_a_system_station_id: row.source_a_system_station_id || "",
+      source_device_code: row.source_device_code || "",
+      benefit_action_type: resolveBenefitActionType(row),
       bridge_status:      "",
     }));
 

@@ -134,6 +134,7 @@ import {
   handleAdminAgentConfigGet,
   handleAdminAgentConfigUpdate,
   handleAdminAgentIntentsGet,
+  handleAdminAgentIntentsCreate,
   handleAdminAgentIntentsUpdate,
   handleAdminAgentToolsGet,
   handleAdminAgentToolsUpdate,
@@ -186,6 +187,7 @@ import {
 import {
   handleGetCityDistricts,
   handleGetStations,
+  handleGetStationBenefits,
   handleGetNearbyStations,
   handleGetStation,
   handleCreateStation,
@@ -256,6 +258,7 @@ import {
 import {
   handleUserCouponList,
   handleCouponClaim,
+  handleCouponExchangeMallItem,
   handleCouponList,
   handleCouponAdd,
   handleCouponUpdate,
@@ -754,6 +757,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/user/coupons/claim") {
       return handleCouponClaim(req, res, url, sendJson, readBody);
     }
+    if (req.method === "POST" && url.pathname === "/api/user/coupons/exchange-mall-item") {
+      return handleCouponExchangeMallItem(req, res, url, sendJson, readBody);
+    }
 
     // ── 卡券管理 ──────────────────────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/api/growth/coupon/list") {
@@ -932,6 +938,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/stations/nearby") {
       return await handleGetNearbyStations(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/stations/benefits") {
+      return await handleGetStationBenefits(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/stations") {
       return await handleGetStations(req, res, url, sendJson);
@@ -1135,6 +1144,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/admin/agent/intents") {
       return handleAdminAgentIntentsGet(req, res, url, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/admin/agent/intents/create") {
+      return handleAdminAgentIntentsCreate(req, res, url, sendJson, readBody);
     }
     if (req.method === "POST" && url.pathname === "/api/admin/agent/intents/update") {
       return handleAdminAgentIntentsUpdate(req, res, url, sendJson, readBody);

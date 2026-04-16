@@ -21,6 +21,14 @@ export default function CouponManage() {
   const { t, language } = useI18n()
   const pick = useMLPick()
 
+  const benefitActionOptions = [
+    { value: 'benefit_detail', label: '权益说明页' },
+    { value: 'charge_scan', label: '扫码充电' },
+    { value: 'product_exchange', label: '商品兑换' },
+    { value: 'physical_delivery', label: '查看领取信息' },
+  ]
+  const benefitActionMap = Object.fromEntries(benefitActionOptions.map(item => [item.value, item.label]))
+
   const couponTypeMap: Record<string, string> = {
     newbie: t('couponManage.couponTypeNewbie'),
     channel: t('couponManage.couponTypeChannel'),
@@ -59,6 +67,7 @@ export default function CouponManage() {
   const [coverVideo, setCoverVideo] = useState('')
   const [stationScope, setStationScope] = useState<StationScope>({ type: 'all' })
   const [shareRecord, setShareRecord] = useState<any | null>(null)
+  const [mallItemOptions, setMallItemOptions] = useState<{ value: string; label: string }[]>([])
 
   const fetchData = useCallback(async (p = page, ps = pageSize) => {
     setLoading(true)
@@ -71,6 +80,24 @@ export default function CouponManage() {
   }, [page, pageSize, keyword])
 
   React.useEffect(() => { fetchData() }, [])
+
+  React.useEffect(() => {
+    const loadMallItems = async () => {
+      try {
+        const res: any = await request.get('/growth/mall/items', { params: { pageNum: 1, pageSize: 200 } })
+        const list = res?.data?.list || []
+        setMallItemOptions(
+          list.map((item: any) => ({
+            value: String(item.id),
+            label: `${pickML(item.name, language || 'zh') || item.id} (${item.id})`,
+          }))
+        )
+      } catch {
+        setMallItemOptions([])
+      }
+    }
+    void loadMallItems()
+  }, [language])
 
   const handleSearch = () => { setPage(1); fetchData(1, pageSize) }
   const handleAdd = () => {
@@ -92,6 +119,8 @@ export default function CouponManage() {
       couponType: record.coupon_type,
       itemType: record.item_type || 'digital',
       discountType: record.discount_type,
+      benefitActionType: record.benefit_action_type || 'benefit_detail',
+      linkedMallItemId: record.linked_mall_item_id || undefined,
       discountValue: Number(record.discount_value),
       minAmount: Number(record.min_amount) || 0,
       totalCount: record.total_count,
@@ -132,6 +161,8 @@ export default function CouponManage() {
         validTo: values.validTo?.toISOString(),
         coverImage: coverImage || undefined,
         coverVideo: coverVideo || undefined,
+        benefitActionType: values.benefitActionType || 'benefit_detail',
+        linkedMallItemId: values.benefitActionType === 'product_exchange' ? (values.linkedMallItemId || undefined) : undefined,
         station_scope: stationScope,
       }
       delete payload._sourceLang
@@ -181,6 +212,30 @@ export default function CouponManage() {
     {
       title: t('couponManage.colDiscount'), dataIndex: 'discount_type', key: 'discount_type', width: 110,
       render: (v: string) => <Tag color={discountTypeColors[v] || 'default'}>{discountTypeMap[v] || v}</Tag>,
+    },
+    {
+      title: '权益动作', dataIndex: 'benefit_action_type', key: 'benefit_action_type', width: 120,
+      render: (v: string) => <Tag color={v === 'product_exchange' ? 'purple' : v === 'charge_scan' ? 'cyan' : 'default'}>{benefitActionMap[v] || v || '权益说明页'}</Tag>,
+    },
+    {
+      title: '关联商品', key: 'linked_mall_item', width: 220,
+      render: (_: any, r: any) => {
+        if (!r.linked_mall_item_id) return <span style={{ color: '#bbb' }}>—</span>
+        const itemName = pickML(r.linked_mall_item_name, language || 'zh') || r.linked_mall_item_id
+        return (
+          <div style={{ display: 'grid', gap: 4 }}>
+            <span style={{ fontWeight: 600, color: '#333', lineHeight: 1.4 }}>{itemName}</span>
+            <Space size={4} wrap>
+              <Tag style={{ marginInlineEnd: 0 }}>{r.linked_mall_item_id}</Tag>
+              {r.linked_mall_item_on_shelf == null ? null : (
+                <Tag color={r.linked_mall_item_on_shelf ? 'green' : 'default'} style={{ marginInlineEnd: 0 }}>
+                  {r.linked_mall_item_on_shelf ? '已上架' : '已下架'}
+                </Tag>
+              )}
+            </Space>
+          </div>
+        )
+      },
     },
     {
       title: t('couponManage.colAmount'), key: 'discount', width: 110,
@@ -296,6 +351,45 @@ export default function CouponManage() {
             <Col xs={24} sm={8}>
               <Form.Item name="discountType" label={t('couponManage.formDiscountType')} rules={[{ required: true }]}>
                 <Select options={Object.entries(discountTypeMap).map(([k, v]) => ({ value: k, label: v }))} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item name="benefitActionType" label="权益动作" initialValue="benefit_detail">
+                <Select options={benefitActionOptions} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                shouldUpdate={(prev, next) =>
+                  prev.benefitActionType !== next.benefitActionType ||
+                  prev.linkedMallItemId !== next.linkedMallItemId
+                }
+                noStyle
+              >
+                {({ getFieldValue }) => {
+                  const actionType = getFieldValue('benefitActionType')
+                  return (
+                    <Form.Item
+                      name="linkedMallItemId"
+                      label="关联兑换商品"
+                      extra={actionType === 'product_exchange' ? '商品兑换券请选择一个积分商城商品' : '非商品兑换动作可留空'}
+                      rules={actionType === 'product_exchange'
+                        ? [{ required: true, message: '商品兑换券必须绑定一个积分商城商品' }]
+                        : []}
+                    >
+                      <Select
+                        allowClear
+                        disabled={actionType !== 'product_exchange'}
+                        showSearch
+                        optionFilterProp="label"
+                        options={mallItemOptions}
+                        placeholder={actionType === 'product_exchange' ? '请选择必须绑定的商品' : '当前动作无需绑定商品'}
+                      />
+                    </Form.Item>
+                  )
+                }}
               </Form.Item>
             </Col>
           </Row>

@@ -102,9 +102,27 @@
     "enabled": true,
     "need_confirm": false,
     "phrases": {
-      "zh": ["我的券","有哪些券","可用的券","我的优惠","查看券","我的卡券","券包","有没有优惠","有什么优惠","有优惠吗","还有别的优惠","有活动优惠","有折扣吗","领优惠"],
-      "th": ["คูปองของฉัน","คูปองที่ใช้ได้","ดูคูปอง","มีโปรโมชันไหม","มีส่วนลดอะไรบ้าง","มีคูปองอะไรบ้าง"],
-      "en": ["my coupons","available coupon","check my coupon","what coupon do I have","any promo","any offer","show promotions","what offers"]
+      "zh": ["我的券","有哪些券","可用的券","我的优惠券","查看券","我的卡券","券包","我有哪些卡券","我的优惠包","我还能用什么券"],
+      "th": ["คูปองของฉัน","คูปองที่ใช้ได้","ดูคูปอง","มีคูปองอะไรบ้าง","คูปองของฉันใช้ได้ไหม"],
+      "en": ["my coupons","available coupon","check my coupon","what coupon do I have","show my coupons","which coupons can I use"]
+    }
+  },
+  {
+    "intent_code": "platform_promotion_query",
+    "intent_name": "查询平台当前优惠",
+    "dispatch_mode": "tool_then_card",
+    "tool_name": "search_platform_content",
+    "card_template_key": "benefit_recommend",
+    "similarity_threshold": 0.66,
+    "intent_scope": "in_scope",
+    "requires_confirmation": false,
+    "requires_payment": false,
+    "enabled": true,
+    "need_confirm": false,
+    "phrases": {
+      "zh": ["今天有什么优惠","现在有什么优惠","有什么优惠","有优惠吗","现在有折扣吗","今天有什么活动","当前活动","最新活动","平台优惠","当前优惠","最近有什么活动"],
+      "th": ["มีโปรโมชันอะไรบ้าง","มีส่วนลดไหม","มีกิจกรรมอะไรบ้าง","โปรโมชันตอนนี้","มีข้อเสนออะไรวันนี้"],
+      "en": ["what promotions are available","any offers today","any promotion now","current promotions","what deals are available"]
     }
   },
   {
@@ -126,6 +144,60 @@
     }
   },
   {
+    "intent_code": "coupon_claim_intent",
+    "intent_name": "领取优惠券",
+    "dispatch_mode": "tool_then_confirm",
+    "tool_name": "search_platform_content",
+    "card_template_key": "action_confirm",
+    "similarity_threshold": 0.67,
+    "intent_scope": "in_scope",
+    "requires_confirmation": true,
+    "requires_payment": false,
+    "enabled": true,
+    "need_confirm": true,
+    "phrases": {
+      "zh": ["帮我领券","领取优惠券","领优惠券","领券","我要领券","帮我领取优惠","帮我拿优惠券"],
+      "th": ["รับคูปอง","ช่วยรับคูปอง","ขอคูปอง","รับส่วนลด"],
+      "en": ["claim coupon","help me claim a coupon","get coupon","claim discount"]
+    }
+  },
+  {
+    "intent_code": "coupon_usage_help",
+    "intent_name": "优惠券怎么用",
+    "dispatch_mode": "card_only",
+    "tool_name": null,
+    "card_template_key": "policy_info",
+    "similarity_threshold": 0.67,
+    "intent_scope": "in_scope",
+    "requires_confirmation": false,
+    "requires_payment": false,
+    "enabled": true,
+    "need_confirm": false,
+    "phrases": {
+      "zh": ["优惠券怎么用","卡券怎么用","怎么使用优惠券","券怎么用","优惠怎么用","怎么核销优惠券"],
+      "th": ["คูปองใช้ยังไง","ใช้คูปองอย่างไร","วิธีใช้คูปอง"],
+      "en": ["how to use coupon","coupon usage","how do I use my coupon"]
+    }
+  },
+  {
+    "intent_code": "coupon_rule_query",
+    "intent_name": "优惠券规则说明",
+    "dispatch_mode": "card_only",
+    "tool_name": null,
+    "card_template_key": "policy_info",
+    "similarity_threshold": 0.67,
+    "intent_scope": "in_scope",
+    "requires_confirmation": false,
+    "requires_payment": false,
+    "enabled": true,
+    "need_confirm": false,
+    "phrases": {
+      "zh": ["优惠券规则","卡券规则","优惠说明","券规则","优惠券可以提现吗","优惠券有效期","优惠券限制"],
+      "th": ["กติกาคูปอง","เงื่อนไขคูปอง","คูปองมีอายุไหม"],
+      "en": ["coupon rules","coupon terms","coupon validity","coupon restrictions"]
+    }
+  },
+  {
     "intent_code": "benefit_claim_query",
     "intent_name": "查可领取的福利",
     "dispatch_mode": "tool_then_card",
@@ -138,9 +210,9 @@
     "enabled": true,
     "need_confirm": false,
     "phrases": {
-      "zh": ["能领什么","有什么福利","可以领取","福利","领奖励","我能领什么","有哪些奖励","有没有活动","有什么活动","有活动吗","当前活动","最新活动"],
-      "th": ["รับสิทธิประโยชน์","สิทธิ์ที่ได้รับ","รับรางวัล","มีกิจกรรมอะไรบ้าง","มีกิจกรรมไหม"],
-      "en": ["what benefits","claim reward","available reward","what can I get","any activity","what events","current activities"]
+      "zh": ["能领什么","有什么福利","可以领取","福利","领奖励","我能领什么","有哪些奖励","当前可领福利","可领奖励"],
+      "th": ["รับสิทธิประโยชน์","สิทธิ์ที่ได้รับ","รับรางวัล","มีสิทธิ์อะไรให้รับ"],
+      "en": ["what benefits","claim reward","available reward","what can I get","available benefits"]
     }
   },
   {

@@ -87,6 +87,58 @@ function rowToStation(row) {
   };
 }
 
+function parseJsonObject(value, fallback = null) {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function pickML(value, lang = "zh") {
+  if (!value) return "";
+  const obj = parseJsonObject(value, null);
+  if (obj && typeof obj === "object") return obj[lang] || obj.zh || obj.en || obj.th || "";
+  return String(value);
+}
+
+function matchesStationScope(rawScope, station) {
+  const scope = parseJsonObject(rawScope, { type: "all" }) || { type: "all" };
+  if (!scope || scope.type === "all") return true;
+  if (scope.type !== "selected") return false;
+
+  const city = String(scope.city || "").trim();
+  const district = String(scope.district || "").trim();
+  const stationIds = Array.isArray(scope.station_ids) ? scope.station_ids.map((id) => String(id)) : [];
+
+  if (city && station.city !== city) return false;
+  if (district && station.district !== district) return false;
+  if (stationIds.length > 0 && !stationIds.includes(station.station_code || station.id)) return false;
+  return true;
+}
+
+function activityBenefitSummary(row) {
+  return {
+    id: row.activity_id,
+    name: pickML(row.activity_name, "zh") || row.activity_id,
+    status: row.status || "",
+    type: row.activity_type || "",
+    match_mode: row.match_mode || "site_scope",
+  };
+}
+
+function couponBenefitSummary(row) {
+  return {
+    id: row.id,
+    name: pickML(row.name, "zh") || row.id,
+    status: Number(row.status) === 1 ? "active" : "inactive",
+    coupon_type: row.coupon_type || "",
+    benefit_action_type: row.benefit_action_type || "benefit_detail",
+  };
+}
+
 function sendOk(res, sendJson, msg, data) {
   return sendJson(res, 200, { code: 200, msg, data });
 }
@@ -268,6 +320,97 @@ export async function handleGetNearbyStations(req, res, url, sendJson) {
     });
 
     return sendOk(res, sendJson, "success", { list: enriched, total: enriched.length, located: true, lat, lng, radius });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "DB_ERROR", err.message);
+  }
+}
+
+// ─── GET /api/stations/benefits ───────────────────────────────────────────────
+// 从站点维度汇总站点命中的活动/卡券，供管理端站点福利页验证真实承接结果
+export async function handleGetStationBenefits(req, res, url, sendJson) {
+  try {
+    const city     = url.searchParams.get("city")     || "";
+    const district = url.searchParams.get("district") || "";
+    const status   = url.searchParams.get("status")   || "";
+
+    const params = [];
+    const where = [];
+    if (city)     { params.push(city);     where.push(`city_code=$${params.length}`); }
+    if (district) { params.push(district); where.push(`district=$${params.length}`); }
+    if (status)   { params.push(status);   where.push(`status=$${params.length}`); }
+    const whereClause = where.length ? ` WHERE ${where.join(" AND ")}` : "";
+
+    const { rows: stationRows } = await query(
+      `SELECT * FROM stations${whereClause} ORDER BY sort_order ASC, station_code ASC`,
+      params
+    );
+    const stations = stationRows.map(rowToStation);
+
+    const { rows: activityRows } = await query(
+      `SELECT activity_id, activity_name, activity_type, status, site_scope_json
+         FROM activities
+        WHERE status IN ('active', 'draft')
+        ORDER BY created_at DESC`,
+      []
+    );
+    const activityById = new Map(activityRows.map((row) => [String(row.activity_id), row]));
+
+    const { rows: couponRows } = await query(
+      `SELECT id, name, coupon_type, status, station_scope, benefit_action_type
+         FROM coupons
+        WHERE status = 1
+        ORDER BY created_at DESC`,
+      []
+    );
+
+    const list = stations.map((station) => {
+      const matchedActivities = [];
+      const seenActivityIds = new Set();
+
+      if (station.default_activity_id && activityById.has(station.default_activity_id)) {
+        matchedActivities.push(
+          activityBenefitSummary({
+            ...activityById.get(station.default_activity_id),
+            match_mode: "default_activity",
+          })
+        );
+        seenActivityIds.add(station.default_activity_id);
+      }
+
+      for (const row of activityRows) {
+        const activityId = String(row.activity_id);
+        if (seenActivityIds.has(activityId)) continue;
+        if (matchesStationScope(row.site_scope_json, station)) {
+          matchedActivities.push(activityBenefitSummary({ ...row, match_mode: "site_scope" }));
+        }
+      }
+
+      const matchedCoupons = couponRows
+        .filter((row) => matchesStationScope(row.station_scope, station))
+        .map(couponBenefitSummary);
+
+      return {
+        ...station,
+        activities: matchedActivities,
+        coupons: matchedCoupons,
+        activity_count: matchedActivities.length,
+        coupon_count: matchedCoupons.length,
+        benefit_count: matchedActivities.length + matchedCoupons.length,
+        has_benefits: matchedActivities.length + matchedCoupons.length > 0,
+        primary_benefit_label: matchedActivities[0]?.name || matchedCoupons[0]?.name || "",
+      };
+    });
+
+    return sendOk(res, sendJson, "station benefits loaded", {
+      list,
+      total: list.length,
+      summary: {
+        station_count: list.length,
+        station_with_benefits_count: list.filter((item) => item.has_benefits).length,
+        activity_hit_count: list.reduce((sum, item) => sum + Number(item.activity_count || 0), 0),
+        coupon_hit_count: list.reduce((sum, item) => sum + Number(item.coupon_count || 0), 0),
+      },
+    });
   } catch (err) {
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }

@@ -6,14 +6,22 @@ const VALID_ACTIVITY_TYPES = [
   "general", "sos", "lightning_coupon", "lucky_wheel", "scratch_card", "thai_fortune_draw", "invite_reward",
 ];
 const VALID_BINDING_TYPES = [
-  "reward_preview", "reward_delivery", "unlock_after_event", "related_recommendation",
+  "coupon", "mall_item", "reward_preview", "reward_delivery", "unlock_after_event", "related_recommendation",
 ];
+const GAME_ACTIVITY_TYPES = new Set(["lucky_wheel", "scratch_card", "thai_fortune_draw"]);
+const ACTIVE_BINDING_STATUSES = ["1", "active", "enabled"];
 
 function sendOk(res, sendJson, msg, data) {
   return sendJson(res, 200, { code: 200, msg, data });
 }
 function sendError(res, sendJson, statusCode, errorCode, msg) {
   return sendJson(res, statusCode, { code: statusCode, msg, error: errorCode });
+}
+function createHttpError(statusCode, errorCode, message) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  err.errorCode = errorCode;
+  return err;
 }
 function idFromPath(pathname, pattern) {
   return pathname.match(pattern)?.[1] || "";
@@ -29,6 +37,154 @@ function mlStr(v) {
   if (!v) return "";
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
+}
+
+function normalizeRewardCouponIds(rawValue) {
+  const list = Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : [];
+  return [...new Set(list.map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function isActivityRewardReady({ activityType, rewardPoints, rewardCouponIds, gameProgramId }) {
+  if (Number(rewardPoints || 0) > 0) return true;
+  if (Array.isArray(rewardCouponIds) && rewardCouponIds.length > 0) return true;
+  if (GAME_ACTIVITY_TYPES.has(String(activityType || "").trim()) && String(gameProgramId || "").trim()) return true;
+  return false;
+}
+
+async function loadRewardBindingsMap(activityIds) {
+  const ids = [...new Set((activityIds || []).map((item) => String(item || "").trim()).filter(Boolean))];
+  if (ids.length === 0) return new Map();
+
+  const { rows } = await query(`
+    SELECT
+      apb.activity_code,
+      apb.product_id,
+      apb.status,
+      apb.sort_no,
+      c.name AS coupon_name
+    FROM activity_product_bindings apb
+    LEFT JOIN coupons c ON c.id = apb.product_id
+    WHERE apb.activity_code = ANY($1::text[])
+      AND apb.binding_type = 'coupon'
+      AND apb.trigger_event = 'participate'
+    ORDER BY apb.sort_no ASC, apb.id ASC
+  `, [ids]);
+
+  const map = new Map();
+  for (const row of rows) {
+    const activityId = String(row.activity_code || "").trim();
+    if (!activityId) continue;
+    if (!map.has(activityId)) map.set(activityId, []);
+    map.get(activityId).push({
+      coupon_id: String(row.product_id || "").trim(),
+      coupon_name: row.coupon_name || null,
+      status: String(row.status || ""),
+      sort_no: Number(row.sort_no || 0),
+    });
+  }
+  return map;
+}
+
+async function enrichActivitiesWithRewards(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length === 0) return [];
+  const bindingMap = await loadRewardBindingsMap(list.map((row) => row.activity_id));
+  return list.map((row) => {
+    const bindings = bindingMap.get(String(row.activity_id || "").trim()) || [];
+    const enabledBindings = bindings.filter((item) => ACTIVE_BINDING_STATUSES.includes(String(item.status || "")));
+    return {
+      ...row,
+      reward_coupon_ids: enabledBindings.map((item) => item.coupon_id),
+      reward_coupon_names: enabledBindings.map((item) => item.coupon_name).filter(Boolean),
+      reward_binding_count: enabledBindings.length,
+      reward_ready: isActivityRewardReady({
+        activityType: row.activity_type,
+        rewardPoints: row.reward_points,
+        rewardCouponIds: enabledBindings.map((item) => item.coupon_id),
+        gameProgramId: row.game_program_id,
+      }),
+    };
+  });
+}
+
+async function syncActivityRewardCouponBindings(client, activityId, rewardCouponIds) {
+  const ids = normalizeRewardCouponIds(rewardCouponIds);
+
+  await client.query(
+    `DELETE FROM activity_product_bindings
+      WHERE activity_code = $1
+        AND binding_type = 'coupon'
+        AND trigger_event = 'participate'`,
+    [activityId]
+  );
+
+  if (ids.length === 0) return [];
+
+  const { rows: coupons } = await client.query(
+    `SELECT id, status
+       FROM coupons
+      WHERE id = ANY($1::text[])`,
+    [ids]
+  );
+  const couponMap = new Map(coupons.map((row) => [String(row.id), row]));
+  for (const couponId of ids) {
+    const coupon = couponMap.get(couponId);
+    if (!coupon) {
+      throw createHttpError(400, "REWARD_COUPON_NOT_FOUND", `奖励卡券不存在：${couponId}`);
+    }
+    if (Number(coupon.status || 0) !== 1) {
+      throw createHttpError(400, "REWARD_COUPON_DISABLED", `奖励卡券未启用：${couponId}`);
+    }
+  }
+
+  const inserted = [];
+  for (const [index, couponId] of ids.entries()) {
+    const bindingCode = `apb_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
+    const { rows } = await client.query(
+      `INSERT INTO activity_product_bindings
+         (binding_code, activity_code, product_id, binding_type, trigger_event, user_scope, sort_no, status)
+       VALUES ($1,$2,$3,'coupon','participate','all',$4,'enabled')
+       RETURNING *`,
+      [bindingCode, activityId, couponId, index]
+    );
+    inserted.push(rows[0]);
+  }
+  return inserted;
+}
+
+async function ensureActivityRewardReadiness({ client, activityId, activityType, targetStatus, rewardPoints, rewardCouponIds, gameProgramId }) {
+  if (String(targetStatus || "draft") !== "active") return;
+
+  const normalizedRewardCouponIds = Array.isArray(rewardCouponIds)
+    ? normalizeRewardCouponIds(rewardCouponIds)
+    : null;
+
+  let effectiveRewardCouponIds = normalizedRewardCouponIds;
+  if (!effectiveRewardCouponIds) {
+    const { rows } = await client.query(
+      `SELECT product_id
+         FROM activity_product_bindings
+        WHERE activity_code = $1
+          AND binding_type = 'coupon'
+          AND trigger_event = 'participate'
+          AND status::text = ANY($2::text[])`,
+      [activityId, ACTIVE_BINDING_STATUSES]
+    );
+    effectiveRewardCouponIds = rows.map((row) => String(row.product_id || "").trim()).filter(Boolean);
+  }
+
+  if (!isActivityRewardReady({
+    activityType,
+    rewardPoints,
+    rewardCouponIds: effectiveRewardCouponIds,
+    gameProgramId,
+  })) {
+    throw createHttpError(
+      400,
+      "ACTIVITY_REWARD_REQUIRED",
+      "活动上线前必须至少配置一种奖励：活动积分、奖励卡券或有效游戏方案"
+    );
+  }
 }
 
 function rowToActivity(r) {
@@ -77,6 +233,10 @@ function rowToActivity(r) {
     source_entry_id: r.source_entry_id || "",
     source_banner_id: r.source_banner_id || "",
     source_channel_id: r.source_channel_id || "",
+    reward_coupon_ids: Array.isArray(r.reward_coupon_ids) ? r.reward_coupon_ids : [],
+    reward_coupon_names: Array.isArray(r.reward_coupon_names) ? r.reward_coupon_names : [],
+    reward_binding_count: Number(r.reward_binding_count || 0),
+    reward_ready: !!r.reward_ready,
     created_at: r.created_at,
     updated_at: r.updated_at,
   };
@@ -213,7 +373,8 @@ export async function handleActivityList(req, res, url, sendJson) {
       `SELECT * FROM activities${whereClause} ORDER BY sort_order ASC, created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
-    return sendOk(res, sendJson, "activities loaded", rows.map(rowToActivity));
+    const enrichedRows = await enrichActivitiesWithRewards(rows);
+    return sendOk(res, sendJson, "activities loaded", enrichedRows.map(rowToActivity));
   } catch (err) {
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
@@ -224,7 +385,8 @@ export async function handleActivityGet(req, res, url, sendJson) {
     const id = idFromPath(url.pathname, /^\/api\/activities\/([^/]+)$/);
     const { rows } = await query("SELECT * FROM activities WHERE activity_id=$1", [id]);
     if (rows.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到活动");
-    return sendOk(res, sendJson, "activity loaded", rowToActivity(rows[0]));
+    const [enriched] = await enrichActivitiesWithRewards(rows);
+    return sendOk(res, sendJson, "activity loaded", rowToActivity(enriched || rows[0]));
   } catch (err) {
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
@@ -248,9 +410,11 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
       : 0;
     const activityId = `act_${String(lastNum + 1).padStart(3, "0")}`;
 
+    const rewardCouponIds = normalizeRewardCouponIds(body.reward_coupon_ids);
     const actName = typeof rawName === "object" ? rawName : { zh: String(rawName || ""), th: "", en: "" };
-    const { rows } = await query(
-      `INSERT INTO activities
+    const result = await withTransaction(async (client) => {
+      const { rows } = await client.query(
+        `INSERT INTO activities
          (activity_id, activity_type, activity_name, activity_title, activity_subtitle, activity_desc,
           template_code, usage_mode, game_program_id, game_config, start_time, end_time, status,
           require_oa_follow, auto_join_after_follow,
@@ -262,33 +426,48 @@ export async function handleActivityCreate(req, res, url, sendJson, readBody) {
           landing_code, entry_ref_code, banner_code,
           source_entry_id, source_banner_id, source_channel_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44)
-       RETURNING *`,
-      [
-        activityId, activityType, JSON.stringify(actName),
-        body.activity_title || "", mlStr(body.activity_subtitle), mlStr(body.activity_desc),
-        body.template_id || "", body.usage_mode || "public",
-        body.game_program_id || "",
-        body.game_config ? JSON.stringify(body.game_config) : "{}",
-        body.start_time || "", body.end_time || "",
-        ["draft", "active", "ended"].includes(body.status) ? body.status : "draft",
-        !!body.require_oa_follow, !!body.auto_join_after_follow,
-        body.entry_scope_json ? JSON.stringify(body.entry_scope_json) : null,
-        body.site_scope_json ? JSON.stringify(body.site_scope_json) : null,
-        body.channel_scope_json ? JSON.stringify(body.channel_scope_json) : null,
-        !!body.share_enabled, body.share_title || "", body.share_desc || "", body.share_cover || "",
-        body.campaign_id || "", body.share_status || "disabled",
-        body.goal || "", body.department || "", body.owner_dept || "", body.partner_dept || "",
-        body.coupon_name || "", mlStr(body.highlights), mlStr(body.participation_guide),
-        mlStr(body.reward_guide), mlStr(body.notice_text),
-        revertOssUrl(body.cover_image) || "", revertOssUrl(body.cover_video) || "",
-        Number(body.reward_points) || 0, Number(body.sort_order) || 0, !!body.is_featured,
-        body.landing_code || "", body.entry_ref_code || "", body.banner_code || "",
-        body.source_entry_id || "", body.source_banner_id || "", body.source_channel_id || "",
-      ]
-    );
-    return sendOk(res, sendJson, "activity created", rowToActivity(rows[0]));
+         RETURNING *`,
+        [
+          activityId, activityType, JSON.stringify(actName),
+          body.activity_title || "", mlStr(body.activity_subtitle), mlStr(body.activity_desc),
+          body.template_id || "", body.usage_mode || "public",
+          body.game_program_id || "",
+          body.game_config ? JSON.stringify(body.game_config) : "{}",
+          body.start_time || "", body.end_time || "",
+          ["draft", "active", "ended"].includes(body.status) ? body.status : "draft",
+          !!body.require_oa_follow, !!body.auto_join_after_follow,
+          body.entry_scope_json ? JSON.stringify(body.entry_scope_json) : null,
+          body.site_scope_json ? JSON.stringify(body.site_scope_json) : null,
+          body.channel_scope_json ? JSON.stringify(body.channel_scope_json) : null,
+          !!body.share_enabled, body.share_title || "", body.share_desc || "", body.share_cover || "",
+          body.campaign_id || "", body.share_status || "disabled",
+          body.goal || "", body.department || "", body.owner_dept || "", body.partner_dept || "",
+          body.coupon_name || "", mlStr(body.highlights), mlStr(body.participation_guide),
+          mlStr(body.reward_guide), mlStr(body.notice_text),
+          revertOssUrl(body.cover_image) || "", revertOssUrl(body.cover_video) || "",
+          Number(body.reward_points) || 0, Number(body.sort_order) || 0, !!body.is_featured,
+          body.landing_code || "", body.entry_ref_code || "", body.banner_code || "",
+          body.source_entry_id || "", body.source_banner_id || "", body.source_channel_id || "",
+        ]
+      );
+
+      await syncActivityRewardCouponBindings(client, activityId, rewardCouponIds);
+      await ensureActivityRewardReadiness({
+        client,
+        activityId,
+        activityType,
+        targetStatus: ["draft", "active", "ended"].includes(body.status) ? body.status : "draft",
+        rewardPoints: Number(body.reward_points) || 0,
+        rewardCouponIds,
+        gameProgramId: body.game_program_id || "",
+      });
+
+      return rows[0];
+    });
+    const [enriched] = await enrichActivitiesWithRewards([result]);
+    return sendOk(res, sendJson, "activity created", rowToActivity(enriched || result));
   } catch (err) {
-    return sendError(res, sendJson, 500, "CREATE_FAILED", err.message || "创建失败");
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "CREATE_FAILED", err.message || "创建失败");
   }
 }
 
@@ -297,8 +476,9 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
     const id = idFromPath(url.pathname, /^\/api\/activities\/([^/]+)$/);
     if (!id) return sendError(res, sendJson, 400, "ID_REQUIRED", "activity_id 必填");
     const body = await readBody(req);
-    const { rows: found } = await query("SELECT activity_id FROM activities WHERE activity_id=$1", [id]);
+    const { rows: found } = await query("SELECT * FROM activities WHERE activity_id=$1", [id]);
     if (found.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到活动");
+    const existing = found[0];
 
     const fieldMap = {
       activity_name: (v) => JSON.stringify(typeof v === "object" ? v : { zh: String(v), th: "", en: "" }),
@@ -328,28 +508,59 @@ export async function handleActivityUpdate(req, res, url, sendJson, readBody) {
       sort_order: (v) => Number(v) || 0, is_featured: (v) => !!v,
     };
 
-    const sets = [];
-    const params = [];
-    for (const [bodyKey, transform] of Object.entries(fieldMap)) {
-      if (body[bodyKey] === undefined) continue;
-      const dbCol = bodyKey === "template_id" ? "template_code" : bodyKey;
-      if (!transform && bodyKey === "template_id") {
-        params.push(String(body[bodyKey]));
-        sets.push(`template_code = $${params.length}`);
-      } else if (transform) {
-        params.push(transform(body[bodyKey]));
-        sets.push(`${dbCol} = $${params.length}`);
+    const rewardCouponIds = body.reward_coupon_ids !== undefined
+      ? normalizeRewardCouponIds(body.reward_coupon_ids)
+      : null;
+
+    const targetStatus = body.status !== undefined ? String(body.status) : String(existing.status || "draft");
+    const targetActivityType = body.activity_type !== undefined ? String(body.activity_type) : String(existing.activity_type || "general");
+    const targetRewardPoints = body.reward_points !== undefined ? (Number(body.reward_points) || 0) : Number(existing.reward_points || 0);
+    const targetGameProgramId = body.game_program_id !== undefined ? String(body.game_program_id || "") : String(existing.game_program_id || "");
+
+    const updated = await withTransaction(async (client) => {
+      const sets = [];
+      const params = [];
+      for (const [bodyKey, transform] of Object.entries(fieldMap)) {
+        if (body[bodyKey] === undefined) continue;
+        const dbCol = bodyKey === "template_id" ? "template_code" : bodyKey;
+        if (!transform && bodyKey === "template_id") {
+          params.push(String(body[bodyKey]));
+          sets.push(`template_code = $${params.length}`);
+        } else if (transform) {
+          params.push(transform(body[bodyKey]));
+          sets.push(`${dbCol} = $${params.length}`);
+        }
       }
-    }
-    if (sets.length === 0) return sendOk(res, sendJson, "nothing to update", {});
-    params.push(id);
-    const { rows } = await query(
-      `UPDATE activities SET ${sets.join(", ")}, updated_at=NOW() WHERE activity_id=$${params.length} RETURNING *`,
-      params
-    );
-    return sendOk(res, sendJson, "activity updated", rowToActivity(rows[0]));
+      if (sets.length > 0) {
+        params.push(id);
+        await client.query(
+          `UPDATE activities SET ${sets.join(", ")}, updated_at=NOW() WHERE activity_id=$${params.length}`,
+          params
+        );
+      }
+
+      if (rewardCouponIds !== null) {
+        await syncActivityRewardCouponBindings(client, id, rewardCouponIds);
+      }
+
+      await ensureActivityRewardReadiness({
+        client,
+        activityId: id,
+        activityType: targetActivityType,
+        targetStatus,
+        rewardPoints: targetRewardPoints,
+        rewardCouponIds,
+        gameProgramId: targetGameProgramId,
+      });
+
+      const { rows } = await client.query("SELECT * FROM activities WHERE activity_id = $1", [id]);
+      return rows[0];
+    });
+
+    const [enriched] = await enrichActivitiesWithRewards([updated]);
+    return sendOk(res, sendJson, "activity updated", rowToActivity(enriched || updated));
   } catch (err) {
-    return sendError(res, sendJson, 500, "UPDATE_FAILED", err.message || "更新失败");
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "UPDATE_FAILED", err.message || "更新失败");
   }
 }
 
@@ -518,9 +729,20 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
 
         await client.query(
           `INSERT INTO user_coupons
-             (id, user_id, line_user_id, coupon_id, product_status, source_type, source_activity_id, claimed_at, created_at, updated_at)
-           VALUES ($1,$2,$3,$4,'claimed','activity',$5,$6,$6,$6)`,
-          [userCouponId, userId, body.line_user_id || userId, couponId, id, now]
+             (id, user_id, line_user_id, coupon_id, product_status, source_type,
+              source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
+              source_station_code, source_a_system_station_id, source_device_code, source_device_id,
+              claimed_at, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,'claimed','activity',
+                   $5,$6,$7,$8,$9,
+                   $10,$11,$12,$12,
+                   $13,$13,$13)`,
+          [
+            userCouponId, userId, body.line_user_id || userId, couponId,
+            srcEntryId, id, srcLandingId, srcBannerId, srcChannelId,
+            srcStationCode, srcASystemStationId, srcDeviceCode,
+            now,
+          ]
         );
 
         issuedCoupons.push({ coupon_id: couponId, duplicated: false });
@@ -553,13 +775,28 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
 export async function handleActivityProductBindingList(req, res, url, sendJson) {
   try {
     const activityId = url.searchParams.get("activityId");
-    let sql = "SELECT * FROM activity_product_bindings";
+    let sql = `
+      SELECT
+        apb.*,
+        a.activity_name,
+        c.name AS coupon_name,
+        mi.name AS mall_item_name
+      FROM activity_product_bindings apb
+      LEFT JOIN activities a ON a.activity_id = apb.activity_code
+      LEFT JOIN coupons c ON c.id = apb.product_id AND apb.binding_type = 'coupon'
+      LEFT JOIN mall_items mi ON mi.id = apb.product_id AND apb.binding_type = 'mall_item'
+    `;
     const params = [];
-    if (activityId) { params.push(activityId); sql += ` WHERE activity_code=$1`; }
-    sql += " ORDER BY sort_no ASC, id ASC";
+    if (activityId) { params.push(activityId); sql += ` WHERE apb.activity_code=$1`; }
+    sql += " ORDER BY apb.sort_no ASC, apb.id ASC";
     const { rows } = await query(sql, params);
     return sendOk(res, sendJson, "activity product bindings loaded",
-      rows.map(r => ({ ...r, activity_id: r.activity_code, binding_id: r.binding_code })));
+      rows.map(r => ({
+        ...r,
+        activity_id: r.activity_code,
+        binding_id: r.binding_code,
+        reward_name: r.coupon_name || r.mall_item_name || "",
+      })));
   } catch (err) {
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
@@ -576,6 +813,16 @@ export async function handleActivityProductBindingCreate(req, res, url, sendJson
     if (!productId) return sendError(res, sendJson, 400, "PRODUCT_ID_REQUIRED", "product_id 必填");
     if (!VALID_BINDING_TYPES.includes(bindingType))
       return sendError(res, sendJson, 400, "BINDING_TYPE_INVALID", `binding_type 必须是: ${VALID_BINDING_TYPES.join(" | ")}`);
+
+    if (bindingType === "coupon") {
+      const { rows: couponRows } = await query("SELECT id, status FROM coupons WHERE id = $1", [productId]);
+      if (couponRows.length === 0) return sendError(res, sendJson, 400, "PRODUCT_NOT_FOUND", "所绑定的卡券不存在");
+      if (Number(couponRows[0].status || 0) !== 1) return sendError(res, sendJson, 400, "COUPON_DISABLED", "所绑定的卡券未启用");
+    }
+    if (bindingType === "mall_item") {
+      const { rows: itemRows } = await query("SELECT id FROM mall_items WHERE id = $1", [productId]);
+      if (itemRows.length === 0) return sendError(res, sendJson, 400, "PRODUCT_NOT_FOUND", "所绑定的商品不存在");
+    }
 
     const { rows: last } = await query("SELECT binding_code FROM activity_product_bindings ORDER BY id DESC LIMIT 1", []);
     const lastNum = last.length > 0

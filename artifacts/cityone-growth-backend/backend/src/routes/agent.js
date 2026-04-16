@@ -490,29 +490,93 @@ export async function handleAdminAgentConfigUpdate(req, res, url, sendJson, read
 }
 
 export function handleAdminAgentIntentsGet(req, res, url, sendJson) {
-  return sendOk(res, sendJson, "agent intents loaded", loadAgentIntents());
+  const intents = loadAgentIntents().map((intent, index) => ({ id: index + 1, ...intent }));
+  return sendOk(res, sendJson, "agent intents loaded", intents);
+}
+
+function buildIntentPayload(body = {}, current = {}) {
+  return {
+    ...current,
+    intent_code: String(body.intent_code || current.intent_code || "").trim(),
+    intent_name: String(body.intent_name || current.intent_name || "").trim(),
+    enabled: body.enabled !== undefined ? !!body.enabled : (current.enabled !== false),
+    phrases: body.phrases
+      ? {
+          zh: Array.isArray(body.phrases.zh) ? body.phrases.zh : (current.phrases?.zh || []),
+          th: Array.isArray(body.phrases.th) ? body.phrases.th : (current.phrases?.th || []),
+          en: Array.isArray(body.phrases.en) ? body.phrases.en : (current.phrases?.en || []),
+        }
+      : (current.phrases || { zh: [], th: [], en: [] }),
+    template_responses: body.template_responses
+      ? {
+          zh: body.template_responses.zh || "",
+          th: body.template_responses.th || "",
+          en: body.template_responses.en || "",
+        }
+      : (current.template_responses || { zh: "", th: "", en: "" }),
+    dispatch_mode: String(body.dispatch_mode || current.dispatch_mode || "tool_then_card"),
+    tool_name: body.tool_name !== undefined ? (body.tool_name || null) : (current.tool_name || null),
+    card_template_key: body.card_template_key !== undefined ? (body.card_template_key || null) : (current.card_template_key || null),
+    intent_scope: String(body.intent_scope || current.intent_scope || "in_scope"),
+    similarity_threshold:
+      body.similarity_threshold !== undefined
+        ? Number(body.similarity_threshold)
+        : Number(current.similarity_threshold ?? 0.68),
+    requires_confirmation:
+      body.requires_confirmation !== undefined
+        ? !!body.requires_confirmation
+        : !!current.requires_confirmation,
+    requires_payment:
+      body.requires_payment !== undefined
+        ? !!body.requires_payment
+        : !!current.requires_payment,
+    priority:
+      body.priority !== undefined
+        ? Number(body.priority)
+        : Number(current.priority ?? 10),
+    need_confirm:
+      body.need_confirm !== undefined
+        ? !!body.need_confirm
+        : !!current.need_confirm,
+  };
 }
 
 export async function handleAdminAgentIntentsUpdate(req, res, url, sendJson, readBody) {
   try {
     const body = await readBody(req);
     const intents = loadAgentIntents();
-
-    // 支持更新单个意图的 enabled + phrases
     const intentCode = String(body.intent_code || "").trim();
     if (!intentCode) return sendError(res, sendJson, 400, "INTENT_CODE_REQUIRED", "intent_code 必填");
 
     const idx = intents.findIndex((i) => i.intent_code === intentCode);
     if (idx < 0) return sendError(res, sendJson, 404, "INTENT_NOT_FOUND", "未找到该意图");
-
-    if (body.enabled !== undefined) intents[idx].enabled = !!body.enabled;
-    if (body.phrases) intents[idx].phrases = { ...intents[idx].phrases, ...body.phrases };
-    if (body.need_confirm !== undefined) intents[idx].need_confirm = !!body.need_confirm;
+    const updated = buildIntentPayload(body, intents[idx]);
+    if (!updated.intent_name) return sendError(res, sendJson, 400, "INTENT_NAME_REQUIRED", "intent_name 必填");
+    intents[idx] = updated;
 
     saveAgentIntents(intents);
-    return sendOk(res, sendJson, "intent updated", intents[idx]);
+    return sendOk(res, sendJson, "intent updated", { id: idx + 1, ...intents[idx] });
   } catch (err) {
     return sendError(res, sendJson, 500, "INTENT_UPDATE_FAILED", err.message || "意图更新失败");
+  }
+}
+
+export async function handleAdminAgentIntentsCreate(req, res, url, sendJson, readBody) {
+  try {
+    const body = await readBody(req);
+    const intents = loadAgentIntents();
+    const intentCode = String(body.intent_code || "").trim();
+    if (!intentCode) return sendError(res, sendJson, 400, "INTENT_CODE_REQUIRED", "intent_code 必填");
+    if (intents.some((intent) => intent.intent_code === intentCode)) {
+      return sendError(res, sendJson, 409, "INTENT_EXISTS", "intent_code 已存在");
+    }
+    const created = buildIntentPayload(body, {});
+    if (!created.intent_name) return sendError(res, sendJson, 400, "INTENT_NAME_REQUIRED", "intent_name 必填");
+    intents.push(created);
+    saveAgentIntents(intents);
+    return sendOk(res, sendJson, "intent created", { id: intents.length, ...created });
+  } catch (err) {
+    return sendError(res, sendJson, 500, "INTENT_CREATE_FAILED", err.message || "意图新增失败");
   }
 }
 

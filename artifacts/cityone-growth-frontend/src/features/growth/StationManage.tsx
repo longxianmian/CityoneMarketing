@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Table, Button, Space, Tag, Modal, Form, Input, Select, InputNumber,
   Popconfirm, message, Divider, Tooltip, Row, Col,
@@ -7,6 +7,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, EnvironmentOutlined,
   LinkOutlined, SyncOutlined, ApiOutlined,
 } from '@ant-design/icons'
+import { useLocation } from 'react-router-dom'
 import request from '../../api/request'
 
 interface District { code: string; zh: string; th: string; en: string }
@@ -32,6 +33,13 @@ interface Station {
   device_group_code?: string
   a_system_device_id?: string
   source_channel_id?: string
+  activity_count?: number
+  coupon_count?: number
+  benefit_count?: number
+  has_benefits?: boolean
+  primary_benefit_label?: string
+  activities?: Array<{ id: string; name: string; status: string; type: string; match_mode: string }>
+  coupons?: Array<{ id: string; name: string; status: string; coupon_type: string; benefit_action_type: string }>
 }
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
@@ -41,6 +49,7 @@ const STATUS_MAP: Record<string, { color: string; label: string }> = {
 }
 
 export default function StationManage() {
+  const location = useLocation()
   const [list, setList] = useState<Station[]>([])
   const [loading, setLoading] = useState(false)
   const [cityDistricts, setCityDistricts] = useState<CityItem[]>([])
@@ -52,6 +61,28 @@ export default function StationManage() {
   const [saving, setSaving] = useState(false)
   const [editId, setEditId] = useState('')
   const [form] = Form.useForm()
+  const isBenefitView = location.pathname === '/admin/growth/station-benefits'
+  const benefitSummary = useMemo(() => {
+    if (!isBenefitView) return null
+    return {
+      stationCount: list.length,
+      stationWithBenefitsCount: list.filter(item => item.has_benefits).length,
+      activityHitCount: list.reduce((sum, item) => sum + Number(item.activity_count || 0), 0),
+      couponHitCount: list.reduce((sum, item) => sum + Number(item.coupon_count || 0), 0),
+    }
+  }, [isBenefitView, list])
+
+  const pageCopy = useMemo(() => (
+    isBenefitView
+      ? {
+          title: '站点福利',
+          subtitle: '从站点视角查看福利承接基础信息，便于核对活动挂载、默认活动和展示入口配置。',
+        }
+      : {
+          title: '站点管理',
+          subtitle: '管理充电宝站点位置与状态 · 已落 PostgreSQL · A系统旁路预留字段已开放',
+        }
+  ), [isBenefitView])
 
   const selectedCity = Form.useWatch('city', form)
 
@@ -69,7 +100,7 @@ export default function StationManage() {
     if (city ?? filterCity) params.city = city ?? filterCity
     if (district ?? filterDistrict) params.district = district ?? filterDistrict
     if (status ?? filterStatus) params.status = status ?? filterStatus
-    request.get('/stations', { params }).then((res: any) => {
+    request.get(isBenefitView ? '/stations/benefits' : '/stations', { params }).then((res: any) => {
       const data = res?.data || res
       if (data?.list) setList(data.list)
     }).catch(() => {}).finally(() => setLoading(false))
@@ -161,7 +192,7 @@ export default function StationManage() {
     }
   }
 
-  const columns = [
+  const columns: any[] = [
     {
       title: '站点名称',
       dataIndex: 'name',
@@ -193,21 +224,84 @@ export default function StationManage() {
         </div>
       ),
     },
-    {
-      title: '容量 / 可用',
-      render: (_: any, row: Station) => (
-        <div style={{ textAlign: 'center' }}>
-          <span style={{ fontWeight: 700, fontSize: 16, color: '#2CDBCE' }}>{row.available}</span>
-          <span style={{ color: '#999' }}> / {row.capacity}</span>
-        </div>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      render: (status: string) => {
-        const s = STATUS_MAP[status] || { color: 'default', label: status }
-        return <Tag color={s.color}>{s.label}</Tag>
+    isBenefitView
+      ? {
+          title: '命中福利',
+          render: (_: any, row: Station) => (
+            <div style={{ minWidth: 180 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                <Tag color="geekblue" style={{ marginInlineEnd: 0 }}>活动 {row.activity_count || 0}</Tag>
+                <Tag color="purple" style={{ marginInlineEnd: 0 }}>卡券 {row.coupon_count || 0}</Tag>
+                <Tag color={row.has_benefits ? 'green' : 'default'} style={{ marginInlineEnd: 0 }}>
+                  {row.has_benefits ? '已命中福利' : '暂无命中'}
+                </Tag>
+              </div>
+              <div style={{ fontSize: 12, color: row.primary_benefit_label ? '#555' : '#bbb' }}>
+                {row.primary_benefit_label || '当前无活动/卡券承接'}
+              </div>
+            </div>
+          ),
+        }
+      : {
+          title: '容量 / 可用',
+          render: (_: any, row: Station) => (
+            <div style={{ textAlign: 'center' }}>
+              <span style={{ fontWeight: 700, fontSize: 16, color: '#2CDBCE' }}>{row.available}</span>
+              <span style={{ color: '#999' }}> / {row.capacity}</span>
+            </div>
+          ),
+        },
+    isBenefitView
+      ? {
+          title: '活动命中预览',
+          render: (_: any, row: Station) => {
+            const activities = row.activities || []
+            if (!activities.length) return <span style={{ color: '#bbb' }}>无活动命中</span>
+            return (
+              <div style={{ display: 'grid', gap: 6 }}>
+                {activities.slice(0, 3).map((activity) => (
+                  <div key={activity.id} style={{ fontSize: 12 }}>
+                    <div style={{ fontWeight: 600, color: '#334155' }}>{activity.name}</div>
+                    <Space size={4} wrap>
+                      <Tag color={activity.match_mode === 'default_activity' ? 'gold' : 'blue'} style={{ marginInlineEnd: 0 }}>
+                        {activity.match_mode === 'default_activity' ? '默认活动' : '范围命中'}
+                      </Tag>
+                      <Tag style={{ marginInlineEnd: 0 }}>{activity.status || 'unknown'}</Tag>
+                    </Space>
+                  </div>
+                ))}
+                {activities.length > 3 && <span style={{ fontSize: 12, color: '#999' }}>另有 {activities.length - 3} 个活动命中</span>}
+              </div>
+            )
+          },
+        }
+      : {
+          title: '状态',
+          dataIndex: 'status',
+          render: (status: string) => {
+            const s = STATUS_MAP[status] || { color: 'default', label: status }
+            return <Tag color={s.color}>{s.label}</Tag>
+          },
+        },
+    isBenefitView && {
+      title: '卡券命中预览',
+      render: (_: any, row: Station) => {
+        const coupons = row.coupons || []
+        if (!coupons.length) return <span style={{ color: '#bbb' }}>无卡券命中</span>
+        return (
+          <div style={{ display: 'grid', gap: 6 }}>
+            {coupons.slice(0, 3).map((coupon) => (
+              <div key={coupon.id} style={{ fontSize: 12 }}>
+                <div style={{ fontWeight: 600, color: '#334155' }}>{coupon.name}</div>
+                <Space size={4} wrap>
+                  <Tag color="purple" style={{ marginInlineEnd: 0 }}>{coupon.coupon_type || 'coupon'}</Tag>
+                  <Tag style={{ marginInlineEnd: 0 }}>{coupon.benefit_action_type || 'benefit_detail'}</Tag>
+                </Space>
+              </div>
+            ))}
+            {coupons.length > 3 && <span style={{ fontSize: 12, color: '#999' }}>另有 {coupons.length - 3} 张卡券命中</span>}
+          </div>
+        )
       },
     },
     {
@@ -240,7 +334,10 @@ export default function StationManage() {
         </div>
       ),
     },
-    {
+  ].filter(Boolean) as any[]
+
+  if (!isBenefitView) {
+    columns.push({
       title: '操作',
       render: (_: any, row: Station) => (
         <Space>
@@ -250,8 +347,8 @@ export default function StationManage() {
           </Popconfirm>
         </Space>
       ),
-    },
-  ]
+    })
+  }
 
   return (
     <div style={{ padding: 24 }}>
@@ -259,18 +356,20 @@ export default function StationManage() {
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
             <EnvironmentOutlined style={{ color: '#2CDBCE', marginRight: 8 }} />
-            站点管理
+            {pageCopy.title}
           </h2>
           <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
-            管理充电宝站点位置与状态 · 已落 PostgreSQL · A系统旁路预留字段已开放
+            {pageCopy.subtitle}
           </div>
         </div>
-        <Space>
-          <Tooltip title="预留：将来从 A 系统同步站点数据">
-            <Button icon={<SyncOutlined />} disabled>同步 A 系统</Button>
-          </Tooltip>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增站点</Button>
-        </Space>
+        {!isBenefitView && (
+          <Space>
+            <Tooltip title="预留：将来从 A 系统同步站点数据">
+              <Button icon={<SyncOutlined />} disabled>同步 A 系统</Button>
+            </Tooltip>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增站点</Button>
+          </Space>
+        )}
       </div>
 
       <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -304,6 +403,27 @@ export default function StationManage() {
           共 {list.length} 个站点
         </div>
       </div>
+
+      {isBenefitView && benefitSummary && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>站点总数</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: '#0f172a' }}>{benefitSummary.stationCount}</div>
+          </div>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>有福利站点</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: '#16a34a' }}>{benefitSummary.stationWithBenefitsCount}</div>
+          </div>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>活动命中总数</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: '#2563eb' }}>{benefitSummary.activityHitCount}</div>
+          </div>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>卡券命中总数</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: '#7c3aed' }}>{benefitSummary.couponHitCount}</div>
+          </div>
+        </div>
+      )}
 
       <Table
         dataSource={list}

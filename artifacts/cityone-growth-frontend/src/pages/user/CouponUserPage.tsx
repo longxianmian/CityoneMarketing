@@ -1,7 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Card, Tag, Space, Spin, message, Modal, Form, Input, Radio, Divider } from 'antd'
-import { ShareAltOutlined, ArrowLeftOutlined, CheckCircleOutlined, EnvironmentOutlined, CarOutlined, ShopOutlined } from '@ant-design/icons'
+import {
+  Button,
+  Card,
+  Tag,
+  Space,
+  Spin,
+  message,
+  Modal,
+  Form,
+  Input,
+  Radio,
+  Divider,
+} from 'antd'
+import {
+  ShareAltOutlined,
+  ArrowLeftOutlined,
+  CheckCircleOutlined,
+  EnvironmentOutlined,
+  CarOutlined,
+  ShopOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useI18n } from '../../i18n'
 import OssImage from '../../components/OssImage'
@@ -9,33 +28,33 @@ import SharePromoModal from '../../components/SharePromoModal'
 import request from '../../api/request'
 import { useFollowGate } from '../../hooks/useFollowGate'
 import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+import { getBenefitPrimaryAction } from './benefitAction'
 
 type Step = 'detail' | 'success'
 
 function pickML(field: any, lang: string): string {
   if (!field) return ''
   if (typeof field === 'string') return field
-  if (typeof field === 'object' && !Array.isArray(field))
+  if (typeof field === 'object' && !Array.isArray(field)) {
     return field[lang] || field.en || field.zh || field.th || ''
+  }
   return ''
 }
 
 function formatDiscount(c: any, language: string): string {
-  const val = Number(c.discount_value || 0)
-  if (c.discount_type === 'free_time') {
+  const val = Number(c?.discount_value || 0)
+  if (c?.discount_type === 'free_time' || c?.discount_type === 'free_minutes') {
     if (language === 'th') return `เวลาฟรี ${val} นาที`
     if (language === 'en') return `FREE ${val} min`
     return `免费时长 ${val} 分钟`
   }
-  if (c.discount_type === 'free_order') {
+  if (c?.discount_type === 'free_order') {
     if (language === 'th') return 'ฟรีออเดอร์'
     if (language === 'en') return 'FREE Order'
     return '免单券'
   }
-  if (c.discount_type === 'percent') {
-    const off = 100 - val
+  if (c?.discount_type === 'percent' || c?.discount_type === 'percentage_off') {
+    const off = c?.discount_type === 'percentage_off' ? val : 100 - val
     if (language === 'th') return `ลด ${off}%`
     if (language === 'en') return `${off}% OFF`
     return `${off}% 折扣`
@@ -52,22 +71,138 @@ function formatDate(iso: string, language: string) {
   return d.format('YYYY-MM-DD HH:mm')
 }
 
+function pickOwnedBenefit(
+  list: any[],
+  couponId: string,
+  userProductId: string
+) {
+  if (!Array.isArray(list) || !couponId) return null
+
+  if (userProductId) {
+    const matched = list.find((item) => item.user_product_id === userProductId)
+    if (matched) return matched
+  }
+
+  const statusRank: Record<string, number> = {
+    available: 0,
+    used: 1,
+    expired: 2,
+  }
+
+  return list
+    .filter((item) => item.product_id === couponId)
+    .sort((a, b) => (statusRank[a.status] ?? 99) - (statusRank[b.status] ?? 99))[0] || null
+}
+
 export default function CouponUserPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id = '' } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { language, t } = useI18n()
+  const { language } = useI18n()
+  const { guard, checking } = useFollowGate()
+  const effectiveUserId = useEffectiveUserId()
+
+  const owned = searchParams.get('owned') === '1'
+  const ownedUserProductId = searchParams.get('up') || ''
+
   const [shareVisible, setShareVisible] = useState(false)
   const [coupon, setCoupon] = useState<any>(null)
+  const [ownedBenefit, setOwnedBenefit] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [claiming, setClaiming] = useState(false)
-  // owned=1 时直接跳过 detail，显示"已领取"态
-  const [step, setStep] = useState<Step>(() => (searchParams.get('owned') === '1' ? 'success' : 'detail'))
-  const [alreadyClaimed, setAlreadyClaimed] = useState(() => searchParams.get('owned') === '1')
+  const [step, setStep] = useState<Step>('detail')
+  const [alreadyClaimed, setAlreadyClaimed] = useState(false)
   const [videoStarted, setVideoStarted] = useState(false)
   const [videoPaused, setVideoPaused] = useState(false)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
+
+  const [deliveryOpen, setDeliveryOpen] = useState(false)
+  const [deliveryMode, setDeliveryMode] = useState<'courier' | 'pickup'>('courier')
+  const [deliveryForm] = Form.useForm()
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([])
+  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    const load = async () => {
+      setLoading(true)
+      setNotFound(false)
+      try {
+        const [couponRes, benefitRes] = await Promise.allSettled([
+          request.get('/user/coupons') as any,
+          owned
+            ? ((request.get('/user/benefits', {
+                params: {
+                  user_id: effectiveUserId,
+                  page: 1,
+                  page_size: 100,
+                },
+              }) as any))
+            : Promise.resolve(null),
+        ])
+
+        if (!active) return
+
+        const couponList: any[] =
+          couponRes.status === 'fulfilled' ? couponRes.value?.data || [] : []
+        const foundCoupon = couponList.find((item) => item.id === id) || null
+
+        const benefitList: any[] =
+          benefitRes.status === 'fulfilled' ? benefitRes.value?.data?.items || [] : []
+        const foundBenefit = owned
+          ? pickOwnedBenefit(benefitList, id, ownedUserProductId)
+          : null
+
+        setCoupon(foundCoupon)
+        setOwnedBenefit(foundBenefit)
+
+        if ((owned && !foundCoupon && !foundBenefit) || (!owned && !foundCoupon)) {
+          setNotFound(true)
+        }
+      } catch {
+        if (!active) return
+        setCoupon(null)
+        setOwnedBenefit(null)
+        setNotFound(true)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      active = false
+    }
+  }, [effectiveUserId, id, owned, ownedUserProductId])
+
+  useEffect(() => {
+    if (owned) return
+    if (step !== 'detail') return
+    if (searchParams.get('auto') === 'claim' && coupon && !claiming) {
+      void doClaim()
+    }
+  }, [claiming, coupon, owned, searchParams, step])
+
+  const detailData = owned
+    ? {
+        ...coupon,
+        ...ownedBenefit,
+        id: coupon?.id || ownedBenefit?.product_id || id,
+      }
+    : coupon
+
+  const ownedStatus = ownedBenefit?.status || 'available'
+  const primaryAction = owned
+    ? getBenefitPrimaryAction({
+        benefit: detailData,
+        status: ownedStatus,
+        language: (language === 'zh' || language === 'th' || language === 'en') ? language : 'zh',
+        couponId: id,
+        userProductId: ownedBenefit?.user_product_id || ownedUserProductId,
+      })
+    : null
 
   const handleStartVideo = () => {
     setVideoStarted(true)
@@ -77,51 +212,20 @@ export default function CouponUserPage() {
   const toggleVideoPlay = () => {
     const el = heroVideoRef.current
     if (!el) return
-    if (el.paused) { el.play(); setVideoPaused(false) }
-    else { el.pause(); setVideoPaused(true) }
-  }
-  const { guard, checking } = useFollowGate()
-  const effectiveUserId = useEffectiveUserId()
-  // owned=1：从「我的权益」跳入，用户已拥有该券，直接展示已拥有态，不走 claim 流程
-  const owned = searchParams.get('owned') === '1'
-
-  // 实物卡券配送弹窗
-  const [deliveryOpen, setDeliveryOpen] = useState(false)
-  const [deliveryMode, setDeliveryMode] = useState<'courier' | 'pickup'>('courier')
-  const [deliveryForm] = Form.useForm()
-  const [savedAddresses, setSavedAddresses] = useState<any[]>([])
-  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null)
-
-  useEffect(() => {
-    setLoading(true)
-    ;(request.get('/user/coupons') as any)
-      .then((res: any) => {
-        const list: any[] = res.data || []
-        const found = list.find((c: any) => c.id === id)
-        if (found) {
-          setCoupon(found)
-        } else {
-          setNotFound(true)
-        }
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false))
-  }, [id])
-
-  // 来自关注门控回跳：auto=claim → 自动领取
-  // owned=1 时跳过（用户已拥有该券，不需要再 claim）
-  useEffect(() => {
-    if (owned) return
-    if (searchParams.get('auto') === 'claim' && coupon && !claiming) {
-      doClaim()
+    if (el.paused) {
+      el.play().catch(() => {})
+      setVideoPaused(false)
+    } else {
+      el.pause()
+      setVideoPaused(true)
     }
-  }, [coupon, owned, searchParams.get('auto')])
+  }
 
-  // 加载已保存收货地址
   const loadSavedAddresses = async () => {
     try {
-      const userId = effectiveUserId
-      const res: any = await (request.get as any)(`/growth/user/addresses?user_id=${encodeURIComponent(userId)}`)
+      const res: any = await (request.get as any)(
+        `/growth/user/addresses?user_id=${encodeURIComponent(effectiveUserId)}`
+      )
       const list = res?.data || res || []
       setSavedAddresses(list)
       const def = list.find((a: any) => a.is_default) || list[0] || null
@@ -141,7 +245,7 @@ export default function CouponUserPage() {
     }
   }
 
-  const doClaim = async (deliveryData?: Record<string, string>) => {
+  const doClaim = async (deliveryData?: Record<string, string | undefined>) => {
     if (!coupon || claiming) return
     setClaiming(true)
     try {
@@ -159,26 +263,42 @@ export default function CouponUserPage() {
       setDeliveryOpen(false)
       setStep('success')
     } catch {
-      message.error({ zh: '领取失败，请稍后重试', th: 'รับล้มเหลว โปรดลองอีกครั้ง', en: 'Claim failed, please try again' }[language] || 'Claim failed')
+      message.error(
+        {
+          zh: '领取失败，请稍后重试',
+          th: 'รับล้มเหลว โปรดลองอีกครั้ง',
+          en: 'Claim failed, please try again',
+        }[language] || 'Claim failed'
+      )
     } finally {
       setClaiming(false)
     }
   }
 
-  // 实物卡券：配送弹窗确认后提交
   const doPhysicalClaim = async () => {
     try {
       const vals = await deliveryForm.validateFields()
-      const deliveryData = deliveryMode === 'pickup'
-        ? { delivery_type: 'pickup', pickup_name: vals.pickup_name, pickup_phone: vals.pickup_phone }
-        : { delivery_type: 'courier', delivery_name: vals.delivery_name, delivery_phone: vals.delivery_phone, delivery_address: vals.delivery_address }
-      await doClaim(deliveryData as unknown as Record<string, string>)
+      const deliveryData =
+        deliveryMode === 'pickup'
+          ? {
+              delivery_type: 'pickup',
+              pickup_name: vals.pickup_name,
+              pickup_phone: vals.pickup_phone,
+            }
+          : {
+              delivery_type: 'courier',
+              delivery_name: vals.delivery_name,
+              delivery_phone: vals.delivery_phone,
+              delivery_address: vals.delivery_address,
+            }
+      await doClaim(deliveryData)
     } catch {
       // form validation failed
     }
   }
 
-  // 核心：通过 useFollowGate hook 统一关注检查
+  const name = pickML(detailData?.name || detailData?.product_name, language) || ''
+
   const handleClaim = () => {
     guard(
       async () => {
@@ -201,23 +321,63 @@ export default function CouponUserPage() {
     )
   }
 
-  // ── i18n ────────────────────────────────────────────────────────────────────
+  const handlePrimaryAction = () => {
+    if (!owned) {
+      handleClaim()
+      return
+    }
+    if (primaryAction && !primaryAction.disabled && primaryAction.route) {
+      navigate(primaryAction.route)
+    }
+  }
+
+  const statusMeta = (() => {
+    if (!owned) {
+      return {
+        color: 'green',
+        text: language === 'th' ? 'พร้อมรับสิทธิ์' : language === 'en' ? 'Claimable' : '可领取',
+      }
+    }
+    if (ownedStatus === 'used') {
+      return {
+        color: 'default',
+        text: language === 'th' ? 'ใช้แล้ว' : language === 'en' ? 'Used' : '已使用',
+      }
+    }
+    if (ownedStatus === 'expired') {
+      return {
+        color: 'red',
+        text: language === 'th' ? 'หมดอายุ' : language === 'en' ? 'Expired' : '已过期',
+      }
+    }
+    return {
+      color: 'green',
+      text: language === 'th' ? 'พร้อมใช้งาน' : language === 'en' ? 'Available' : '可使用',
+    }
+  })()
+
   const L = {
-    back:             { zh: '返回福利中心', th: 'กลับศูนย์สิทธิพิเศษ', en: 'Back to Benefits' }[language]!,
-    backToMine:       { zh: '返回我的权益', th: 'กลับสิทธิพิเศษของฉัน', en: 'Back to My Benefits' }[language]!,
-    claimBtn:         { zh: '立即领取', th: 'รับสิทธิ์ทันที', en: 'Claim Now' }[language]!,
-    shareBtn:         { zh: '分享给好友', th: 'แชร์ให้เพื่อน', en: 'Share' }[language]!,
-    mineBtn:          { zh: '查看我的卡券', th: 'ดูคูปองของฉัน', en: 'My Coupons' }[language]!,
-    validity:         { zh: '使用有效期', th: 'ระยะเวลาใช้งาน', en: 'Validity' }[language]!,
-    minSpend:         { zh: '使用条件', th: 'เงื่อนไขการใช้', en: 'Min. Spend' }[language]!,
-    benefit:          { zh: 'CityOne 专属权益', th: 'สิทธิพิเศษ CityOne', en: 'CityOne Exclusive Benefit' }[language]!,
-    checkingLabel:    { zh: '验证中...', th: 'กำลังตรวจสอบ...', en: 'Checking...' }[language]!,
-    successTitle:     { zh: '领取成功！', th: 'รับสำเร็จ!', en: 'Claimed!' }[language]!,
-    ownedTitle:       { zh: '您已拥有此券', th: 'คุณมีคูปองนี้แล้ว', en: 'You Own This Coupon' }[language]!,
-    alreadyTitle:     { zh: '您已领取过此券', th: 'คุณรับคูปองนี้แล้ว', en: 'Already Claimed' }[language]!,
-    successDesc:      { zh: '卡券已存入您的账户，可在「我的 → 卡券」中查看使用。', th: 'คูปองถูกเพิ่มในบัญชีของคุณแล้ว ดูได้ที่ "ของฉัน → คูปอง"', en: 'Coupon added to your account. Find it under "Mine → Coupons".' }[language]!,
-    ownedDesc:        { zh: '该卡券已在您的权益列表中，可随时使用。', th: 'คูปองนี้อยู่ในรายการสิทธิพิเศษของคุณแล้ว', en: 'This coupon is already in your benefits list.' }[language]!,
-    alreadyDesc:      { zh: '您之前已领取过该卡券，请前往「我的 → 卡券」查看。', th: 'คุณเคยรับคูปองนี้แล้ว ดูได้ที่ "ของฉัน → คูปอง"', en: 'You have already claimed this coupon. Check "Mine → Coupons".' }[language]!,
+    back: { zh: '返回福利中心', th: 'กลับศูนย์สิทธิพิเศษ', en: 'Back to Benefits' }[language]!,
+    backToMine: { zh: '返回我的权益', th: 'กลับสิทธิพิเศษของฉัน', en: 'Back to My Benefits' }[language]!,
+    claimBtn: { zh: '立即领取', th: 'รับสิทธิ์ทันที', en: 'Claim Now' }[language]!,
+    shareBtn: { zh: '分享给好友', th: 'แชร์ให้เพื่อน', en: 'Share' }[language]!,
+    mineBtn: { zh: '查看我的权益', th: 'ดูสิทธิพิเศษของฉัน', en: 'My Benefits' }[language]!,
+    validity: { zh: '使用有效期', th: 'ระยะเวลาใช้งาน', en: 'Validity' }[language]!,
+    minSpend: { zh: '使用条件', th: 'เงื่อนไขการใช้', en: 'Min. Spend' }[language]!,
+    benefit: { zh: 'CityOne 专属权益', th: 'สิทธิพิเศษ CityOne', en: 'CityOne Exclusive Benefit' }[language]!,
+    checkingLabel: { zh: '验证中...', th: 'กำลังตรวจสอบ...', en: 'Checking...' }[language]!,
+    successTitle: { zh: '领取成功！', th: 'รับสำเร็จ!', en: 'Claimed!' }[language]!,
+    alreadyTitle: { zh: '您已领取过此券', th: 'คุณรับคูปองนี้แล้ว', en: 'Already Claimed' }[language]!,
+    successDesc: {
+      zh: '卡券已存入您的账户，可在「我的 → 权益」中查看使用。',
+      th: 'คูปองถูกเพิ่มในบัญชีของคุณแล้ว ดูได้ที่ "ของฉัน → สิทธิพิเศษ"',
+      en: 'Coupon added to your account. Find it under "Mine → Benefits".',
+    }[language]!,
+    alreadyDesc: {
+      zh: '您之前已领取过该卡券，请前往「我的 → 权益」查看。',
+      th: 'คุณเคยรับคูปองนี้แล้ว ดูได้ที่ "ของฉัน → สิทธิพิเศษ"',
+      en: 'You have already claimed this coupon. Check "Mine → Benefits".',
+    }[language]!,
   }
 
   if (loading) {
@@ -228,37 +388,48 @@ export default function CouponUserPage() {
     )
   }
 
-  if (notFound || !coupon) {
+  if (notFound || !detailData) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 16,
+        }}
+      >
         <div style={{ fontSize: 48 }}>🎫</div>
         <div style={{ fontSize: 18, fontWeight: 700 }}>
-          { language === 'th' ? 'ไม่พบคูปอง' : language === 'en' ? 'Coupon Not Found' : '未找到该卡券' }
+          {language === 'th' ? 'ไม่พบคูปอง' : language === 'en' ? 'Coupon Not Found' : '未找到该卡券'}
         </div>
-        <Button onClick={() => navigate('/welfare')}>{L.back}</Button>
+        <Button onClick={() => navigate(owned ? '/mine?tab=benefit' : '/welfare')}>
+          {owned ? L.backToMine : L.back}
+        </Button>
       </div>
     )
   }
 
-  const name          = pickML(coupon.name, language) || ''
-  const discountText  = formatDiscount(coupon, language)
-  const validFromText = formatDate(coupon.valid_from, language)
-  const validToText   = formatDate(coupon.valid_to, language)
-  const validityLabel = `${validFromText} ~ ${validToText}`
-  const coverUrl      = coupon.cover_image || null
-  const coverVideoUrl = coupon.cover_video || null
+  const discountText = formatDiscount(detailData, language)
+  const validFromText = formatDate(detailData.valid_from || detailData.issued_at || '', language)
+  const validToText = formatDate(detailData.valid_to || detailData.expire_at || '', language)
+  const validityLabel =
+    detailData.valid_to || detailData.expire_at
+      ? `${validFromText} ~ ${validToText}`
+      : validFromText
+  const coverUrl = detailData.cover_image || null
+  const coverVideoUrl = detailData.cover_video || null
 
-  // ── Step: Success ────────────────────────────────────────────────────────────
   if (step === 'success') {
-    // owned：从「我的权益」跳入，图标绿色，使用专用文案
-    const successIcon  = owned ? '#52c41a' : (alreadyClaimed ? '#aaa' : '#52c41a')
-    const successTitle = owned ? L.ownedTitle : (alreadyClaimed ? L.alreadyTitle : L.successTitle)
-    const successDesc  = owned ? L.ownedDesc  : (alreadyClaimed ? L.alreadyDesc  : L.successDesc)
+    const successTitle = alreadyClaimed ? L.alreadyTitle : L.successTitle
+    const successDesc = alreadyClaimed ? L.alreadyDesc : L.successDesc
+
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #1677ff 0%, #69b1ff 100%)', padding: '24px 16px' }}>
         <div style={{ maxWidth: 460, margin: '0 auto' }}>
           <Card style={{ borderRadius: 20, overflow: 'hidden', textAlign: 'center', padding: '24px 16px' }}>
-            <CheckCircleOutlined style={{ fontSize: 64, color: successIcon, marginBottom: 16 }} />
+            <CheckCircleOutlined style={{ fontSize: 64, color: alreadyClaimed ? '#aaa' : '#52c41a', marginBottom: 16 }} />
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
               {successTitle}
             </div>
@@ -266,14 +437,16 @@ export default function CouponUserPage() {
               {successDesc}
             </div>
 
-            {!alreadyClaimed && !owned && (
-              <div style={{
-                background: 'linear-gradient(135deg, #f6ffed 0%, #e8f5e9 100%)',
-                border: '1px solid #b7eb8f',
-                borderRadius: 14,
-                padding: '14px 16px',
-                marginBottom: 20,
-              }}>
+            {!alreadyClaimed && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, #f6ffed 0%, #e8f5e9 100%)',
+                  border: '1px solid #b7eb8f',
+                  borderRadius: 14,
+                  padding: '14px 16px',
+                  marginBottom: 20,
+                }}
+              >
                 <div style={{ fontSize: 16, fontWeight: 700, color: '#333', marginBottom: 4 }}>{name}</div>
                 <div style={{ fontSize: 20, color: '#fa8c16', fontWeight: 800 }}>{discountText}</div>
               </div>
@@ -283,8 +456,8 @@ export default function CouponUserPage() {
               <Button type="primary" size="large" block onClick={() => navigate('/mine?tab=benefit')}>
                 {L.mineBtn}
               </Button>
-              <Button size="large" block onClick={() => owned ? navigate(-1) : navigate('/welfare')}>
-                {owned ? L.backToMine : L.back}
+              <Button size="large" block onClick={() => navigate('/welfare')}>
+                {L.back}
               </Button>
             </Space>
           </Card>
@@ -293,26 +466,48 @@ export default function CouponUserPage() {
     )
   }
 
-  // ── Step: Detail（默认，浏览自由）─────────────────────────────────────────────
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
-      <div style={{
-        flexShrink: 0,
-        background: '#fff', display: 'flex', alignItems: 'center',
-        padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0',
-      }}>
+      <div
+        style={{
+          flexShrink: 0,
+          background: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          height: 52,
+          borderBottom: '1px solid #f0f0f0',
+        }}
+      >
         <button
-          onClick={() => navigate('/welfare')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}
+          onClick={() => navigate(owned ? '/mine?tab=benefit' : '/welfare')}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 8,
+            marginRight: 8,
+            display: 'flex',
+            alignItems: 'center',
+            color: '#333',
+          }}
         >
           <ArrowLeftOutlined style={{ fontSize: 20 }} />
         </button>
         <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>
-          { language === 'th' ? 'รายละเอียดคูปอง' : language === 'en' ? 'Coupon Detail' : '卡券详情' }
+          {language === 'th' ? 'รายละเอียดคูปอง' : language === 'en' ? 'Coupon Detail' : '卡券详情'}
         </span>
         <button
           onClick={() => setShareVisible(true)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, display: 'flex', alignItems: 'center', color: '#1677ff' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 8,
+            display: 'flex',
+            alignItems: 'center',
+            color: '#1677ff',
+          }}
         >
           <ShareAltOutlined style={{ fontSize: 20 }} />
         </button>
@@ -322,11 +517,10 @@ export default function CouponUserPage() {
         open={shareVisible}
         onClose={() => setShareVisible(false)}
         type="coupon"
-        id={coupon.id}
+        id={detailData.id}
         name={name}
       />
 
-      {/* 实物卡券配送弹窗 */}
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -343,7 +537,6 @@ export default function CouponUserPage() {
         destroyOnHidden
       >
         <div style={{ paddingTop: 8 }}>
-          {/* 已保存地址选择区 */}
           {deliveryMode !== 'pickup' && savedAddresses.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#888', fontWeight: 600, marginBottom: 8 }}>
@@ -391,13 +584,16 @@ export default function CouponUserPage() {
             </div>
           )}
 
-          {/* 配送方式选择 */}
           <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 14 }}>
             {language === 'zh' ? '选择配送方式' : language === 'th' ? 'เลือกวิธีจัดส่ง' : 'Delivery Method'}
           </div>
           <Radio.Group
             value={deliveryMode}
-            onChange={e => { setDeliveryMode(e.target.value); deliveryForm.resetFields(); setSelectedAddrId(null) }}
+            onChange={(e) => {
+              setDeliveryMode(e.target.value)
+              deliveryForm.resetFields()
+              setSelectedAddrId(null)
+            }}
             style={{ width: '100%', marginBottom: 16 }}
           >
             <Radio.Button value="courier" style={{ width: '50%', textAlign: 'center' }}>
@@ -411,37 +607,51 @@ export default function CouponUserPage() {
           <Form form={deliveryForm} layout="vertical" size="middle">
             {deliveryMode === 'courier' ? (
               <>
-                <Form.Item name="delivery_name"
+                <Form.Item
+                  name="delivery_name"
                   label={language === 'zh' ? '收货人姓名' : language === 'th' ? 'ชื่อผู้รับ' : 'Recipient Name'}
-                  rules={[{ required: true, message: language === 'zh' ? '请填写收货人姓名' : 'Required' }]}>
+                  rules={[{ required: true, message: language === 'zh' ? '请填写收货人姓名' : 'Required' }]}
+                >
                   <Input placeholder={language === 'zh' ? '请输入姓名' : language === 'th' ? 'กรอกชื่อ' : 'Full name'} />
                 </Form.Item>
-                <Form.Item name="delivery_phone"
+                <Form.Item
+                  name="delivery_phone"
                   label={language === 'zh' ? '手机号码' : language === 'th' ? 'เบอร์โทรศัพท์' : 'Phone'}
-                  rules={[{ required: true, message: language === 'zh' ? '请填写手机号' : 'Required' }]}>
+                  rules={[{ required: true, message: language === 'zh' ? '请填写手机号' : 'Required' }]}
+                >
                   <Input placeholder={language === 'zh' ? '请输入手机号' : language === 'th' ? 'กรอกเบอร์โทร' : 'Phone'} />
                 </Form.Item>
-                <Form.Item name="delivery_address"
+                <Form.Item
+                  name="delivery_address"
                   label={language === 'zh' ? '收货地址' : language === 'th' ? 'ที่อยู่จัดส่ง' : 'Address'}
-                  rules={[{ required: true, message: language === 'zh' ? '请填写收货地址' : 'Required' }]}>
+                  rules={[{ required: true, message: language === 'zh' ? '请填写收货地址' : 'Required' }]}
+                >
                   <Input.TextArea rows={3} placeholder={language === 'zh' ? '请填写详细地址' : language === 'th' ? 'กรอกที่อยู่แบบละเอียด' : 'Full address'} />
                 </Form.Item>
               </>
             ) : (
               <>
-                <Form.Item name="pickup_name"
+                <Form.Item
+                  name="pickup_name"
                   label={language === 'zh' ? '取货人姓名' : language === 'th' ? 'ชื่อผู้รับ' : 'Pickup Name'}
-                  rules={[{ required: true, message: language === 'zh' ? '请填写取货人姓名' : 'Required' }]}>
+                  rules={[{ required: true, message: language === 'zh' ? '请填写取货人姓名' : 'Required' }]}
+                >
                   <Input placeholder={language === 'zh' ? '请输入姓名' : language === 'th' ? 'กรอกชื่อ' : 'Full name'} />
                 </Form.Item>
-                <Form.Item name="pickup_phone"
+                <Form.Item
+                  name="pickup_phone"
                   label={language === 'zh' ? '联系手机' : language === 'th' ? 'เบอร์โทร' : 'Phone'}
-                  rules={[{ required: true, message: language === 'zh' ? '请填写手机号' : 'Required' }]}>
+                  rules={[{ required: true, message: language === 'zh' ? '请填写手机号' : 'Required' }]}
+                >
                   <Input placeholder={language === 'zh' ? '请输入手机号' : language === 'th' ? 'กรอกเบอร์โทร' : 'Phone'} />
                 </Form.Item>
                 <div style={{ fontSize: 13, color: '#888', background: '#f5f5f5', borderRadius: 8, padding: '10px 14px' }}>
                   <ShopOutlined style={{ marginRight: 6, color: '#1677ff' }} />
-                  {language === 'zh' ? '工作人员会联系您确认取货站点及时间，请保持手机畅通。' : language === 'th' ? 'เจ้าหน้าที่จะติดต่อยืนยันจุดรับสินค้า' : 'Our team will contact you to confirm the pickup station.'}
+                  {language === 'zh'
+                    ? '工作人员会联系您确认取货站点及时间，请保持手机畅通。'
+                    : language === 'th'
+                    ? 'เจ้าหน้าที่จะติดต่อยืนยันจุดรับสินค้า'
+                    : 'Our team will contact you to confirm the pickup station.'}
                 </div>
               </>
             )}
@@ -451,10 +661,22 @@ export default function CouponUserPage() {
 
       <div style={{ flexShrink: 0, width: '100%', aspectRatio: '16/9', background: '#f0f0f0', overflow: 'hidden', position: 'relative' } as React.CSSProperties}>
         {coverVideoUrl && (
-          <video ref={heroVideoRef} src={coverVideoUrl} loop playsInline
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-                     visibility: videoStarted ? 'visible' : 'hidden' } as React.CSSProperties}
-            onClick={videoStarted ? toggleVideoPlay : undefined} />
+          <video
+            ref={heroVideoRef}
+            src={coverVideoUrl}
+            loop
+            playsInline
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+              visibility: videoStarted ? 'visible' : 'hidden',
+            } as React.CSSProperties}
+            onClick={videoStarted ? toggleVideoPlay : undefined}
+          />
         )}
         {videoStarted && videoPaused && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
@@ -465,8 +687,7 @@ export default function CouponUserPage() {
         )}
         {!videoStarted && (
           coverUrl ? (
-            <div style={{ position: 'absolute', inset: 0, cursor: coverVideoUrl ? 'pointer' : 'default' }}
-                 onClick={coverVideoUrl ? handleStartVideo : undefined}>
+            <div style={{ position: 'absolute', inset: 0, cursor: coverVideoUrl ? 'pointer' : 'default' }} onClick={coverVideoUrl ? handleStartVideo : undefined}>
               <OssImage src={coverUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               {coverVideoUrl && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)' }}>
@@ -477,8 +698,7 @@ export default function CouponUserPage() {
               )}
             </div>
           ) : coverVideoUrl ? (
-            <div style={{ position: 'absolute', inset: 0, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                 onClick={handleStartVideo}>
+            <div style={{ position: 'absolute', inset: 0, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} onClick={handleStartVideo}>
               <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 16, color: '#fff', lineHeight: 1, marginLeft: 3 }}>▶</span>
               </div>
@@ -492,71 +712,97 @@ export default function CouponUserPage() {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-      <div style={{ padding: '20px 16px 0' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 16px', marginBottom: 12 }}>
-          <div style={{ fontSize: 12, color: '#1677ff', fontWeight: 700, marginBottom: 6 }}>{L.benefit}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{name}</div>
-          <div style={{ fontSize: 26, color: '#fa8c16', fontWeight: 800, marginBottom: 12 }}>{discountText}</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {coupon.coupon_type && <Tag color="blue">{coupon.coupon_type}</Tag>}
-            <Tag color="green">
-              { language === 'th' ? 'พร้อมใช้งาน' : language === 'en' ? 'Available' : '可领取' }
-            </Tag>
-          </div>
-        </div>
-
-        <div style={{ background: '#fff', borderRadius: 16, padding: '16px', marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#888', marginBottom: 6 }}>{L.validity}</div>
-          <div style={{ fontSize: 14, color: '#333' }}>{validityLabel}</div>
-        </div>
-
-        {coupon.min_amount > 0 && (
-          <div style={{ background: '#fff', borderRadius: 16, padding: '16px', marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#888', marginBottom: 6 }}>{L.minSpend}</div>
-            <div style={{ fontSize: 14, color: '#333' }}>
-              { language === 'th' ? `ยอดขั้นต่ำ ฿${coupon.min_amount}` : language === 'en' ? `Min. spend ฿${coupon.min_amount}` : `最低消费 ฿${coupon.min_amount}` }
+        <div style={{ padding: '20px 16px 0' }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '20px 16px', marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: '#1677ff', fontWeight: 700, marginBottom: 6 }}>{L.benefit}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{name}</div>
+            <div style={{ fontSize: 26, color: '#fa8c16', fontWeight: 800, marginBottom: 12 }}>{discountText}</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {detailData.coupon_type && <Tag color="blue">{detailData.coupon_type}</Tag>}
+              <Tag color={statusMeta.color}>{statusMeta.text}</Tag>
             </div>
           </div>
-        )}
 
-        {coupon.total_count > 0 && (
-          <div style={{ background: '#fff7e6', borderRadius: 12, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>📦</span>
-            <span style={{ fontSize: 13, color: '#ad6800' }}>
-              { language === 'th'
-                ? `เหลือ ${coupon.total_count - (coupon.claimed_count || 0)} สิทธิ์`
-                : language === 'en'
-                  ? `${coupon.total_count - (coupon.claimed_count || 0)} left`
-                  : `剩余 ${coupon.total_count - (coupon.claimed_count || 0)} 份` }
-            </span>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '16px', marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#888', marginBottom: 6 }}>{L.validity}</div>
+            <div style={{ fontSize: 14, color: '#333' }}>{validityLabel}</div>
           </div>
-        )}
-      </div>
+
+          {Number(detailData.min_amount || 0) > 0 && (
+            <div style={{ background: '#fff', borderRadius: 16, padding: '16px', marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#888', marginBottom: 6 }}>{L.minSpend}</div>
+              <div style={{ fontSize: 14, color: '#333' }}>
+                {language === 'th'
+                  ? `ยอดขั้นต่ำ ฿${detailData.min_amount}`
+                  : language === 'en'
+                  ? `Min. spend ฿${detailData.min_amount}`
+                  : `最低消费 ฿${detailData.min_amount}`}
+              </div>
+            </div>
+          )}
+
+          {Number(detailData.total_count || 0) > 0 && (
+            <div style={{ background: '#fff7e6', borderRadius: 12, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>📦</span>
+              <span style={{ fontSize: 13, color: '#ad6800' }}>
+                {language === 'th'
+                  ? `เหลือ ${Number(detailData.total_count || 0) - Number(detailData.claimed_count || 0)} สิทธิ์`
+                  : language === 'en'
+                  ? `${Number(detailData.total_count || 0) - Number(detailData.claimed_count || 0)} left`
+                  : `剩余 ${Number(detailData.total_count || 0) - Number(detailData.claimed_count || 0)} 份`}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div style={{
-        flexShrink: 0,
-        padding: '12px 16px 24px',
-        background: '#fff', borderTop: '1px solid #f0f0f0',
-      }}>
+      <div
+        style={{
+          flexShrink: 0,
+          padding: '12px 16px 24px',
+          background: '#fff',
+          borderTop: '1px solid #f0f0f0',
+        }}
+      >
         <Space direction="vertical" style={{ width: '100%' }}>
           <button
-            onClick={handleClaim}
-            disabled={checking || claiming}
+            onClick={handlePrimaryAction}
+            disabled={owned ? !!primaryAction?.disabled : checking || claiming}
             style={{
-              width: '100%', padding: '14px 0',
-              background: (checking || claiming) ? '#ccc' : 'linear-gradient(135deg, #1677ff, #4096ff)',
-              border: 'none', borderRadius: 50,
-              color: '#fff', fontSize: 17, fontWeight: 700,
-              cursor: (checking || claiming) ? 'not-allowed' : 'pointer',
-              boxShadow: (checking || claiming) ? 'none' : '0 4px 16px rgba(22,119,255,0.35)',
-              letterSpacing: 0.5, transition: 'background 0.2s',
+              width: '100%',
+              padding: '14px 0',
+              background: owned
+                ? primaryAction?.disabled
+                  ? '#ccc'
+                  : primaryAction?.type === 'product_exchange'
+                  ? 'linear-gradient(135deg, #FF7A59, #FFB36B)'
+                  : primaryAction?.type === 'charge_scan'
+                  ? 'linear-gradient(135deg, #2CDBCE, #2F80FF)'
+                  : 'linear-gradient(135deg, #1677ff, #4096ff)'
+                : checking || claiming
+                ? '#ccc'
+                : 'linear-gradient(135deg, #1677ff, #4096ff)',
+              border: 'none',
+              borderRadius: 50,
+              color: '#fff',
+              fontSize: 17,
+              fontWeight: 700,
+              cursor: (owned ? primaryAction?.disabled : checking || claiming) ? 'not-allowed' : 'pointer',
+              boxShadow: (owned ? primaryAction?.disabled : checking || claiming)
+                ? 'none'
+                : '0 4px 16px rgba(22,119,255,0.35)',
+              letterSpacing: 0.5,
+              transition: 'background 0.2s',
             }}
           >
-            {checking ? L.checkingLabel : L.claimBtn}
+            {owned
+              ? primaryAction?.label
+              : checking
+              ? L.checkingLabel
+              : L.claimBtn}
           </button>
           <Button block onClick={() => setShareVisible(true)} icon={<ShareAltOutlined />} style={{ borderRadius: 50 }}>
-            { language === 'th' ? 'แชร์ให้เพื่อน' : language === 'en' ? 'Share' : '分享给好友' }
+            {L.shareBtn}
           </Button>
         </Space>
       </div>

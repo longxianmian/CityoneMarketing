@@ -38,6 +38,22 @@ export function getAgentMetrics(params?: any) {
   return request.get('/api/admin/agent/metrics', { params })
 }
 
+export function seedIntentVectors() {
+  return request.post('/agent-admin/seed-intent-vectors', {})
+}
+
+export function reEmbedIntent(intentCode: string) {
+  return request.post('/agent-admin/re-embed-intent', { intent_code: intentCode })
+}
+
+export function runIntentRecallTest(data: { text: string; top_k?: number }) {
+  return request.post('/agent-admin/recall-test', data)
+}
+
+export function getIntentLabels() {
+  return request.get('/agent-admin/intent-labels')
+}
+
 // ─── 新增接口（baseURL=/api，下面路径不带 /api/ 前缀） ────────────────────────
 // 前端 request baseURL = '/api'，Vite proxy 把 '/api/*' 发给 API server(8080)
 // API server 的 fallback handler: path = '/api' + req.url → 发给后端(3100)
