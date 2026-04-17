@@ -8,7 +8,9 @@
  *   2. 若 LINE 身份已建立 且 isFriend === true → 直接执行业务动作
  *   3. 若 LINE 身份已建立 且 isFriend === false
  *      → 写 cityone_resume_* → navigate('/welfare')，/welfare 内显示关注弹层
- *   4. 非 LINE 浏览器 → 后端 fans.json 降级（dev_gsr... 仅此情况使用）
+ *   4. 若尚未建立 LINE 身份（无论在 LINE 内还是普通浏览器）
+ *      → 优先跳正式 LIFF 建立真实身份，再由 /welfare 恢复器接管后续动作
+ *   5. 仅当 LIFF/LINE 配置缺失时，非 LINE 浏览器才允许退回 dev 设备身份降级
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -173,38 +175,35 @@ export function useFollowGate() {
           return
         }
 
-        // ── Case 3: LINE 身份未建立（任一条件缺失）且在 LINE 内
-        //    → 写恢复状态到 localStorage（主）
-        //    → 把 returnPath 编进 LIFF URL path（LINE 官方格式：liffId/ 后接路径+参数）
-        //    → 跳 LIFF URL 正门，/welfare 恢复器接管
+        // ── Case 3: LINE 身份尚未建立（任一条件缺失）
+        //    → 不论 LINE 内还是普通浏览器，都优先跳正式 LIFF 建立真实身份
+        //    → 避免 Chrome 里先用 dev_* 设备身份误判“未关注”
         //
         //    正确格式：https://liff.line.me/{liffId}/?rp=...&back=...&action=...
         //    错误格式：https://liff.line.me/{liffId}?rp=...  ← 不加斜杠 LINE 会丢参数
         if (!lineProfile?.lineUserId || !liffReady || lineProfile?.isFriend === undefined) {
-          if (isInLine) {
-            const lineConfig = getRuntimeLineConfig()
-            const liffUrl = resolveRuntimeLiffUrl()
-            if (!liffUrl) {
-              message.error('LINE OA 尚未完成正式配置，请联系管理员补齐 LIFF ID 后再试')
-              navigate('/welfare', { replace: true })
-              return
-            }
-            if (!lineConfig.officialAccountId) {
-              message.error('LINE OA 尚未完成正式配置，请联系管理员补齐官方账号 ID 后再试')
-              navigate('/welfare', { replace: true })
-              return
-            }
-            writeResumeKeys(fullReturn, backPath, label)
-            const next =
-              `${liffUrl}/?rp=${encodeURIComponent(fullReturn)}` +
-              `&back=${encodeURIComponent(backPath)}` +
-              `&action=${encodeURIComponent(label || '')}`
-            window.location.href = next
+          const lineConfig = getRuntimeLineConfig()
+          const liffUrl = resolveRuntimeLiffUrl()
+          if (!liffUrl) {
+            message.error('LINE OA 尚未完成正式配置，请联系管理员补齐 LIFF ID 后再试')
+            navigate('/welfare', { replace: true })
             return
           }
+          if (!lineConfig.officialAccountId) {
+            message.error('LINE OA 尚未完成正式配置，请联系管理员补齐官方账号 ID 后再试')
+            navigate('/welfare', { replace: true })
+            return
+          }
+          writeResumeKeys(fullReturn, backPath, label)
+          const next =
+            `${liffUrl}/?rp=${encodeURIComponent(fullReturn)}` +
+            `&back=${encodeURIComponent(backPath)}` +
+            `&action=${encodeURIComponent(label || '')}`
+          window.location.href = next
+          return
         }
 
-        // ── Case 4: 非 LINE 浏览器 → dev_gsr 降级（唯一允许使用设备 ID 的情况）
+        // ── Case 4: 仅当正式 LIFF 链路不可用时，非 LINE 浏览器退回设备身份降级 ─────
         const fan = isFan !== null ? isFan : await fetchFanStatus(getDeviceUserId())
         if (isFan === null) setIsFan(fan)
 
