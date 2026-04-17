@@ -100,12 +100,24 @@ export default function ProductDetailPage() {
   const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
   const videoReady = !!resolvedCoverVideo
 
-  // 来自 FollowOAPage 回跳：auto=redeem → 自动打开确认弹窗
+  // 来自关注恢复链路：auto=redeem
+  // 数字商品：直接继续兑换，不再让用户多点一次确认
+  // 实物商品：直接进入配送信息表单（仍需用户补齐必要信息）
   useEffect(() => {
-    if (searchParams.get('auto') === 'redeem' && product) {
-      setConfirmOpen(true)
+    if (searchParams.get('auto') !== 'redeem' || !product || acting || redeemSuccess) return
+
+    if (product.item_type === 'physical') {
+      const dt = product.delivery_type || 'courier'
+      setDeliveryMode(dt === 'pickup' ? 'pickup' : 'courier')
+      deliveryForm.resetFields()
+      void loadSavedAddresses().finally(() => {
+        setDeliveryOpen(true)
+      })
+      return
     }
-  }, [product, searchParams.get('auto')])
+
+    void doRedeem()
+  }, [acting, deliveryForm, product, redeemSuccess, searchParams])
 
   // 实际执行兑换（数字商品确认后）
   const doRedeem = async (extraFields?: Record<string, any>) => {
