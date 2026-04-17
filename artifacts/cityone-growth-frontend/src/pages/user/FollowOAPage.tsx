@@ -2,10 +2,8 @@
  * FollowOAPage — 已降级为过渡重定向页
  *
  * 主流程不再主动跳此页。
- * 旧链接（分享码、短信、外链）进入时：
- *   1. 把 URL 参数写入 cityone_resume_* 恢复键
- *   2. 立即 replace 到 /welfare
- *   3. /welfare 的身份恢复器全权接管：getProfile → getFriendship → 关注弹层 or navigate(returnPath)
+ * 新链路若已携带 intent，直接过渡到 /welfare/continue。
+ * 旧链接（分享码、短信、外链）若仍只带 to/back/name，则暂时保留旧恢复键兼容。
  */
 import React, { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -15,6 +13,12 @@ export default function FollowOAPage() {
   const [params]  = useSearchParams()
 
   useEffect(() => {
+    const intent = params.get('intent') || ''
+    if (intent) {
+      navigate(`/welfare/continue?intent=${encodeURIComponent(intent)}`, { replace: true })
+      return
+    }
+
     const to   = params.get('to')   || '/welfare'
     const name = params.get('name') || ''
     const back = params.get('back') || '/welfare'

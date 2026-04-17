@@ -27,6 +27,7 @@ import { isObjectKey, useOssUrl } from '../../components/OssImage'
 import { prefetchActivity } from '../../cache/activityCache'
 import { setRuntimeLineConfig, resolveRuntimeLiffUrl } from '../../lib/line'
 import { hasFreshResumePending } from '../../hooks/useFollowGate'
+import { isFollowFlowV2Enabled } from '../../lib/followFlow'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -310,6 +311,7 @@ export default function WelfareHomePage() {
   const mergeProfile  = useLineUserStore((s) => s.mergeProfile)
   const recoveryRef   = useRef(false)
   const isInLineBrowser = /Line\/\d/i.test(navigator.userAgent)
+  const useFollowV2 = isFollowFlowV2Enabled()
 
   // 关注弹层状态（Step D：身份已建立但未关注）
   const [showFollowModal,    setShowFollowModal]    = useState(false)
@@ -373,7 +375,7 @@ export default function WelfareHomePage() {
   useEffect(() => {
     // 非 LINE 浏览器没有 LIFF 恢复链路，但 guard 仍会把用户带回 /welfare。
     // 这里补上“待恢复动作 -> 关注弹层”的显示，避免用户点击领取/参加后没有任何提示。
-    if (liffReady || isInLineBrowser || !followOaId) return
+    if (useFollowV2 || liffReady || isInLineBrowser || !followOaId) return
 
     const clearStaleResumeKeys = () => {
       RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
@@ -416,7 +418,7 @@ export default function WelfareHomePage() {
       setFollowReturnPath(returnPath)
       setShowFollowModal(true)
     }
-  }, [followOaId, isInLineBrowser, liffReady, searchParams])
+  }, [followOaId, isInLineBrowser, liffReady, searchParams, useFollowV2])
 
   const clearResumeAndFollowKeys = () => {
     RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
@@ -441,7 +443,7 @@ export default function WelfareHomePage() {
   //
   // 恢复键存储优先级：localStorage（主） > sessionStorage（兼容旧版）
   useEffect(() => {
-    if (!liffReady) return
+    if (useFollowV2 || !liffReady) return
     if (recoveryRef.current) return
     recoveryRef.current = true
 
@@ -564,7 +566,7 @@ export default function WelfareHomePage() {
     }
 
     run()
-  }, [liffReady, mergeProfile, navigate, searchParams])
+  }, [liffReady, mergeProfile, navigate, searchParams, useFollowV2])
 
   // ── /welfare 内关注按钮处理（弹层主链路 + line:// 降级）──────────────────
   const handleFollowInModal = async () => {
