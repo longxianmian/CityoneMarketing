@@ -382,8 +382,7 @@ export default function WelfareHomePage() {
 
     const hasStoredPending =
       hasFreshResumePending(localStorage) ||
-      hasFreshResumePending(sessionStorage as Storage) ||
-      sessionStorage.getItem('cityone_follow_pending') === '1'
+      hasFreshResumePending(sessionStorage as Storage)
 
     // 生产级规则：只有 guard 真实写下“待恢复动作”标记时，/welfare 才允许恢复。
     // 不能仅凭 URL 上残留的 rp/back/action 就把首页误判成“需要先关注”。
@@ -411,7 +410,6 @@ export default function WelfareHomePage() {
       rpFromLiffState ||
       localStorage.getItem('cityone_resume_return_path') ||
       sessionStorage.getItem('cityone_resume_return_path') ||
-      sessionStorage.getItem('cityone_follow_return_path') ||
       ''
 
     if (returnPath) {
@@ -463,13 +461,11 @@ export default function WelfareHomePage() {
       rpFromLiffState() ||
       localStorage.getItem('cityone_resume_return_path') ||
       sessionStorage.getItem('cityone_resume_return_path') ||
-      sessionStorage.getItem('cityone_follow_return_path') ||
       ''
 
     const hasPendingResume = (): boolean =>
       hasFreshResumePending(localStorage) ||
-      hasFreshResumePending(sessionStorage as Storage) ||
-      sessionStorage.getItem('cityone_follow_pending') === '1'
+      hasFreshResumePending(sessionStorage as Storage)
 
     /** 用服务端 check-follow 判断关注状态（getFriendship 失败时的兜底） */
     const checkFollowViaApi = async (lineUserId: string): Promise<boolean | null> => {
