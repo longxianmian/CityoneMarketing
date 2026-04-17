@@ -70,12 +70,58 @@ function resolveBenefitActionType(row) {
 // ─── 用户身份规则映射 ─────────────────────────────────────────────────────────
 // identityTag 判断规则（本系统内）：
 // - member：depositPaid === true
-// - fan：仅关注 OA，尚未进入任何业务链路（points_account 中无记录）
-// - user：已进入业务链路（有 points 账户记录，但未缴押金）
-function resolveIdentityTag(account, depositPaid) {
+// - fan：真实已关注 OA，且尚未进入任何业务链路（points_account 中无记录）
+// - user：其他已识别用户（含未关注、或已关注但已有业务账户）
+function resolveIdentityTag(account, depositPaid, isFan) {
   if (depositPaid) return "member";
-  if (!account) return "fan";
+  if (isFan && !account) return "fan";
   return "user";
+}
+
+async function resolveFollowState(userId) {
+  if (!userId) {
+    return { isFan: false, identityTag: "visitor", source: "none" };
+  }
+
+  const isRealLineUser = /^U[0-9a-f]{32}$/i.test(userId);
+
+  if (isRealLineUser) {
+    try {
+      const userRes = await query(
+        `SELECT is_fan
+           FROM users
+          WHERE user_id = $1 OR line_user_id = $1
+          ORDER BY CASE WHEN user_id = $1 THEN 0 ELSE 1 END
+          LIMIT 1`,
+        [userId]
+      );
+
+      if (userRes.rows.length && userRes.rows[0].is_fan === true) {
+        return { isFan: true, identityTag: "fan", source: "users_table" };
+      }
+    } catch {
+      // DB 不可用时继续回退 fans.json，避免阻断关注判定
+    }
+
+    const fans = loadJsonArray(dataFile("fans.json"));
+    const isFan = fans.some((f) => f.user_id === userId || f.line_user_id === userId);
+    return {
+      isFan,
+      identityTag: isFan ? "fan" : "visitor",
+      source: "fans_list",
+    };
+  }
+
+  const accounts = loadJsonArray(dataFile("points-accounts.json"));
+  const account = accounts.find(
+    (a) => a.user_id === userId || a.line_user_id === userId
+  ) || null;
+  const isFan = !!account;
+  return {
+    isFan,
+    identityTag: isFan ? (account?.identity_tag || "fan") : "visitor",
+    source: "device_compat",
+  };
 }
 
 // ─── GET /api/user/profile ────────────────────────────────────────────────────
@@ -93,8 +139,27 @@ export async function handleUserProfile(req, res, url, sendJson) {
   const depositPaid   = jsonAccount?.deposit_paid   ?? false;
   const depositAmount = jsonAccount?.deposit_amount  ?? 0;
   const memberLevel   = jsonAccount?.member_level    || "standard";
-  const displayName   = jsonAccount?.line_display_name || "";
-  const pictureUrl    = jsonAccount?.line_picture_url   || "";
+  let displayName     = jsonAccount?.line_display_name || "";
+  let pictureUrl      = jsonAccount?.line_picture_url   || "";
+  let dbIsFan         = false;
+
+  try {
+    if (userId) {
+      const uRes = await query(
+        `SELECT display_name, picture_url, is_fan
+           FROM users
+          WHERE user_id = $1 OR line_user_id = $1
+          ORDER BY CASE WHEN user_id = $1 THEN 0 ELSE 1 END
+          LIMIT 1`,
+        [userId]
+      );
+      if (uRes.rows.length) {
+        displayName = uRes.rows[0].display_name || displayName;
+        pictureUrl  = uRes.rows[0].picture_url  || pictureUrl;
+        dbIsFan     = uRes.rows[0].is_fan === true;
+      }
+    }
+  } catch { /* DB 不可用时保留 JSON 降级 */ }
 
   // ── 积分字段读 DB points_accounts（与 mall_redeem / points_adjust 写入同源）──
   let availablePoints = 0;
@@ -126,9 +191,17 @@ export async function handleUserProfile(req, res, url, sendJson) {
     }
   } catch { /* DB 不可用时降级为 0 */ }
 
-  // identity_tag 由积分账户是否存在推断
+  const followState = dbIsFan
+    ? { isFan: true, identityTag: "fan", source: "users_table" }
+    : await resolveFollowState(userId);
+
+  // identity_tag / 粉丝状态与 check-follow 保持同源，避免 “/mine 显示粉丝，但 check-follow 仍未关注”
   const hasAccount = availablePoints > 0 || totalPoints > 0 || !!jsonAccount;
-  const identityTag = resolveIdentityTag(hasAccount ? { ...jsonAccount } : null, depositPaid);
+  const identityTag = resolveIdentityTag(
+    hasAccount ? { ...jsonAccount } : null,
+    depositPaid,
+    followState.isFan
+  );
 
   const profile = {
     user_id:           userId,
@@ -136,6 +209,8 @@ export async function handleUserProfile(req, res, url, sendJson) {
     line_display_name: displayName,
     line_picture_url:  pictureUrl,
     identity_tag:      identityTag,
+    is_fan:            followState.isFan,
+    follow_source:     followState.source,
     deposit_paid:      depositPaid,
     deposit_amount:    depositAmount,
     member_level:      memberLevel,
@@ -384,49 +459,10 @@ export async function handleCheckFollow(req, res, url, sendJson) {
   if (!userId) {
     return sendJson(res, 200, { code: 200, data: { is_fan: false, reason: "no_user_id" } });
   }
-
-  // 真实 LINE User ID（以大写 U 开头，长度约 33 位）
-  const isRealLineUser = /^U[0-9a-f]{32}$/i.test(userId);
-
-  if (isRealLineUser) {
-    try {
-      const userRes = await query(
-        `SELECT is_fan
-           FROM users
-          WHERE user_id = $1 OR line_user_id = $1
-          ORDER BY CASE WHEN user_id = $1 THEN 0 ELSE 1 END
-          LIMIT 1`,
-        [userId]
-      );
-
-      if (userRes.rows.length && userRes.rows[0].is_fan === true) {
-        return sendJson(res, 200, {
-          code: 200,
-          data: { is_fan: true, identity_tag: "fan", source: "users_table" },
-        });
-      }
-    } catch {
-      // DB 不可用时继续回退 fans.json，避免阻断关注判定
-    }
-
-    // 回退检查粉丝专用列表（LINE webhook / set-fan 写入）
-    const fans = loadJsonArray(dataFile("fans.json"));
-    const isFan = fans.some((f) => f.user_id === userId || f.line_user_id === userId);
-    return sendJson(res, 200, {
-      code: 200,
-      data: { is_fan: isFan, identity_tag: isFan ? "fan" : "visitor", source: "fans_list" },
-    });
-  }
-
-  // 设备 UUID：兼容旧逻辑，保持开发环境可测试
-  const accounts = loadJsonArray(dataFile("points-accounts.json"));
-  const account = accounts.find(
-    (a) => a.user_id === userId || a.line_user_id === userId
-  ) || null;
-  const isFan = !!account;
+  const followState = await resolveFollowState(userId);
   return sendJson(res, 200, {
     code: 200,
-    data: { is_fan: isFan, identity_tag: isFan ? (account?.identity_tag || "fan") : "visitor", source: "device_compat" },
+    data: { is_fan: followState.isFan, identity_tag: followState.identityTag, source: followState.source },
   });
 }
 
@@ -590,6 +626,7 @@ export async function handleUserIdentify(req, res, body, sendJson) {
     display_name = "",
     picture_url = "",
     language = "zh",
+    is_fan = false,
   } = body || {};
 
   if (!line_user_id && !device_id) {
@@ -601,19 +638,19 @@ export async function handleUserIdentify(req, res, body, sendJson) {
   const now = new Date().toISOString();
 
   try {
-    // 检查 fans.json 确认关注状态
+    // 检查 fans.json / users 表 / LIFF friendship hint 确认关注状态
     const fansFile = dataFile("fans.json");
     const fans = loadJsonArray(fansFile);
-    const isFan = fans.some(
+    const fansMatched = fans.some(
       (f) => f.user_id === canonicalUserId || f.line_user_id === line_user_id
     );
-
-    // Upsert users 表
     const existing = await query(
-      "SELECT user_id FROM users WHERE user_id = $1 LIMIT 1",
+      "SELECT user_id, is_fan FROM users WHERE user_id = $1 LIMIT 1",
       [canonicalUserId]
     ).catch(() => null);
 
+    const existingIsFan = !!(existing && existing.rows.length > 0 && existing.rows[0].is_fan === true);
+    const isFan = is_fan === true || existingIsFan || fansMatched;
     const isNew = !existing || existing.rows.length === 0;
 
     if (isNew) {
@@ -656,6 +693,17 @@ export async function handleUserIdentify(req, res, body, sendJson) {
         if (display_name) fansArr[fi].line_display_name = display_name;
         if (picture_url)  fansArr[fi].line_picture_url  = picture_url;
         fansArr[fi].updated_at = now;
+        try { fs.writeFileSync(fansFile2, JSON.stringify(fansArr, null, 2)); } catch {}
+      } else if (isFan) {
+        fansArr.push({
+          user_id: canonicalUserId,
+          line_user_id: line_user_id,
+          line_display_name: display_name || "",
+          line_picture_url: picture_url || "",
+          followed_at: now,
+          updated_at: now,
+          source: "identify_friendship",
+        });
         try { fs.writeFileSync(fansFile2, JSON.stringify(fansArr, null, 2)); } catch {}
       }
     }

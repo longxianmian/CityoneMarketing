@@ -131,6 +131,7 @@ async function initLiff(
           line_user_id: lineProfile.userId,
           display_name: lineProfile.displayName,
           picture_url: lineProfile.pictureUrl || '',
+          is_fan: isFriend === true,
         }),
       })
       const idJson = await idRes.json()
