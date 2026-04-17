@@ -70,8 +70,23 @@ async function initLiff(
 
     // 3. 获取真实 LINE 用户资料
     // 生产级流程要求：首页允许先浏览，只做静默识别。
-    // 若当前还没有 LINE 登录态，则保持未登录状态，交由业务动作阶段的 useFollowGate 再触发登录/关注门控。
+    // 但当 URL 已携带动作恢复参数（rp / liff.state）时，说明用户刚从“关注并继续”回流，
+    // 这时必须确保完成 LIFF 登录，否则 identify/check-follow/动作恢复都不会发生。
     if (!liff.isLoggedIn()) {
+      const sp = new URLSearchParams(window.location.search)
+      const hasResumeHint =
+        Boolean(sp.get('rp') || sp.get('resume_return') || sp.get('liff.state'))
+
+      if (hasResumeHint) {
+        try {
+          const redirectUri = `${window.location.origin}/welfare${window.location.search || ''}`
+          liff.login({ redirectUri })
+          return
+        } catch {
+          // login 调起失败时降级为未登录态，不阻塞页面浏览
+        }
+      }
+
       if (!signal.cancelled) {
         onReady({ liffReady: false, inLineClient: isInClient, liffChecked: true })
       }
