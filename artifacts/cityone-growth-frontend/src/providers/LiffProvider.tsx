@@ -78,64 +78,60 @@ async function initLiff(
       return
     }
 
-    if (isInClient && liff.isLoggedIn()) {
-      const lineProfile = await liff.getProfile()
-      if (signal.cancelled) return
+    // 已完成 LIFF 登录后，无论是在 LINE 内还是外部浏览器，都要建立真实 LINE 身份。
+    // 生产链路要求外部浏览器中的 LIFF 回流也能完成 identify / follow 校验，
+    // 否则会出现“关注并继续 -> 回到 /welfare -> 又弹关注”的循环。
+    const lineProfile = await liff.getProfile()
+    if (signal.cancelled) return
 
-      // 4. 检查是否已关注 OA（用于 useFollowGate 快速判断）
-      let isFriend: boolean | undefined
-      try {
-        const friendship = await liff.getFriendship()
-        isFriend = friendship.friendFlag
-      } catch {
-        // getFriendship 需要 chat_message.write scope，不支持时静默忽略
-      }
+    // 4. 检查是否已关注 OA（用于 useFollowGate 快速判断）
+    let isFriend: boolean | undefined
+    try {
+      const friendship = await liff.getFriendship()
+      isFriend = friendship.friendFlag
+    } catch {
+      // getFriendship 需要 chat_message.write scope，不支持时静默忽略
+    }
 
-      // 写入 store（不使用 hook，避免 React 版本冲突）
-      useLineUserStore.getState().setProfile({
-        lineUserId: lineProfile.userId,
-        lineDisplayName: lineProfile.displayName,
-        linePictureUrl: lineProfile.pictureUrl || '',
-        identityTag: undefined,
-        memberLevel: 'standard',
-        points: 0,
-        couponCount: 0,
-        deposit: 0,
-        depositPaid: false,
-        isFriend,
+    // 写入 store（不使用 hook，避免 React 版本冲突）
+    useLineUserStore.getState().setProfile({
+      lineUserId: lineProfile.userId,
+      lineDisplayName: lineProfile.displayName,
+      linePictureUrl: lineProfile.pictureUrl || '',
+      identityTag: undefined,
+      memberLevel: 'standard',
+      points: 0,
+      couponCount: 0,
+      deposit: 0,
+      depositPaid: false,
+      isFriend,
+    })
+
+    // 调用 identify 接口：写入 users 表，获取 canonical user_id 和身份标签
+    try {
+      const idRes = await fetch(`${API_BASE}/api/user/identify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          line_user_id: lineProfile.userId,
+          display_name: lineProfile.displayName,
+          picture_url: lineProfile.pictureUrl || '',
+        }),
       })
-
-      // 调用 identify 接口：写入 users 表，获取 canonical user_id 和身份标签
-      try {
-        const idRes = await fetch(`${API_BASE}/api/user/identify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            line_user_id: lineProfile.userId,
-            display_name: lineProfile.displayName,
-            picture_url: lineProfile.pictureUrl || '',
-          }),
-        })
-        const idJson = await idRes.json()
-        const idData = idJson?.data || {}
-        if (idData.user_id) {
-          useLineUserStore.getState().setCanonicalUserId(idData.user_id)
-        }
-        if (idData.identity_tag) {
-          useLineUserStore.getState().setIdentityTag(idData.identity_tag)
-        }
-        if (typeof idData.is_fan === 'boolean') {
-          useLineUserStore.getState().setIsFriend(idData.is_fan)
-        }
-      } catch {
-        // identify 失败不阻塞用户，降级使用 LINE User ID 作为 canonical ID
-        useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
+      const idJson = await idRes.json()
+      const idData = idJson?.data || {}
+      if (idData.user_id) {
+        useLineUserStore.getState().setCanonicalUserId(idData.user_id)
       }
-    } else if (!isInClient) {
-      if (!signal.cancelled) {
-        onReady({ liffReady: false, inLineClient: false, liffChecked: true })
+      if (idData.identity_tag) {
+        useLineUserStore.getState().setIdentityTag(idData.identity_tag)
       }
-      return
+      if (typeof idData.is_fan === 'boolean') {
+        useLineUserStore.getState().setIsFriend(idData.is_fan)
+      }
+    } catch {
+      // identify 失败不阻塞用户，降级使用 LINE User ID 作为 canonical ID
+      useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
     }
 
     if (!signal.cancelled) {
