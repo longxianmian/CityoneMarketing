@@ -374,11 +374,12 @@ export async function handleUserBenefits(req, res, url, sendJson) {
 // 判断用户是否已关注 LINE OA
 //
 // 判断规则（按优先级）：
-//   1. userId 以 'U' 开头（真实 LINE User ID）→ 检查 fans.json（LINE webhook 写入）
-//   2. 其他（设备 UUID dev_xxx）→ 兼容旧逻辑：检查 points-accounts.json
+//   1. userId 以 'U' 开头（真实 LINE User ID）→ 优先检查 users.is_fan
+//   2. users 未命中或仍为 false → 回退检查 fans.json（LINE webhook / set-fan 写入）
+//   3. 其他（设备 UUID dev_xxx）→ 兼容旧逻辑：检查 points-accounts.json
 //
 // fans.json 由 LINE webhook follow 事件写入（见 handleLineWebhook）
-export function handleCheckFollow(req, res, url, sendJson) {
+export async function handleCheckFollow(req, res, url, sendJson) {
   const userId = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
   if (!userId) {
     return sendJson(res, 200, { code: 200, data: { is_fan: false, reason: "no_user_id" } });
@@ -388,7 +389,27 @@ export function handleCheckFollow(req, res, url, sendJson) {
   const isRealLineUser = /^U[0-9a-f]{32}$/i.test(userId);
 
   if (isRealLineUser) {
-    // 检查粉丝专用列表（LINE webhook 写入）
+    try {
+      const userRes = await query(
+        `SELECT is_fan
+           FROM users
+          WHERE user_id = $1 OR line_user_id = $1
+          ORDER BY CASE WHEN user_id = $1 THEN 0 ELSE 1 END
+          LIMIT 1`,
+        [userId]
+      );
+
+      if (userRes.rows.length && userRes.rows[0].is_fan === true) {
+        return sendJson(res, 200, {
+          code: 200,
+          data: { is_fan: true, identity_tag: "fan", source: "users_table" },
+        });
+      }
+    } catch {
+      // DB 不可用时继续回退 fans.json，避免阻断关注判定
+    }
+
+    // 回退检查粉丝专用列表（LINE webhook / set-fan 写入）
     const fans = loadJsonArray(dataFile("fans.json"));
     const isFan = fans.some((f) => f.user_id === userId || f.line_user_id === userId);
     return sendJson(res, 200, {
