@@ -101,11 +101,14 @@ async function initLiff(
 
     // 4. 检查是否已关注 OA（用于 useFollowGate 快速判断）
     let isFriend: boolean | undefined
-    try {
-      const friendship = await liff.getFriendship()
-      isFriend = friendship.friendFlag
-    } catch {
-      // getFriendship 需要 chat_message.write scope，不支持时静默忽略
+    if (isInClient) {
+      try {
+        const friendship = await liff.getFriendship()
+        isFriend = friendship.friendFlag
+      } catch {
+        // getFriendship 在 LINE 外部浏览器里会打 friendship/v1/status 并返回 400，
+        // 这里仅在 LINE 内置浏览器中调用；外部浏览器统一交给后端 check-follow 收口。
+      }
     }
 
     // 写入 store（不使用 hook，避免 React 版本冲突）

@@ -524,14 +524,19 @@ export default function WelfareHomePage() {
       //   主路：liff.getFriendship()
       //   兜底：若 LIFF scope 不支持或抛异常 → 调 /api/user/check-follow
       let friendFlag: boolean | null = null
-      try {
-        const friendship = await liff.getFriendship()
-        friendFlag = friendship.friendFlag
-      } catch {
-        // getFriendship 失败（scope 未开通等），用服务端粉丝列表兜底
-        if (lineUserId) {
-          friendFlag = await checkFollowViaApi(lineUserId)
+      if (liff.isInClient?.() === true) {
+        try {
+          const friendship = await liff.getFriendship()
+          friendFlag = friendship.friendFlag
+        } catch {
+          // getFriendship 失败（scope 未开通等），用服务端粉丝列表兜底
+          if (lineUserId) {
+            friendFlag = await checkFollowViaApi(lineUserId)
+          }
         }
+      } else if (lineUserId) {
+        // 外部浏览器里直接走后端 check-follow，避免 friendship/v1/status 400 噪音
+        friendFlag = await checkFollowViaApi(lineUserId)
       }
 
       const pending    = hasPendingResume()
@@ -604,7 +609,9 @@ export default function WelfareHomePage() {
       return
     }
     setFollowChecking(true)
-    const canRequest = liff.isApiAvailable?.('requestFriendship') === true
+    const canRequest =
+      liff.isInClient?.() === true &&
+      liff.isApiAvailable?.('requestFriendship') === true
     if (canRequest) {
       try {
         await liff.requestFriendship()
