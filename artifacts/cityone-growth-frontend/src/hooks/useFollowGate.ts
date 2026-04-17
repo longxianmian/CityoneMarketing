@@ -10,12 +10,10 @@
  *      → 写 cityone_resume_* → navigate('/welfare')，/welfare 内显示关注弹层
  *   4. 若尚未建立 LINE 身份（无论在 LINE 内还是普通浏览器）
  *      → 优先跳正式 LIFF 建立真实身份，再由 /welfare 恢复器接管后续动作
- *   5. 仅当 LIFF/LINE 配置缺失时，非 LINE 浏览器才允许退回 dev 设备身份降级
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
-import { getDeviceUserId } from '../utils/deviceUserId'
 import useLineUserStore from '../store/lineUser'
 import { useLiff } from '../providers/LiffProvider'
 import { getRuntimeLineConfig, resolveRuntimeLiffUrl } from '../lib/line'
@@ -50,27 +48,13 @@ export function writeResumeKeys(returnPath: string, back: string, label: string)
   if (label) localStorage.setItem(SK_NAME, label)
 }
 
-async function fetchFanStatus(userId: string): Promise<boolean> {
-  if (!userId) return false
-  try {
-    const res = await fetch(
-      `${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`
-    )
-    const json = await res.json()
-    return json?.data?.is_fan === true
-  } catch {
-    return false
-  }
-}
-
 function syncFanToBackend(lineUserId: string, displayName: string, pictureUrl: string) {
-  const userId = lineUserId || getDeviceUserId()
   fetch(`${API_BASE}/api/user/set-fan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      user_id: userId,
-      line_user_id: lineUserId || userId,
+      user_id: lineUserId,
+      line_user_id: lineUserId,
       line_display_name: displayName,
       line_picture_url: pictureUrl,
     }),
@@ -88,7 +72,6 @@ export function useFollowGate() {
   const [searchParams] = useSearchParams()
   const lineProfile = useLineUserStore((s) => s.profile)
   const { liffReady, inLineClient } = useLiff()
-  const [isFan, setIsFan] = useState<boolean | null>(null)
   const [checking, setChecking] = useState(false)
   const syncedRef = useRef(false)
 
@@ -99,7 +82,6 @@ export function useFollowGate() {
     const liffIsFriend = lineProfile?.isFriend
 
     if (liffIsFriend === true) {
-      setIsFan(true)
       if (!syncedRef.current) {
         syncedRef.current = true
         syncFanToBackend(
@@ -112,16 +94,9 @@ export function useFollowGate() {
     }
 
     if (liffIsFriend === false) {
-      setIsFan(false)
       return
     }
-
-    // LIFF 未初始化 / 不在 LINE 内 → 查后端（仅非 LINE 环境降级）
-    if (!isInLine) {
-      fetchFanStatus(getDeviceUserId()).then(setIsFan)
-    }
   }, [
-    isInLine,
     lineProfile?.isFriend,
     lineProfile?.lineUserId,
     lineProfile?.lineDisplayName,
@@ -203,22 +178,12 @@ export function useFollowGate() {
           return
         }
 
-        // ── Case 4: 仅当正式 LIFF 链路不可用时，非 LINE 浏览器退回设备身份降级 ─────
-        const fan = isFan !== null ? isFan : await fetchFanStatus(getDeviceUserId())
-        if (isFan === null) setIsFan(fan)
-
-        if (fan) {
-          await action()
-        } else {
-          writeResumeKeys(fullReturn, backPath, label)
-          navigate('/welfare')
-        }
       } finally {
         setChecking(false)
       }
     },
-    [isFan, navigate, buildReturnPath, lineProfile, liffReady, isInLine]
+    [navigate, buildReturnPath, lineProfile, liffReady]
   )
 
-  return { isFan, guard, checking }
+  return { guard, checking }
 }
