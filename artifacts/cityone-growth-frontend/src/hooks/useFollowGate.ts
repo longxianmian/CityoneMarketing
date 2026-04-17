@@ -17,6 +17,8 @@ import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
 import { useLiff } from '../providers/LiffProvider'
 import { getRuntimeLineConfig, resolveRuntimeLiffUrl } from '../lib/line'
+import { isFollowFlowV2Enabled } from '../lib/followFlow'
+import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
 
 const API_BASE  = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -65,6 +67,9 @@ interface GuardOptions {
   label?: string
   returnPath: string
   back?: string
+  intentAction?: PendingIntentAction
+  resourceId?: string
+  source?: Record<string, any>
 }
 
 export function useFollowGate() {
@@ -131,11 +136,12 @@ export function useFollowGate() {
    */
   const guard = useCallback(
     async (action: () => void | Promise<void>, opts: GuardOptions) => {
-      const { label = '', returnPath, back } = opts
+      const { label = '', returnPath, back, intentAction, resourceId, source = {} } = opts
       setChecking(true)
       try {
         const fullReturn = buildReturnPath(returnPath)
         const backPath   = back ?? returnPath.split('?')[0]
+        const useV2 = isFollowFlowV2Enabled() && !!intentAction && !!resourceId
 
         // ── Case 1: LIFF 已确认是粉丝 → 直接执行 ────────────────────────
         if (lineProfile?.isFriend === true) {
@@ -143,8 +149,32 @@ export function useFollowGate() {
           return
         }
 
+        let pendingToken = ''
+        if (useV2) {
+          try {
+            const issued = await issuePendingIntent({
+              userId: lineProfile?.lineUserId || '',
+              lineUserId: lineProfile?.lineUserId || '',
+              action: intentAction!,
+              resourceId: resourceId!,
+              returnPath: fullReturn,
+              backPath,
+              actionName: label,
+              source,
+            })
+            pendingToken = issued.token
+          } catch (err: any) {
+            message.error(err?.message || '创建待恢复动作失败')
+            return
+          }
+        }
+
         // ── Case 2: LINE 身份已建立 + LIFF 确认未关注 → /welfare 显示关注弹层
         if (lineProfile?.lineUserId && liffReady && lineProfile?.isFriend === false) {
+          if (useV2 && pendingToken) {
+            navigate(`/welfare/continue?intent=${encodeURIComponent(pendingToken)}`)
+            return
+          }
           writeResumeKeys(fullReturn, backPath, label)
           navigate('/welfare')
           return
@@ -167,6 +197,11 @@ export function useFollowGate() {
           if (!lineConfig.officialAccountId) {
             message.error('LINE OA 尚未完成正式配置，请联系管理员补齐官方账号 ID 后再试')
             navigate('/welfare', { replace: true })
+            return
+          }
+          if (useV2 && pendingToken) {
+            const next = `${liffUrl}/?intent=${encodeURIComponent(pendingToken)}`
+            window.location.href = next
             return
           }
           writeResumeKeys(fullReturn, backPath, label)

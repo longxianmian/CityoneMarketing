@@ -205,6 +205,10 @@ import {
   handleUserIdentify,
 } from "./routes/user-profile.js";
 import {
+  handlePendingIntentIssue,
+  handlePendingIntentConsume,
+} from "./routes/pending-intents.js";
+import {
   handleAgentsList,
   handleAgentsUpdate,
   handleAgentToggle,
@@ -1355,6 +1359,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/user/identify") {
       const body = await readBody(req);
       return handleUserIdentify(req, res, body, sendJson);
+    }
+    if (req.method === "POST" && url.pathname === "/api/user/pending-intents") {
+      return handlePendingIntentIssue(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/user/pending-intents/consume") {
+      return handlePendingIntentConsume(req, res, url, sendJson, readBody);
     }
 
     // ─── A 系统旁路连接接口（占位，返回 501 直至联调启用）────────────────────

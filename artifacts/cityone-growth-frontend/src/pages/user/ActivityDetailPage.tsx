@@ -159,6 +159,8 @@ export default function ActivityDetailPage() {
     const baseTarget = isInteractive && typeInfoML.route
       ? `${typeInfoML.route}${id}`
       : `/activity/${id}?auto=participate`
+    const entryCode = searchParams.get('entry_code') || ''
+    const utmSource = searchParams.get('utm_source') || ''
     guard(
       async () => {
         if (isInteractive && typeInfoML.route) {
@@ -171,6 +173,12 @@ export default function ActivityDetailPage() {
         label: title,
         returnPath: baseTarget,
         back: `/activity/${id}`,
+        intentAction: 'participate_activity',
+        resourceId: id || '',
+        source: {
+          ...(entryCode && { source_landing_id: entryCode }),
+          ...(utmSource && { source_channel_id: utmSource }),
+        },
       }
     )
   }

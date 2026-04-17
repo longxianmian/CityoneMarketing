@@ -75,7 +75,7 @@ async function initLiff(
     if (!liff.isLoggedIn()) {
       const sp = new URLSearchParams(window.location.search)
       const hasResumeHint =
-        Boolean(sp.get('rp') || sp.get('resume_return') || sp.get('liff.state'))
+        Boolean(sp.get('rp') || sp.get('resume_return') || sp.get('liff.state') || sp.get('intent'))
 
       if (hasResumeHint) {
         try {
@@ -151,6 +151,14 @@ async function initLiff(
     } catch {
       // identify 失败不阻塞用户，降级使用 LINE User ID 作为 canonical ID
       useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
+    }
+
+    if (window.location.pathname === '/welfare') {
+      const sp = new URLSearchParams(window.location.search)
+      if (sp.get('intent')) {
+        window.location.replace(`/welfare/continue?${sp.toString()}`)
+        return
+      }
     }
 
     if (!signal.cancelled) {

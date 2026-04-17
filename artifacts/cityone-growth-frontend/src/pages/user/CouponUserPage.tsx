@@ -316,6 +316,8 @@ export default function CouponUserPage() {
   const name = pickML(detailData?.name || detailData?.product_name, language) || ''
 
   const handleClaim = () => {
+    const entryCode = searchParams.get('entry_code') || ''
+    const utmSource = searchParams.get('utm_source') || ''
     guard(
       async () => {
         if (coupon?.item_type === 'physical') {
@@ -333,6 +335,12 @@ export default function CouponUserPage() {
         label: name,
         returnPath: `/coupon/${id}?auto=claim`,
         back: `/coupon/${id}`,
+        intentAction: 'claim_coupon',
+        resourceId: id,
+        source: {
+          ...(entryCode && { source_landing_id: entryCode }),
+          ...(utmSource && { source_channel_id: utmSource }),
+        },
       }
     )
   }

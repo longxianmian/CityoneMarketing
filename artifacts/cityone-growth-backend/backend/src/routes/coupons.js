@@ -468,126 +468,11 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
     if (!userId)   return sendError(res, sendJson, 400, "MISSING_USER_ID",   "缺少 user_id");
     if (!couponId) return sendError(res, sendJson, 400, "MISSING_COUPON_ID", "缺少 coupon_id");
 
-    const now = new Date().toISOString();
-
-    const result = await withTransaction(async (client) => {
-      // 1. 获取卡券（行锁）
-      const couponRes = await client.query(
-        "SELECT * FROM coupons WHERE id = $1 FOR UPDATE",
-        [couponId]
-      );
-      if (!couponRes.rows.length) {
-        return { error: { code: 404, key: "NOT_FOUND", msg: "未找到该卡券" } };
-      }
-      const coupon = couponRes.rows[0];
-      if (Number(coupon.status) !== 1) {
-        return { error: { code: 400, key: "INACTIVE", msg: "该卡券已停用" } };
-      }
-
-      // 2. 防重复领取
-      const alreadyRes = await client.query(`
-        SELECT id FROM user_coupons
-        WHERE (user_id = $1 OR line_user_id = $1)
-          AND coupon_id = $2
-          AND source_type = 'coupon_claim'
-        LIMIT 1
-      `, [userId, couponId]);
-
-      if (alreadyRes.rows.length) {
-        const upRes = await client.query("SELECT * FROM user_coupons WHERE id = $1", [alreadyRes.rows[0].id]);
-        return { already_claimed: true, user_product: userCouponRow(upRes.rows[0]) };
-      }
-
-      // 3. 检查库存
-      if (Number(coupon.total_count) > 0) {
-        const claimedRes = await client.query(
-          "SELECT COUNT(*) AS cnt FROM user_coupons WHERE coupon_id = $1 AND source_type = 'coupon_claim'",
-          [couponId]
-        );
-        if (Number(claimedRes.rows[0].cnt) >= Number(coupon.total_count)) {
-          return { error: { code: 400, key: "OUT_OF_STOCK", msg: "该卡券已被领完" } };
-        }
-      }
-
-      // 4. 写领取记录（含落地页/渠道归因 + 实物配送信息）
-      const ucId = `up_coupon_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-      const attribution = buildAttributionSnapshot(body);
-      const deliveryType  = body.delivery_type   || null;
-      const deliveryName  = body.delivery_name   || null;
-      const deliveryPhone = body.delivery_phone  || null;
-      const deliveryAddr  = body.delivery_address|| null;
-      const pickupName    = body.pickup_name     || null;
-      const pickupPhone   = body.pickup_phone    || null;
-      // 实物卡券领取时，若无配送信息则拦截
-      if (coupon.item_type === 'physical') {
-        const isPickup  = deliveryType === 'pickup';
-        const isCourier = deliveryType === 'courier';
-        if (isPickup && (!pickupName || !pickupPhone)) {
-          return { error: { code: 400, key: "MISSING_PICKUP_INFO", msg: "请填写取货人信息" } };
-        }
-        if (isCourier && (!deliveryName || !deliveryPhone || !deliveryAddr)) {
-          return { error: { code: 400, key: "MISSING_DELIVERY_INFO", msg: "请填写完整配送信息" } };
-        }
-        if (!deliveryType) {
-          return { error: { code: 400, key: "MISSING_DELIVERY_TYPE", msg: "请选择配送方式" } };
-        }
-      }
-      const shippingStatus = coupon.item_type === 'physical' ? 'pending' : null;
-
-      const ucRes = await client.query(`
-        INSERT INTO user_coupons
-          (id, user_id, line_user_id, coupon_id, product_status, source_type, source_id,
-           source_entry_id, source_landing_id, source_banner_id, source_channel_id,
-           source_station_code, source_a_system_station_id, source_device_code, source_device_id,
-           a_system_user_id,
-           delivery_type, delivery_name, delivery_phone, delivery_address,
-           pickup_name, pickup_phone, shipping_status,
-           claimed_at, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, 'claimed', 'coupon_claim', $5, $6, $7, $8, $9,
-                $10, $11, $12, $12, $13,
-                $14, $15, $16, $17, $18, $19, $20,
-                $21, $21, $21)
-        RETURNING *
-      `, [
-        ucId,
-        userId,
-        body.line_user_id || userId,
-        couponId,
-        couponId,
-        attribution.source_entry_id,
-        attribution.source_landing_id,
-        attribution.source_banner_id,
-        attribution.source_channel_id,
-        attribution.source_station_code,
-        attribution.source_a_system_station_id,
-        attribution.source_device_code,
-        body.a_system_user_id || null,
-        deliveryType,
-        deliveryName,
-        deliveryPhone,
-        deliveryAddr,
-        pickupName,
-        pickupPhone,
-        shippingStatus,
-        now,
-      ]);
-
-      // 5. 更新已领取计数
-      await client.query(
-        "UPDATE coupons SET claimed_count = claimed_count + 1, updated_at = NOW() WHERE id = $1",
-        [couponId]
-      );
-
-      const couponName = typeof coupon.name === "object"
-        ? (coupon.name.zh || coupon.name.en || coupon.name.th || couponId)
-        : (coupon.name || couponId);
-
-      return {
-        already_claimed: false,
-        user_product:    userCouponRow(ucRes.rows[0]),
-        coupon_name:     couponName,
-        coupon_data:     couponRow(coupon),
-      };
+    const result = await claimCouponForUser({
+      userId,
+      lineUserId: body.line_user_id || userId,
+      couponId,
+      source: body,
     });
 
     if (result.error) {
@@ -598,6 +483,139 @@ export async function handleCouponClaim(req, res, url, sendJson, readBody) {
   } catch (err) {
     return sendError(res, sendJson, 500, "SERVER_ERROR", err.message || "领取失败");
   }
+}
+
+export async function claimCouponTx(client, {
+  userId,
+  lineUserId,
+  couponId,
+  source = {},
+}) {
+  const now = new Date().toISOString();
+
+  const couponRes = await client.query(
+    "SELECT * FROM coupons WHERE id = $1 FOR UPDATE",
+    [couponId]
+  );
+  if (!couponRes.rows.length) {
+    return { error: { code: 404, key: "NOT_FOUND", msg: "未找到该卡券" } };
+  }
+  const coupon = couponRes.rows[0];
+  if (Number(coupon.status) !== 1) {
+    return { error: { code: 400, key: "INACTIVE", msg: "该卡券已停用" } };
+  }
+
+  const alreadyRes = await client.query(`
+    SELECT id FROM user_coupons
+    WHERE (user_id = $1 OR line_user_id = $1)
+      AND coupon_id = $2
+      AND source_type = 'coupon_claim'
+    LIMIT 1
+  `, [userId, couponId]);
+
+  if (alreadyRes.rows.length) {
+    const upRes = await client.query("SELECT * FROM user_coupons WHERE id = $1", [alreadyRes.rows[0].id]);
+    return { already_claimed: true, user_product: userCouponRow(upRes.rows[0]) };
+  }
+
+  if (Number(coupon.total_count) > 0) {
+    const claimedRes = await client.query(
+      "SELECT COUNT(*) AS cnt FROM user_coupons WHERE coupon_id = $1 AND source_type = 'coupon_claim'",
+      [couponId]
+    );
+    if (Number(claimedRes.rows[0].cnt) >= Number(coupon.total_count)) {
+      return { error: { code: 400, key: "OUT_OF_STOCK", msg: "该卡券已被领完" } };
+    }
+  }
+
+  const ucId = `up_coupon_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+  const attribution = buildAttributionSnapshot(source);
+  const deliveryType = source.delivery_type || null;
+  const deliveryName = source.delivery_name || null;
+  const deliveryPhone = source.delivery_phone || null;
+  const deliveryAddr = source.delivery_address || null;
+  const pickupName = source.pickup_name || null;
+  const pickupPhone = source.pickup_phone || null;
+
+  if (coupon.item_type === 'physical') {
+    const isPickup = deliveryType === 'pickup';
+    const isCourier = deliveryType === 'courier';
+    if (isPickup && (!pickupName || !pickupPhone)) {
+      return { error: { code: 400, key: "MISSING_PICKUP_INFO", msg: "请填写取货人信息" } };
+    }
+    if (isCourier && (!deliveryName || !deliveryPhone || !deliveryAddr)) {
+      return { error: { code: 400, key: "MISSING_DELIVERY_INFO", msg: "请填写完整配送信息" } };
+    }
+    if (!deliveryType) {
+      return { error: { code: 400, key: "MISSING_DELIVERY_TYPE", msg: "请选择配送方式" } };
+    }
+  }
+  const shippingStatus = coupon.item_type === 'physical' ? 'pending' : null;
+
+  const ucRes = await client.query(`
+    INSERT INTO user_coupons
+      (id, user_id, line_user_id, coupon_id, product_status, source_type, source_id,
+       source_entry_id, source_landing_id, source_banner_id, source_channel_id,
+       source_station_code, source_a_system_station_id, source_device_code, source_device_id,
+       a_system_user_id,
+       delivery_type, delivery_name, delivery_phone, delivery_address,
+       pickup_name, pickup_phone, shipping_status,
+       claimed_at, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, 'claimed', 'coupon_claim', $5, $6, $7, $8, $9,
+            $10, $11, $12, $12, $13,
+            $14, $15, $16, $17, $18, $19, $20,
+            $21, $21, $21)
+    RETURNING *
+  `, [
+    ucId,
+    userId,
+    lineUserId || userId,
+    couponId,
+    couponId,
+    attribution.source_entry_id,
+    attribution.source_landing_id,
+    attribution.source_banner_id,
+    attribution.source_channel_id,
+    attribution.source_station_code,
+    attribution.source_a_system_station_id,
+    attribution.source_device_code,
+    source.a_system_user_id || null,
+    deliveryType,
+    deliveryName,
+    deliveryPhone,
+    deliveryAddr,
+    pickupName,
+    pickupPhone,
+    shippingStatus,
+    now,
+  ]);
+
+  await client.query(
+    "UPDATE coupons SET claimed_count = claimed_count + 1, updated_at = NOW() WHERE id = $1",
+    [couponId]
+  );
+
+  const couponName = typeof coupon.name === "object"
+    ? (coupon.name.zh || coupon.name.en || coupon.name.th || couponId)
+    : (coupon.name || couponId);
+
+  return {
+    already_claimed: false,
+    user_product: userCouponRow(ucRes.rows[0]),
+    coupon_name: couponName,
+    coupon_data: couponRow(coupon),
+  };
+}
+
+export async function claimCouponForUser({
+  userId,
+  lineUserId,
+  couponId,
+  source = {},
+}) {
+  return withTransaction(async (client) =>
+    claimCouponTx(client, { userId, lineUserId, couponId, source })
+  );
 }
 
 // ── 用户端：使用已拥有卡券兑换关联商品 ───────────────────────────────────────

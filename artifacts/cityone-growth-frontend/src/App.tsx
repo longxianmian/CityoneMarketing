@@ -25,6 +25,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/user/PrivacyPolicyPage'))
 const AboutUsPage = lazy(() => import('./pages/user/AboutUsPage'))
 const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
 const FollowOAPage = lazy(() => import('./pages/user/FollowOAPage'))
+const ContinuePage = lazy(() => import('./pages/user/ContinuePage'))
 const ScratchCardPage = lazy(() => import('./pages/user/ScratchCardPage'))
 const ThaiFortuneDrawPage = lazy(() => import('./pages/user/ThaiFortuneDrawPage'))
 const MyAddressPage = lazy(() => import('./pages/user/MyAddressPage'))
@@ -97,6 +98,8 @@ export default function App() {
       <Routes>
         {/* 用户端路由 */}
         <Route path="/welfare" element={<WelfareHomePage />} />
+        <Route path="/welfare/continue" element={<ContinuePage />} />
+        <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
         <Route path="/nearby" element={<NearbyPage />} />
         <Route path="/agent" element={<AgentPage />} />
         <Route path="/agent/chat" element={<AgentChatPage />} />

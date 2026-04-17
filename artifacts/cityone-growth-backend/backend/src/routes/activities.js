@@ -632,6 +632,193 @@ export async function handleActivityDelete(req, res, url, sendJson) {
 
 // ─── 活动参与（积分走 PostgreSQL）────────────────────────────────────────────
 
+export async function participateActivityTx(client, {
+  activityId,
+  userId,
+  lineUserId,
+  source = {},
+}) {
+  const { rows: acts } = await client.query("SELECT * FROM activities WHERE activity_id=$1", [activityId]);
+  if (acts.length === 0) throw createHttpError(404, "NOT_FOUND", "未找到活动");
+
+  const activity = acts[0];
+  if (activity.status !== "active") throw createHttpError(400, "INACTIVE", "活动未开启");
+
+  const rewardPoints = Number(activity.reward_points) || 0;
+  const now = new Date();
+
+  const srcEntryId = String(source.source_entry_id || "").trim();
+  const srcLandingId = String(source.source_landing_id || activity.landing_code || "").trim();
+  const srcBannerId = String(source.source_banner_id || activity.banner_code || "").trim();
+  const srcChannelId = String(source.source_channel_id || activity.source_channel_id || "").trim();
+
+  let srcStationCode = String(source.source_station_code || "").trim();
+  let srcASystemStationId = String(source.source_a_system_station_id || "").trim();
+  let srcDeviceCode = String(source.source_device_code || source.device_code || "").trim();
+
+  if (!srcStationCode && srcEntryId) {
+    try {
+      const { rows: entryRows } = await client.query(
+        "SELECT station_code FROM entry_instances WHERE entry_code=$1",
+        [srcEntryId]
+      );
+      const entryStationCode = String(entryRows[0]?.station_code || "").trim();
+      if (entryStationCode) {
+        const { rows: stRows } = await client.query(
+          "SELECT a_system_station_id, device_code FROM stations WHERE station_code=$1",
+          [entryStationCode]
+        );
+        srcStationCode = entryStationCode;
+        srcASystemStationId = String(stRows[0]?.a_system_station_id || "").trim();
+        srcDeviceCode = srcDeviceCode || String(stRows[0]?.device_code || "").trim();
+      }
+    } catch (_) {}
+  }
+
+  const participationCode = `part_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+
+  // ── 幂等核心：ON CONFLICT (activity_id, user_id) DO NOTHING ──────────────
+  // 无论并发还是重放请求，DB 层唯一约束保证只插入一条。
+  // INSERT 无 RETURNING 行 → 已存在 → 直接返回 already_joined。
+  const { rows: partRows } = await client.query(
+    `INSERT INTO activity_participations
+       (id, activity_id, user_id, line_user_id, points_awarded,
+        source_entry_id, source_landing_id, source_banner_id, source_channel_id,
+        source_station_code, source_a_system_station_id, source_device_code,
+        joined_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+     ON CONFLICT (activity_id, user_id) DO NOTHING
+     RETURNING *`,
+    [
+      participationCode, activityId, userId, lineUserId || userId,
+      rewardPoints,
+      srcEntryId, srcLandingId, srcBannerId, srcChannelId,
+      srcStationCode, srcASystemStationId, srcDeviceCode,
+      now,
+    ]
+  );
+
+  if (partRows.length === 0) {
+    return { already_joined: true, points_awarded: 0, participation: null, issued_coupons: [] };
+  }
+
+  if (rewardPoints > 0) {
+    const actName = activity.activity_name;
+    const actNameStr = typeof actName === "object"
+      ? (actName.zh || actName.en || activityId)
+      : (actName || activityId);
+
+    const ledgerId = `ledger_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+
+    await client.query(
+      `INSERT INTO points_ledger
+         (id, user_id, line_user_id, type, points, ref_type, ref_id, reason, operator_id,
+          source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
+          source_station_code, source_a_system_station_id, source_device_code,
+          created_at)
+       VALUES ($1,$2,$3,'credit',$4,'activity_reward',$5,$6,'activity_system',
+               $7,$8,$9,$10,$11,
+               $12,$13,$14,$15)`,
+      [
+        ledgerId, userId, lineUserId || userId,
+        rewardPoints, activityId,
+        `活动奖励：${actNameStr}`,
+        srcEntryId, activityId, srcLandingId, srcBannerId, srcChannelId,
+        srcStationCode, srcASystemStationId, srcDeviceCode,
+        now,
+      ]
+    );
+
+    await client.query(
+      `INSERT INTO points_accounts (user_id, line_user_id, total_points, available_points, updated_at)
+       VALUES ($1,$2,$3,$3,$4)
+       ON CONFLICT (user_id) DO UPDATE SET
+         total_points     = points_accounts.total_points     + EXCLUDED.total_points,
+         available_points = points_accounts.available_points + EXCLUDED.available_points,
+         updated_at       = EXCLUDED.updated_at`,
+      [userId, lineUserId || userId, rewardPoints, now]
+    );
+  }
+
+  const issuedCoupons = [];
+  const { rows: bindings } = await client.query(
+    `SELECT product_id
+       FROM activity_product_bindings
+      WHERE activity_code = $1
+        AND binding_type = 'coupon'
+        AND trigger_event = 'participate'
+        AND status::text IN ('1', 'active', 'enabled')
+      ORDER BY sort_no ASC, id ASC`,
+    [activityId]
+  );
+
+  for (const binding of bindings) {
+    const couponId = String(binding.product_id || '').trim();
+    if (!couponId) continue;
+
+    const { rows: existsRows } = await client.query(
+      `SELECT id
+         FROM user_coupons
+        WHERE coupon_id = $1
+          AND source_activity_id = $2
+          AND (user_id = $3 OR line_user_id = $4)
+        LIMIT 1`,
+      [couponId, activityId, userId, lineUserId || userId]
+    );
+
+    if (existsRows.length > 0) {
+      issuedCoupons.push({ coupon_id: couponId, duplicated: true });
+      continue;
+    }
+
+    const userCouponId = `uc_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+
+    await client.query(
+      `INSERT INTO user_coupons
+         (id, user_id, line_user_id, coupon_id, product_status, source_type,
+          source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
+          source_station_code, source_a_system_station_id, source_device_code, source_device_id,
+          claimed_at, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,'claimed','activity',
+               $5,$6,$7,$8,$9,
+               $10,$11,$12,$12,
+               $13,$13,$13)`,
+      [
+        userCouponId, userId, lineUserId || userId, couponId,
+        srcEntryId, activityId, srcLandingId, srcBannerId, srcChannelId,
+        srcStationCode, srcASystemStationId, srcDeviceCode,
+        now,
+      ]
+    );
+
+    issuedCoupons.push({ coupon_id: couponId, duplicated: false });
+  }
+
+  return {
+    already_joined: false,
+    points_awarded: rewardPoints,
+    participation: partRows[0],
+    issued_coupons: issuedCoupons,
+  };
+}
+
+export async function participateActivityForUser({
+  activityId,
+  userId,
+  lineUserId,
+  source = {},
+}) {
+  if (!activityId) throw createHttpError(400, "MISSING_ID", "缺少活动ID");
+  if (!userId) throw createHttpError(400, "MISSING_USER_ID", "缺少 user_id");
+
+  return withTransaction((client) => participateActivityTx(client, {
+    activityId,
+    userId,
+    lineUserId,
+    source,
+  }));
+}
+
 export async function handleActivityParticipate(req, res, url, sendJson, readBody) {
   try {
     const id = idFromPath(url.pathname, /^\/api\/activities\/([^/]+)\/participate$/);
@@ -641,167 +828,11 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
     const userId = body.user_id || body.line_user_id || "";
     if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "缺少 user_id");
 
-    const { rows: acts } = await query("SELECT * FROM activities WHERE activity_id=$1", [id]);
-    if (acts.length === 0) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到活动");
-    const activity = acts[0];
-    if (activity.status !== "active") return sendError(res, sendJson, 400, "INACTIVE", "活动未开启");
-
-    const rewardPoints = Number(activity.reward_points) || 0;
-    const now = new Date();
-
-    // 归因快照字段
-    const srcEntryId   = body.source_entry_id   || "";
-    const srcLandingId = body.source_landing_id  || activity.landing_code || "";
-    const srcBannerId  = body.source_banner_id   || activity.banner_code  || "";
-    const srcChannelId = body.source_channel_id  || activity.source_channel_id || "";
-
-    // 站点归因快照：优先来自请求体，其次通过 source_entry_id 反查 entry_instances → stations
-    let srcStationCode = body.source_station_code || "";
-    let srcASystemStationId = body.source_a_system_station_id || "";
-    let srcDeviceCode = body.source_device_code || body.device_code || "";
-
-    if (!srcStationCode && srcEntryId) {
-      try {
-        const { rows: entryRows } = await query(
-          "SELECT station_code FROM entry_instances WHERE entry_code=$1", [srcEntryId]
-        );
-        const entryStationCode = entryRows[0]?.station_code || "";
-        if (entryStationCode) {
-          const { rows: stRows } = await query(
-            "SELECT a_system_station_id, device_code FROM stations WHERE station_code=$1", [entryStationCode]
-          );
-          srcStationCode       = entryStationCode;
-          srcASystemStationId  = stRows[0]?.a_system_station_id || "";
-          srcDeviceCode        = srcDeviceCode || stRows[0]?.device_code || "";
-        }
-      } catch (_) {}
-    }
-
-    const participationCode = `part_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-
-    // ── 幂等核心：ON CONFLICT (activity_id, user_id) DO NOTHING ──────────────
-    // 无论并发还是重放请求，DB 层唯一约束保证只插入一条。
-    // INSERT 无 RETURNING 行 → 已存在 → 直接返回 already_joined。
-    const result = await withTransaction(async (client) => {
-      const { rows: partRows } = await client.query(
-        `INSERT INTO activity_participations
-           (id, activity_id, user_id, line_user_id, points_awarded,
-            source_entry_id, source_landing_id, source_banner_id, source_channel_id,
-            source_station_code, source_a_system_station_id, source_device_code,
-            joined_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-         ON CONFLICT (activity_id, user_id) DO NOTHING
-         RETURNING *`,
-        [
-          participationCode, id, userId, body.line_user_id || userId,
-          rewardPoints,
-          srcEntryId, srcLandingId, srcBannerId, srcChannelId,
-          srcStationCode, srcASystemStationId, srcDeviceCode,
-          now,
-        ]
-      );
-
-      // 无 RETURNING 行 → 幂等命中（已参与过），跳过积分发放
-      if (partRows.length === 0) return { already_joined: true };
-
-      // 发放积分（仅 reward_points > 0 时）
-      if (rewardPoints > 0) {
-        const actName = activity.activity_name;
-        const actNameStr = typeof actName === "object"
-          ? (actName.zh || actName.en || id)
-          : (actName || id);
-
-        const ledgerId = `ledger_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-
-        // 写积分流水（携带完整归因快照，含站点维度）
-        await client.query(
-          `INSERT INTO points_ledger
-             (id, user_id, line_user_id, type, points, ref_type, ref_id, reason, operator_id,
-              source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
-              source_station_code, source_a_system_station_id, source_device_code,
-              created_at)
-           VALUES ($1,$2,$3,'credit',$4,'activity_reward',$5,$6,'activity_system',
-                   $7,$8,$9,$10,$11,
-                   $12,$13,$14,$15)`,
-          [
-            ledgerId, userId, body.line_user_id || userId,
-            rewardPoints, id,
-            `活动奖励：${actNameStr}`,
-            srcEntryId, id, srcLandingId, srcBannerId, srcChannelId,
-            srcStationCode, srcASystemStationId, srcDeviceCode,
-            now,
-          ]
-        );
-
-        // 更新积分账户（ON CONFLICT 保证原子性）
-        await client.query(
-          `INSERT INTO points_accounts (user_id, line_user_id, total_points, available_points, updated_at)
-           VALUES ($1,$2,$3,$3,$4)
-           ON CONFLICT (user_id) DO UPDATE SET
-             total_points     = points_accounts.total_points     + EXCLUDED.total_points,
-             available_points = points_accounts.available_points + EXCLUDED.available_points,
-             updated_at       = EXCLUDED.updated_at`,
-          [userId, body.line_user_id || userId, rewardPoints, now]
-        );
-      }
-
-      // 发放活动绑定卡券（生产级：统一走 activity_product_bindings）
-      const issuedCoupons = [];
-      const { rows: bindings } = await client.query(
-        `SELECT product_id
-           FROM activity_product_bindings
-          WHERE activity_code = $1
-            AND binding_type = 'coupon'
-            AND trigger_event = 'participate'
-            AND status::text IN ('1', 'active', 'enabled')
-          ORDER BY sort_no ASC, id ASC`,
-        [id]
-      );
-
-      for (const binding of bindings) {
-        const couponId = String(binding.product_id || '').trim();
-        if (!couponId) continue;
-
-        // 幂等去重：同一用户 + 同一活动 + 同一券，不重复发
-        const { rows: existsRows } = await client.query(
-          `SELECT id
-             FROM user_coupons
-            WHERE coupon_id = $1
-              AND source_activity_id = $2
-              AND (user_id = $3 OR line_user_id = $4)
-            LIMIT 1`,
-          [couponId, id, userId, body.line_user_id || userId]
-        );
-
-        if (existsRows.length > 0) {
-          issuedCoupons.push({ coupon_id: couponId, duplicated: true });
-          continue;
-        }
-
-        const userCouponId = `uc_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-
-        await client.query(
-          `INSERT INTO user_coupons
-             (id, user_id, line_user_id, coupon_id, product_status, source_type,
-              source_entry_id, source_activity_id, source_landing_id, source_banner_id, source_channel_id,
-              source_station_code, source_a_system_station_id, source_device_code, source_device_id,
-              claimed_at, created_at, updated_at)
-           VALUES ($1,$2,$3,$4,'claimed','activity',
-                   $5,$6,$7,$8,$9,
-                   $10,$11,$12,$12,
-                   $13,$13,$13)`,
-          [
-            userCouponId, userId, body.line_user_id || userId, couponId,
-            srcEntryId, id, srcLandingId, srcBannerId, srcChannelId,
-            srcStationCode, srcASystemStationId, srcDeviceCode,
-            now,
-          ]
-        );
-
-        issuedCoupons.push({ coupon_id: couponId, duplicated: false });
-      }
-
-      return { already_joined: false, participation: partRows[0], issued_coupons: issuedCoupons };
+    const result = await participateActivityForUser({
+      activityId: id,
+      userId,
+      lineUserId: body.line_user_id || userId,
+      source: body,
     });
 
     if (result.already_joined) {
@@ -814,12 +845,12 @@ export async function handleActivityParticipate(req, res, url, sendJson, readBod
 
     return sendOk(res, sendJson, "参与成功", {
       already_joined: false,
-      points_awarded: rewardPoints,
+      points_awarded: result.points_awarded || 0,
       participation: result.participation,
       issued_coupons: result.issued_coupons || [],
     });
   } catch (err) {
-    return sendError(res, sendJson, 500, "SERVER_ERROR", err.message || "参与失败");
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "SERVER_ERROR", err.message || "参与失败");
   }
 }
 
