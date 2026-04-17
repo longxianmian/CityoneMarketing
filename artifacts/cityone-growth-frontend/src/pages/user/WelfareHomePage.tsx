@@ -473,9 +473,19 @@ export default function WelfareHomePage() {
       sessionStorage.getItem('cityone_resume_return_path') ||
       ''
 
-    const hasPendingResume = (): boolean =>
-      hasFreshResumePending(localStorage) ||
-      hasFreshResumePending(sessionStorage as Storage)
+    const hasPendingResume = (): boolean => {
+      const hasStoredPending =
+        hasFreshResumePending(localStorage) ||
+        hasFreshResumePending(sessionStorage as Storage)
+
+      // 生产链路里，外部浏览器点击业务动作后会跳到 LINE / LIFF，
+      // 回流回 /welfare 时 localStorage 里的 pending 可能不存在，
+      // 但 URL 上会明确带回 rp/back/action（或完整 liff.state）。
+      // 这类 URL-driven resume 是一次真实的待恢复动作，不能因为 storage 丢失就放弃继续。
+      const hasUrlDrivenResume = Boolean(directRp || rawLiffState)
+
+      return hasStoredPending || hasUrlDrivenResume
+    }
 
     /** 用服务端 check-follow 判断关注状态（getFriendship 失败时的兜底） */
     const checkFollowViaApi = async (lineUserId: string): Promise<boolean | null> => {
