@@ -418,6 +418,17 @@ export default function WelfareHomePage() {
     }
   }, [followOaId, isInLineBrowser, liffReady, searchParams])
 
+  const clearResumeAndFollowKeys = () => {
+    RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
+    ;[...RESUME_KEYS, ...FOLLOW_SESSION_KEYS].forEach((k) => sessionStorage.removeItem(k))
+  }
+
+  const dismissFollowModal = () => {
+    clearResumeAndFollowKeys()
+    setFollowReturnPath('/welfare')
+    setShowFollowModal(false)
+  }
+
   // ── 身份 + 关注恢复器：/welfare 作为唯一身份恢复中心 ────────────────────────
   //
   // 无条件触发（只要 liffReady=true）：
@@ -451,8 +462,7 @@ export default function WelfareHomePage() {
     }
 
     const clearAllResumeKeys = () => {
-      RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
-      ;[...RESUME_KEYS, ...FOLLOW_SESSION_KEYS].forEach((k) => sessionStorage.removeItem(k))
+      clearResumeAndFollowKeys()
     }
 
     // 读取 returnPath：①URL直接参数 ②liff.state ③localStorage ④sessionStorage
@@ -601,8 +611,7 @@ export default function WelfareHomePage() {
           isFriend:        true,
         })
         // 清理 localStorage（主键）+ sessionStorage（兼容键）
-        RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
-        ;[...RESUME_KEYS, ...FOLLOW_SESSION_KEYS].forEach((k) => sessionStorage.removeItem(k))
+        clearResumeAndFollowKeys()
         setShowFollowModal(false)
         setFollowChecking(false)
         if (followReturnPath && followReturnPath !== '/welfare') {
@@ -996,7 +1005,7 @@ export default function WelfareHomePage() {
             <Button
               block
               size="large"
-              onClick={() => setShowFollowModal(false)}
+              onClick={dismissFollowModal}
               style={{ height: 44, borderRadius: 50, fontSize: 14, color: '#888', border: '1px solid #e8e8e8' }}
             >
               {{ zh: '稍后再说', th: 'ภายหลัง', en: 'Maybe Later' }[language]}
