@@ -53,6 +53,14 @@ export default function ContinuePage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!intentPayload) return
+    console.info('[follow-flow] continue_enter', {
+      intent_id: intentPayload.intent_id || '',
+      action_type: intentPayload.action || '',
+    })
+  }, [intentPayload])
+
   const waitForIdentityReady = useCallback(async () => {
     const deadline = Date.now() + 3000
     while (Date.now() < deadline) {
@@ -119,6 +127,13 @@ export default function ContinuePage() {
         consumed?.payload?.return_path ||
         returnPath
 
+      console.info('[follow-flow] consume_success', {
+        intent_id: consumed?.payload?.intent_id || intentPayload.intent_id || '',
+        action_type: consumed?.payload?.action || intentPayload.action || '',
+        result_code: consumed?.result?.resultCode || '',
+        next_path: nextPath,
+      })
+
       setStatus('done')
       navigate(nextPath, {
         replace: true,
@@ -127,6 +142,11 @@ export default function ContinuePage() {
     } catch (err: any) {
       if (!mountedRef.current) return
       consumedRef.current = false
+      console.info('[follow-flow] consume_fail', {
+        intent_id: intentPayload?.intent_id || '',
+        action_type: intentPayload?.action || '',
+        error: err?.message || '继续当前操作失败',
+      })
       setErrorText(err?.message || '继续原操作失败')
       setStatus('error')
     } finally {
@@ -177,8 +197,11 @@ export default function ContinuePage() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
         <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>继续当前操作失败</div>
-          <div style={{ color: '#666', marginBottom: 16 }}>{errorText || '请返回原页面后重试'}</div>
-          <Button type="primary" block onClick={() => navigate(failPath || returnPath, { replace: true })}>
+          <div style={{ color: '#666', marginBottom: 16 }}>{errorText || '请稍后重试，或返回原页面重新发起。'}</div>
+          <Button type="primary" block onClick={() => void runFlow()}>
+            重试
+          </Button>
+          <Button style={{ marginTop: 12 }} block onClick={() => navigate(failPath || returnPath, { replace: true })}>
             返回原页面
           </Button>
         </Card>
@@ -189,9 +212,9 @@ export default function ContinuePage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0fef4', padding: 24 }}>
       <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>需先关注 CityOne LINE OA</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>请先完成 LINE OA 关注确认</div>
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>
-          关注完成后，系统会继续当前操作。
+          完成关注后，系统会自动继续当前操作，不需要重新返回首页查找入口。
         </div>
         <Button type="primary" size="large" block onClick={handleFollowContinue}>
           关注 LINE OA 并继续
