@@ -1,12 +1,13 @@
 /**
  * 客户管理路由（PostgreSQL 版）
  *
- * 三层客户身份定义：
- *   fan    — 关注了 LINE OA，尚未产生任何充电/使用记录
- *   user   — 曾经使用过充电（押金已退 或 营销活动免费体验），当前无押金
- *   member — 缴纳押金且正在使用充电宝服务
+ * 管理端统一业务身份定义：
+ *   visitor  — 当前仅有会话/设备痕迹，尚未识别到有效 LINE 身份
+ *   fan      — 已关注 LINE OA，等于已完成 H5 系统注册
+ *   customer — 已发生过至少一次真实充电业务
+ *   member   — 已缴纳押金，可直接进入完整取电链路
  *
- * GET  /api/admin/customers              — 客户列表（三层人群）
+ * GET  /api/admin/customers              — 客户列表（四层人群）
  * GET  /api/admin/member-config          — 会员权益配置
  * POST /api/admin/member-config/update   — 更新权益配置
  * POST /api/admin/customers/:id/set-member — 手动设置/取消会员（押金桥接前临时）
@@ -19,45 +20,45 @@ function sendError(res, sendJson, code, errCode, msg) {
   return sendJson(res, code, { code, error: errCode, msg });
 }
 
-/**
- * 三层身份推断规则
- * member  — deposit_paid === true
- * user    — deposit_paid 为 false 但 has_used_charging = true
- * fan     — 其余
- */
 function resolveIdentityTag(row) {
-  if (!row) return "fan";
+  const raw = String(row?.identity_level || "").trim().toLowerCase();
+  if (raw === "visitor" || raw === "fan" || raw === "customer" || raw === "member") {
+    return raw;
+  }
+  if (!row?.line_user_id) return "visitor";
   if (row.deposit_paid) return "member";
-  if (row.has_used_charging) return "user";
-  return "fan";
+  if (row.has_charge_order || row.has_used_charging) return "customer";
+  if (row.is_fan) return "fan";
+  return "visitor";
 }
 
 function resolveSource(row, tag) {
   if (row.source) return row.source;
   if (tag === "member") return "押金缴纳";
-  if (row.has_used_charging && row.source_hint === "marketing") return "营销活动体验";
-  if (row.has_used_charging && row.source_hint === "refund") return "押金退款用户";
-  if (row.has_used_charging) return "充电体验用户";
+  if (tag === "customer" && row.source_hint === "marketing") return "营销活动体验";
+  if (tag === "customer" && row.source_hint === "refund") return "押金退款用户";
+  if (tag === "customer") return "充电体验用户";
+  if (tag === "visitor") return "未识别 LINE 身份";
   return "LINE OA 关注";
 }
 
 function formatCustomer(row) {
   const tag = resolveIdentityTag(row);
   const source = resolveSource(row, tag);
-  const LABEL = { member: "会员", user: "用户", fan: "粉丝" };
+  const LABEL = { visitor: "访客", fan: "粉丝", customer: "客户", member: "会员" };
   const benefits = tag === "member"
     ? [{ key: "charging_discount", label: "充电9折", status: "active" }]
     : [];
   return {
     user_id:           row.user_id || row.line_user_id || "",
     line_user_id:      row.line_user_id || "",
-    line_display_name: row.line_display_name || "—",
+    line_display_name: row.line_display_name || row.display_name || "—",
     identity_tag:      tag,
     identity_label:    LABEL[tag] || tag,
     source,
     deposit_paid:      row.deposit_paid || false,
     deposit_amount:    Number(row.deposit_amount) || 0,
-    has_used_charging: row.has_used_charging || false,
+    has_used_charging: row.has_charge_order || row.has_used_charging || false,
     available_points:  Number(row.available_points) || 0,
     total_points:      Number(row.total_points) || 0,
     member_level:      row.member_level || 0,
@@ -81,8 +82,47 @@ export async function handleListCustomers(req, res, url, sendJson) {
   const limit = Math.min(100, parseInt(limitStr, 10) || 20);
   const offset = (page - 1) * limit;
 
-  // 取全量数据用于分 tab 计数（数据量不大时可接受）
-  const { rows: all } = await query("SELECT * FROM points_accounts ORDER BY updated_at DESC NULLS LAST");
+  // 管理端身份语义统一到 users.identity_level，points_accounts 只补充业务字段。
+  const { rows: all } = await query(`
+    SELECT
+      u.user_id,
+      u.line_user_id,
+      u.display_name,
+      u.is_fan,
+      u.has_charge_order,
+      u.deposit_paid,
+      u.identity_level,
+      u.created_at,
+      u.updated_at,
+      pa.line_display_name,
+      pa.deposit_amount,
+      pa.available_points,
+      pa.total_points,
+      pa.source,
+      pa.source_hint,
+      pa.member_level,
+      pa.tags
+    FROM users u
+    LEFT JOIN LATERAL (
+      SELECT
+        line_display_name,
+        deposit_amount,
+        available_points,
+        total_points,
+        source,
+        source_hint,
+        member_level,
+        tags,
+        updated_at
+      FROM points_accounts pa
+      WHERE pa.user_id = u.user_id
+         OR pa.line_user_id = u.user_id
+         OR (u.line_user_id IS NOT NULL AND (pa.user_id = u.line_user_id OR pa.line_user_id = u.line_user_id))
+      ORDER BY pa.updated_at DESC NULLS LAST
+      LIMIT 1
+    ) pa ON TRUE
+    ORDER BY COALESCE(u.updated_at, u.created_at) DESC NULLS LAST
+  `);
 
   const allFormatted = all.map(formatCustomer);
 
@@ -107,8 +147,9 @@ export async function handleListCustomers(req, res, url, sendJson) {
       list,
       total,
       page, limit,
+      visitorCount: countFor("visitor"),
+      customerCount: countFor("customer"),
       memberCount: countFor("member"),
-      userCount:   countFor("user"),
       fanCount:    countFor("fan"),
     },
   });

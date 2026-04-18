@@ -16,7 +16,7 @@ const { Title, Text, Paragraph } = Typography
 interface Member {
   user_id: string
   line_display_name: string
-  identity_tag: 'member' | 'user' | 'fan'
+  identity_tag: 'visitor' | 'fan' | 'customer' | 'member'
   identity_label: string
   deposit_paid: boolean
   deposit_amount: number
@@ -47,15 +47,16 @@ interface MemberConfig {
 
 const TAG_COLOR: Record<string, string> = {
   member: 'gold',
-  user: 'blue',
-  fan: 'default',
+  customer: 'blue',
+  fan: 'purple',
+  visitor: 'default',
 }
 
 export default function MemberManage() {
   const { message } = AntdApp.useApp()
   const location = useLocation()
   const [members, setMembers] = useState<Member[]>([])
-  const [stats, setStats] = useState({ total: 0, memberCount: 0, userCount: 0 })
+  const [stats, setStats] = useState({ total: 0, visitorCount: 0, fanCount: 0, customerCount: 0, memberCount: 0 })
   const [config, setConfig] = useState<MemberConfig | null>(null)
   const [loading, setLoading] = useState(false)
   const [configLoading, setConfigLoading] = useState(false)
@@ -79,7 +80,13 @@ export default function MemberManage() {
       const res = await request.get(`/admin/members?${params}`) as any
       const d = (res as any).data
       setMembers(d?.list || [])
-      setStats({ total: d?.total || 0, memberCount: d?.memberCount || 0, userCount: d?.userCount || 0 })
+      setStats({
+        total: d?.total || 0,
+        visitorCount: d?.visitorCount || 0,
+        fanCount: d?.fanCount || 0,
+        customerCount: d?.customerCount || 0,
+        memberCount: d?.memberCount || 0,
+      })
     } catch {
       message.error('加载会员列表失败')
     } finally {
@@ -182,9 +189,9 @@ export default function MemberManage() {
       <Row justify="space-between" align="middle" style={{ marginBottom: 20 }}>
         <Col>
           <Title level={4} style={{ margin: 0 }}>
-            <CrownOutlined style={{ color: '#faad14', marginRight: 8 }} />会员管理
+            <CrownOutlined style={{ color: '#faad14', marginRight: 8 }} />客户身份管理
           </Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>管理会员资格、权益配置及折扣策略</Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>统一查看 visitor / fan / customer / member 分层与会员权益配置</Text>
         </Col>
       </Row>
 
@@ -192,7 +199,7 @@ export default function MemberManage() {
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="全部用户" value={stats.total} prefix={<TeamOutlined />} />
+            <Statistic title="全部客户" value={stats.total} prefix={<TeamOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
@@ -202,7 +209,7 @@ export default function MemberManage() {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="普通用户" value={stats.userCount} prefix={<UserOutlined />} />
+            <Statistic title="客户" value={stats.customerCount} prefix={<UserOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
@@ -223,7 +230,7 @@ export default function MemberManage() {
         items={[
           {
             key: 'members',
-            label: <span><TeamOutlined />会员与用户列表</span>,
+            label: <span><TeamOutlined />客户身份列表</span>,
             children: (
               <Card size="small">
                 <Row gutter={12} style={{ marginBottom: 12 }}>
@@ -231,8 +238,10 @@ export default function MemberManage() {
                     <Space>
                       {[
                         { key: '', label: '全部' },
+                        { key: 'visitor', label: '访客' },
+                        { key: 'fan', label: '粉丝' },
+                        { key: 'customer', label: '客户' },
                         { key: 'member', label: '会员' },
-                        { key: 'user', label: '普通用户' },
                       ].map((t) => (
                         <Button
                           key={t.key}
@@ -248,7 +257,7 @@ export default function MemberManage() {
                   <Col flex="auto">
                     <Input.Search
                       size="small"
-                      placeholder="搜索用户名或ID"
+                      placeholder="搜索昵称、用户ID或 LINE UID"
                       allowClear
                       onSearch={setKeyword}
                       style={{ maxWidth: 220 }}
@@ -262,7 +271,7 @@ export default function MemberManage() {
                   loading={loading}
                   size="small"
                   pagination={{ pageSize: 20, showSizeChanger: false }}
-                  locale={{ emptyText: '暂无用户数据，用户通过 LINE OA 进入系统后将在此显示' }}
+                  locale={{ emptyText: '暂无客户数据，用户完成 LINE 身份识别后将在此显示' }}
                 />
               </Card>
             ),

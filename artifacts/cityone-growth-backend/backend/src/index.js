@@ -532,7 +532,7 @@ const server = http.createServer(async (req, res) => {
       return await handleRoleTemplates(req, res, sendJson);
     }
 
-    // ── 客户管理（三层人群：粉丝 / 用户 / 会员） ──────────────────────────
+    // ── 客户管理（visitor / fan / customer / member） ───────────────────
     if (req.method === "GET" && (url.pathname === "/api/admin/customers" || url.pathname === "/api/admin/members")) {
       return await handleListMembers(req, res, url, sendJson);
     }

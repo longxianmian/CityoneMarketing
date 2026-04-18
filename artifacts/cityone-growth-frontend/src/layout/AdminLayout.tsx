@@ -164,7 +164,7 @@ export default function AdminLayout() {
           { key: '/admin/growth/agent/metrics', label: lt('metricsBoard') },
         ],
       },
-      // === 6. 客户管理（粉丝 / 用户 / 会员）===
+      // === 6. 客户管理（visitor / fan / customer / member）===
       {
         key: 'customer-manage',
         icon: <TeamOutlined style={{ color: '#1677ff' }} />,

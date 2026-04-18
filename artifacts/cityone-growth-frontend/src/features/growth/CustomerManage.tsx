@@ -1,10 +1,11 @@
 /**
  * 客户管理
  *
- * 三层客户人群：
- *   粉丝 (fan)    — 关注了 LINE OA，尚未产生充电/使用记录
- *   用户 (user)   — 曾经使用过充电宝（押金退款 或 营销活动免费体验），当前无押金
- *   会员 (member) — 缴纳押金且正在使用充电宝服务
+ * 四层客户人群：
+ *   访客 (visitor)   — 当前会话尚未识别到有效 LINE 身份
+ *   粉丝 (fan)       — 已关注 LINE OA，等于已完成系统注册
+ *   客户 (customer)  — 已发生过至少一次真实充电业务
+ *   会员 (member)    — 已缴纳押金，可直接进入完整取电链路
  */
 import React, { useState, useEffect, useCallback } from 'react'
 import {
@@ -22,7 +23,7 @@ import request from '../../api/request'
 
 const { Title, Text, Paragraph } = Typography
 
-type IdentityTag = 'member' | 'user' | 'fan'
+type IdentityTag = 'visitor' | 'fan' | 'customer' | 'member'
 
 interface Customer {
   user_id: string
@@ -58,9 +59,10 @@ interface MemberConfig {
 // ── 样式常量 ─────────────────────────────────────────────────────────────────
 
 const IDENTITY_CONFIG: Record<IdentityTag, { color: string; icon: React.ReactNode; bg: string; border: string }> = {
-  member: { color: '#faad14', icon: <CrownOutlined />, bg: '#fffbe6', border: '#ffe58f' },
-  user:   { color: '#1677ff', icon: <UserOutlined />,  bg: '#e6f4ff', border: '#91caff' },
-  fan:    { color: '#722ed1', icon: <StarOutlined />,  bg: '#f9f0ff', border: '#d3adf7' },
+  visitor:  { color: '#8c8c8c', icon: <TeamOutlined />, bg: '#fafafa', border: '#d9d9d9' },
+  fan:      { color: '#722ed1', icon: <StarOutlined />, bg: '#f9f0ff', border: '#d3adf7' },
+  customer: { color: '#1677ff', icon: <UserOutlined />, bg: '#e6f4ff', border: '#91caff' },
+  member:   { color: '#faad14', icon: <CrownOutlined />, bg: '#fffbe6', border: '#ffe58f' },
 }
 
 const SOURCE_COLOR: Record<string, string> = {
@@ -78,7 +80,7 @@ export default function CustomerManage() {
   const location = useLocation()
 
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [stats, setStats] = useState({ total: 0, memberCount: 0, userCount: 0, fanCount: 0 })
+  const [stats, setStats] = useState({ total: 0, visitorCount: 0, fanCount: 0, customerCount: 0, memberCount: 0 })
   const [config, setConfig] = useState<MemberConfig | null>(null)
   const [loading, setLoading] = useState(false)
   const [configLoading, setConfigLoading] = useState(false)
@@ -104,8 +106,9 @@ export default function CustomerManage() {
       setCustomers(d?.list || [])
       setStats({
         total: d?.total || 0,
+        visitorCount: d?.visitorCount || 0,
         memberCount: d?.memberCount || 0,
-        userCount: d?.userCount || 0,
+        customerCount: d?.customerCount || 0,
         fanCount: d?.fanCount || 0,
       })
     } catch {
@@ -229,7 +232,7 @@ export default function CustomerManage() {
       render: (v: number) => v > 0 ? v.toLocaleString() : <Text type="secondary">—</Text>,
     },
     {
-      title: <span>权益 <Tooltip title="会员权益；粉丝/用户权益待后期配置开发"><InfoCircleOutlined style={{ color: '#999' }} /></Tooltip></span>,
+      title: <span>权益 <Tooltip title="会员权益已生效；visitor / fan / customer 分层权益待后期配置开发"><InfoCircleOutlined style={{ color: '#999' }} /></Tooltip></span>,
       width: 160,
       render: (_: any, r: Customer) => {
         if (r.benefits.length === 0) {
@@ -273,14 +276,19 @@ export default function CustomerManage() {
       icon: <TeamOutlined style={{ color: '#1677ff' }} />, color: '#1677ff', bg: '#e6f4ff', border: '#91caff',
     },
     {
-      label: '粉丝', value: stats.fanCount,
-      icon: <StarOutlined style={{ color: '#722ed1' }} />, color: '#722ed1', bg: '#f9f0ff', border: '#d3adf7',
-      tip: '关注了 LINE OA，尚未产生充电记录',
+      label: '访客', value: stats.visitorCount,
+      icon: <TeamOutlined style={{ color: '#8c8c8c' }} />, color: '#8c8c8c', bg: '#fafafa', border: '#d9d9d9',
+      tip: '当前会话尚未识别到有效 LINE 身份',
     },
     {
-      label: '用户', value: stats.userCount,
+      label: '粉丝', value: stats.fanCount,
+      icon: <StarOutlined style={{ color: '#722ed1' }} />, color: '#722ed1', bg: '#f9f0ff', border: '#d3adf7',
+      tip: '已关注 LINE OA，等于已完成系统注册',
+    },
+    {
+      label: '客户', value: stats.customerCount,
       icon: <UserOutlined style={{ color: '#1677ff' }} />, color: '#1677ff', bg: '#e6f4ff', border: '#91caff',
-      tip: '曾使用充电宝（押金退款 或 营销体验），当前无押金',
+      tip: '已发生过至少一次真实充电业务',
     },
     {
       label: '会员', value: stats.memberCount,
@@ -291,8 +299,9 @@ export default function CustomerManage() {
 
   const filterButtons = [
     { key: '', label: '全部', count: stats.total },
+    { key: 'visitor', label: '访客', count: stats.visitorCount },
     { key: 'fan', label: '粉丝', count: stats.fanCount },
-    { key: 'user', label: '用户', count: stats.userCount },
+    { key: 'customer', label: '客户', count: stats.customerCount },
     { key: 'member', label: '会员', count: stats.memberCount },
   ]
 
@@ -307,7 +316,7 @@ export default function CustomerManage() {
             <TeamOutlined style={{ color: '#1677ff', marginRight: 8 }} />客户管理
           </Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
-            粉丝 · 用户 · 会员 — 三层客户人群数据、来源与权益管理
+            访客 · 粉丝 · 客户 · 会员 — 四层客户身份数据、来源与权益管理
           </Text>
         </Col>
       </Row>
@@ -315,7 +324,7 @@ export default function CustomerManage() {
       {/* 统计卡片 */}
       <Row gutter={12} style={{ marginBottom: 20 }}>
         {statCards.map((c) => (
-          <Col span={6} key={c.label}>
+          <Col flex="1 1 180px" key={c.label}>
             <Card
               size="small"
               style={{ borderColor: c.border, background: c.bg, cursor: 'default' }}
@@ -356,9 +365,10 @@ export default function CustomerManage() {
                   style={{ marginBottom: 12, padding: '6px 12px' }}
                   message={
                     <Space split="·" style={{ fontSize: 12 }}>
-                      <span><StarOutlined style={{ color: '#722ed1' }} /> <b>粉丝</b>：关注了 LINE OA</span>
-                      <span><UserOutlined style={{ color: '#1677ff' }} /> <b>用户</b>：曾使用充电宝（无押金）</span>
-                      <span><CrownOutlined style={{ color: '#faad14' }} /> <b>会员</b>：缴纳押金 · 正在使用</span>
+                      <span><TeamOutlined style={{ color: '#8c8c8c' }} /> <b>访客</b>：当前会话尚未识别到有效 LINE 身份</span>
+                      <span><StarOutlined style={{ color: '#722ed1' }} /> <b>粉丝</b>：已关注 LINE OA</span>
+                      <span><UserOutlined style={{ color: '#1677ff' }} /> <b>客户</b>：已发生过至少一次真实充电业务</span>
+                      <span><CrownOutlined style={{ color: '#faad14' }} /> <b>会员</b>：已缴纳押金，可直接取电</span>
                     </Space>
                   }
                 />
@@ -385,7 +395,7 @@ export default function CustomerManage() {
                   <Col flex="auto">
                     <Input.Search
                       size="small"
-                      placeholder="搜索用户名或 ID"
+                      placeholder="搜索昵称、用户ID或 LINE UID"
                       allowClear
                       onSearch={setKeyword}
                       style={{ maxWidth: 240 }}
@@ -413,7 +423,11 @@ export default function CustomerManage() {
                             <Text type="secondary">暂无客户数据</Text>
                             <br />
                             <Text type="secondary" style={{ fontSize: 12 }}>
-                              用户通过 LINE OA 进入系统后将在此显示
+                              用户完成 LINE 身份识别后将在此显示
+                            </Text>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              当前 visitor / fan / customer / member 均在此统一查看
                             </Text>
                           </div>
                         }
@@ -441,7 +455,7 @@ export default function CustomerManage() {
                       type="warning"
                       showIcon
                       style={{ marginBottom: 16 }}
-                      message="当前阶段仅会员（缴纳押金用户）拥有充电折扣权益；粉丝与用户权益待后期扩展配置"
+                      message="当前阶段仅会员（已缴纳押金）拥有充电折扣权益；visitor / fan / customer 权益待后期扩展配置"
                     />
                     <Form form={discountForm} layout="vertical">
                       <Form.Item name="enabled" label="启用会员充电折扣" valuePropName="checked">
@@ -477,9 +491,9 @@ export default function CustomerManage() {
                     )}
                   </Card>
 
-                  {/* 粉丝/用户权益 - 占位 */}
+                  {/* 访客/粉丝/客户权益 - 占位 */}
                   <Card
-                    title={<span><StarOutlined style={{ color: '#722ed1' }} /> 粉丝 & 用户权益（待开发）</span>}
+                    title={<span><StarOutlined style={{ color: '#722ed1' }} /> 访客 / 粉丝 / 客户权益（待开发）</span>}
                     size="small"
                     style={{ opacity: 0.65 }}
                   >
@@ -487,7 +501,7 @@ export default function CustomerManage() {
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                       description={
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          粉丝、用户专属权益（如积分奖励、免费体验券、专属活动入场资格等）将在后期版本配置
+                          访客、粉丝、客户专属权益（如识别引导、积分奖励、免费体验券、专属活动入场资格等）将在后期版本配置
                         </Text>
                       }
                     />
