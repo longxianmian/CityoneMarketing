@@ -159,6 +159,15 @@ type MainTab = 'prize' | 'benefit' | 'order' | 'member'
 type CouponSubTab = 'available' | 'used' | 'expired'
 type PointsSubTab = 'balance' | 'exchange' | 'earn'
 
+function normalizeIdentityLevel(raw: unknown): IdentityTag {
+  const level = String(raw || '').trim().toLowerCase()
+  if (level === 'user') return 'customer'
+  if (level === 'visitor' || level === 'fan' || level === 'customer' || level === 'member') {
+    return level
+  }
+  return 'visitor'
+}
+
 export default function MinePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -180,18 +189,16 @@ export default function MinePage() {
   const linePictureUrl =
     profile?.linePictureUrl || serverProfile?.line_picture_url || ''
 
-  // identityTag：优先从服务器 profile 接口的 identity_tag 字段取（规则推断）
-  // fallback：本地 store 的 identityTag（LINE 登录后写入）
-  // 最终兜底：'user'
-  const identityTag: IdentityTag =
-    (serverProfile?.identity_tag as IdentityTag) || profile?.identityTag || 'user'
+  const identityLevel: IdentityTag = normalizeIdentityLevel(
+    serverProfile?.identity_level || serverProfile?.identity_tag || profile?.identityTag
+  )
 
   const depositPaid: boolean =
     serverProfile?.deposit_paid ?? profile?.depositPaid ?? false
   const depositAmount: number =
     serverProfile?.deposit_amount ?? profile?.deposit ?? 0
 
-  // memberLevel 阶段三：按 member_level 字段映射到三语
+  // 保留会员展示等级字段，但不再把它当成用户身份等级使用
   const memberLevelRaw = serverProfile?.member_level || profile?.memberLevel || ''
   const memberLevel = useMemo(() => {
     const levelMap: Record<string, Record<string, string>> = {
@@ -260,7 +267,7 @@ export default function MinePage() {
   const [orderLoading, setOrderLoading] = useState(false)
   const [orderDataNote, setOrderDataNote] = useState<string>('')
 
-  // ── 加载用户资料（阶段三：从 /api/user/profile 接口） ────────────────────
+  // ── 加载用户资料（身份唯一真源：/api/user/profile/me） ────────────────────
   useEffect(() => {
     // LINE 内置浏览器：等 LIFF 建立 lineUserId 后再请求，避免以 dev_... 设备 ID 查询
     if (isInLine && !lineUserId) return
@@ -485,6 +492,24 @@ export default function MinePage() {
 
   const mineTitle = t('mine.pageTitle')
 
+  const identityLabel =
+    identityLevel === 'visitor'
+      ? { zh: '访客', th: 'ผู้เยี่ยมชม', en: 'Visitor' }[language]
+      : identityLevel === 'fan'
+      ? { zh: '粉丝', th: 'แฟน', en: 'Fan' }[language]
+      : identityLevel === 'customer'
+      ? { zh: '用户', th: 'ผู้ใช้', en: 'Customer' }[language]
+      : { zh: '会员', th: 'สมาชิก', en: 'Member' }[language]
+
+  const identityDesc =
+    identityLevel === 'visitor'
+      ? { zh: '当前会话尚未识别到 LINE 身份', th: 'เซสชันนี้ยังไม่รู้จัก LINE', en: 'Current session has not identified a LINE identity' }[language]
+      : identityLevel === 'fan'
+      ? { zh: '已关注 LINE OA，已完成系统注册', th: 'ติดตาม LINE OA แล้ว และลงทะเบียนเข้าระบบแล้ว', en: 'Followed LINE OA and completed system registration' }[language]
+      : identityLevel === 'customer'
+      ? { zh: '已使用充电服务', th: 'เคยใช้บริการชาร์จแล้ว', en: 'Has used charging service' }[language]
+      : { zh: '已缴纳押金，可直接取电', th: 'ชำระเงินมัดจำแล้ว สามารถยืมได้ทันที', en: 'Deposit paid and ready to borrow' }[language]
+
   return (
     <div style={{ minHeight: '100vh', background: '#F7F9FC' }}>
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
@@ -527,13 +552,13 @@ export default function MinePage() {
                     alignItems: 'center',
                     gap: 5,
                     background:
-                      identityTag === 'member'
+                      identityLevel === 'member'
                         ? 'rgba(255,215,0,0.25)'
-                        : identityTag === 'user'
+                        : identityLevel === 'customer'
                         ? 'rgba(255,255,255,0.22)'
                         : 'rgba(255,255,255,0.14)',
                     border:
-                      identityTag === 'member'
+                      identityLevel === 'member'
                         ? '1px solid rgba(255,215,0,0.5)'
                         : '1px solid rgba(255,255,255,0.25)',
                     padding: '4px 10px',
@@ -541,14 +566,10 @@ export default function MinePage() {
                   }}
                 >
                   <span style={{ fontSize: 13 }}>
-                    {identityTag === 'fan' ? '⭐' : identityTag === 'user' ? '👤' : '💎'}
+                    {identityLevel === 'visitor' ? '🪪' : identityLevel === 'fan' ? '⭐' : identityLevel === 'customer' ? '👤' : '💎'}
                   </span>
                   <span style={{ fontWeight: 700, fontSize: 13 }}>
-                    {identityTag === 'fan'
-                      ? t('mine.identityFan')
-                      : identityTag === 'user'
-                      ? t('mine.identityUser')
-                      : t('mine.identityMember')}
+                    {identityLabel}
                   </span>
                 </div>
                 {/* 等级（与身份分开）*/}
@@ -576,19 +597,19 @@ export default function MinePage() {
                 tag: 'fan' as const,
                 icon: '⭐',
                 desc: { zh: '关注 LINE OA', th: 'ติดตาม LINE OA', en: 'Followed LINE OA' }[language]!,
-                active: true,
+                active: identityLevel !== 'visitor',
               },
               {
-                tag: 'user' as const,
+                tag: 'customer' as const,
                 icon: '👤',
                 desc: { zh: '使用过充电服务', th: 'ใช้บริการชาร์จแล้ว', en: 'Used charging service' }[language]!,
-                active: identityTag === 'user' || identityTag === 'member',
+                active: identityLevel === 'customer' || identityLevel === 'member',
               },
               {
                 tag: 'member' as const,
                 icon: '💎',
                 desc: { zh: '已缴押金 · 充电 9 折', th: 'วางเงินมัดจำ · ลด 10% ชาร์จ', en: 'Deposit paid · 10% off charging' }[language]!,
-                active: identityTag === 'member',
+                active: identityLevel === 'member',
               },
             ].map((tier) => (
               <div
@@ -982,18 +1003,16 @@ export default function MinePage() {
                     <div style={{ background: '#F7F3FF', borderRadius: 10, padding: '10px 12px' }}>
                       <div style={{ fontSize: 11, color: '#A0A7B3', marginBottom: 4 }}>{t('mine.identityLevel')}</div>
                       <div style={{ fontWeight: 800, fontSize: 15, color: '#7B61FF' }}>
-                        {identityTag === 'fan'
-                          ? `⭐ ${t('mine.identityFan')}`
-                          : identityTag === 'user'
-                          ? `👤 ${t('mine.identityUser')}`
-                          : `💎 ${t('mine.identityMember')}`}
+                        {identityLevel === 'visitor'
+                          ? `🪪 ${identityLabel}`
+                          : identityLevel === 'fan'
+                          ? `⭐ ${identityLabel}`
+                          : identityLevel === 'customer'
+                          ? `👤 ${identityLabel}`
+                          : `💎 ${identityLabel}`}
                       </div>
                       <div style={{ fontSize: 11, color: '#667085', marginTop: 4 }}>
-                        {identityTag === 'fan'
-                          ? t('mine.identityFanDesc')
-                          : identityTag === 'user'
-                          ? t('mine.identityUserDesc')
-                          : t('mine.identityMemberDesc')}
+                        {identityDesc}
                       </div>
                     </div>
                     <div

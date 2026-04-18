@@ -142,8 +142,9 @@ async function initLiff(
       if (idData.user_id) {
         useLineUserStore.getState().setCanonicalUserId(idData.user_id)
       }
-      if (idData.identity_tag) {
-        useLineUserStore.getState().setIdentityTag(idData.identity_tag)
+      const identityLevel = idData.identity_level || idData.identity_tag
+      if (identityLevel) {
+        useLineUserStore.getState().setIdentityTag(identityLevel)
       }
       if (typeof idData.is_fan === 'boolean') {
         useLineUserStore.getState().setIsFriend(idData.is_fan)

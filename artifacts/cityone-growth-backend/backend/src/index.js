@@ -1329,7 +1329,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── 阶段三：用户端综合资料接口 ───────────────────────────────────────────
-    if (req.method === "GET" && url.pathname === "/api/user/profile") {
+    if (req.method === "GET" && (url.pathname === "/api/user/profile" || url.pathname === "/api/user/profile/me")) {
       return await handleUserProfile(req, res, url, sendJson);
     }
     if (req.method === "GET" && url.pathname === "/api/user/prizes") {

@@ -67,60 +67,197 @@ function resolveBenefitActionType(row) {
   return "benefit_detail";
 }
 
-// ─── 用户身份规则映射 ─────────────────────────────────────────────────────────
-// identityTag 判断规则（本系统内）：
-// - member：depositPaid === true
-// - fan：真实已关注 OA，且尚未进入任何业务链路（points_account 中无记录）
-// - user：其他已识别用户（含未关注、或已关注但已有业务账户）
-function resolveIdentityTag(account, depositPaid, isFan) {
+// ─── 用户身份与业务身份真源 ────────────────────────────────────────────────────
+// 唯一身份：
+//   line_user_id -> user_id
+// 业务身份等级：
+//   visitor -> fan -> customer -> member
+function deriveIdentityLevel({ lineUserId = "", isFan = false, hasChargeOrder = false, depositPaid = false } = {}) {
+  if (!lineUserId) return "visitor";
+  if (!isFan) return "visitor";
   if (depositPaid) return "member";
-  if (isFan && !account) return "fan";
-  return "user";
+  if (hasChargeOrder) return "customer";
+  return "fan";
 }
 
-async function resolveFollowState(userId) {
-  if (!userId) {
-    return { isFan: false, identityTag: "visitor", source: "none" };
+function pickLatestTruthy(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return "";
+}
+
+async function findUserRow(identityKey) {
+  if (!identityKey) return null;
+  const res = await query(
+    `SELECT user_id, line_user_id, device_id, display_name, picture_url, language,
+            is_fan, has_charge_order, deposit_paid, identity_level,
+            created_at, updated_at, last_identified_at, last_follow_checked_at
+       FROM users
+      WHERE user_id = $1 OR line_user_id = $1 OR device_id = $1
+      ORDER BY CASE
+        WHEN user_id = $1 THEN 0
+        WHEN line_user_id = $1 THEN 1
+        ELSE 2
+      END
+      LIMIT 1`,
+    [identityKey]
+  );
+  return res.rows[0] || null;
+}
+
+async function readBusinessFlags(identityKey, lineUserId = "") {
+  const jsonAccounts = loadJsonArray(dataFile("points-accounts.json"));
+  const jsonAccount = jsonAccounts.find(
+    (a) =>
+      (identityKey && (a.user_id === identityKey || a.line_user_id === identityKey)) ||
+      (lineUserId && (a.user_id === lineUserId || a.line_user_id === lineUserId))
+  ) || null;
+
+  let dbAccount = null;
+  if (identityKey || lineUserId) {
+    const probe = lineUserId || identityKey;
+    const res = await query(
+      `SELECT deposit_paid, has_used_charging, updated_at
+         FROM points_accounts
+        WHERE user_id = $1 OR line_user_id = $1
+        ORDER BY updated_at DESC NULLS LAST
+        LIMIT 1`,
+      [probe]
+    ).catch(() => ({ rows: [] }));
+    dbAccount = res.rows[0] || null;
   }
 
-  const isRealLineUser = /^U[0-9a-f]{32}$/i.test(userId);
+  return {
+    depositPaid:
+      dbAccount?.deposit_paid === true ||
+      jsonAccount?.deposit_paid === true,
+    hasChargeOrder:
+      dbAccount?.has_used_charging === true ||
+      jsonAccount?.has_used_charging === true,
+    jsonAccount,
+    dbAccount,
+  };
+}
 
-  if (isRealLineUser) {
-    try {
-      const userRes = await query(
-        `SELECT is_fan
-           FROM users
-          WHERE user_id = $1 OR line_user_id = $1
-          ORDER BY CASE WHEN user_id = $1 THEN 0 ELSE 1 END
-          LIMIT 1`,
-        [userId]
-      );
-
-      if (userRes.rows.length && userRes.rows[0].is_fan === true) {
-        return { isFan: true, identityTag: "fan", source: "users_table" };
-      }
-    } catch {
-      // DB 不可用时继续回退 fans.json，避免阻断关注判定
-    }
-
-    const fans = loadJsonArray(dataFile("fans.json"));
-    const isFan = fans.some((f) => f.user_id === userId || f.line_user_id === userId);
+async function ensureUserState(
+  identityKey,
+  {
+    displayName = "",
+    pictureUrl = "",
+    lineUserHint = "",
+    friendshipHint = false,
+    touchFollowAt = false,
+    touchIdentifyAt = false,
+  } = {}
+) {
+  if (!identityKey && !lineUserHint) {
     return {
-      isFan,
-      identityTag: isFan ? "fan" : "visitor",
-      source: "fans_list",
+      userId: "",
+      lineUserId: "",
+      displayName: "",
+      pictureUrl: "",
+      isFan: false,
+      hasChargeOrder: false,
+      depositPaid: false,
+      identityLevel: "visitor",
+      source: "none",
+      memberLevel: "standard",
     };
   }
 
-  const accounts = loadJsonArray(dataFile("points-accounts.json"));
-  const account = accounts.find(
-    (a) => a.user_id === userId || a.line_user_id === userId
-  ) || null;
-  const isFan = !!account;
-  return {
+  const fans = loadJsonArray(dataFile("fans.json"));
+  let row = null;
+  try {
+    row = await findUserRow(identityKey || lineUserHint);
+  } catch {
+    row = null;
+  }
+
+  const lineUserId = String(
+    pickLatestTruthy(
+      lineUserHint,
+      row?.line_user_id,
+      /^U[0-9a-f]{32}$/i.test(identityKey || "") ? identityKey : ""
+    )
+  ).trim();
+  const canonicalUserId = String(pickLatestTruthy(row?.user_id, lineUserId, identityKey)).trim();
+  const fanMatched = !!lineUserId && fans.some((f) => f.user_id === lineUserId || f.line_user_id === lineUserId);
+
+  const businessFlags = await readBusinessFlags(canonicalUserId || identityKey, lineUserId);
+  const isFan = friendshipHint === true || row?.is_fan === true || fanMatched;
+  const depositPaid = row?.deposit_paid === true || businessFlags.depositPaid;
+  const hasChargeOrder = row?.has_charge_order === true || businessFlags.hasChargeOrder;
+  const identityLevel = deriveIdentityLevel({
+    lineUserId,
     isFan,
-    identityTag: isFan ? (account?.identity_tag || "fan") : "visitor",
-    source: "device_compat",
+    hasChargeOrder,
+    depositPaid,
+  });
+
+  const mergedDisplayName = pickLatestTruthy(displayName, row?.display_name, businessFlags.jsonAccount?.line_display_name);
+  const mergedPictureUrl = pickLatestTruthy(pictureUrl, row?.picture_url, businessFlags.jsonAccount?.line_picture_url);
+  const memberLevel = identityLevel === "member" ? "member" : "standard";
+
+  if (canonicalUserId) {
+    await query(
+      `INSERT INTO users (
+         user_id, line_user_id, device_id, display_name, picture_url, language,
+         is_fan, has_charge_order, deposit_paid, identity_level,
+         created_at, updated_at, last_identified_at, last_follow_checked_at
+       )
+       VALUES ($1, $2, $3, NULLIF($4, ''), NULLIF($5, ''), 'zh',
+               $6, $7, $8, $9, NOW(), NOW(),
+               CASE WHEN $10 THEN NOW() ELSE NULL END,
+               CASE WHEN $11 THEN NOW() ELSE NULL END)
+       ON CONFLICT (user_id) DO UPDATE SET
+         line_user_id = COALESCE(EXCLUDED.line_user_id, users.line_user_id),
+         device_id = COALESCE(EXCLUDED.device_id, users.device_id),
+         display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
+         picture_url = COALESCE(NULLIF(EXCLUDED.picture_url, ''), users.picture_url),
+         is_fan = EXCLUDED.is_fan,
+         has_charge_order = EXCLUDED.has_charge_order,
+         deposit_paid = EXCLUDED.deposit_paid,
+         identity_level = EXCLUDED.identity_level,
+         updated_at = NOW(),
+         last_identified_at = CASE WHEN $10 THEN NOW() ELSE users.last_identified_at END,
+         last_follow_checked_at = CASE WHEN $11 THEN NOW() ELSE users.last_follow_checked_at END`,
+      [
+        canonicalUserId,
+        lineUserId || null,
+        lineUserId ? null : canonicalUserId,
+        mergedDisplayName,
+        mergedPictureUrl,
+        isFan,
+        hasChargeOrder,
+        depositPaid,
+        identityLevel,
+        touchIdentifyAt,
+        touchFollowAt,
+      ]
+    ).catch(() => {});
+  }
+
+  return {
+    userId: canonicalUserId,
+    lineUserId,
+    displayName: mergedDisplayName || "",
+    pictureUrl: mergedPictureUrl || "",
+    isFan,
+    hasChargeOrder,
+    depositPaid,
+    identityLevel,
+    source: row ? "users_table" : fanMatched ? "fans_bootstrap" : "runtime_identity",
+    memberLevel,
+  };
+}
+
+async function resolveFollowState(identityKey) {
+  const state = await ensureUserState(identityKey, { touchFollowAt: true });
+  return {
+    lineUserId: state.lineUserId,
+    isFan: state.isFan,
+    source: state.source,
   };
 }
 
@@ -128,97 +265,74 @@ async function resolveFollowState(userId) {
 // 返回用户综合资料对象（积分账户 + 身份字段）
 // 阶段三：identityTag 由系统规则推断；depositPaid 目前固定 false（待阶段四 A 系统押金桥接）
 export async function handleUserProfile(req, res, url, sendJson) {
-  const userId = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
+  const identityKey = url.searchParams.get("user_id") || url.searchParams.get("line_user_id") || "";
+  const state = await ensureUserState(identityKey, { touchFollowAt: true });
 
-  // ── 非积分字段来自 JSON 文件（押金/会员级别/昵称头像，阶段四接 A 系统后迁 DB）──
-  const accounts = loadJsonArray(dataFile("points-accounts.json"));
-  const jsonAccount = accounts.find(
-    (a) => userId && (a.user_id === userId || a.line_user_id === userId)
-  ) || null;
-
-  const depositPaid   = jsonAccount?.deposit_paid   ?? false;
-  const depositAmount = jsonAccount?.deposit_amount  ?? 0;
-  const memberLevel   = jsonAccount?.member_level    || "standard";
-  let displayName     = jsonAccount?.line_display_name || "";
-  let pictureUrl      = jsonAccount?.line_picture_url   || "";
-  let dbIsFan         = false;
-
-  try {
-    if (userId) {
-      const uRes = await query(
-        `SELECT display_name, picture_url, is_fan
-           FROM users
-          WHERE user_id = $1 OR line_user_id = $1
-          ORDER BY CASE WHEN user_id = $1 THEN 0 ELSE 1 END
-          LIMIT 1`,
-        [userId]
-      );
-      if (uRes.rows.length) {
-        displayName = uRes.rows[0].display_name || displayName;
-        pictureUrl  = uRes.rows[0].picture_url  || pictureUrl;
-        dbIsFan     = uRes.rows[0].is_fan === true;
-      }
-    }
-  } catch { /* DB 不可用时保留 JSON 降级 */ }
-
-  // ── 积分字段读 DB points_accounts（与 mall_redeem / points_adjust 写入同源）──
   let availablePoints = 0;
-  let totalPoints     = 0;
-  try {
-    if (userId) {
+  let totalPoints = 0;
+  let depositAmount = 0;
+  let memberLevel = state.identityLevel === "member" ? "member" : "standard";
+
+  if (state.userId || state.lineUserId) {
+    try {
       const pRes = await query(
-        `SELECT available_points, total_points FROM points_accounts
-         WHERE user_id = $1 OR line_user_id = $1 LIMIT 1`,
-        [userId]
+        `SELECT available_points, total_points, deposit_amount, member_level
+           FROM points_accounts
+          WHERE user_id = $1
+             OR line_user_id = $1
+             OR ($2 <> '' AND (user_id = $2 OR line_user_id = $2))
+          ORDER BY updated_at DESC NULLS LAST
+          LIMIT 1`,
+        [state.userId || identityKey, state.lineUserId || ""]
       );
       if (pRes.rows.length) {
         availablePoints = Number(pRes.rows[0].available_points || 0);
-        totalPoints     = Number(pRes.rows[0].total_points     || 0);
+        totalPoints = Number(pRes.rows[0].total_points || 0);
+        depositAmount = Number(pRes.rows[0].deposit_amount || 0);
+        memberLevel = pRes.rows[0].member_level || memberLevel;
       }
+    } catch {
+      // keep zero defaults
     }
-  } catch { /* DB 不可用时降级为 0 */ }
+  }
 
-  // ── 可用卡券数读 DB user_coupons（与领取写入同源）──
   let couponCount = 0;
-  try {
-    if (userId) {
+  if (state.userId || state.lineUserId) {
+    try {
       const cRes = await query(
-        `SELECT COUNT(*) AS cnt FROM user_coupons
-         WHERE (user_id = $1 OR line_user_id = $1) AND product_status = 'claimed'`,
-        [userId]
+        `SELECT COUNT(*) AS cnt
+           FROM user_coupons
+          WHERE ((user_id = $1 OR line_user_id = $1)
+             OR ($2 <> '' AND (user_id = $2 OR line_user_id = $2)))
+            AND product_status = 'claimed'`,
+        [state.userId || identityKey, state.lineUserId || ""]
       );
       couponCount = Number(cRes.rows[0]?.cnt || 0);
+    } catch {
+      // keep zero defaults
     }
-  } catch { /* DB 不可用时降级为 0 */ }
-
-  const followState = dbIsFan
-    ? { isFan: true, identityTag: "fan", source: "users_table" }
-    : await resolveFollowState(userId);
-
-  // identity_tag / 粉丝状态与 check-follow 保持同源，避免 “/mine 显示粉丝，但 check-follow 仍未关注”
-  const hasAccount = availablePoints > 0 || totalPoints > 0 || !!jsonAccount;
-  const identityTag = resolveIdentityTag(
-    hasAccount ? { ...jsonAccount } : null,
-    depositPaid,
-    followState.isFan
-  );
+  }
 
   const profile = {
-    user_id:           userId,
-    line_user_id:      userId,
-    line_display_name: displayName,
-    line_picture_url:  pictureUrl,
-    identity_tag:      identityTag,
-    is_fan:            followState.isFan,
-    follow_source:     followState.source,
-    deposit_paid:      depositPaid,
-    deposit_amount:    depositAmount,
-    member_level:      memberLevel,
-    available_points:  availablePoints,   // ✅ 来自 DB
-    total_points:      totalPoints,       // ✅ 来自 DB
-    coupon_count:      couponCount,       // ✅ 来自 DB
-    data_source:       "db_primary",
-    updated_at:        new Date().toISOString(),
+    user_id: state.userId || "",
+    line_user_id: state.lineUserId || "",
+    display_name: state.displayName,
+    picture_url: state.pictureUrl,
+    line_display_name: state.displayName,
+    line_picture_url: state.pictureUrl,
+    is_fan: state.isFan,
+    identity_level: state.identityLevel,
+    identity_tag: state.identityLevel,
+    follow_source: state.source,
+    deposit_paid: state.depositPaid,
+    has_charge_order: state.hasChargeOrder,
+    deposit_amount: depositAmount,
+    member_level: memberLevel,
+    available_points: availablePoints,
+    total_points: totalPoints,
+    coupon_count: couponCount,
+    data_source: "users_profile_me",
+    updated_at: new Date().toISOString(),
   };
 
   return sendOk(res, sendJson, "user profile loaded", profile);
@@ -462,7 +576,11 @@ export async function handleCheckFollow(req, res, url, sendJson) {
   const followState = await resolveFollowState(userId);
   return sendJson(res, 200, {
     code: 200,
-    data: { is_fan: followState.isFan, identity_tag: followState.identityTag, source: followState.source },
+    data: {
+      line_user_id: followState.lineUserId || (/^U/i.test(userId) ? userId : ""),
+      is_fan: followState.isFan,
+      source: followState.source,
+    },
   });
 }
 
@@ -470,7 +588,7 @@ export async function handleCheckFollow(req, res, url, sendJson) {
 // LIFF 初始化完成后，前端将 LINE 用户资料同步至后端
 // body: { line_user_id, line_display_name, line_picture_url }
 // 若 points-accounts.json 有该用户 → 更新 name/picture；无 → 不创建（关注门控负责）
-export function handleSyncProfile(req, res, body, sendJson) {
+export async function handleSyncProfile(req, res, body, sendJson) {
   const {
     line_user_id = "",
     line_display_name = "",
@@ -507,6 +625,15 @@ export function handleSyncProfile(req, res, body, sendJson) {
     try { fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2)); } catch {}
   }
 
+  await query(
+    `UPDATE users
+        SET display_name = COALESCE(NULLIF($2, ''), display_name),
+            picture_url = COALESCE(NULLIF($3, ''), picture_url),
+            updated_at = NOW()
+      WHERE user_id = $1 OR line_user_id = $1`,
+    [line_user_id, line_display_name, line_picture_url]
+  ).catch(() => {});
+
   return sendJson(res, 200, { code: 200, msg: "profile synced" });
 }
 
@@ -540,10 +667,33 @@ export async function handleLineWebhook(req, res, body, sendJson) {
         });
         changed = true;
       }
+      await query(
+        `UPDATE users
+            SET is_fan = TRUE,
+                line_user_id = COALESCE(line_user_id, $1),
+                identity_level = CASE
+                  WHEN deposit_paid = TRUE THEN 'member'
+                  WHEN has_charge_order = TRUE THEN 'customer'
+                  ELSE 'fan'
+                END,
+                updated_at = NOW(),
+                last_follow_checked_at = NOW()
+          WHERE user_id = $1 OR line_user_id = $1`,
+        [lineUserId]
+      ).catch(() => {});
     } else if (event.type === "unfollow") {
       const before = fans.length;
       fans = fans.filter((f) => f.user_id !== lineUserId && f.line_user_id !== lineUserId);
       if (fans.length !== before) changed = true;
+      await query(
+        `UPDATE users
+            SET is_fan = FALSE,
+                identity_level = 'visitor',
+                updated_at = NOW(),
+                last_follow_checked_at = NOW()
+          WHERE user_id = $1 OR line_user_id = $1`,
+        [lineUserId]
+      ).catch(() => {});
     }
   }
 
@@ -562,7 +712,7 @@ export async function handleLineWebhook(req, res, body, sendJson) {
 // 这样不需要等待 LINE webhook 配置即可让粉丝路径正常走通
 // body: { user_id, line_user_id?, line_display_name?, line_picture_url? }
 // line_user_id 是真实 LINE UID（U...），user_id 可能是 canonical UUID 或设备 ID
-export function handleSetFan(req, res, body, sendJson) {
+export async function handleSetFan(req, res, body, sendJson) {
   const { user_id = "", line_user_id = "", line_display_name = "", line_picture_url = "" } = body || {};
   if (!user_id) {
     return sendJson(res, 400, { code: 400, error: "missing_user_id" });
@@ -605,6 +755,14 @@ export function handleSetFan(req, res, body, sendJson) {
     return sendJson(res, 500, { code: 500, error: "write_failed" });
   }
 
+  await ensureUserState(line_user_id || user_id, {
+    lineUserHint: line_user_id || effectiveLineId,
+    displayName: line_display_name,
+    pictureUrl: line_picture_url,
+    friendshipHint: true,
+    touchFollowAt: true,
+  });
+
   return sendJson(res, 200, { code: 200, msg: "fan registered", user_id });
 }
 
@@ -613,12 +771,7 @@ export function handleSetFan(req, res, body, sendJson) {
 // LIFF 初始化后前端必须调用此接口，获取 canonical user_id
 //
 // 输入：{ line_user_id?, device_id?, display_name?, picture_url?, language? }
-// 输出：{ user_id, line_user_id, device_id, display_name, is_fan, identity_tag, is_new }
-//
-// 身份层级：
-//   fan    → is_fan = true（关注了 OA）
-//   user   → users 表中有记录（已识别）
-//   member → points_accounts.deposit_paid = true（押金会员）
+// 输出：{ user_id, line_user_id, device_id, display_name, is_fan, identity_level, is_new }
 export async function handleUserIdentify(req, res, body, sendJson) {
   const {
     line_user_id = "",
@@ -633,111 +786,65 @@ export async function handleUserIdentify(req, res, body, sendJson) {
     return sendError(res, sendJson, 400, "MISSING_IDENTITY", "必须传入 line_user_id 或 device_id");
   }
 
-  // 规范 user_id：LINE 用户 = line_user_id；设备用户 = device_id
-  const canonicalUserId = line_user_id || device_id;
-  const now = new Date().toISOString();
-
   try {
-    // 检查 fans.json / users 表 / LIFF friendship hint 确认关注状态
-    const fansFile = dataFile("fans.json");
-    const fans = loadJsonArray(fansFile);
-    const fansMatched = fans.some(
-      (f) => f.user_id === canonicalUserId || f.line_user_id === line_user_id
-    );
-    const existing = await query(
-      "SELECT user_id, is_fan FROM users WHERE user_id = $1 LIMIT 1",
-      [canonicalUserId]
-    ).catch(() => null);
+    const existing = await findUserRow(line_user_id || device_id);
+    const state = await ensureUserState(line_user_id || device_id, {
+      lineUserHint: line_user_id,
+      displayName: display_name,
+      pictureUrl: picture_url,
+      friendshipHint: is_fan === true,
+      touchFollowAt: true,
+      touchIdentifyAt: true,
+    });
+    const isNew = !existing;
 
-    const existingIsFan = !!(existing && existing.rows.length > 0 && existing.rows[0].is_fan === true);
-    const isFan = is_fan === true || existingIsFan || fansMatched;
-    const isNew = !existing || existing.rows.length === 0;
-
-    if (isNew) {
-      await query(
-        `INSERT INTO users (user_id, line_user_id, device_id, display_name, picture_url, language, is_fan, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
-         ON CONFLICT (user_id) DO NOTHING`,
-        [
-          canonicalUserId,
-          line_user_id || null,
-          device_id || null,
-          display_name || null,
-          picture_url || null,
-          language,
-          isFan,
-          now,
-        ]
-      ).catch(() => {});
-    } else {
-      // 更新资料和 is_fan
-      await query(
-        `UPDATE users
-         SET display_name = COALESCE(NULLIF($2, ''), display_name),
-             picture_url  = COALESCE(NULLIF($3, ''), picture_url),
-             language     = COALESCE(NULLIF($4, ''), language),
-             is_fan       = $5,
-             device_id    = COALESCE(NULLIF($6, ''), device_id),
-             updated_at   = $7
-         WHERE user_id = $1`,
-        [canonicalUserId, display_name, picture_url, language, isFan, device_id || null, now]
-      ).catch(() => {});
-    }
-
-    // 同步更新 fans.json 中的昵称/头像（如果存在）
-    if (line_user_id) {
-      const fansFile2 = dataFile("fans.json");
-      const fansArr = loadJsonArray(fansFile2);
+    if (line_user_id && state.isFan) {
+      const now = new Date().toISOString();
+      const fansFile = dataFile("fans.json");
+      const fansArr = loadJsonArray(fansFile);
       const fi = fansArr.findIndex((f) => f.user_id === line_user_id || f.line_user_id === line_user_id);
       if (fi >= 0) {
         if (display_name) fansArr[fi].line_display_name = display_name;
-        if (picture_url)  fansArr[fi].line_picture_url  = picture_url;
+        if (picture_url) fansArr[fi].line_picture_url = picture_url;
         fansArr[fi].updated_at = now;
-        try { fs.writeFileSync(fansFile2, JSON.stringify(fansArr, null, 2)); } catch {}
-      } else if (isFan) {
+      } else {
         fansArr.push({
-          user_id: canonicalUserId,
-          line_user_id: line_user_id,
+          user_id: state.userId,
+          line_user_id,
           line_display_name: display_name || "",
           line_picture_url: picture_url || "",
           followed_at: now,
           updated_at: now,
           source: "identify_friendship",
         });
-        try { fs.writeFileSync(fansFile2, JSON.stringify(fansArr, null, 2)); } catch {}
       }
+      try { fs.writeFileSync(fansFile, JSON.stringify(fansArr, null, 2)); } catch {}
     }
 
-    // 派生 identity_tag（与 resolveIdentityTag 逻辑保持一致）
-    let identityTag = "user";
-    if (isFan && isNew) identityTag = "fan"; // 首次识别且是粉丝
-    try {
-      const acc = await query(
-        "SELECT deposit_paid FROM points_accounts WHERE user_id = $1 OR line_user_id = $1 LIMIT 1",
-        [canonicalUserId]
-      );
-      if (acc.rows.length > 0 && acc.rows[0].deposit_paid) identityTag = "member";
-    } catch {}
-
     return sendOk(res, sendJson, "identity resolved", {
-      user_id: canonicalUserId,
-      line_user_id: line_user_id || null,
+      user_id: state.userId || line_user_id || device_id,
+      line_user_id: state.lineUserId || null,
       device_id: device_id || null,
-      display_name: display_name || null,
-      picture_url: picture_url || null,
-      is_fan: isFan,
-      identity_tag: identityTag,
+      display_name: state.displayName || null,
+      picture_url: state.pictureUrl || null,
+      is_fan: state.isFan,
+      identity_level: state.identityLevel,
+      identity_tag: state.identityLevel,
+      deposit_paid: state.depositPaid,
+      has_charge_order: state.hasChargeOrder,
+      member_level: state.memberLevel,
       is_new: isNew,
     });
   } catch (err) {
     console.error("[identify] error:", err);
     // 降级：即使 DB 失败也返回基本信息（不阻塞用户）
     return sendOk(res, sendJson, "identity resolved (degraded)", {
-      user_id: canonicalUserId,
+      user_id: line_user_id || device_id,
       line_user_id: line_user_id || null,
       device_id: device_id || null,
       is_fan: false,
-      identity_tag: "user",
+      identity_level: line_user_id ? "visitor" : "visitor",
+      identity_tag: "visitor",
       is_new: false,
     });
   }

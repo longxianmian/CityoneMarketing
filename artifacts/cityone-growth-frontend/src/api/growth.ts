@@ -220,7 +220,7 @@ export function testRouteMatch(data: {
 // ── 阶段三：用户端真实资料接口 ─────────────────────────────────────────────
 
 export function getUserProfile(params?: { user_id?: string; line_user_id?: string }) {
-  return request.get('/user/profile', { params })
+  return request.get('/user/profile/me', { params })
 }
 
 export function getUserPrizes(params?: {

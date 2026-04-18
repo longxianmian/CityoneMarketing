@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type IdentityTag = 'fan' | 'user' | 'member'
+export type IdentityTag = 'visitor' | 'fan' | 'customer' | 'member' | 'user'
 
 export interface LineUserProfile {
   lineUserId: string
