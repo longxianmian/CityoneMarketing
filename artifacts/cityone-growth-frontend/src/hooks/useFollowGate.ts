@@ -22,6 +22,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
+import { useLiff } from '../providers/LiffProvider'
 
 interface GuardOptions {
   label?: string
@@ -47,6 +48,7 @@ export function useFollowGate() {
   const [searchParams] = useSearchParams()
   const lineProfile = useLineUserStore((s) => s.profile)
   const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
+  const { inLineClient } = useLiff()
   const [checking, setChecking] = useState(false)
 
   const buildReturnPath = useCallback(
@@ -100,14 +102,17 @@ export function useFollowGate() {
           actionName: label,
           source,
         })
-        navigate(`/welfare/continue?intent=${encodeURIComponent(issued.token)}`)
+        const targetPath = inLineClient
+          ? `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
+          : `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
+        navigate(targetPath)
       } catch (err: any) {
         message.error(err?.message || '创建待恢复动作失败')
       } finally {
         setChecking(false)
       }
     },
-    [buildReturnPath, canonicalUserId, lineProfile?.lineUserId, navigate]
+    [buildReturnPath, canonicalUserId, inLineClient, lineProfile?.lineUserId, navigate]
   )
 
   return { guard, checking }
