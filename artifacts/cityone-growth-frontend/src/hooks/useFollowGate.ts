@@ -102,7 +102,8 @@ export function useFollowGate() {
           actionName: label,
           source,
         })
-        const targetPath = inLineClient
+        const hasIdentifiedLineSession = Boolean(canonicalUserId && lineProfile?.lineUserId)
+        const targetPath = (inLineClient || hasIdentifiedLineSession)
           ? `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
           : `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
         navigate(targetPath)

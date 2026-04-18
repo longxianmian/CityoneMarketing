@@ -6,6 +6,7 @@ import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { resetCurrentIdentitySession } from '../../lib/identitySession'
+import useLineUserStore from '../../store/lineUser'
 
 /**
  * 先读规范再改代码：
@@ -22,10 +23,13 @@ export default function OpenInLinePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   useLiff()
+  const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
+  const lineProfile = useLineUserStore((s) => s.profile)
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(payload?.return_path || '/welfare')
   const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, getRuntimeLineConfig().liffId)
+  const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
 
   React.useEffect(() => {
     console.info('[follow-flow] open_in_line_view', {
@@ -33,6 +37,13 @@ export default function OpenInLinePage() {
       action_type: payload?.action || '',
     })
   }, [payload?.action, payload?.intent_id])
+
+  React.useEffect(() => {
+    if (!intentToken) return
+    if (canonicalUserId && lineProfile?.lineUserId) {
+      navigate(continuePath, { replace: true })
+    }
+  }, [canonicalUserId, continuePath, intentToken, lineProfile?.lineUserId, navigate])
 
   const handleOpenInLine = () => {
     if (!liffUrl || !intentToken) return
