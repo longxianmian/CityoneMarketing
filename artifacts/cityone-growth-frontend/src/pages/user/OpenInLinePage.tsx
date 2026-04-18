@@ -39,7 +39,7 @@ export default function OpenInLinePage() {
     console.info('[follow-flow] open_in_line_click', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
-      target: '/welfare/continue',
+      target: '/welfare/continue?intent=...',
     })
     window.location.href = liffUrl
   }
@@ -55,7 +55,7 @@ export default function OpenInLinePage() {
       <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>请在 LINE 内继续完成身份识别</div>
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>
-          当前操作需要在 LINE 内继续完成，返回原详情页后可重新发起。
+          当前领取操作需要在 LINE 内继续完成。进入 LINE 后，系统会自动继续后续步骤。
         </div>
         <Button
           type="primary"
@@ -64,10 +64,10 @@ export default function OpenInLinePage() {
           disabled={!liffUrl || !intentToken}
           onClick={handleOpenInLine}
         >
-          在 LINE 内继续
+          在 LINE 中继续
         </Button>
         <Button style={{ marginTop: 12 }} block onClick={() => navigate(returnPath, { replace: true })}>
-          返回原详情页
+          返回当前详情页
         </Button>
         <Button style={{ marginTop: 12 }} block onClick={handleResetIdentity}>
           重新识别 LINE 身份

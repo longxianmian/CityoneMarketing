@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, Spin } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getLiff, useLiff } from '../../providers/LiffProvider'
+import { useLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 
@@ -54,9 +54,10 @@ export default function ContinuePage() {
   const intentToken = searchParams.get('intent') || ''
   const intentPayload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(intentPayload?.return_path || '/welfare')
-  const successPath = String(intentPayload?.success_path || returnPath)
   const failPath = String(intentPayload?.fail_path || returnPath)
   const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
+  const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
+  const claimSuccessPath = '/mine?tab=benefit&source=claim_success'
 
   useEffect(() => {
     mountedRef.current = true
@@ -67,7 +68,7 @@ export default function ContinuePage() {
 
   useEffect(() => {
     if (!intentPayload) return
-    console.info('[follow-flow] continue_enter', {
+    console.info('[follow-flow] continue_processing_enter', {
       intent_id: intentPayload.intent_id || '',
       action_type: intentPayload.action || '',
     })
@@ -120,6 +121,7 @@ export default function ContinuePage() {
           return
         }
         setStatus('waiting_follow_or_ready')
+        navigate(followConfirmPath, { replace: true })
         return
       }
 
@@ -132,17 +134,17 @@ export default function ContinuePage() {
       })
       if (!mountedRef.current) return
 
-      const nextPath =
-        consumed?.result?.nextPath ||
-        consumed?.payload?.success_path ||
-        successPath ||
-        consumed?.payload?.return_path ||
-        returnPath
+      const nextPath = claimSuccessPath
 
       console.info('[follow-flow] consume_success', {
         intent_id: consumed?.payload?.intent_id || intentPayload.intent_id || '',
         action_type: consumed?.payload?.action || intentPayload.action || '',
         result_code: consumed?.result?.resultCode || '',
+        next_path: nextPath,
+      })
+      console.info('[follow-flow] claim_success_route', {
+        intent_id: consumed?.payload?.intent_id || intentPayload.intent_id || '',
+        action_type: consumed?.payload?.action || intentPayload.action || '',
         next_path: nextPath,
       })
 
@@ -172,7 +174,6 @@ export default function ContinuePage() {
     navigate,
     openInLinePath,
     returnPath,
-    successPath,
     waitForIdentityReady,
   ])
 
@@ -181,25 +182,16 @@ export default function ContinuePage() {
     void runFlow()
   }, [intentToken, liffChecked, runFlow])
 
-  const handleFollowContinue = useCallback(async () => {
-    const liff = getLiff()
-    if (!inLineClient || !liffReady || !liff?.requestFriendship) {
-      navigate(openInLinePath, { replace: true })
-      return
-    }
-
-    try {
-      await liff.requestFriendship()
-    } catch {
-      // keep the user on the same continue page and let the next follow check decide
-    }
-    await runFlow()
-  }, [inLineClient, liffReady, navigate, openInLinePath, runFlow])
-
   if (status === 'idle' || status === 'resolving_identity' || status === 'checking_follow' || status === 'consuming') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6ffed' }}>
-        <Spin size="large" />
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6ffed', padding: 24 }}>
+        <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
+          <Spin size="large" />
+          <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700 }}>正在继续当前领取操作</div>
+          <div style={{ color: '#666', lineHeight: 1.8, marginTop: 10 }}>
+            系统正在确认 LINE 身份并继续后续步骤，请稍候。
+          </div>
+        </Card>
       </div>
     )
   }
@@ -209,32 +201,17 @@ export default function ContinuePage() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
         <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>继续当前操作失败</div>
-          <div style={{ color: '#666', marginBottom: 16 }}>{errorText || '请稍后重试，或返回原页面重新发起。'}</div>
+          <div style={{ color: '#666', marginBottom: 16 }}>{errorText || '当前步骤未能完成，你可以重试，或返回当前详情页重新发起。'}</div>
           <Button type="primary" block onClick={() => void runFlow()}>
             重试
           </Button>
           <Button style={{ marginTop: 12 }} block onClick={() => navigate(failPath || returnPath, { replace: true })}>
-            返回原页面
+            返回当前详情页
           </Button>
         </Card>
       </div>
     )
   }
 
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0fef4', padding: 24 }}>
-      <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>请先完成 LINE OA 关注确认</div>
-        <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>
-          完成关注后，系统会自动继续当前操作，不需要重新返回首页查找入口。
-        </div>
-        <Button type="primary" size="large" block onClick={handleFollowContinue}>
-          关注 LINE OA 并继续
-        </Button>
-        <Button style={{ marginTop: 12 }} block onClick={() => navigate(failPath || returnPath, { replace: true })}>
-          返回原页面
-        </Button>
-      </Card>
-    </div>
-  )
+  return null
 }
