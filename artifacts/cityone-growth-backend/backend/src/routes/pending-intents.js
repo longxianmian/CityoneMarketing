@@ -10,6 +10,15 @@ import {
   issuePendingIntent,
 } from "../services/pending-intent-service.js";
 
+// 先读规范再改代码：
+// - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-identity-and-business-levels.md
+// - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-external-browser-line-continue-flow.md
+//
+// 强约束：
+// - 执行型动作只能由 pending-intents/consume 在服务端统一执行
+// - 不允许前端页面自己 claim / participate / redeem / use
+// - result nextPath 必须服从 open-in-line / continue 主链，不回退旧首页恢复器
+
 const SUPPORTED_ACTIONS = new Set([
   "claim_coupon",
   "participate_activity",

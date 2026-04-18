@@ -1,6 +1,15 @@
 /**
  * LiffProvider — LINE LIFF SDK 初始化 Provider
  *
+ * 先读规范再改代码：
+ * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-identity-and-business-levels.md
+ * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-external-browser-line-continue-flow.md
+ *
+ * 强约束：
+ * - 这里负责 LINE 身份建立，不负责前端自行推断业务身份等级
+ * - 不允许根据头像、昵称、points 账户等本地/历史数据推断 fan/customer/member
+ * - 用户端业务身份只能以后端 /api/user/profile/me 与 /api/user/check-follow 为真源
+ *
  * 使用非 hook 方式初始化（避免 @line/liff 内置 React 与应用 React 版本冲突）：
  *   - initLiff() 作为普通 async 函数在组件外执行
  *   - 通过 useLineUserStore.getState().setProfile() 更新 store（无需 hook）

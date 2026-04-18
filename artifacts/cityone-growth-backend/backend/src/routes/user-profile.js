@@ -4,6 +4,15 @@ import { fileURLToPath } from "node:url";
 import { query } from "../db/pool.js";
 import { resolveOssUrl } from "../services/ossService.js";
 
+// 先读规范再改代码：
+// - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-identity-and-business-levels.md
+// - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-external-browser-line-continue-flow.md
+//
+// 强约束：
+// - user-profile / check-follow 是用户端身份与关注状态真源
+// - 前端不得再根据昵称、头像、points 账户自行推断身份
+// - identity_level 只能由后端统一计算
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, "..", "..", "data");

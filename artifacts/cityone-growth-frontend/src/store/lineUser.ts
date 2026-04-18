@@ -20,6 +20,15 @@ export interface LineUserProfile {
 interface LineUserState {
   profile: LineUserProfile | null
   /**
+   * 先读规范再改代码：
+   * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-identity-and-business-levels.md
+   * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-external-browser-line-continue-flow.md
+   *
+   * 强约束：
+   * - 这里保存的是会话识别结果，不是业务身份真源
+   * - 前端页面不得仅凭本 store 的头像/昵称/identityTag 推断 fan/customer/member
+   * - 业务身份等级必须以 /api/user/profile/me 为唯一读取真源
+   *
    * 规范化 user_id（全站统一使用此 ID 做写操作和查询）
    * - LINE 用户：等于 profile.lineUserId（LINE User ID，Uxxxxxxxx...）
    * - 纯设备用户：等于 deviceUserId（UUID）

@@ -5,6 +5,17 @@ import { getLiff, useLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 
+/**
+ * 先读规范再改代码：
+ * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-identity-and-business-levels.md
+ * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-external-browser-line-continue-flow.md
+ *
+ * 强约束：
+ * - ContinuePage 只负责：identity -> check-follow -> consume
+ * - 不允许在这里自行计算业务身份等级
+ * - 不允许失败时自动跳首页或个人中心
+ */
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 type ContinueStatus =

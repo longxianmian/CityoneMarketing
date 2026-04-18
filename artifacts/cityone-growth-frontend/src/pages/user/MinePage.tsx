@@ -174,7 +174,16 @@ export default function MinePage() {
   const { t, language } = useI18n()
   const { profile } = useLineUserStore()
 
-  // ── 顶部用户资料（阶段三：从真实 profile 接口取，缺失则 fallback） ──────────
+  // 先读规范再改代码：
+  // - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-identity-and-business-levels.md
+  // - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-external-browser-line-continue-flow.md
+  //
+  // 强约束：
+  // - MinePage 的身份等级只能读后端 /api/user/profile/me
+  // - 不允许根据头像昵称、points 账户、前端缓存自行推断 identity_level
+  // - LIFF store 只可做展示兜底，不可作为身份真源
+  //
+  // ── 顶部用户资料（从真实 profile/me 接口取，缺失仅兜底展示字段） ──────────
   const [serverProfile, setServerProfile] = useState<any>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
 
@@ -190,7 +199,7 @@ export default function MinePage() {
     profile?.linePictureUrl || serverProfile?.line_picture_url || ''
 
   const identityLevel: IdentityTag = normalizeIdentityLevel(
-    serverProfile?.identity_level || serverProfile?.identity_tag || profile?.identityTag
+    serverProfile?.identity_level || serverProfile?.identity_tag
   )
 
   const depositPaid: boolean =

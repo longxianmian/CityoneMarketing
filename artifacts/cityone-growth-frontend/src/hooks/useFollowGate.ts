@@ -1,6 +1,15 @@
 /**
  * useFollowGate — 唯一主链入口
  *
+ * 先读规范再改代码：
+ * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-identity-and-business-levels.md
+ * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-external-browser-line-continue-flow.md
+ *
+ * 强约束：
+ * - 执行型动作只创建 pending intent，不在页面侧推断用户身份等级
+ * - 不允许根据本地头像昵称、points 账户、客户端缓存推断 fan/customer/member
+ * - 当前用户身份与关注状态只认后端真源
+ *
  * 执行型动作统一流程：
  *   1. 创建 pending intent
  *   2. 导航到 /welfare/continue?intent=...

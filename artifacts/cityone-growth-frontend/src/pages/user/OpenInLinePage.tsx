@@ -6,6 +6,17 @@ import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/lin
 import { useLiff } from '../../providers/LiffProvider'
 import { resetCurrentIdentitySession } from '../../lib/identitySession'
 
+/**
+ * 先读规范再改代码：
+ * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-identity-and-business-levels.md
+ * - /Users/lxtx/Documents/New project/CityoneMarketing/docs/specs/marketing-external-browser-line-continue-flow.md
+ *
+ * 强约束：
+ * - 外部浏览器是进入 LINE 的前置引导层，不是失败页
+ * - 不允许把“当前会话未识别到 LINE 身份”表达成“未注册/请先注册”
+ * - 不允许在此页自动跳 /welfare 或 /mine
+ */
+
 export default function OpenInLinePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
