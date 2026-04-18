@@ -33,6 +33,35 @@ export function resolveRuntimeLiffUrl(value?: string | null) {
   return liffId ? `https://liff.line.me/${liffId}` : ''
 }
 
+export function normalizeRuntimeLiffExtraPath(value?: string | null) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+
+  let normalized = raw
+  if (normalized.startsWith(window.location.origin)) {
+    normalized = normalized.slice(window.location.origin.length)
+  }
+
+  if (!normalized.startsWith('/')) {
+    normalized = `/${normalized}`
+  }
+
+  if (normalized === '/welfare') return ''
+  if (normalized.startsWith('/welfare/')) {
+    normalized = normalized.slice('/welfare'.length)
+  }
+
+  normalized = normalized.replace(/^\/+/, '/')
+  return normalized
+}
+
+export function buildRuntimeLiffUrlWithPath(extraPath?: string | null, value?: string | null) {
+  const liffUrl = resolveRuntimeLiffUrl(value)
+  if (!liffUrl) return ''
+  const normalized = normalizeRuntimeLiffExtraPath(extraPath)
+  return `${liffUrl}${normalized}`
+}
+
 export function isRuntimeFollowGateReady() {
   if (!runtimeLineConfig.requireFollow) return true
   return !!runtimeLineConfig.officialAccountId && !!runtimeLineConfig.liffId

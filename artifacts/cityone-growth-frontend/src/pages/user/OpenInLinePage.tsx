@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { Button, Card } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import { getRuntimeLineConfig, resolveRuntimeLiffUrl } from '../../lib/line'
+import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { resetCurrentIdentitySession } from '../../lib/identitySession'
 
@@ -13,11 +13,11 @@ export default function OpenInLinePage() {
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(payload?.return_path || '/welfare')
-  const liffUrl = resolveRuntimeLiffUrl(getRuntimeLineConfig().liffId)
+  const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, getRuntimeLineConfig().liffId)
 
   const handleOpenInLine = () => {
     if (!liffUrl || !intentToken) return
-    window.location.href = `${liffUrl}/welfare/continue?intent=${encodeURIComponent(intentToken)}`
+    window.location.href = liffUrl
   }
 
   const handleResetIdentity = () => {

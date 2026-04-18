@@ -79,7 +79,7 @@ async function initLiff(
 
       if (hasResumeHint) {
         try {
-          const redirectUri = `${window.location.origin}/welfare${window.location.search || ''}`
+          const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.search || ''}`
           liff.login({ redirectUri })
           return
         } catch {
