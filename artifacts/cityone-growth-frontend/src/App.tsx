@@ -8,7 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 
-const WelfareHomePage = lazy(() => import('./pages/user/WelfareHomePage'))
+const WelfareEntryPage = lazy(() => import('./pages/user/WelfareEntryPage'))
 const NearbyPage = lazy(() => import('./pages/user/NearbyPage'))
 const AgentPage = lazy(() => import('./pages/user/AgentPage'))
 const AgentChatPage = lazy(() => import('./pages/user/AgentChatPage'))
@@ -99,7 +99,7 @@ export default function App() {
     <Suspense fallback={<Loading />}>
       <Routes>
         {/* 用户端路由 */}
-        <Route path="/welfare" element={<WelfareHomePage />} />
+        <Route path="/welfare" element={<WelfareEntryPage />} />
         <Route path="/welfare/continue" element={<ContinuePage />} />
         <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
         <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />

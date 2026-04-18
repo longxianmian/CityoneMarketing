@@ -163,14 +163,6 @@ async function initLiff(
       useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
     }
 
-    if (window.location.pathname === '/welfare') {
-      const sp = new URLSearchParams(window.location.search)
-      if (sp.get('intent')) {
-        window.location.replace(`/welfare/continue?${sp.toString()}`)
-        return
-      }
-    }
-
     if (!signal.cancelled) {
       onReady({ liffReady: true, inLineClient: isInClient, liffChecked: true })
     }
@@ -180,8 +172,6 @@ async function initLiff(
     const isInLineApp = /Line\/\d/i.test(navigator.userAgent)
     const notAtEndpoint = !window.location.pathname.startsWith('/welfare')
     if (isInLineApp && notAtEndpoint && _liffId) {
-      const current = window.location.pathname + window.location.search + window.location.hash
-      sessionStorage.setItem('liff_redirect', current)
       window.location.replace('/welfare')
       return
     }

@@ -322,11 +322,6 @@ export default function WelfareHomePage() {
     ],
     [t]
   )
-  // 进入 /welfare 时清除 liff_redirect，防止用户从详情页返回后被再次跳走（死循环）
-  useEffect(() => {
-    sessionStorage.removeItem('liff_redirect')
-  }, [])
-
   const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
   useEffect(() => {
     if (Date.now() - _pageCache.bannersAt < CACHE_TTL_MS) return
