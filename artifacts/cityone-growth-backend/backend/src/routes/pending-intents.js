@@ -73,9 +73,12 @@ export async function handlePendingIntentIssue(req, res, url, sendJson, readBody
     const userId = String(body.user_id || body.line_user_id || "").trim();
     const lineUserId = String(body.line_user_id || "").trim();
     const returnPath = normalizePath(body.return_path, "/welfare");
+    const successPath = normalizePath(body.success_path || returnPath, returnPath);
+    const failPath = normalizePath(body.fail_path || returnPath, returnPath);
     const backPath = normalizePath(body.back_path || returnPath.split("?")[0], "/welfare");
     const actionName = String(body.action_name || "").trim();
     const metadata = normalizeMetadata(body);
+    const terminal = classifyTerminal(req.headers["user-agent"]);
 
     const issued = await issuePendingIntent({
       userId,
@@ -83,7 +86,10 @@ export async function handlePendingIntentIssue(req, res, url, sendJson, readBody
       action,
       resourceId,
       returnPath,
+      successPath,
+      failPath,
       backPath,
+      terminal,
       actionName,
       metadata,
     });
@@ -91,7 +97,7 @@ export async function handlePendingIntentIssue(req, res, url, sendJson, readBody
     logPendingIntent("issued", {
       intent_id: issued.payload.intent_id,
       action_type: issued.payload.action,
-      terminal: classifyTerminal(req.headers["user-agent"]),
+      terminal,
       line_user_id: lineUserId || "",
       canonical_user_id: userId || "",
       consume_status: "pending",
@@ -114,15 +120,18 @@ export async function handlePendingIntentIssue(req, res, url, sendJson, readBody
 }
 
 export async function handlePendingIntentConsume(req, res, url, sendJson, readBody) {
+  let token = "";
+  let currentUserId = "";
+  let currentLineUserId = "";
   try {
     const body = await readBody(req);
-    const token = String(body.token || "").trim();
+    token = String(body.token || "").trim();
     if (!token) {
       return sendError(res, sendJson, 400, "MISSING_PENDING_TOKEN", "缺少 pending intent token");
     }
 
-    const currentUserId = String(body.user_id || body.line_user_id || "").trim();
-    const currentLineUserId = String(body.line_user_id || "").trim();
+    currentUserId = String(body.user_id || body.line_user_id || "").trim();
+    currentLineUserId = String(body.line_user_id || "").trim();
     const terminal = classifyTerminal(req.headers["user-agent"]);
     const decoded = decodePendingIntentToken(token);
 
@@ -150,7 +159,8 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
           });
           return {
             action: payload.action,
-            redirect_path: payload.back_path,
+            nextPath: payload.success_path || payload.return_path,
+            resultCode: claimResult?.alreadyClaimed ? "already_claimed" : "claimed",
             action_result: claimResult,
           };
         }
@@ -164,7 +174,8 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
           });
           return {
             action: payload.action,
-            redirect_path: payload.back_path,
+            nextPath: payload.success_path || payload.return_path,
+            resultCode: activityResult?.alreadyJoined ? "already_joined" : "joined",
             action_result: activityResult,
           };
         }
@@ -208,7 +219,8 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
           }
           return {
             action: payload.action,
-            redirect_path: payload.back_path,
+            nextPath: payload.success_path || payload.return_path,
+            resultCode: redeemResult?.result ? "redeemed" : "redeem_completed",
             action_result: redeemResult,
           };
         }
@@ -222,7 +234,8 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
           });
           return {
             action: payload.action,
-            redirect_path: payload.back_path,
+            nextPath: payload.success_path || payload.return_path,
+            resultCode: useResult?.product_status === "used" ? "used" : "use_completed",
             action_result: useResult,
           };
         }
@@ -238,7 +251,7 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
       line_user_id: currentLineUserId || consumed.payload.line_user_id || "",
       canonical_user_id: currentUserId || consumed.payload.user_id || "",
       consume_status: consumed.replayed ? "replayed" : "consumed",
-      result_code: 200,
+      result_code: consumed.result?.resultCode || 200,
     });
 
     return sendOk(res, sendJson, consumed.replayed ? "pending intent replayed" : "pending intent consumed", {
@@ -247,14 +260,13 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
       result: consumed.result,
     });
   } catch (err) {
-    const token = err?.token || "";
     const decoded = token ? decodePendingIntentToken(token) : null;
     logPendingIntent("consume_error", {
       intent_id: decoded?.intent_id || "",
       action_type: decoded?.action || "",
       terminal: classifyTerminal(req.headers["user-agent"]),
-      line_user_id: String((req.body && req.body.line_user_id) || decoded?.line_user_id || ""),
-      canonical_user_id: String((req.body && (req.body.user_id || req.body.line_user_id)) || decoded?.user_id || ""),
+      line_user_id: currentLineUserId || decoded?.line_user_id || "",
+      canonical_user_id: currentUserId || decoded?.user_id || "",
       consume_status: "failed",
       result_code: err.statusCode || 500,
     });

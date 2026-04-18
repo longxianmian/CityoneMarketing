@@ -18,7 +18,7 @@ export default function FollowOAPage() {
       navigate(`/welfare/continue?intent=${encodeURIComponent(intent)}`, { replace: true })
       return
     }
-    navigate('/welfare', { replace: true })
+    navigate('/welfare/open-in-line', { replace: true })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

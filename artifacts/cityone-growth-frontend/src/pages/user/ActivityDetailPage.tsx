@@ -122,10 +122,11 @@ export default function ActivityDetailPage() {
     const entryCode = searchParams.get('entry_code') || ''
     const utmSource = searchParams.get('utm_source') || ''
     guard(
-      async () => undefined,
       {
         label: title,
         returnPath: `/activity/${id}`,
+        successPath: `/activity/${id}`,
+        failPath: `/activity/${id}`,
         back: '/welfare',
         intentAction: 'participate_activity',
         resourceId: id || '',

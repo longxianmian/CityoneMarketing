@@ -104,10 +104,11 @@ export default function ProductDetailPage() {
     setConfirmOpen(false)
     setDeliveryOpen(false)
     guard(
-      async () => undefined,
       {
         label: pick(product?.name) || '',
         returnPath: `/redeem/${id}`,
+        successPath: couponExchangeMode ? '/mine?tab=benefit' : '/mine?tab=member',
+        failPath: `/redeem/${id}`,
         back: couponExchangeMode ? '/mine?tab=benefit' : '/my-points',
         intentAction: 'redeem_product',
         resourceId: product.id,

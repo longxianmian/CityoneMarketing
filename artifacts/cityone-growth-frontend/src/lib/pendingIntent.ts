@@ -12,6 +12,8 @@ type IssuePendingIntentInput = {
   action: PendingIntentAction
   resourceId: string
   returnPath: string
+  successPath?: string
+  failPath?: string
   backPath: string
   actionName?: string
   source?: Record<string, any>
@@ -27,6 +29,8 @@ export async function issuePendingIntent(input: IssuePendingIntentInput) {
       action: input.action,
       resource_id: input.resourceId,
       return_path: input.returnPath,
+      success_path: input.successPath || input.returnPath,
+      fail_path: input.failPath || input.returnPath,
       back_path: input.backPath,
       action_name: input.actionName || '',
       source: input.source || {},
@@ -65,8 +69,8 @@ export async function consumePendingIntent({
     replayed: boolean
     payload: any
     result: {
-      redirect_path?: string
-      next_path?: string
+      nextPath?: string
+      resultCode?: string
       action_result?: any
     }
   }

@@ -124,10 +124,11 @@ export default function RedeemUserPage() {
     setConfirmOpen(false)
     try {
       await guard(
-        async () => undefined,
         {
           label: itemName,
           returnPath: `/redeem/${id}`,
+          successPath: '/mine?tab=member',
+          failPath: `/redeem/${id}`,
           back: '/my-points',
           intentAction: 'redeem_product',
           resourceId: item.id,

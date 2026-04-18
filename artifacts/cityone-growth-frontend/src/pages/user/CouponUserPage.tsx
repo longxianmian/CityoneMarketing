@@ -263,10 +263,11 @@ export default function CouponUserPage() {
     }
     setDeliveryOpen(false)
     guard(
-      async () => undefined,
       {
         label: name,
         returnPath: `/coupon/${id}`,
+        successPath: '/mine?tab=benefit',
+        failPath: `/coupon/${id}`,
         back: '/mine?tab=benefit',
         intentAction: 'claim_coupon',
         resourceId: id,

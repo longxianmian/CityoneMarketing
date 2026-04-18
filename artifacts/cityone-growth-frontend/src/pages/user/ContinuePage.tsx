@@ -1,12 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Card, Spin, message } from 'antd'
+import { Button, Card, Spin } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getLiff, useLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
-import { getRuntimeLineConfig, resolveRuntimeLiffUrl } from '../../lib/line'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+type ContinueStatus =
+  | 'idle'
+  | 'resolving_identity'
+  | 'checking_follow'
+  | 'waiting_follow_or_ready'
+  | 'consuming'
+  | 'done'
+  | 'error'
 
 async function checkFollow(userId: string) {
   const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
@@ -17,112 +25,144 @@ async function checkFollow(userId: string) {
   return json?.data?.is_fan === true
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 export default function ContinuePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffReady, liffChecked, inLineClient } = useLiff()
-  const profile = useLineUserStore((s) => s.profile)
-  const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
-  const [status, setStatus] = useState<'idle' | 'resolving_identity' | 'checking_follow' | 'waiting_follow_or_ready' | 'consuming' | 'done' | 'error'>('idle')
+  const [status, setStatus] = useState<ContinueStatus>('idle')
   const [errorText, setErrorText] = useState('')
-  const startedRef = useRef(false)
-  const singleFlightRef = useRef(false)
-  const followRetryRef = useRef(false)
+  const inFlightRef = useRef(false)
+  const consumedRef = useRef(false)
+  const mountedRef = useRef(true)
 
   const intentToken = searchParams.get('intent') || ''
-  const effectiveUserId = canonicalUserId || profile?.lineUserId || ''
-  const lineUserId = profile?.lineUserId || ''
-  const lineConfig = useMemo(() => getRuntimeLineConfig(), [])
   const intentPayload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(intentPayload?.return_path || '/welfare')
-  const fallbackPath = String(intentPayload?.back_path || returnPath || '/welfare')
+  const successPath = String(intentPayload?.success_path || returnPath)
+  const failPath = String(intentPayload?.fail_path || returnPath)
+  const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
 
-  const consume = useCallback(async () => {
-    if (!intentToken || !effectiveUserId) return
-    setStatus('consuming')
-    const result = await consumePendingIntent({
-      token: intentToken,
-      userId: effectiveUserId,
-      lineUserId,
-    })
-    const redirectPath =
-      result?.result?.next_path ||
-      result?.result?.redirect_path ||
-      result?.payload?.return_path ||
-      returnPath ||
-      fallbackPath ||
-      '/welfare'
-    setStatus('done')
-    navigate(redirectPath, { replace: true, state: { followResumeResult: result.result?.action_result || null } })
-  }, [effectiveUserId, fallbackPath, intentToken, lineUserId, navigate, returnPath])
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const waitForIdentityReady = useCallback(async () => {
+    const deadline = Date.now() + 3000
+    while (Date.now() < deadline) {
+      const state = useLineUserStore.getState()
+      const canonicalUserId = state.canonicalUserId || state.profile?.lineUserId || ''
+      const lineUserId = state.profile?.lineUserId || ''
+      if (canonicalUserId && lineUserId) {
+        return { canonicalUserId, lineUserId }
+      }
+      await sleep(120)
+    }
+    const state = useLineUserStore.getState()
+    return {
+      canonicalUserId: state.canonicalUserId || state.profile?.lineUserId || '',
+      lineUserId: state.profile?.lineUserId || '',
+    }
+  }, [])
 
   const runFlow = useCallback(async () => {
-    if (singleFlightRef.current) return
-    singleFlightRef.current = true
-    if (!intentToken) {
-      setErrorText('缺少待恢复动作')
-      setStatus('error')
-      singleFlightRef.current = false
-      return
-    }
-    if (!liffChecked) return
-    if (!effectiveUserId) {
-      setStatus('resolving_identity')
-      setErrorText('尚未建立 LINE 身份，请稍后重试')
-      setStatus('error')
-      singleFlightRef.current = false
-      return
-    }
+    if (!intentToken || inFlightRef.current || consumedRef.current || !mountedRef.current) return
+    inFlightRef.current = true
     try {
+      if (!intentPayload) {
+        setErrorText('待恢复动作无效或已损坏')
+        setStatus('error')
+        return
+      }
+
+      setStatus('resolving_identity')
+      const identity = await waitForIdentityReady()
+      if (!mountedRef.current) return
+
+      if (!identity.canonicalUserId || !identity.lineUserId) {
+        navigate(openInLinePath, { replace: true })
+        return
+      }
+
       setStatus('checking_follow')
-      const followed = await checkFollow(effectiveUserId)
+      const followed = await checkFollow(identity.canonicalUserId)
+      if (!mountedRef.current) return
+
       if (!followed) {
+        if (!inLineClient || !liffReady) {
+          navigate(openInLinePath, { replace: true })
+          return
+        }
         setStatus('waiting_follow_or_ready')
         return
       }
-      await consume()
+
+      consumedRef.current = true
+      setStatus('consuming')
+      const consumed = await consumePendingIntent({
+        token: intentToken,
+        userId: identity.canonicalUserId,
+        lineUserId: identity.lineUserId,
+      })
+      if (!mountedRef.current) return
+
+      const nextPath =
+        consumed?.result?.nextPath ||
+        consumed?.payload?.success_path ||
+        successPath ||
+        consumed?.payload?.return_path ||
+        returnPath
+
+      setStatus('done')
+      navigate(nextPath, {
+        replace: true,
+        state: { followResumeResult: consumed?.result?.action_result || null },
+      })
     } catch (err: any) {
+      if (!mountedRef.current) return
+      consumedRef.current = false
       setErrorText(err?.message || '继续原操作失败')
       setStatus('error')
     } finally {
-      singleFlightRef.current = false
+      inFlightRef.current = false
     }
-  }, [consume, effectiveUserId, intentToken, liffChecked])
+  }, [
+    inLineClient,
+    intentPayload,
+    intentToken,
+    liffReady,
+    navigate,
+    openInLinePath,
+    returnPath,
+    successPath,
+    waitForIdentityReady,
+  ])
 
   useEffect(() => {
-    if (!liffChecked || startedRef.current) return
-    startedRef.current = true
+    if (!intentToken || !liffChecked) return
     void runFlow()
-  }, [liffChecked, runFlow])
+  }, [intentToken, liffChecked, runFlow])
 
-  const handleFollowContinue = async () => {
-    if (liffReady && inLineClient) {
-      const liff = getLiff()
-      if (liff?.requestFriendship) {
-        try {
-          await liff.requestFriendship()
-        } catch {}
-        if (!followRetryRef.current) {
-          followRetryRef.current = true
-          await runFlow()
-        }
-        return
-      }
-    }
-
-    const liffUrl = resolveRuntimeLiffUrl(lineConfig.liffId)
-    if (liffUrl) {
-      window.location.href = `${liffUrl}/welfare/continue?intent=${encodeURIComponent(intentToken)}`
+  const handleFollowContinue = useCallback(async () => {
+    const liff = getLiff()
+    if (!inLineClient || !liffReady || !liff?.requestFriendship) {
+      navigate(openInLinePath, { replace: true })
       return
     }
 
-    if (lineConfig.officialAccountId) {
-      window.location.href = `line://ti/p/${lineConfig.officialAccountId}`
-      return
+    try {
+      await liff.requestFriendship()
+    } catch {
+      // keep the user on the same continue page and let the next follow check decide
     }
-
-    message.error('LINE OA 未完成正式配置')
-  }
+    await runFlow()
+  }, [inLineClient, liffReady, navigate, openInLinePath, runFlow])
 
   if (status === 'idle' || status === 'resolving_identity' || status === 'checking_follow' || status === 'consuming') {
     return (
@@ -136,9 +176,11 @@ export default function ContinuePage() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
         <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>恢复原操作失败</div>
-          <div style={{ color: '#666', marginBottom: 16 }}>{errorText || '请返回福利中心重试'}</div>
-          <Button type="primary" onClick={() => navigate('/welfare', { replace: true })}>返回福利中心</Button>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>继续当前操作失败</div>
+          <div style={{ color: '#666', marginBottom: 16 }}>{errorText || '请返回原页面后重试'}</div>
+          <Button type="primary" block onClick={() => navigate(failPath || returnPath, { replace: true })}>
+            返回原页面
+          </Button>
         </Card>
       </div>
     )
@@ -149,13 +191,13 @@ export default function ContinuePage() {
       <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>需先关注 CityOne LINE OA</div>
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>
-          关注后系统会自动继续刚才的操作。
+          关注完成后，系统会继续当前操作。
         </div>
         <Button type="primary" size="large" block onClick={handleFollowContinue}>
           关注 LINE OA 并继续
         </Button>
-        <Button style={{ marginTop: 12 }} block onClick={() => navigate('/welfare', { replace: true })}>
-          稍后再说
+        <Button style={{ marginTop: 12 }} block onClick={() => navigate(failPath || returnPath, { replace: true })}>
+          返回原页面
         </Button>
       </Card>
     </div>

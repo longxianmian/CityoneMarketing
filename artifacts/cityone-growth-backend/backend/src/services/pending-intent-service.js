@@ -87,7 +87,10 @@ function buildPayload({
   action,
   resourceId,
   returnPath,
+  successPath,
+  failPath,
   backPath,
+  terminal,
   actionName,
   exp,
 }) {
@@ -99,7 +102,10 @@ function buildPayload({
     action: String(action || "").trim(),
     resource_id: String(resourceId || "").trim(),
     return_path: String(returnPath || "").trim(),
+    success_path: String(successPath || "").trim(),
+    fail_path: String(failPath || "").trim(),
     back_path: String(backPath || "").trim(),
+    terminal: String(terminal || "").trim(),
     action_name: String(actionName || "").trim(),
     exp,
   };
@@ -111,7 +117,10 @@ export async function issuePendingIntent({
   action,
   resourceId,
   returnPath,
+  successPath,
+  failPath,
   backPath,
+  terminal = "",
   actionName = "",
   metadata = {},
   ttlSeconds = DEFAULT_TTL_SECONDS,
@@ -128,7 +137,10 @@ export async function issuePendingIntent({
     action,
     resourceId,
     returnPath,
+    successPath,
+    failPath,
     backPath,
+    terminal,
     actionName,
     exp,
   });
@@ -136,8 +148,9 @@ export async function issuePendingIntent({
   await query(
     `INSERT INTO pending_intents
        (intent_id, nonce, user_id, line_user_id, action, resource_id,
-        return_path, back_path, action_name, metadata, expires_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        return_path, success_path, fail_path, back_path, terminal,
+        action_name, metadata, expires_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
     [
       intentId,
       nonce,
@@ -146,7 +159,10 @@ export async function issuePendingIntent({
       payload.action,
       payload.resource_id,
       payload.return_path,
+      payload.success_path || payload.return_path,
+      payload.fail_path || payload.return_path,
       payload.back_path,
+      payload.terminal || null,
       payload.action_name || null,
       JSON.stringify(metadata || {}),
       new Date(exp * 1000),

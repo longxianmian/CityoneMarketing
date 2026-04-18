@@ -16,6 +16,8 @@ import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingInte
 interface GuardOptions {
   label?: string
   returnPath: string
+  successPath?: string
+  failPath?: string
   back?: string
   intentAction?: PendingIntentAction
   resourceId?: string
@@ -55,10 +57,12 @@ export function useFollowGate() {
   )
 
   const guard = useCallback(
-    async (_action: () => void | Promise<void>, opts: GuardOptions) => {
+    async (opts: GuardOptions) => {
       const {
         label = '',
         returnPath,
+        successPath,
+        failPath,
         back,
         intentAction,
         resourceId,
@@ -80,6 +84,8 @@ export function useFollowGate() {
           action: intentAction,
           resourceId,
           returnPath: fullReturn,
+          successPath: successPath || fullReturn,
+          failPath: failPath || fullReturn,
           backPath,
           actionName: label,
           source,
