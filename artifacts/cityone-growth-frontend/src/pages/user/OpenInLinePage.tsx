@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { getRuntimeLineConfig, resolveRuntimeLiffUrl } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
+import { resetCurrentIdentitySession } from '../../lib/identitySession'
 
 export default function OpenInLinePage() {
   const navigate = useNavigate()
@@ -19,12 +20,18 @@ export default function OpenInLinePage() {
     window.location.href = `${liffUrl}/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   }
 
+  const handleResetIdentity = () => {
+    resetCurrentIdentitySession()
+    const target = returnPath || '/welfare'
+    window.location.assign(target)
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
       <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>当前操作需要在 LINE 内继续</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>当前会话尚未识别到 LINE 身份</div>
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>
-          请使用 LINE 打开当前流程，系统会继续刚才的操作。
+          请在 LINE 内继续完成身份识别。
         </div>
         <Button
           type="primary"
@@ -34,6 +41,9 @@ export default function OpenInLinePage() {
           onClick={handleOpenInLine}
         >
           在 LINE 内继续
+        </Button>
+        <Button style={{ marginTop: 12 }} block onClick={handleResetIdentity}>
+          重新识别 LINE 身份
         </Button>
         <Button style={{ marginTop: 12 }} block onClick={() => navigate(returnPath, { replace: true })}>
           返回原详情页
