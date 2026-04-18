@@ -27,7 +27,6 @@ export default function ProductDetailPage() {
   const couponUserProductId = searchParams.get('up') || ''
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [acting, setActing] = useState(false)
   const { guard, checking } = useFollowGate()
   const effectiveUserId = useEffectiveUserId()
   const [shareVisible, setShareVisible] = useState(false)
@@ -100,65 +99,25 @@ export default function ProductDetailPage() {
   const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
   const videoReady = !!resolvedCoverVideo
 
-  // 来自关注恢复链路：auto=redeem
-  // 数字商品：直接继续兑换，不再让用户多点一次确认
-  // 实物商品：直接进入配送信息表单（仍需用户补齐必要信息）
-  useEffect(() => {
-    if (searchParams.get('auto') !== 'redeem' || !product || acting || redeemSuccess) return
-
-    if (product.item_type === 'physical') {
-      const dt = product.delivery_type || 'courier'
-      setDeliveryMode(dt === 'pickup' ? 'pickup' : 'courier')
-      deliveryForm.resetFields()
-      void loadSavedAddresses().finally(() => {
-        setDeliveryOpen(true)
-      })
-      return
-    }
-
-    void doRedeem()
-  }, [acting, deliveryForm, product, redeemSuccess, searchParams])
-
-  // 实际执行兑换（数字商品确认后）
-  const doRedeem = async (extraFields?: Record<string, any>) => {
-    setActing(true)
-    try {
-      const userId = effectiveUserId
-      const res: any = couponExchangeMode
-        ? await (request.post as any)('/user/coupons/exchange-mall-item', {
-            user_id: userId,
-            coupon_id: couponId,
-            user_product_id: couponUserProductId || undefined,
-            item_id: product.id,
-            ...extraFields,
-          })
-        : await (request.post as any)('/growth/mall/redeem', {
-            user_id: userId,
-            item_id: product.id,
-            ...extraFields,
-          })
-      const data = res?.data || res
-      if (data?.error === 'INSUFFICIENT_POINTS' || res?.code === 400) {
-        message.error(lang === 'zh' ? '积分不足，无法兑换' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient points')
-        setConfirmOpen(false)
-        return
+  const queueRedeemIntent = (extraFields?: Record<string, any>) => {
+    if (!product) return
+    setConfirmOpen(false)
+    setDeliveryOpen(false)
+    guard(
+      async () => undefined,
+      {
+        label: pick(product?.name) || '',
+        returnPath: `/redeem/${id}`,
+        back: couponExchangeMode ? '/mine?tab=benefit' : '/my-points',
+        intentAction: 'redeem_product',
+        resourceId: product.id,
+        source: {
+          ...(couponExchangeMode && { coupon_id: couponId }),
+          ...(couponExchangeMode && couponUserProductId ? { user_product_id: couponUserProductId } : {}),
+          ...(extraFields || {}),
+        },
       }
-      setConfirmOpen(false)
-      setDeliveryOpen(false)
-      setRedeemIsPhysical(data?.is_physical === true)
-      setRedeemSuccess(true)
-    } catch (err: any) {
-      const msg = err?.response?.data?.msg || err?.message || ''
-      if (msg.includes('积分不足') || msg.includes('INSUFFICIENT')) {
-        const zh = msg.includes('当前可用') ? msg : '积分不足，无法兑换'
-        message.error(lang === 'zh' ? zh : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient points')
-      } else {
-        message.error(msg || (lang === 'zh' ? '兑换失败，请稍后重试' : lang === 'th' ? 'แลกไม่สำเร็จ กรุณาลองใหม่' : 'Redemption failed, please try again'))
-      }
-      setConfirmOpen(false)
-    } finally {
-      setActing(false)
-    }
+    )
   }
 
   // 实物商品：确认配送信息后提交订单
@@ -175,49 +134,39 @@ export default function ProductDetailPage() {
         extraFields.delivery_phone   = values.pickup_phone
         extraFields.delivery_station_id = values.pickup_station || ''
       }
-      await doRedeem(extraFields)
+      queueRedeemIntent(extraFields)
     } catch {
       // form validation failed
     }
   }
 
   // 公共前置检查（fan + 积分），通过后 openModal 回调
-  const runPreChecks = (openModal: () => void) => {
-    const productName = pick(product?.name) || ''
-    guard(
-      async () => {
-        const userId = effectiveUserId
-        const pointsRequired = Number(product.points_required) || 0
-        if (!couponExchangeMode && pointsRequired > 0) {
-          try {
-            const summaryRes: any = await (request.get as any)(`/growth/user/points/summary?user_id=${encodeURIComponent(userId)}`)
-            const summaryData = summaryRes?.data || summaryRes
-            const available = Number(summaryData?.available_points) || 0
-            if (available < pointsRequired) {
-              modal.warning({
-                title: lang === 'zh' ? '积分不足' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
-                content: lang === 'zh'
-                  ? `当前可用积分 ${available} 分，兑换此商品需要 ${pointsRequired} 分，差 ${pointsRequired - available} 分。`
-                  : lang === 'th'
-                    ? `คะแนนปัจจุบัน ${available} คะแนน ต้องการ ${pointsRequired} คะแนน ขาด ${pointsRequired - available} คะแนน`
-                    : `You have ${available} pts but need ${pointsRequired} pts (short by ${pointsRequired - available} pts).`,
-                okText: lang === 'zh' ? '知道了' : lang === 'th' ? 'ตกลง' : 'OK',
-                centered: true,
-              })
-              return
-            }
-          } catch { /* 查询失败时让后端做最终验证 */ }
+  const runPreChecks = async (openModal: () => void) => {
+    const userId = effectiveUserId
+    const pointsRequired = Number(product.points_required) || 0
+    if (!couponExchangeMode && pointsRequired > 0) {
+      try {
+        const summaryRes: any = await (request.get as any)(`/growth/user/points/summary?user_id=${encodeURIComponent(userId)}`)
+        const summaryData = summaryRes?.data || summaryRes
+        const available = Number(summaryData?.available_points) || 0
+        if (available < pointsRequired) {
+          modal.warning({
+            title: lang === 'zh' ? '积分不足' : lang === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient Points',
+            content: lang === 'zh'
+              ? `当前可用积分 ${available} 分，兑换此商品需要 ${pointsRequired} 分，差 ${pointsRequired - available} 分。`
+              : lang === 'th'
+                ? `คะแนนปัจจุบัน ${available} คะแนน ต้องการ ${pointsRequired} คะแนน ขาด ${pointsRequired - available} คะแนน`
+                : `You have ${available} pts but need ${pointsRequired} pts (short by ${pointsRequired - available} pts).`,
+            okText: lang === 'zh' ? '知道了' : lang === 'th' ? 'ตกลง' : 'OK',
+            centered: true,
+          })
+          return
         }
-        openModal()
-      },
-      {
-        label: productName,
-        returnPath: couponExchangeMode
-          ? `/redeem/${id}?auto=redeem&coupon_owned=1&coupon_id=${encodeURIComponent(couponId)}${couponUserProductId ? `&up=${encodeURIComponent(couponUserProductId)}` : ''}`
-          : `/redeem/${id}?auto=redeem`,
-        back: `/redeem/${id}`,
+      } catch {
+        // 查询失败时让后端做最终验证
       }
-    )
+    }
+    openModal()
   }
 
   // 加载已保存收货地址
@@ -554,12 +503,12 @@ export default function ProductDetailPage() {
       <div style={{ flexShrink: 0, padding: '12px 16px 24px', background: '#fff', borderTop: '1px solid #f0f0f0' }}>
         <button
           onClick={isOutOfStock ? undefined : handleAction}
-          disabled={acting || checking || isOutOfStock}
-          style={{ width: '100%', padding: '14px 0', background: (acting || checking || isOutOfStock) ? '#d9d9d9' : actionColor, border: 'none', borderRadius: 50, color: '#fff', fontSize: 17, fontWeight: 700, cursor: (acting || checking || isOutOfStock) ? 'default' : 'pointer', boxShadow: (acting || checking || isOutOfStock) ? 'none' : '0 4px 16px rgba(0,0,0,0.2)', letterSpacing: 0.5, transition: 'all 0.2s' }}
+          disabled={checking || isOutOfStock}
+          style={{ width: '100%', padding: '14px 0', background: (checking || isOutOfStock) ? '#d9d9d9' : actionColor, border: 'none', borderRadius: 50, color: '#fff', fontSize: 17, fontWeight: 700, cursor: (checking || isOutOfStock) ? 'default' : 'pointer', boxShadow: (checking || isOutOfStock) ? 'none' : '0 4px 16px rgba(0,0,0,0.2)', letterSpacing: 0.5, transition: 'all 0.2s' }}
         >
           {checking
             ? (lang === 'zh' ? '验证中...' : lang === 'th' ? 'กำลังตรวจสอบ...' : 'Checking...')
-            : acting ? t('productDetail.processing') : actionText}
+            : actionText}
         </button>
       </div>
 
@@ -570,10 +519,10 @@ export default function ProductDetailPage() {
           : (lang === 'zh' ? '确认积分兑换' : lang === 'th' ? 'ยืนยันการแลกคะแนน' : 'Confirm Redemption')}
         open={confirmOpen}
         onCancel={() => setConfirmOpen(false)}
-        onOk={() => doRedeem()}
+        onOk={() => queueRedeemIntent()}
         okText={lang === 'zh' ? '确认兑换' : lang === 'th' ? 'ยืนยัน' : 'Confirm'}
         cancelText={lang === 'zh' ? '取消' : lang === 'th' ? 'ยกเลิก' : 'Cancel'}
-        confirmLoading={acting}
+        confirmLoading={checking}
       >
         <div style={{ display: 'grid', gap: 12, lineHeight: 1.8, padding: '8px 0' }}>
           <div>
@@ -603,11 +552,11 @@ export default function ProductDetailPage() {
           </div>
         }
         open={deliveryOpen}
-        onCancel={() => !acting && setDeliveryOpen(false)}
+        onCancel={() => !checking && setDeliveryOpen(false)}
         onOk={doPhysicalRedeem}
         okText={lang === 'zh' ? '确认下单' : lang === 'th' ? 'ยืนยันการสั่งซื้อ' : 'Place Order'}
         cancelText={lang === 'zh' ? '取消' : lang === 'th' ? 'ยกเลิก' : 'Cancel'}
-        confirmLoading={acting}
+        confirmLoading={checking}
         destroyOnHidden
       >
         <div style={{ paddingTop: 8 }}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import { Spin, Tag, Button, Card, Space } from 'antd'
 import { ArrowLeftOutlined, ShareAltOutlined, CheckCircleOutlined } from '@ant-design/icons'
@@ -6,11 +6,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useI18n, type AppLanguage } from '../../i18n'
 import SharePromoModal from '../../components/SharePromoModal'
 import OssImage, { useOssUrl } from '../../components/OssImage'
-import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useFollowGate } from '../../hooks/useFollowGate'
 import { activityQueryKey, fetchActivityById } from '../../cache/activityCache'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 type ML = { zh: string; th: string; en: string }
 const TYPE_LABELS_ML: Record<string, { label: ML; color: string; btnText: ML; route: string }> = {
@@ -44,7 +41,6 @@ export default function ActivityDetailPage() {
   const [videoPaused, setVideoPaused] = useState(false)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
   const { guard, checking } = useFollowGate()
-  const effectiveUserId = useEffectiveUserId()
 
   const handleStartVideo = async () => {
     setVideoStarted(true)
@@ -73,13 +69,6 @@ export default function ActivityDetailPage() {
     el.pause()
     setVideoPaused(true)
   }
-
-  // 来自 FollowOAPage 回跳：auto=participate → 自动参与
-  useEffect(() => {
-    if (searchParams.get('auto') === 'participate' && activity && !participating) {
-      doParticipate()
-    }
-  }, [activity, searchParams.get('auto')])
 
   const pick = (field: any): string => {
     if (!field) return ''
@@ -128,51 +117,16 @@ export default function ActivityDetailPage() {
     en: 'You have successfully joined. Rewards will be credited to your account automatically.',
   }[language]!
 
-  const doParticipate = async () => {
-    setParticipating(true)
-    try {
-      const userId = effectiveUserId
-      const entryCode = searchParams.get('entry_code') || ''
-      const utmSource = searchParams.get('utm_source') || ''
-      const res = await fetch(`${API_BASE}/api/activities/${id}/participate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          ...(entryCode && { source_landing_id: entryCode }),
-          ...(utmSource && { source_channel_id: utmSource }),
-        }),
-      })
-      const json = await res.json()
-      setPointsAwarded(json.data?.points_awarded ?? 0)
-      setAlreadyJoined(json.data?.already_joined ?? false)
-    } catch {
-      setPointsAwarded(0)
-    } finally {
-      setParticipating(false)
-      setStep('success')
-    }
-  }
-
   // 核心：点击操作按钮 → 使用预加载结果（或按需查询）决定路径
   const handleAction = () => {
-    const baseTarget = isInteractive && typeInfoML.route
-      ? `${typeInfoML.route}${id}`
-      : `/activity/${id}?auto=participate`
     const entryCode = searchParams.get('entry_code') || ''
     const utmSource = searchParams.get('utm_source') || ''
     guard(
-      async () => {
-        if (isInteractive && typeInfoML.route) {
-          nav(`${typeInfoML.route}${id}`)
-        } else {
-          await doParticipate()
-        }
-      },
+      async () => undefined,
       {
         label: title,
-        returnPath: baseTarget,
-        back: `/activity/${id}`,
+        returnPath: `/activity/${id}`,
+        back: '/welfare',
         intentAction: 'participate_activity',
         resourceId: id || '',
         source: {

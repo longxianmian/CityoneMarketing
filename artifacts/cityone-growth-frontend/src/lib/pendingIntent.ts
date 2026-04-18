@@ -1,6 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
-export type PendingIntentAction = 'claim_coupon' | 'participate_activity'
+export type PendingIntentAction =
+  | 'claim_coupon'
+  | 'participate_activity'
+  | 'redeem_product'
+  | 'use_benefit'
 
 type IssuePendingIntentInput = {
   userId?: string
@@ -62,7 +66,20 @@ export async function consumePendingIntent({
     payload: any
     result: {
       redirect_path?: string
+      next_path?: string
       action_result?: any
     }
+  }
+}
+
+export function decodePendingIntentPayload(token: string) {
+  try {
+    const [encoded] = String(token || '').trim().split('.')
+    if (!encoded) return null
+    const padded = encoded.replace(/-/g, '+').replace(/_/g, '/')
+    const json = atob(padded)
+    return JSON.parse(json)
+  } catch {
+    return null
   }
 }

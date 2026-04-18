@@ -486,38 +486,67 @@ export async function handleProductPurchase(req, res, url, sendJson, readBody) {
 
 // ─── 商品使用 & 回写 ─────────────────────────────────────────────────────────
 
+export async function useBenefitTx({
+  userProductId,
+  stationId = "",
+  bridgeStatus = "completed",
+}) {
+  if (!userProductId) {
+    throw new Error("user_product_id 必填");
+  }
+
+  const list = loadJsonArray(USER_PRODUCTS_FILE);
+  const idx = list.findIndex((up) => up.user_product_id === userProductId);
+  if (idx < 0) {
+    const err = new Error("未找到用户商品记录");
+    err.statusCode = 404;
+    err.errorCode = "NOT_FOUND";
+    throw err;
+  }
+
+  const userProduct = list[idx];
+  if (userProduct.product_status === "used") {
+    const err = new Error("该商品已使用");
+    err.statusCode = 400;
+    err.errorCode = "ALREADY_USED";
+    throw err;
+  }
+  if (userProduct.product_status === "expired") {
+    const err = new Error("该商品已过期");
+    err.statusCode = 400;
+    err.errorCode = "EXPIRED";
+    throw err;
+  }
+  if (["cancelled", "refunded"].includes(userProduct.product_status)) {
+    const err = new Error("该商品状态不可使用");
+    err.statusCode = 400;
+    err.errorCode = "INVALID_STATUS";
+    throw err;
+  }
+
+  const now = new Date().toISOString();
+  list[idx] = {
+    ...userProduct,
+    product_status: "used",
+    used_at: now,
+    station_id: stationId || userProduct.station_id,
+    bridge_status: bridgeStatus || "completed",
+    updated_at: now,
+  };
+  saveJsonArray(USER_PRODUCTS_FILE, list);
+  return list[idx];
+}
+
 export async function handleProductUse(req, res, url, sendJson, readBody) {
   try {
     const body = await readBody(req);
-    const userProductId = String(body.user_product_id || "").trim();
-    const stationId = String(body.station_id || "").trim();
-    if (!userProductId) return sendError(res, sendJson, 400, "USER_PRODUCT_ID_REQUIRED", "user_product_id 必填");
-
-    const list = loadJsonArray(USER_PRODUCTS_FILE);
-    const idx = list.findIndex((up) => up.user_product_id === userProductId);
-    if (idx < 0) return sendError(res, sendJson, 404, "NOT_FOUND", "未找到用户商品记录");
-
-    const userProduct = list[idx];
-    if (userProduct.product_status === "used")
-      return sendError(res, sendJson, 400, "ALREADY_USED", "该商品已使用");
-    if (userProduct.product_status === "expired")
-      return sendError(res, sendJson, 400, "EXPIRED", "该商品已过期");
-    if (["cancelled", "refunded"].includes(userProduct.product_status))
-      return sendError(res, sendJson, 400, "INVALID_STATUS", "该商品状态不可使用");
-
-    const now = new Date().toISOString();
-    list[idx] = {
-      ...userProduct,
-      product_status: "used",
-      used_at: now,
-      station_id: stationId || userProduct.station_id,
-      bridge_status: body.bridge_status || "completed",
-      updated_at: now,
-    };
-    saveJsonArray(USER_PRODUCTS_FILE, list);
-
-    return sendOk(res, sendJson, "商品使用成功", list[idx]);
+    const result = await useBenefitTx({
+      userProductId: String(body.user_product_id || "").trim(),
+      stationId: String(body.station_id || "").trim(),
+      bridgeStatus: body.bridge_status || "completed",
+    });
+    return sendOk(res, sendJson, "商品使用成功", result);
   } catch (err) {
-    return sendError(res, sendJson, 500, "USE_FAILED", err.message || "使用失败");
+    return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "USE_FAILED", err.message || "使用失败");
   }
 }

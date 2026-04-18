@@ -110,7 +110,6 @@ export default function CouponUserPage() {
   const [ownedBenefit, setOwnedBenefit] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [claiming, setClaiming] = useState(false)
   const [step, setStep] = useState<Step>('detail')
   const [alreadyClaimed, setAlreadyClaimed] = useState(false)
   const [videoStarted, setVideoStarted] = useState(false)
@@ -176,14 +175,6 @@ export default function CouponUserPage() {
       active = false
     }
   }, [effectiveUserId, id, owned, ownedUserProductId])
-
-  useEffect(() => {
-    if (owned) return
-    if (step !== 'detail') return
-    if (searchParams.get('auto') === 'claim' && coupon && !claiming) {
-      void doClaim()
-    }
-  }, [claiming, coupon, owned, searchParams, step])
 
   const detailData = owned
     ? {
@@ -261,34 +252,27 @@ export default function CouponUserPage() {
     }
   }
 
-  const doClaim = async (deliveryData?: Record<string, string | undefined>) => {
-    if (!coupon || claiming) return
-    setClaiming(true)
-    try {
-      const entryCode = searchParams.get('entry_code') || ''
-      const utmSource = searchParams.get('utm_source') || ''
-      const res: any = await (request.post('/user/coupons/claim', {
-        user_id: effectiveUserId,
-        coupon_id: coupon.id,
-        ...(entryCode && { source_landing_id: entryCode }),
-        ...(utmSource && { source_channel_id: utmSource }),
-        ...(deliveryData || {}),
-      }) as any)
-      const data = res?.data || {}
-      setAlreadyClaimed(!!data.already_claimed)
-      setDeliveryOpen(false)
-      setStep('success')
-    } catch {
-      message.error(
-        {
-          zh: '领取失败，请稍后重试',
-          th: 'รับล้มเหลว โปรดลองอีกครั้ง',
-          en: 'Claim failed, please try again',
-        }[language] || 'Claim failed'
-      )
-    } finally {
-      setClaiming(false)
+  const queueClaim = (deliveryData?: Record<string, string | undefined>) => {
+    if (!coupon) return
+    const entryCode = searchParams.get('entry_code') || ''
+    const utmSource = searchParams.get('utm_source') || ''
+    const source = {
+      ...(entryCode && { source_landing_id: entryCode }),
+      ...(utmSource && { source_channel_id: utmSource }),
+      ...(deliveryData || {}),
     }
+    setDeliveryOpen(false)
+    guard(
+      async () => undefined,
+      {
+        label: name,
+        returnPath: `/coupon/${id}`,
+        back: '/mine?tab=benefit',
+        intentAction: 'claim_coupon',
+        resourceId: id,
+        source,
+      }
+    )
   }
 
   const doPhysicalClaim = async () => {
@@ -307,7 +291,7 @@ export default function CouponUserPage() {
               delivery_phone: vals.delivery_phone,
               delivery_address: vals.delivery_address,
             }
-      await doClaim(deliveryData)
+      queueClaim(deliveryData)
     } catch {
       // form validation failed
     }
@@ -316,33 +300,16 @@ export default function CouponUserPage() {
   const name = pickML(detailData?.name || detailData?.product_name, language) || ''
 
   const handleClaim = () => {
-    const entryCode = searchParams.get('entry_code') || ''
-    const utmSource = searchParams.get('utm_source') || ''
-    guard(
-      async () => {
-        if (coupon?.item_type === 'physical') {
-          setDeliveryMode('courier')
-          deliveryForm.resetFields()
-          setSavedAddresses([])
-          setSelectedAddrId(null)
-          await loadSavedAddresses()
-          setDeliveryOpen(true)
-          return
-        }
-        await doClaim()
-      },
-      {
-        label: name,
-        returnPath: `/coupon/${id}?auto=claim`,
-        back: `/coupon/${id}`,
-        intentAction: 'claim_coupon',
-        resourceId: id,
-        source: {
-          ...(entryCode && { source_landing_id: entryCode }),
-          ...(utmSource && { source_channel_id: utmSource }),
-        },
-      }
-    )
+    if (coupon?.item_type === 'physical') {
+      setDeliveryMode('courier')
+      deliveryForm.resetFields()
+      setSavedAddresses([])
+      setSelectedAddrId(null)
+      void loadSavedAddresses()
+      setDeliveryOpen(true)
+      return
+    }
+    queueClaim()
   }
 
   const handlePrimaryAction = () => {
@@ -550,11 +517,11 @@ export default function CouponUserPage() {
           </div>
         }
         open={deliveryOpen}
-        onCancel={() => !claiming && setDeliveryOpen(false)}
+        onCancel={() => !checking && setDeliveryOpen(false)}
         onOk={doPhysicalClaim}
         okText={language === 'zh' ? '确认领取' : language === 'th' ? 'ยืนยันรับ' : 'Confirm'}
         cancelText={language === 'zh' ? '取消' : language === 'th' ? 'ยกเลิก' : 'Cancel'}
-        confirmLoading={claiming}
+        confirmLoading={checking}
         destroyOnHidden
       >
         <div style={{ paddingTop: 8 }}>
@@ -792,7 +759,7 @@ export default function CouponUserPage() {
         <Space direction="vertical" style={{ width: '100%' }}>
           <button
             onClick={handlePrimaryAction}
-            disabled={owned ? !!primaryAction?.disabled : checking || claiming}
+            disabled={owned ? !!primaryAction?.disabled : checking}
             style={{
               width: '100%',
               padding: '14px 0',
@@ -804,7 +771,7 @@ export default function CouponUserPage() {
                   : primaryAction?.type === 'charge_scan'
                   ? 'linear-gradient(135deg, #2CDBCE, #2F80FF)'
                   : 'linear-gradient(135deg, #1677ff, #4096ff)'
-                : checking || claiming
+                : checking
                 ? '#ccc'
                 : 'linear-gradient(135deg, #1677ff, #4096ff)',
               border: 'none',
@@ -812,8 +779,8 @@ export default function CouponUserPage() {
               color: '#fff',
               fontSize: 17,
               fontWeight: 700,
-              cursor: (owned ? primaryAction?.disabled : checking || claiming) ? 'not-allowed' : 'pointer',
-              boxShadow: (owned ? primaryAction?.disabled : checking || claiming)
+              cursor: (owned ? primaryAction?.disabled : checking) ? 'not-allowed' : 'pointer',
+              boxShadow: (owned ? primaryAction?.disabled : checking)
                 ? 'none'
                 : '0 4px 16px rgba(22,119,255,0.35)',
               letterSpacing: 0.5,

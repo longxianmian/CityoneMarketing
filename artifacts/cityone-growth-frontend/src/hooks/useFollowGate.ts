@@ -1,67 +1,17 @@
 /**
- * useFollowGate — 关注门控统一 Hook
+ * useFollowGate — 唯一主链入口
  *
- * 身份建立优先级（LINE 主链路）：
- *   1. 若 LINE 身份尚未建立（lineUserId/liffReady/isFriend 任一缺失）
- *      → 写 cityone_resume_* 恢复键 → 跳 LIFF URL 正门
- *        LIFF 初始化完成后落到 /welfare，/welfare 恢复器接管身份建立 + 关注验证
- *   2. 若 LINE 身份已建立 且 isFriend === true → 直接执行业务动作
- *   3. 若 LINE 身份已建立 且 isFriend === false
- *      → 写 cityone_resume_* → navigate('/welfare')，/welfare 内显示关注弹层
- *   4. 若尚未建立 LINE 身份（无论在 LINE 内还是普通浏览器）
- *      → 优先跳正式 LIFF 建立真实身份，再由 /welfare 恢复器接管后续动作
+ * 执行型动作统一流程：
+ *   1. 创建 pending intent
+ *   2. 导航到 /welfare/continue?intent=...
+ *
+ * 不在这里直接执行 claim / participate / redeem / use。
  */
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
-import { useLiff } from '../providers/LiffProvider'
-import { getRuntimeLineConfig, resolveRuntimeLiffUrl } from '../lib/line'
-import { isFollowFlowV2Enabled } from '../lib/followFlow'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
-
-const API_BASE  = import.meta.env.VITE_API_BASE_URL || ''
-
-// localStorage 恢复键（跨 LIFF 页面销毁/重载均可恢复，与 WelfareHomePage 共享）
-// 注意：必须用 localStorage，sessionStorage 在 LIFF 跨域跳转后会丢失
-const SK_PENDING     = 'cityone_resume_pending'
-const SK_RETURN_PATH = 'cityone_resume_return_path'
-const SK_BACK_PATH   = 'cityone_resume_back_path'
-const SK_ACTION      = 'cityone_resume_action'
-const SK_NAME        = 'cityone_resume_name'
-const SK_AT         = 'cityone_resume_at'
-const RESUME_TTL_MS = 5 * 60 * 1000
-
-export function hasFreshResumePending(storage: Pick<Storage, 'getItem'> = localStorage) {
-  const pending = storage.getItem(SK_PENDING) === '1'
-  if (!pending) return false
-  const rawAt = storage.getItem(SK_AT)
-  const at = Number(rawAt || 0)
-  if (!Number.isFinite(at) || at <= 0) return false
-  return Date.now() - at <= RESUME_TTL_MS
-}
-
-export function writeResumeKeys(returnPath: string, back: string, label: string) {
-  localStorage.setItem(SK_PENDING, '1')
-  localStorage.setItem(SK_AT, String(Date.now()))
-  localStorage.setItem(SK_RETURN_PATH, returnPath)
-  localStorage.setItem(SK_BACK_PATH, back)
-  if (label) localStorage.setItem(SK_ACTION, label)
-  if (label) localStorage.setItem(SK_NAME, label)
-}
-
-function syncFanToBackend(lineUserId: string, displayName: string, pictureUrl: string) {
-  fetch(`${API_BASE}/api/user/set-fan`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      user_id: lineUserId,
-      line_user_id: lineUserId,
-      line_display_name: displayName,
-      line_picture_url: pictureUrl,
-    }),
-  }).catch(() => {})
-}
 
 interface GuardOptions {
   label?: string
@@ -72,41 +22,20 @@ interface GuardOptions {
   source?: Record<string, any>
 }
 
+export function hasFreshResumePending() {
+  return false
+}
+
+export function writeResumeKeys() {
+  return
+}
+
 export function useFollowGate() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const lineProfile = useLineUserStore((s) => s.profile)
-  const { liffReady, inLineClient } = useLiff()
+  const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
   const [checking, setChecking] = useState(false)
-  const syncedRef = useRef(false)
-
-  // 判断是否在 LINE 客户端（LIFF 初始化前也需判断）
-  const isInLine = inLineClient || /Line\/\d/i.test(navigator.userAgent)
-
-  useEffect(() => {
-    const liffIsFriend = lineProfile?.isFriend
-
-    if (liffIsFriend === true) {
-      if (!syncedRef.current) {
-        syncedRef.current = true
-        syncFanToBackend(
-          lineProfile?.lineUserId || '',
-          lineProfile?.lineDisplayName || '',
-          lineProfile?.linePictureUrl || '',
-        )
-      }
-      return
-    }
-
-    if (liffIsFriend === false) {
-      return
-    }
-  }, [
-    lineProfile?.isFriend,
-    lineProfile?.lineUserId,
-    lineProfile?.lineDisplayName,
-    lineProfile?.linePictureUrl,
-  ])
 
   const buildReturnPath = useCallback(
     (base: string) => {
@@ -125,99 +54,44 @@ export function useFollowGate() {
     [searchParams]
   )
 
-  /**
-   * guard(action, opts)
-   *
-   * 调用方无需关心身份建立逻辑，只需传入：
-   * @param action      已关注时执行的业务动作
-   * @param opts.label       操作名（如"立即领取"），用于关注引导弹层展示
-   * @param opts.returnPath  关注完成后回跳目标（含 auto 参数触发自动动作）
-   * @param opts.back        "返回"按钮路径
-   */
   const guard = useCallback(
-    async (action: () => void | Promise<void>, opts: GuardOptions) => {
-      const { label = '', returnPath, back, intentAction, resourceId, source = {} } = opts
+    async (_action: () => void | Promise<void>, opts: GuardOptions) => {
+      const {
+        label = '',
+        returnPath,
+        back,
+        intentAction,
+        resourceId,
+        source = {},
+      } = opts
+
+      if (!intentAction || !resourceId) {
+        message.error('缺少待恢复动作定义，无法继续')
+        return
+      }
+
       setChecking(true)
       try {
         const fullReturn = buildReturnPath(returnPath)
-        const backPath   = back ?? returnPath.split('?')[0]
-        const useV2 = isFollowFlowV2Enabled() && !!intentAction && !!resourceId
-
-        // ── Case 1: LIFF 已确认是粉丝 → 直接执行 ────────────────────────
-        if (lineProfile?.isFriend === true) {
-          await action()
-          return
-        }
-
-        let pendingToken = ''
-        if (useV2) {
-          try {
-            const issued = await issuePendingIntent({
-              userId: lineProfile?.lineUserId || '',
-              lineUserId: lineProfile?.lineUserId || '',
-              action: intentAction!,
-              resourceId: resourceId!,
-              returnPath: fullReturn,
-              backPath,
-              actionName: label,
-              source,
-            })
-            pendingToken = issued.token
-          } catch (err: any) {
-            message.error(err?.message || '创建待恢复动作失败')
-            return
-          }
-        }
-
-        // ── Case 2: LINE 身份已建立 + LIFF 确认未关注 → /welfare 显示关注弹层
-        if (lineProfile?.lineUserId && liffReady && lineProfile?.isFriend === false) {
-          if (useV2 && pendingToken) {
-            navigate(`/welfare/continue?intent=${encodeURIComponent(pendingToken)}`)
-            return
-          }
-          writeResumeKeys(fullReturn, backPath, label)
-          navigate('/welfare')
-          return
-        }
-
-        // ── Case 3: LINE 身份尚未建立（任一条件缺失）
-        //    → 不论 LINE 内还是普通浏览器，都优先跳正式 LIFF 建立真实身份
-        //    → 避免 Chrome 里先用 dev_* 设备身份误判“未关注”
-        //
-        //    正确格式：https://liff.line.me/{liffId}/?rp=...&back=...&action=...
-        //    错误格式：https://liff.line.me/{liffId}?rp=...  ← 不加斜杠 LINE 会丢参数
-        if (!lineProfile?.lineUserId || !liffReady || lineProfile?.isFriend === undefined) {
-          const lineConfig = getRuntimeLineConfig()
-          const liffUrl = resolveRuntimeLiffUrl()
-          if (!liffUrl) {
-            message.error('LINE OA 尚未完成正式配置，请联系管理员补齐 LIFF ID 后再试')
-            navigate('/welfare', { replace: true })
-            return
-          }
-          if (!lineConfig.officialAccountId) {
-            message.error('LINE OA 尚未完成正式配置，请联系管理员补齐官方账号 ID 后再试')
-            navigate('/welfare', { replace: true })
-            return
-          }
-          if (useV2 && pendingToken) {
-            const next = `${liffUrl}/?intent=${encodeURIComponent(pendingToken)}`
-            window.location.href = next
-            return
-          }
-          writeResumeKeys(fullReturn, backPath, label)
-          const next =
-            `${liffUrl}/?rp=${encodeURIComponent(fullReturn)}` +
-            `&back=${encodeURIComponent(backPath)}` +
-            `&action=${encodeURIComponent(label || '')}`
-          window.location.href = next
-          return
-        }
-
+        const backPath = back ?? returnPath.split('?')[0]
+        const issued = await issuePendingIntent({
+          userId: canonicalUserId || lineProfile?.lineUserId || '',
+          lineUserId: lineProfile?.lineUserId || '',
+          action: intentAction,
+          resourceId,
+          returnPath: fullReturn,
+          backPath,
+          actionName: label,
+          source,
+        })
+        navigate(`/welfare/continue?intent=${encodeURIComponent(issued.token)}`)
+      } catch (err: any) {
+        message.error(err?.message || '创建待恢复动作失败')
       } finally {
         setChecking(false)
       }
     },
-    [navigate, buildReturnPath, lineProfile, liffReady]
+    [buildReturnPath, canonicalUserId, lineProfile?.lineUserId, navigate]
   )
 
   return { guard, checking }

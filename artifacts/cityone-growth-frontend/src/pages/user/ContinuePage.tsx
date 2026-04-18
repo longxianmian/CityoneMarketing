@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, Spin, message } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getLiff, useLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
-import { getRuntimeLineConfig } from '../../lib/line'
-import { consumePendingIntent } from '../../lib/pendingIntent'
+import { getRuntimeLineConfig, resolveRuntimeLiffUrl } from '../../lib/line'
+import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -23,70 +23,77 @@ export default function ContinuePage() {
   const { liffReady, liffChecked, inLineClient } = useLiff()
   const profile = useLineUserStore((s) => s.profile)
   const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
-  const [status, setStatus] = useState<'loading' | 'follow' | 'done' | 'error'>('loading')
+  const [status, setStatus] = useState<'idle' | 'resolving_identity' | 'checking_follow' | 'waiting_follow_or_ready' | 'consuming' | 'done' | 'error'>('idle')
   const [errorText, setErrorText] = useState('')
+  const startedRef = useRef(false)
+  const singleFlightRef = useRef(false)
+  const followRetryRef = useRef(false)
 
   const intentToken = searchParams.get('intent') || ''
   const effectiveUserId = canonicalUserId || profile?.lineUserId || ''
   const lineUserId = profile?.lineUserId || ''
   const lineConfig = useMemo(() => getRuntimeLineConfig(), [])
+  const intentPayload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
+  const returnPath = String(intentPayload?.return_path || '/welfare')
+  const fallbackPath = String(intentPayload?.back_path || returnPath || '/welfare')
 
   const consume = useCallback(async () => {
     if (!intentToken || !effectiveUserId) return
+    setStatus('consuming')
     const result = await consumePendingIntent({
       token: intentToken,
       userId: effectiveUserId,
       lineUserId,
     })
-    const redirectPath = result?.result?.redirect_path || '/welfare'
+    const redirectPath =
+      result?.result?.next_path ||
+      result?.result?.redirect_path ||
+      result?.payload?.return_path ||
+      returnPath ||
+      fallbackPath ||
+      '/welfare'
     setStatus('done')
     navigate(redirectPath, { replace: true, state: { followResumeResult: result.result?.action_result || null } })
-  }, [effectiveUserId, intentToken, lineUserId, navigate])
+  }, [effectiveUserId, fallbackPath, intentToken, lineUserId, navigate, returnPath])
 
-  const reconcile = useCallback(async () => {
+  const runFlow = useCallback(async () => {
+    if (singleFlightRef.current) return
+    singleFlightRef.current = true
     if (!intentToken) {
       setErrorText('缺少待恢复动作')
       setStatus('error')
+      singleFlightRef.current = false
       return
     }
     if (!liffChecked) return
     if (!effectiveUserId) {
+      setStatus('resolving_identity')
       setErrorText('尚未建立 LINE 身份，请稍后重试')
       setStatus('error')
+      singleFlightRef.current = false
       return
     }
     try {
-      setStatus('loading')
+      setStatus('checking_follow')
       const followed = await checkFollow(effectiveUserId)
       if (!followed) {
-        setStatus('follow')
+        setStatus('waiting_follow_or_ready')
         return
       }
       await consume()
     } catch (err: any) {
       setErrorText(err?.message || '继续原操作失败')
       setStatus('error')
+    } finally {
+      singleFlightRef.current = false
     }
   }, [consume, effectiveUserId, intentToken, liffChecked])
 
   useEffect(() => {
-    void reconcile()
-  }, [reconcile])
-
-  useEffect(() => {
-    if (status !== 'follow') return
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        void reconcile()
-      }
-    }
-    window.addEventListener('focus', onVisible)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('focus', onVisible)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [reconcile, status])
+    if (!liffChecked || startedRef.current) return
+    startedRef.current = true
+    void runFlow()
+  }, [liffChecked, runFlow])
 
   const handleFollowContinue = async () => {
     if (liffReady && inLineClient) {
@@ -95,9 +102,18 @@ export default function ContinuePage() {
         try {
           await liff.requestFriendship()
         } catch {}
-        void reconcile()
+        if (!followRetryRef.current) {
+          followRetryRef.current = true
+          await runFlow()
+        }
         return
       }
+    }
+
+    const liffUrl = resolveRuntimeLiffUrl(lineConfig.liffId)
+    if (liffUrl) {
+      window.location.href = `${liffUrl}/welfare/continue?intent=${encodeURIComponent(intentToken)}`
+      return
     }
 
     if (lineConfig.officialAccountId) {
@@ -108,7 +124,7 @@ export default function ContinuePage() {
     message.error('LINE OA 未完成正式配置')
   }
 
-  if (status === 'loading') {
+  if (status === 'idle' || status === 'resolving_identity' || status === 'checking_follow' || status === 'consuming') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6ffed' }}>
         <Spin size="large" />

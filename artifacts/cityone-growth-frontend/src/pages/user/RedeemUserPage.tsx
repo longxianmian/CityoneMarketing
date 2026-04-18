@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card, Space, Tag, Spin, Modal, App } from 'antd'
 import { ShoppingCartOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 import request from '../../api/request'
 import { useEffectiveUserId } from '../../hooks/useEffectiveUserId'
 import { useOssUrl } from '../../components/OssImage'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+import { useFollowGate } from '../../hooks/useFollowGate'
 
 const PLAY_ICON_STYLE: React.CSSProperties = {
   width: 34, height: 34, borderRadius: '50%',
@@ -93,37 +92,20 @@ function pickStrings(field: any, lang?: string): string[] {
   return []
 }
 
-async function checkFanStatus(userId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
-    const json = await res.json()
-    return json?.data?.is_fan === true
-  } catch {
-    return false
-  }
-}
-
 export default function RedeemUserPage() {
   const { message, modal } = App.useApp()
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { language } = useI18n()
   const effectiveUserId = useEffectiveUserId()
+  const { guard, checking } = useFollowGate()
 
   const [item, setItem] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [checking, setChecking] = useState(false)
   const [acting, setActing] = useState(false)
-  const [fanChecked, setFanChecked] = useState<boolean | null>(null)
   const resolvedCoverImage = useOssUrl(item?.cover_image)
-
-  // 页面加载时就预查 fan 状态，消除点击延迟
-  useEffect(() => {
-    checkFanStatus(effectiveUserId).then(setFanChecked)
-  }, [])
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -137,61 +119,33 @@ export default function RedeemUserPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  // 来自 FollowOAPage 回跳：auto=redeem → 自动打开确认弹窗
-  useEffect(() => {
-    if (searchParams.get('auto') === 'redeem' && item) {
-      setConfirmOpen(true)
-    }
-  }, [item, searchParams.get('auto')])
-
-  const handleConfirmRedeem = async () => {
+  const queueRedeemIntent = async () => {
     if (!item) return
-    setActing(true)
+    setConfirmOpen(false)
     try {
-      const userId = effectiveUserId
-      await (request.post as any)('/growth/mall/redeem', {
-        user_id: userId,
-        item_id: item.id,
-      })
-      setConfirmOpen(false)
-      navigate('/my-points')
-    } catch (err: any) {
-      const msg = err?.response?.data?.msg || err?.message || ''
-      if (msg.includes('积分不足') || msg.includes('INSUFFICIENT')) {
-        message.error(language === 'zh' ? (msg.includes('当前可用') ? msg : '积分不足，无法兑换') : language === 'th' ? 'คะแนนไม่เพียงพอ' : 'Insufficient points')
-      } else {
-        message.error(language === 'zh' ? '兑换失败，请稍后重试' : language === 'th' ? 'แลกไม่สำเร็จ กรุณาลองใหม่' : 'Redemption failed')
-      }
-      setConfirmOpen(false)
-    } finally {
-      setActing(false)
+      await guard(
+        async () => undefined,
+        {
+          label: itemName,
+          returnPath: `/redeem/${id}`,
+          back: '/my-points',
+          intentAction: 'redeem_product',
+          resourceId: item.id,
+          source: {},
+        }
+      )
+    } catch {
+      // guard handles error messaging
     }
   }
 
-  // 核心：检查粉丝身份 + 积分余额 → 已关注且积分充足才打开确认框
   const handleRedeem = async () => {
     if (item?.item_type === 'physical') {
       message.info(labels.physicalTip)
       return
     }
-    setChecking(true)
     try {
       const userId = effectiveUserId
-      // 优先使用页面加载时已预查的结果，避免点击延迟
-      const isFan = fanChecked !== null ? fanChecked : await checkFanStatus(userId)
-      if (!isFan) {
-        const entryCode = searchParams.get('entry_code') || ''
-        const utmParts = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']
-          .filter(k => searchParams.get(k))
-          .map(k => `${k}=${encodeURIComponent(searchParams.get(k)!)}`)
-          .join('&')
-        const attrSuffix = [entryCode ? `entry_code=${encodeURIComponent(entryCode)}` : '', utmParts].filter(Boolean).join('&')
-        const baseTarget = `/redeem/${id}?auto=redeem`
-        const redirectTo = attrSuffix ? `${baseTarget}&${attrSuffix}` : baseTarget
-        navigate(`/follow-oa?to=${encodeURIComponent(redirectTo)}&name=${encodeURIComponent(itemName)}&back=${encodeURIComponent(`/redeem/${id}`)}`)
-        return
-      }
-      // 检查积分余额
       const pointsRequired = Number(item?.points_required) || 0
       if (pointsRequired > 0) {
         try {
@@ -216,9 +170,7 @@ export default function RedeemUserPage() {
         }
       }
       setConfirmOpen(true)
-    } finally {
-      setChecking(false)
-    }
+    } finally {}
   }
 
   const labels = {
@@ -359,10 +311,10 @@ export default function RedeemUserPage() {
         title={labels.confirmTitle}
         open={confirmOpen}
         onCancel={() => setConfirmOpen(false)}
-        onOk={handleConfirmRedeem}
+        onOk={queueRedeemIntent}
         okText={labels.confirmOk}
         cancelText={labels.confirmCancel}
-        confirmLoading={acting}
+        confirmLoading={checking}
       >
         <div style={{ display: 'grid', gap: 12, lineHeight: 1.8 }}>
           <div><strong>{language === 'zh' ? '商品名称：' : 'Item: '}</strong>{itemName}</div>

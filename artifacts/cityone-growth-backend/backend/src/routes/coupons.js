@@ -621,23 +621,18 @@ export async function claimCouponForUser({
 // ── 用户端：使用已拥有卡券兑换关联商品 ───────────────────────────────────────
 // POST /api/user/coupons/exchange-mall-item
 // body: { user_id | line_user_id, coupon_id, user_product_id?, item_id? }
-export async function handleCouponExchangeMallItem(req, res, url, sendJson, readBody) {
-  try {
-    const body = await readBody(req);
-    const userId = String(body.user_id || body.line_user_id || "").trim();
-    const couponId = String(body.coupon_id || "").trim();
-    const userProductId = String(body.user_product_id || "").trim();
-    const requestedItemId = String(body.item_id || "").trim();
-    const deliveryType = body.delivery_type || null;
-    const deliveryName = body.delivery_name || null;
-    const deliveryPhone = body.delivery_phone || null;
-    const deliveryAddress = body.delivery_address || null;
-    const deliveryStationId = body.delivery_station_id || null;
-
-    if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "缺少 user_id");
-    if (!couponId) return sendError(res, sendJson, 400, "MISSING_COUPON_ID", "缺少 coupon_id");
-
-    const result = await withTransaction(async (client) => {
+export async function exchangeCouponForMallItemTx(client, {
+  userId,
+  lineUserId,
+  couponId,
+  userProductId = "",
+  requestedItemId = "",
+  deliveryType = null,
+  deliveryName = null,
+  deliveryPhone = null,
+  deliveryAddress = null,
+  deliveryStationId = null,
+}) {
       const couponRes = await client.query(
         "SELECT * FROM coupons WHERE id = $1 FOR UPDATE",
         [couponId]
@@ -783,6 +778,37 @@ export async function handleCouponExchangeMallItem(req, res, url, sendJson, read
         user_coupon: userCouponRow(usedRes.rows[0]),
         redeem_status: redeemStatus,
       };
+}
+
+export async function handleCouponExchangeMallItem(req, res, url, sendJson, readBody) {
+  try {
+    const body = await readBody(req);
+    const userId = String(body.user_id || body.line_user_id || "").trim();
+    const couponId = String(body.coupon_id || "").trim();
+    const userProductId = String(body.user_product_id || "").trim();
+    const requestedItemId = String(body.item_id || "").trim();
+    const deliveryType = body.delivery_type || null;
+    const deliveryName = body.delivery_name || null;
+    const deliveryPhone = body.delivery_phone || null;
+    const deliveryAddress = body.delivery_address || null;
+    const deliveryStationId = body.delivery_station_id || null;
+
+    if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "缺少 user_id");
+    if (!couponId) return sendError(res, sendJson, 400, "MISSING_COUPON_ID", "缺少 coupon_id");
+
+    const result = await withTransaction(async (client) => {
+      return exchangeCouponForMallItemTx(client, {
+        userId,
+        lineUserId: userId,
+        couponId,
+        userProductId,
+        requestedItemId,
+        deliveryType,
+        deliveryName,
+        deliveryPhone,
+        deliveryAddress,
+        deliveryStationId,
+      });
     });
 
     if (result.error) {

@@ -159,6 +159,18 @@ export async function issuePendingIntent({
   };
 }
 
+function normalizeStoredJson(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  return value;
+}
+
 function isDeviceLikeUserId(value) {
   const v = String(value || "").trim();
   return !v || v.startsWith("dev_");
@@ -234,7 +246,15 @@ export async function consumePendingIntent({
       return {
         replayed: true,
         payload,
-        result: row.result_payload || {},
+        result: normalizeStoredJson(row.result_json) || normalizeStoredJson(row.result_payload) || {},
+      };
+    }
+
+    if (row.status === "failed") {
+      return {
+        replayed: true,
+        payload,
+        result: normalizeStoredJson(row.error_json) || { error: true },
       };
     }
 
@@ -271,29 +291,48 @@ export async function consumePendingIntent({
     const metadata = row.metadata && typeof row.metadata === "object"
       ? row.metadata
       : {};
-    const executionResult = await executor({
-      payload,
-      row,
-      metadata,
-      userId: effectiveIdentity.userId,
-      lineUserId: effectiveIdentity.lineUserId,
-      client,
-    });
+    try {
+      const executionResult = await executor({
+        payload,
+        row,
+        metadata,
+        userId: effectiveIdentity.userId,
+        lineUserId: effectiveIdentity.lineUserId,
+        client,
+      });
 
-    await client.query(
-      `UPDATE pending_intents
-          SET status = 'consumed',
-              result_payload = $2,
-              consumed_at = NOW(),
-              updated_at = NOW()
-        WHERE intent_id = $1`,
-      [payload.intent_id, JSON.stringify(executionResult || {})]
-    );
+      await client.query(
+        `UPDATE pending_intents
+            SET status = 'consumed',
+                result_payload = $2,
+                result_json = $2,
+                error_json = NULL,
+                consumed_at = NOW(),
+                updated_at = NOW()
+          WHERE intent_id = $1`,
+        [payload.intent_id, JSON.stringify(executionResult || {})]
+      );
 
-    return {
-      replayed: false,
-      payload,
-      result: executionResult || {},
-    };
+      return {
+        replayed: false,
+        payload,
+        result: executionResult || {},
+      };
+    } catch (err) {
+      const errorPayload = {
+        error: true,
+        code: err?.errorCode || "PENDING_INTENT_EXECUTION_FAILED",
+        message: err?.message || "pending intent 执行失败",
+      };
+      await client.query(
+        `UPDATE pending_intents
+            SET status = 'failed',
+                error_json = $2,
+                updated_at = NOW()
+          WHERE intent_id = $1`,
+        [payload.intent_id, JSON.stringify(errorPayload)]
+      );
+      throw err;
+    }
   });
 }

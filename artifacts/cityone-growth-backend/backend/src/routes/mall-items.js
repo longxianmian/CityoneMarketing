@@ -289,24 +289,18 @@ export async function handleGetMallOrders(req, res, sendJson, url) {
 }
 
 // ── POST /api/growth/mall/redeem  — 积分兑换（原子事务） ─────────────────────
-export async function handleMallRedeem(req, res, sendJson, readBody) {
-  try {
-    const body   = await readBody(req);
-    const userId = String(body.user_id || body.line_user_id || "").trim();
-    const itemId = String(body.item_id || "").trim();
-    const attribution = buildAttributionSnapshot(body);
-
-    if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "user_id 必填");
-    if (!itemId) return sendError(res, sendJson, 400, "MISSING_ITEM_ID", "item_id 必填");
-
-    // 实物商品配送信息
-    const deliveryType      = body.delivery_type      || null;
-    const deliveryName      = body.delivery_name      || null;
-    const deliveryPhone     = body.delivery_phone     || null;
-    const deliveryAddress   = body.delivery_address   || null;
-    const deliveryStationId = body.delivery_station_id || null;
-
-    const result = await withTransaction(async (client) => {
+export async function redeemMallItemTx(client, {
+  userId,
+  lineUserId,
+  itemId,
+  source = {},
+  deliveryType = null,
+  deliveryName = null,
+  deliveryPhone = null,
+  deliveryAddress = null,
+  deliveryStationId = null,
+}) {
+      const attribution = buildAttributionSnapshot(source);
       // 1. 获取商品（行锁）
       const itemRes = await client.query(
         "SELECT * FROM mall_items WHERE id = $1 FOR UPDATE",
@@ -444,6 +438,29 @@ export async function handleMallRedeem(req, res, sendJson, readBody) {
         isPhysical,
         deliveryType: isPhysical ? effectiveDeliveryType : null,
       };
+}
+
+export async function handleMallRedeem(req, res, sendJson, readBody) {
+  try {
+    const body   = await readBody(req);
+    const userId = String(body.user_id || body.line_user_id || "").trim();
+    const itemId = String(body.item_id || "").trim();
+
+    if (!userId) return sendError(res, sendJson, 400, "MISSING_USER_ID", "user_id 必填");
+    if (!itemId) return sendError(res, sendJson, 400, "MISSING_ITEM_ID", "item_id 必填");
+
+    const result = await withTransaction(async (client) => {
+      return redeemMallItemTx(client, {
+        userId,
+        lineUserId: userId,
+        itemId,
+        source: body,
+        deliveryType: body.delivery_type || null,
+        deliveryName: body.delivery_name || null,
+        deliveryPhone: body.delivery_phone || null,
+        deliveryAddress: body.delivery_address || null,
+        deliveryStationId: body.delivery_station_id || null,
+      });
     });
 
     if (result.error) {

@@ -1,8 +1,6 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useLiff, getLiff } from '../../providers/LiffProvider'
-import useLineUserStore from '../../store/lineUser'
-import { Drawer, Button, Tag, Carousel, Modal } from 'antd'
+import { Drawer, Button, Tag, Carousel } from 'antd'
 import {
   MenuOutlined,
   GlobalOutlined,
@@ -25,9 +23,6 @@ import { getActivities } from '../../api/growth'
 import request from '../../api/request'
 import { isObjectKey, useOssUrl } from '../../components/OssImage'
 import { prefetchActivity } from '../../cache/activityCache'
-import { setRuntimeLineConfig, resolveRuntimeLiffUrl } from '../../lib/line'
-import { hasFreshResumePending } from '../../hooks/useFollowGate'
-import { isFollowFlowV2Enabled } from '../../lib/followFlow'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -46,22 +41,6 @@ type LocalizedField = Partial<Record<AppLanguage, string>>
 const CACHE_TTL_MS = 2 * 60 * 1000           // 内存：2 分钟内不重复请求
 const LS_KEY = 'cityone_welfare_v3'
 const LS_TTL_MS = 30 * 60 * 1000             // localStorage：30 分钟有效
-const RESUME_KEYS = [
-  'cityone_resume_pending',
-  'cityone_resume_at',
-  'cityone_resume_return_path',
-  'cityone_resume_back_path',
-  'cityone_resume_action',
-  'cityone_resume_name',
-]
-const FOLLOW_SESSION_KEYS = [
-  'cityone_follow_pending',
-  'cityone_follow_return_path',
-  'cityone_follow_back_path',
-  'cityone_follow_action',
-  'cityone_follow_name',
-]
-
 function isLegacyLocalUpload(value: any) {
   return typeof value === 'string' && value.trim().startsWith('/uploads/')
 }
@@ -307,17 +286,6 @@ export default function WelfareHomePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { t, language, setLanguage } = useI18n()
-  const { liffReady } = useLiff()
-  const mergeProfile  = useLineUserStore((s) => s.mergeProfile)
-  const recoveryRef   = useRef(false)
-  const isInLineBrowser = /Line\/\d/i.test(navigator.userAgent)
-  const useFollowV2 = isFollowFlowV2Enabled()
-
-  // 关注弹层状态（Step D：身份已建立但未关注）
-  const [showFollowModal,    setShowFollowModal]    = useState(false)
-  const [followReturnPath,   setFollowReturnPath]   = useState('/welfare')
-  const [followChecking,     setFollowChecking]     = useState(false)
-  const [followOaId,         setFollowOaId]         = useState('')
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
@@ -358,302 +326,6 @@ export default function WelfareHomePage() {
   useEffect(() => {
     sessionStorage.removeItem('liff_redirect')
   }, [])
-
-  // 拉取 OA ID（供关注弹层 line:// 降级使用）
-  useEffect(() => {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-    fetch(`${API_BASE}/api/growth/line/config`)
-      .then((r) => r.json())
-      .then((j) => {
-        setRuntimeLineConfig(j?.data || null)
-        const id: string = j?.data?.officialAccountId || ''
-        if (id && id !== '@YOUR_OA_ID') setFollowOaId(id)
-      })
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    // 非 LINE 浏览器没有 LIFF 恢复链路，但 guard 仍会把用户带回 /welfare。
-    // 这里补上“待恢复动作 -> 关注弹层”的显示，避免用户点击领取/参加后没有任何提示。
-    if (useFollowV2 || liffReady || isInLineBrowser || !followOaId) return
-
-    const clearStaleResumeKeys = () => {
-      RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
-      ;[...RESUME_KEYS, ...FOLLOW_SESSION_KEYS].forEach((k) => sessionStorage.removeItem(k))
-    }
-
-    const hasStoredPending =
-      hasFreshResumePending(localStorage) ||
-      hasFreshResumePending(sessionStorage as Storage)
-
-    // 生产级规则：只有 guard 真实写下“待恢复动作”标记时，/welfare 才允许恢复。
-    // 不能仅凭 URL 上残留的 rp/back/action 就把首页误判成“需要先关注”。
-    if (!hasStoredPending) {
-      clearStaleResumeKeys()
-      return
-    }
-
-    const directRp = searchParams.get('rp') || searchParams.get('resume_return') || ''
-    const rawLiffState = searchParams.get('liff.state') || ''
-    const rpFromLiffState = (() => {
-      if (!rawLiffState) return ''
-      try {
-        const qIdx = rawLiffState.indexOf('?')
-        if (qIdx < 0) return ''
-        const lsParams = new URLSearchParams(rawLiffState.slice(qIdx + 1))
-        return lsParams.get('rp') || lsParams.get('resume_return') || ''
-      } catch {
-        return ''
-      }
-    })()
-
-    const returnPath =
-      directRp ||
-      rpFromLiffState ||
-      localStorage.getItem('cityone_resume_return_path') ||
-      sessionStorage.getItem('cityone_resume_return_path') ||
-      ''
-
-    if (returnPath) {
-      setFollowReturnPath(returnPath)
-      setShowFollowModal(true)
-    }
-  }, [followOaId, isInLineBrowser, liffReady, searchParams, useFollowV2])
-
-  const clearResumeAndFollowKeys = () => {
-    RESUME_KEYS.forEach((k) => localStorage.removeItem(k))
-    ;[...RESUME_KEYS, ...FOLLOW_SESSION_KEYS].forEach((k) => sessionStorage.removeItem(k))
-  }
-
-  const dismissFollowModal = () => {
-    clearResumeAndFollowKeys()
-    setFollowReturnPath('/welfare')
-    setShowFollowModal(false)
-  }
-
-  // ── 身份 + 关注恢复器：/welfare 作为唯一身份恢复中心 ────────────────────────
-  //
-  // 无条件触发（只要 liffReady=true）：
-  //   步骤 A：getProfile → mergeProfile（头像/昵称无条件写入，不依赖 pending 标记）
-  //   步骤 B：getFriendship
-  //   步骤 C：已关注 → mergeProfile(isFriend:true)
-  //           若 localStorage 有 pending → 读取 returnPath → 清理所有键 → navigate(returnPath)
-  //   步骤 D：未关注 → mergeProfile(isFriend:false)
-  //           若 localStorage 有 pending → 显示关注弹层（不清理键，弹层完成后再清）
-  //
-  // 恢复键存储优先级：localStorage（主） > sessionStorage（兼容旧版）
-  useEffect(() => {
-    if (useFollowV2 || !liffReady) return
-    if (recoveryRef.current) return
-    recoveryRef.current = true
-
-    // ── 在 effect 启动时快照 URL 参数 ──────────────────────────────────────
-    // 读取优先级：①直接 URL ?rp= ②liff.state 解码后提取 ?rp= ③localStorage ④sessionStorage
-    const directRp     = searchParams.get('rp') || searchParams.get('resume_return') || ''
-    const rawLiffState = searchParams.get('liff.state') || ''
-
-    /** 从 liff.state query-string 中解析 rp 参数（LINE 官方格式：liffId/?rp=...） */
-    const rpFromLiffState = (): string => {
-      if (!rawLiffState) return ''
-      try {
-        const qIdx = rawLiffState.indexOf('?')
-        if (qIdx < 0) return ''
-        const lsParams = new URLSearchParams(rawLiffState.slice(qIdx + 1))
-        return lsParams.get('rp') || lsParams.get('resume_return') || ''
-      } catch { return '' }
-    }
-
-    const clearAllResumeKeys = () => {
-      clearResumeAndFollowKeys()
-    }
-
-    // 读取 returnPath：①URL直接参数 ②liff.state ③localStorage ④sessionStorage
-    const readResumeReturnPath = (): string =>
-      directRp ||
-      rpFromLiffState() ||
-      localStorage.getItem('cityone_resume_return_path') ||
-      sessionStorage.getItem('cityone_resume_return_path') ||
-      ''
-
-    const hasPendingResume = (): boolean => {
-      const hasStoredPending =
-        hasFreshResumePending(localStorage) ||
-        hasFreshResumePending(sessionStorage as Storage)
-
-      // 生产链路里，外部浏览器点击业务动作后会跳到 LINE / LIFF，
-      // 回流回 /welfare 时 localStorage 里的 pending 可能不存在，
-      // 但 URL 上会明确带回 rp/back/action（或完整 liff.state）。
-      // 这类 URL-driven resume 是一次真实的待恢复动作，不能因为 storage 丢失就放弃继续。
-      const hasUrlDrivenResume = Boolean(directRp || rawLiffState)
-
-      return hasStoredPending || hasUrlDrivenResume
-    }
-
-    /** 用服务端 check-follow 判断关注状态（getFriendship 失败时的兜底） */
-    const checkFollowViaApi = async (lineUserId: string): Promise<boolean | null> => {
-      try {
-        const base = import.meta.env.VITE_API_BASE_URL || ''
-        const res  = await fetch(`${base}/api/user/check-follow?user_id=${encodeURIComponent(lineUserId)}`)
-        const json = await res.json()
-        return json?.data?.is_fan === true ? true : false
-      } catch {
-        return null  // 服务端也查不了，返回 null 表示未知
-      }
-    }
-
-    const run = async () => {
-      const liff = getLiff()
-      if (!liff) {
-        recoveryRef.current = false
-        return
-      }
-
-      // 步骤 A：无条件建立 LINE 身份（头像、昵称）—— 不依赖 pending 标记
-      let lineUserId = ''
-      try {
-        const p = await liff.getProfile()
-        lineUserId = p.userId
-        mergeProfile({
-          lineUserId:      p.userId,
-          lineDisplayName: p.displayName,
-          linePictureUrl:  p.pictureUrl || '',
-        })
-      } catch {
-        // dev 环境 LIFF 未初始化，忽略
-      }
-
-      // 步骤 B：验证关注状态
-      //   主路：liff.getFriendship()
-      //   兜底：若 LIFF scope 不支持或抛异常 → 调 /api/user/check-follow
-      let friendFlag: boolean | null = null
-      if (liff.isInClient?.() === true) {
-        try {
-          const friendship = await liff.getFriendship()
-          friendFlag = friendship.friendFlag
-        } catch {
-          // getFriendship 失败（scope 未开通等），用服务端粉丝列表兜底
-          if (lineUserId) {
-            friendFlag = await checkFollowViaApi(lineUserId)
-          }
-        }
-      } else if (lineUserId) {
-        // 外部浏览器里直接走后端 check-follow，避免 friendship/v1/status 400 噪音
-        friendFlag = await checkFollowViaApi(lineUserId)
-      }
-
-      const pending    = hasPendingResume()
-      const returnPath = readResumeReturnPath()
-
-      if (friendFlag === true) {
-        // 步骤 C：已关注
-        mergeProfile({ isFriend: true })
-        clearAllResumeKeys()
-        if (pending && returnPath && returnPath !== '/welfare') {
-          navigate(returnPath, { replace: true })
-        }
-      } else if (friendFlag === false) {
-        // 步骤 D：未关注
-        mergeProfile({ isFriend: false })
-        if (pending && returnPath) {
-          setFollowReturnPath(returnPath)
-          setShowFollowModal(true)
-        }
-        recoveryRef.current = false
-      } else {
-        // null：两路均查不到（开发环境/网络异常），不阻断用户
-        recoveryRef.current = false
-      }
-    }
-
-    run()
-  }, [liffReady, mergeProfile, navigate, searchParams, useFollowV2])
-
-  // ── /welfare 内关注按钮处理（弹层主链路 + line:// 降级）──────────────────
-  const handleFollowInModal = async () => {
-    const liff = getLiff()
-    if (!liff || !liffReady) {
-      const id = followOaId || ''
-      const liffUrl = resolveRuntimeLiffUrl()
-      if (!id) {
-        Modal.warning({
-          title: 'LINE OA 未完成正式配置',
-          content: '当前系统尚未配置真实 LINE Official Account，请先在管理端完成 OA 配置后再测试关注链路。',
-        })
-        return
-      }
-
-      // 非 LINE 浏览器下，“关注并继续”不能只跳到 OA 首页，否则原动作无法恢复。
-      // 这里优先带着 resume 参数进入正式 LIFF URL，让用户在 LINE / LIFF 完成登录与关注后，
-      // /welfare 恢复器继续接管原动作。
-      if (liffUrl) {
-        const returnPath =
-          followReturnPath ||
-          localStorage.getItem('cityone_resume_return_path') ||
-          sessionStorage.getItem('cityone_resume_return_path') ||
-          '/welfare'
-        const backPath =
-          localStorage.getItem('cityone_resume_back_path') ||
-          sessionStorage.getItem('cityone_resume_back_path') ||
-          '/welfare'
-        const actionName =
-          localStorage.getItem('cityone_resume_action') ||
-          sessionStorage.getItem('cityone_resume_action') ||
-          ''
-        const next =
-          `${liffUrl}/?rp=${encodeURIComponent(returnPath)}` +
-          `&back=${encodeURIComponent(backPath)}` +
-          `&action=${encodeURIComponent(actionName)}`
-        window.location.href = next
-        return
-      }
-
-      window.location.href = `line://ti/p/${encodeURIComponent(id)}`
-      return
-    }
-    setFollowChecking(true)
-    const canRequest =
-      liff.isInClient?.() === true &&
-      liff.isApiAvailable?.('requestFriendship') === true
-    if (canRequest) {
-      try {
-        await liff.requestFriendship()
-        const friendship = await liff.getFriendship()
-        if (!friendship.friendFlag) {
-          setFollowChecking(false)
-          return
-        }
-        const p = await liff.getProfile()
-        mergeProfile({
-          lineUserId:      p.userId,
-          lineDisplayName: p.displayName,
-          linePictureUrl:  p.pictureUrl || '',
-          isFriend:        true,
-        })
-        // 清理 localStorage（主键）+ sessionStorage（兼容键）
-        clearResumeAndFollowKeys()
-        setShowFollowModal(false)
-        setFollowChecking(false)
-        if (followReturnPath && followReturnPath !== '/welfare') {
-          navigate(followReturnPath, { replace: true })
-        }
-        return
-      } catch {
-        setFollowChecking(false)
-      }
-    } else {
-      setFollowChecking(false)
-    }
-    // 降级 line:// — 用户返回后恢复器继续接管（cityone_resume_pending 仍在）
-    const id = followOaId || ''
-    if (!id) {
-      Modal.warning({
-        title: 'LINE OA 未完成正式配置',
-        content: '当前系统尚未配置真实 LINE Official Account，请先在管理端完成 OA 配置后再测试关注链路。',
-      })
-      return
-    }
-    window.location.href = `line://ti/p/${encodeURIComponent(id)}`
-  }
 
   const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
   useEffect(() => {
@@ -985,53 +657,6 @@ export default function WelfareHomePage() {
           })}
         </div>
       </Drawer>
-
-      {/* ── 关注弹层（Step D：身份已建立但未关注，或 guard 写 resume_pending=1 后导航到此）── */}
-      <Modal
-        open={showFollowModal}
-        footer={null}
-        closable={false}
-        centered
-        styles={{ body: { padding: 0 } }}
-        width={320}
-      >
-        <div style={{ borderRadius: 20, overflow: 'hidden' }}>
-          <div style={{ background: 'linear-gradient(135deg, #06c755 0%, #00a84e 100%)', padding: '18px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: 36, marginBottom: 6 }}>💬</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 4 }}>CityOne</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', display: 'inline-block', padding: '2px 10px', borderRadius: 20 }}>
-              {{ zh: '官方认证帐号', th: 'บัญชีที่ได้รับการยืนยัน', en: 'Verified Official Account' }[language]}
-            </div>
-          </div>
-          <div style={{ padding: '20px 20px 24px', background: '#fff' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: '#1a1a1a' }}>
-              {{ zh: '需先关注 CityOne LINE OA', th: 'กรุณาติดตาม CityOne LINE OA ก่อน', en: 'Follow CityOne LINE OA First' }[language]}
-            </div>
-            <div style={{ fontSize: 13, color: '#666', lineHeight: 1.7, marginBottom: 20 }}>
-              {{ zh: '关注后即可享受专属福利，领取卡券、参与活动、兑换积分礼品。', th: 'ติดตามเพื่อรับสิทธิพิเศษ คูปอง กิจกรรม และรางวัล', en: 'Follow to enjoy exclusive benefits: coupons, activities, and rewards.' }[language]}
-            </div>
-            <Button
-              type="primary"
-              size="large"
-              block
-              loading={followChecking}
-              disabled={followChecking}
-              onClick={handleFollowInModal}
-              style={{ height: 48, borderRadius: 50, fontSize: 15, fontWeight: 700, background: 'linear-gradient(135deg, #06c755, #00a84e)', border: 'none', boxShadow: '0 4px 16px rgba(6,199,85,0.35)', marginBottom: 10 }}
-            >
-              {{ zh: followChecking ? '正在验证…' : '关注 LINE OA 并继续', th: followChecking ? 'กำลังตรวจสอบ…' : 'ติดตาม LINE OA แล้วดำเนินการต่อ', en: followChecking ? 'Verifying…' : 'Follow LINE OA & Continue' }[language]}
-            </Button>
-            <Button
-              block
-              size="large"
-              onClick={dismissFollowModal}
-              style={{ height: 44, borderRadius: 50, fontSize: 14, color: '#888', border: '1px solid #e8e8e8' }}
-            >
-              {{ zh: '稍后再说', th: 'ภายหลัง', en: 'Maybe Later' }[language]}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }

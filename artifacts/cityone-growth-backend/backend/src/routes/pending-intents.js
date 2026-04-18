@@ -1,14 +1,20 @@
 import { claimCouponTx } from "./coupons.js";
+import { exchangeCouponForMallItemTx } from "./coupons.js";
 import { participateActivityTx } from "./activities.js";
+import { redeemMallItemTx } from "./mall-items.js";
+import { useBenefitTx } from "./products.js";
 import {
   consumePendingIntent,
   createPendingIntentError,
+  decodePendingIntentToken,
   issuePendingIntent,
 } from "../services/pending-intent-service.js";
 
 const SUPPORTED_ACTIONS = new Set([
   "claim_coupon",
   "participate_activity",
+  "redeem_product",
+  "use_benefit",
 ]);
 
 function sendOk(res, sendJson, msg, data) {
@@ -32,6 +38,23 @@ function normalizeMetadata(body = {}) {
   return {
     source: body.source && typeof body.source === "object" ? body.source : {},
   };
+}
+
+function classifyTerminal(userAgent = "") {
+  const ua = String(userAgent || "");
+  if (/Line\//i.test(ua) || / LIFF/i.test(ua)) return "line_client";
+  if (/MicroMessenger/i.test(ua)) return "wechat_webview";
+  if (/CriOS|Chrome/i.test(ua)) return "chrome";
+  if (/Safari/i.test(ua) && !/Chrome|CriOS/i.test(ua)) return "safari";
+  return "unknown";
+}
+
+function logPendingIntent(event, payload = {}) {
+  try {
+    console.info(`[pending-intent] ${JSON.stringify({ event, ...payload })}`);
+  } catch {
+    console.info(`[pending-intent] ${event}`);
+  }
 }
 
 export async function handlePendingIntentIssue(req, res, url, sendJson, readBody) {
@@ -65,6 +88,16 @@ export async function handlePendingIntentIssue(req, res, url, sendJson, readBody
       metadata,
     });
 
+    logPendingIntent("issued", {
+      intent_id: issued.payload.intent_id,
+      action_type: issued.payload.action,
+      terminal: classifyTerminal(req.headers["user-agent"]),
+      line_user_id: lineUserId || "",
+      canonical_user_id: userId || "",
+      consume_status: "pending",
+      result_code: 200,
+    });
+
     return sendOk(res, sendJson, "pending intent issued", {
       token: issued.token,
       payload: issued.payload,
@@ -90,6 +123,18 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
 
     const currentUserId = String(body.user_id || body.line_user_id || "").trim();
     const currentLineUserId = String(body.line_user_id || "").trim();
+    const terminal = classifyTerminal(req.headers["user-agent"]);
+    const decoded = decodePendingIntentToken(token);
+
+    logPendingIntent("consume_start", {
+      intent_id: decoded.intent_id,
+      action_type: decoded.action,
+      terminal,
+      line_user_id: currentLineUserId || decoded.line_user_id || "",
+      canonical_user_id: currentUserId || decoded.user_id || "",
+      consume_status: "started",
+      result_code: 0,
+    });
 
     const consumed = await consumePendingIntent({
       token,
@@ -124,8 +169,76 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
           };
         }
 
+        if (payload.action === "redeem_product") {
+          const source = metadata.source || {};
+          const hasCouponSource = String(source.coupon_id || "").trim();
+          let redeemResult;
+          if (hasCouponSource) {
+            redeemResult = await exchangeCouponForMallItemTx(client, {
+              userId,
+              lineUserId,
+              couponId: String(source.coupon_id || "").trim(),
+              userProductId: String(source.user_product_id || "").trim(),
+              requestedItemId: payload.resource_id,
+              deliveryType: source.delivery_type || null,
+              deliveryName: source.delivery_name || null,
+              deliveryPhone: source.delivery_phone || null,
+              deliveryAddress: source.delivery_address || null,
+              deliveryStationId: source.delivery_station_id || null,
+            });
+          } else {
+            redeemResult = await redeemMallItemTx(client, {
+              userId,
+              lineUserId,
+              itemId: payload.resource_id,
+              source,
+              deliveryType: source.delivery_type || null,
+              deliveryName: source.delivery_name || null,
+              deliveryPhone: source.delivery_phone || null,
+              deliveryAddress: source.delivery_address || null,
+              deliveryStationId: source.delivery_station_id || null,
+            });
+          }
+          if (redeemResult?.error) {
+            throw createPendingIntentError(
+              redeemResult.error.code || 400,
+              redeemResult.error.key || "REDEEM_PRODUCT_FAILED",
+              redeemResult.error.msg || "商品兑换失败"
+            );
+          }
+          return {
+            action: payload.action,
+            redirect_path: payload.back_path,
+            action_result: redeemResult,
+          };
+        }
+
+        if (payload.action === "use_benefit") {
+          const source = metadata.source || {};
+          const useResult = await useBenefitTx({
+            userProductId: String(source.user_product_id || payload.resource_id || "").trim(),
+            stationId: String(source.station_id || "").trim(),
+            bridgeStatus: String(source.bridge_status || "completed").trim(),
+          });
+          return {
+            action: payload.action,
+            redirect_path: payload.back_path,
+            action_result: useResult,
+          };
+        }
+
         throw createPendingIntentError(400, "UNSUPPORTED_PENDING_ACTION", "不支持的 pending intent 动作");
       },
+    });
+
+    logPendingIntent("consume_done", {
+      intent_id: consumed.payload.intent_id,
+      action_type: consumed.payload.action,
+      terminal,
+      line_user_id: currentLineUserId || consumed.payload.line_user_id || "",
+      canonical_user_id: currentUserId || consumed.payload.user_id || "",
+      consume_status: consumed.replayed ? "replayed" : "consumed",
+      result_code: 200,
     });
 
     return sendOk(res, sendJson, consumed.replayed ? "pending intent replayed" : "pending intent consumed", {
@@ -134,6 +247,17 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
       result: consumed.result,
     });
   } catch (err) {
+    const token = err?.token || "";
+    const decoded = token ? decodePendingIntentToken(token) : null;
+    logPendingIntent("consume_error", {
+      intent_id: decoded?.intent_id || "",
+      action_type: decoded?.action || "",
+      terminal: classifyTerminal(req.headers["user-agent"]),
+      line_user_id: String((req.body && req.body.line_user_id) || decoded?.line_user_id || ""),
+      canonical_user_id: String((req.body && (req.body.user_id || req.body.line_user_id)) || decoded?.user_id || ""),
+      consume_status: "failed",
+      result_code: err.statusCode || 500,
+    });
     return sendError(
       res,
       sendJson,
