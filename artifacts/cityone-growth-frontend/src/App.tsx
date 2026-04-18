@@ -4,30 +4,29 @@ import { Spin } from 'antd'
 import useAuthStore from './store/auth'
 import AdminLayout from './layout/AdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
+import WelfareEntryPage from './pages/user/WelfareEntryPage'
+import MinePage from './pages/user/MinePage'
+import ActivityDetailPage from './pages/user/ActivityDetailPage'
+import CouponUserPage from './pages/user/CouponUserPage'
+import BenefitUsePage from './pages/user/BenefitUsePage'
+import RedeemUserPage from './pages/user/RedeemUserPage'
+import ProductDetailPage from './pages/user/ProductDetailPage'
+import ContinuePage from './pages/user/ContinuePage'
+import OpenInLinePage from './pages/user/OpenInLinePage'
+import FollowConfirmPage from './pages/user/FollowConfirmPage'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
-
-const WelfareEntryPage = lazy(() => import('./pages/user/WelfareEntryPage'))
 const NearbyPage = lazy(() => import('./pages/user/NearbyPage'))
 const AgentPage = lazy(() => import('./pages/user/AgentPage'))
 const AgentChatPage = lazy(() => import('./pages/user/AgentChatPage'))
-const MinePage = lazy(() => import('./pages/user/MinePage'))
 const ActivityUserPage = lazy(() => import('./pages/user/ActivityUserPage'))
-const ActivityDetailPage = lazy(() => import('./pages/user/ActivityDetailPage'))
-const CouponUserPage = lazy(() => import('./pages/user/CouponUserPage'))
-const BenefitUsePage = lazy(() => import('./pages/user/BenefitUsePage'))
-const RedeemUserPage = lazy(() => import('./pages/user/RedeemUserPage'))
-const ProductDetailPage = lazy(() => import('./pages/user/ProductDetailPage'))
 const SystemDescPage = lazy(() => import('./pages/user/SystemDescPage'))
 const UserAgreementPage = lazy(() => import('./pages/user/UserAgreementPage'))
 const PrivacyPolicyPage = lazy(() => import('./pages/user/PrivacyPolicyPage'))
 const AboutUsPage = lazy(() => import('./pages/user/AboutUsPage'))
 const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
 const FollowOAPage = lazy(() => import('./pages/user/FollowOAPage'))
-const ContinuePage = lazy(() => import('./pages/user/ContinuePage'))
-const OpenInLinePage = lazy(() => import('./pages/user/OpenInLinePage'))
-const FollowConfirmPage = lazy(() => import('./pages/user/FollowConfirmPage'))
 const ScratchCardPage = lazy(() => import('./pages/user/ScratchCardPage'))
 const ThaiFortuneDrawPage = lazy(() => import('./pages/user/ThaiFortuneDrawPage'))
 const MyAddressPage = lazy(() => import('./pages/user/MyAddressPage'))

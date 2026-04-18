@@ -68,7 +68,6 @@ export default function ContinuePage() {
   const { liffReady, liffChecked, inLineClient } = useLiff()
   const [status, setStatus] = useState<ContinueStatus>('idle')
   const [errorText, setErrorText] = useState('')
-  const [showProcessingUi, setShowProcessingUi] = useState(false)
   const inFlightRef = useRef(false)
   const consumedRef = useRef(false)
   const mountedRef = useRef(true)
@@ -213,33 +212,10 @@ export default function ContinuePage() {
     void runFlow()
   }, [intentToken, liffChecked, runFlow])
 
-  useEffect(() => {
-    const processing =
-      status === 'idle' ||
-      status === 'resolving_identity' ||
-      status === 'checking_follow' ||
-      status === 'consuming'
-
-    if (!processing) {
-      setShowProcessingUi(false)
-      return
-    }
-
-    const timer = window.setTimeout(() => {
-      if (mountedRef.current) setShowProcessingUi(true)
-    }, 350)
-
-    return () => window.clearTimeout(timer)
-  }, [status])
-
   if (status === 'idle' || status === 'resolving_identity' || status === 'checking_follow' || status === 'consuming') {
-    if (!showProcessingUi) {
-      return <div style={{ minHeight: '100vh', background: '#f6ffed' }} />
-    }
-
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6ffed', padding: 24 }}>
-        <Card style={{ maxWidth: 360, width: '100%', textAlign: 'center', borderRadius: 20 }}>
+        <Card style={{ maxWidth: 360, width: '100%', textAlign: 'center', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
           <Spin size="large" />
           <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700 }}>正在继续领取</div>
           <div style={{ color: '#666', lineHeight: 1.8, marginTop: 10 }}>
