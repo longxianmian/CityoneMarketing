@@ -1,3 +1,4 @@
+// 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止前端自行推断身份、直接执行业务动作或复活 fallback。
 /**
  * useFollowGate — 唯一主链入口
  *

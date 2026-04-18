@@ -1,3 +1,4 @@
+// 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止页面自行 redeem / use 或复活旧 fallback。
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { Spin, App, Modal, Button, Space, Form, Input, Radio, Tag, Divider } from 'antd'

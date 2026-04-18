@@ -1,3 +1,4 @@
+// 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，identify / profile / check-follow / continue 入口不得偏离统一主链。
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";

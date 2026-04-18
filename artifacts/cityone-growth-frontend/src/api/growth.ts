@@ -1,3 +1,4 @@
+// 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止不同接口各算一套身份等级。
 import request from './request'
 
 export function getTrafficList(params: { pageNum: number; pageSize: number; utmSource?: string }) {

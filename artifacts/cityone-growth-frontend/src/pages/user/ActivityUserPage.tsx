@@ -1,3 +1,4 @@
+// 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止页面自行推断身份或自行恢复参与动作。
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Card, Tag, Space, Spin } from 'antd'

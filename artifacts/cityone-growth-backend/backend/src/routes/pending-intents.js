@@ -1,3 +1,4 @@
+// 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止动作恢复重新回到首页/个人中心 fallback。
 import { claimCouponTx } from "./coupons.js";
 import { exchangeCouponForMallItemTx } from "./coupons.js";
 import { participateActivityTx } from "./activities.js";
