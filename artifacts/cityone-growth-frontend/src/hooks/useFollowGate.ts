@@ -13,8 +13,9 @@
  *
  * 执行型动作统一流程：
  *   1. 创建 pending intent
- *   2. 统一进入 /welfare/open-in-line?intent=...
- *   3. 用户点击“关注 LINE OA 并继续”后再分流到 continue / 真正关注确认
+ *   2. 外部浏览器直接进入 LINE `/continue?intent=...`
+ *   3. LINE 内统一进入 /welfare/continue?intent=...
+ *   4. 仅异常场景才进入 open-in-line 引导页
  *
  * 不在这里直接执行 claim / participate / redeem / use。
  */
@@ -23,6 +24,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
+import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../lib/line'
+import { useLiff } from '../providers/LiffProvider'
 
 interface GuardOptions {
   label?: string
@@ -48,6 +51,7 @@ export function useFollowGate() {
   const [searchParams] = useSearchParams()
   const lineProfile = useLineUserStore((s) => s.profile)
   const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
+  const { inLineClient } = useLiff()
   const [checking, setChecking] = useState(false)
 
   const buildReturnPath = useCallback(
@@ -101,15 +105,26 @@ export function useFollowGate() {
           actionName: label,
           source,
         })
-        const targetPath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
-        navigate(targetPath)
+        const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
+        if (inLineClient) {
+          navigate(continuePath)
+          return
+        }
+
+        const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(issued.token)}`, getRuntimeLineConfig().liffId)
+        if (liffUrl) {
+          window.location.assign(liffUrl)
+          return
+        }
+
+        navigate(`/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`)
       } catch (err: any) {
         message.error(err?.message || '创建待恢复动作失败')
       } finally {
         setChecking(false)
       }
     },
-    [buildReturnPath, canonicalUserId, lineProfile?.lineUserId, navigate]
+    [buildReturnPath, canonicalUserId, inLineClient, lineProfile?.lineUserId, navigate]
   )
 
   return { guard, checking }
