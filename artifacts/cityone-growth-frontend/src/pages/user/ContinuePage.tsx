@@ -37,6 +37,27 @@ async function checkFollow(userId: string) {
   return json?.data?.is_fan === true
 }
 
+function buildClaimSuccessPath(
+  intentPayload: any,
+  actionResult: any
+) {
+  const rawReturnPath = String(intentPayload?.return_path || '/welfare')
+  const [pathname, search = ''] = rawReturnPath.split('?')
+  const params = new URLSearchParams(search)
+  const userProductId = String(
+    actionResult?.user_product?.id ||
+      actionResult?.user_product_id ||
+      ''
+  ).trim()
+
+  params.set('owned', '1')
+  params.set('source', 'claim_success')
+  if (userProductId) params.set('up', userProductId)
+
+  const query = params.toString()
+  return query ? `${pathname}?${query}` : pathname
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -57,7 +78,6 @@ export default function ContinuePage() {
   const failPath = String(intentPayload?.fail_path || returnPath)
   const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
-  const claimSuccessPath = '/mine?tab=benefit&source=claim_success'
 
   useEffect(() => {
     mountedRef.current = true
@@ -134,7 +154,18 @@ export default function ContinuePage() {
       })
       if (!mountedRef.current) return
 
-      const nextPath = claimSuccessPath
+      const nextPath =
+        consumed?.payload?.action === 'claim_coupon'
+          ? buildClaimSuccessPath(
+              consumed?.payload || intentPayload,
+              consumed?.result?.action_result
+            )
+          : String(
+              consumed?.result?.nextPath ||
+                consumed?.payload?.success_path ||
+                consumed?.payload?.return_path ||
+                returnPath
+            )
 
       console.info('[follow-flow] consume_success', {
         intent_id: consumed?.payload?.intent_id || intentPayload.intent_id || '',
@@ -173,7 +204,6 @@ export default function ContinuePage() {
     liffReady,
     navigate,
     openInLinePath,
-    returnPath,
     waitForIdentityReady,
   ])
 

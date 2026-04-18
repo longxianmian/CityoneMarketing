@@ -267,9 +267,9 @@ export default function CouponUserPage() {
       {
         label: name,
         returnPath: `/coupon/${id}`,
-        successPath: '/mine?tab=benefit',
+        successPath: `/coupon/${id}`,
         failPath: `/coupon/${id}`,
-        back: '/mine?tab=benefit',
+        back: `/coupon/${id}`,
         intentAction: 'claim_coupon',
         resourceId: id,
         source,
