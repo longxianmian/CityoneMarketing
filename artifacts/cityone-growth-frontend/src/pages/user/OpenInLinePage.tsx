@@ -1,8 +1,9 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把外部浏览器引导页改回报错页或首页 fallback。
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import QRCode from 'qrcode'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import { buildOaAddFriendUrl, buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
+import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
 
@@ -15,9 +16,21 @@ import { clientLog } from '../../lib/clientLogger'
  * - 外部浏览器是进入 LINE 的前置引导层，不是失败页
  * - 不允许把"当前会话未识别到 LINE 身份"表达成"未注册/请先注册"
  * - 不允许在此页自动跳 /welfare 或 /mine
+ *
+ * 设计要点（2026-04-20 重构）：
+ * 桌面浏览器 → 显示 LIFF URL 二维码，让用户用手机 LINE 扫码（一步到位拉起 LINE app）
+ * 手机外部浏览器 → "用 LINE 打开本页"按钮，点击跳 liffUrl 拉起 LINE app
+ * LINE 内 WebView → 不应到达此页（由 ContinuePage 处理）；万一到达则提供"继续"按钮
+ *
+ * 不再在 H5 内引导用户"添加 LINE 好友"——加好友这件事让用户进入 LINE app 后自然完成。
  */
 
 const LOGO_URL = `${import.meta.env.BASE_URL}cityone-logo.webp`
+
+function detectUaKind(): 'mobile' | 'desktop' {
+  if (typeof navigator === 'undefined') return 'desktop'
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+}
 
 export default function OpenInLinePage() {
   const navigate = useNavigate()
@@ -28,9 +41,30 @@ export default function OpenInLinePage() {
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(payload?.return_path || '/welfare')
 
-  // 返回详情页：优先用浏览器后退，避免在 history 里又 push 一条详情页副本
-  // 副作用是详情页左上角的"再返回"会回到本页(open-in-line)而不是 /welfare。
-  // 仅在用户直接以 URL 打开本页(location.key === 'default')时才 replace 跳。
+  const lineCfg = getRuntimeLineConfig()
+  const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, lineCfg.liffId)
+  const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
+
+  const uaKind = useMemo(detectUaKind, [])
+  const isExternalBrowser = !inLineClient
+  // 三分支判断
+  const showDesktopQr = isExternalBrowser && uaKind === 'desktop'
+  const showMobileOpenInLine = isExternalBrowser && uaKind === 'mobile'
+  const showInLineContinue = !isExternalBrowser
+
+  // 桌面 QR：内容为 liffUrl，用户手机扫后直接拉起 LINE app
+  const [qrDataUrl, setQrDataUrl] = useState<string>('')
+  const [qrError, setQrError] = useState<string>('')
+  useEffect(() => {
+    if (!showDesktopQr || !liffUrl) return
+    let cancelled = false
+    QRCode.toDataURL(liffUrl, { width: 280, margin: 1, errorCorrectionLevel: 'M' })
+      .then((url) => { if (!cancelled) setQrDataUrl(url) })
+      .catch((err) => { if (!cancelled) setQrError(String(err?.message || err)) })
+    return () => { cancelled = true }
+  }, [showDesktopQr, liffUrl])
+
+  // 返回详情页：优先用浏览器后退，避免 history 里又 push 一条详情页副本
   const handleBackToDetail = () => {
     if (location.key !== 'default') {
       navigate(-1)
@@ -38,68 +72,52 @@ export default function OpenInLinePage() {
       navigate(returnPath, { replace: true })
     }
   }
-  const lineCfg = getRuntimeLineConfig()
-  const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, lineCfg.liffId)
-  const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
-  const oaAddFriendUrl = buildOaAddFriendUrl(lineCfg.officialAccountId)
-  // 是否走外部浏览器分支（非 LINE in-app）。inLineClient=false 即代表外部浏览器，
-  // LIFF 在外部浏览器里点击会被 LINE 平台 redirect 回 LIFF endpoint，造成
-  // ContinuePage→OpenInLinePage 死循环；正确做法是直接跳 OA 加好友直链拉起 LINE app。
-  const isExternalBrowser = !inLineClient
 
-  React.useEffect(() => {
-    console.info('[follow-flow] open_in_line_view', {
-      intent_id: payload?.intent_id || '',
-      action_type: payload?.action || '',
-    })
+  useEffect(() => {
     clientLog('open_in_line_view', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
       in_line_client: inLineClient,
-      has_oa_url: !!oaAddFriendUrl,
+      ua_kind: uaKind,
+      branch: showDesktopQr ? 'desktop_qr' : showMobileOpenInLine ? 'mobile_open_in_line' : 'in_line_continue',
       has_liff_url: !!liffUrl,
     })
-  }, [payload?.action, payload?.intent_id, inLineClient, oaAddFriendUrl, liffUrl])
+    console.info('[follow-flow] open_in_line_view', {
+      intent_id: payload?.intent_id || '',
+      action_type: payload?.action || '',
+      ua_kind: uaKind,
+      in_line_client: inLineClient,
+    })
+  }, [payload?.action, payload?.intent_id, inLineClient, uaKind, showDesktopQr, showMobileOpenInLine, liffUrl])
 
   const handlePrimary = () => {
     if (!intentToken) return
-    if (isExternalBrowser) {
-      // 外部浏览器：直接拉起 LINE app 进 OA 加好友页。OA basicId 缺失时降级回 LIFF
-      // （走死循环也比按钮无反馈强；同时上报 fallback 标记便于诊断）。
-      const target = oaAddFriendUrl || liffUrl
-      clientLog('oa_add_friend_click', {
+    if (showMobileOpenInLine) {
+      // 手机外部浏览器：跳 liffUrl 拉起 LINE app（Universal Link）
+      if (!liffUrl) return
+      clientLog('open_in_line_external_click', {
         intent_id: payload?.intent_id || '',
         action_type: payload?.action || '',
-        target_kind: oaAddFriendUrl ? 'oa_direct' : (liffUrl ? 'liff_fallback' : 'none'),
+        ua_kind: uaKind,
+        target: 'liff_url',
       })
-      console.info('[follow-flow] oa_add_friend_click', {
-        intent_id: payload?.intent_id || '',
-        action_type: payload?.action || '',
-        target_kind: oaAddFriendUrl ? 'oa_direct' : 'liff_fallback',
-      })
-      if (!target) return
-      window.location.href = target
+      window.location.href = liffUrl
       return
     }
-    // LINE 内：LIFF 已 ready，直接跳 continue 路由让 LiffProvider 接管身份恢复
-    clientLog('open_in_line_click', {
-      intent_id: payload?.intent_id || '',
-      action_type: payload?.action || '',
-      target: '/welfare/continue?intent=...',
-    })
-    console.info('[follow-flow] open_in_line_click', {
-      intent_id: payload?.intent_id || '',
-      action_type: payload?.action || '',
-      target: '/welfare/continue?intent=...',
-    })
-    window.location.assign(continuePath)
+    if (showInLineContinue) {
+      // LINE 内：直接跳 continue 路由让 LiffProvider 接管
+      clientLog('open_in_line_click', {
+        intent_id: payload?.intent_id || '',
+        action_type: payload?.action || '',
+        target: '/welfare/continue?intent=...',
+      })
+      window.location.assign(continuePath)
+    }
   }
 
-  // 主按钮文案/可用性：外部浏览器走 OA 加好友直链；LINE 内沿用"关注并继续"
-  const primaryLabel = isExternalBrowser ? '添加 LINE 好友' : '关注并继续'
-  const primaryDisabled = isExternalBrowser
-    ? (!oaAddFriendUrl && !liffUrl) || !intentToken
-    : !intentToken
+  // 主按钮文案
+  const primaryLabel = showInLineContinue ? '继续' : '用 LINE 打开本页'
+  const primaryDisabled = showDesktopQr || !intentToken || (showMobileOpenInLine && !liffUrl)
 
   return (
     <div
@@ -173,56 +191,84 @@ export default function OpenInLinePage() {
           boxSizing: 'border-box',
         }}
       >
-        <div style={{ textAlign: 'center', paddingTop: 32 }}>
+        <div style={{ textAlign: 'center', paddingTop: 16 }}>
           <h1
             style={{
-              fontSize: 26,
+              fontSize: 24,
               fontWeight: 800,
-              lineHeight: 1.35,
+              lineHeight: 1.4,
               color: '#1a1a1a',
               margin: 0,
             }}
           >
-            请关注 CityOne LINE
-            <br />
-            官方账号
+            {showDesktopQr ? '请用手机 LINE 扫码继续' : '请在 LINE 中继续操作'}
           </h1>
           <p
             style={{
-              marginTop: 18,
-              fontSize: 16,
-              lineHeight: 1.8,
+              marginTop: 14,
+              fontSize: 15,
+              lineHeight: 1.7,
               color: '#666',
             }}
           >
-            关注后即可继续领取卡券、参与活动或进入后续流程。
+            {showDesktopQr
+              ? '本页面需要在 LINE App 内完成。用你手机的 LINE 扫描下方二维码即可继续。'
+              : showMobileOpenInLine
+                ? '点击下方按钮在 LINE App 中打开本页面，继续后续流程。'
+                : '已识别到 LINE 环境，点击继续即可。'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8, marginTop: 32 }}>
-          <button
-            disabled={primaryDisabled}
-            onClick={handlePrimary}
-            style={{
-              width: '100%',
-              padding: '15px 0',
-              borderRadius: 999,
-              border: 'none',
-              background: primaryDisabled ? '#a7e9d0' : '#10b981',
-              color: '#fff',
-              fontSize: 17,
-              fontWeight: 700,
-              cursor: primaryDisabled ? 'not-allowed' : 'pointer',
-              boxShadow: primaryDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.25)',
-            }}
-          >
-            {primaryLabel}
-          </button>
-          {isExternalBrowser && (
-            <p style={{ margin: '8px 4px 0', fontSize: 12, lineHeight: 1.6, color: '#888', textAlign: 'center' }}>
-              点击后会打开 LINE App 进入 CityOne 官方账号加好友页。<br />
-              加好友完成后请回到本页继续操作。
-            </p>
+        {/* 桌面 QR 区 */}
+        {showDesktopQr && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '24px 0' }}>
+            <div
+              style={{
+                padding: 16,
+                background: '#fff',
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              }}
+            >
+              {qrDataUrl ? (
+                <img src={qrDataUrl} alt="LINE 二维码" width={240} height={240} style={{ display: 'block' }} />
+              ) : qrError ? (
+                <div style={{ width: 240, height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c00', fontSize: 12, padding: 12, textAlign: 'center' }}>
+                  二维码生成失败：{qrError}
+                </div>
+              ) : (
+                <div style={{ width: 240, height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 13 }}>
+                  正在生成二维码…
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: '#888', textAlign: 'center', lineHeight: 1.6 }}>
+              扫码后会在你手机的 LINE 中打开本页面
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8, marginTop: showDesktopQr ? 8 : 32 }}>
+          {!showDesktopQr && (
+            <button
+              disabled={primaryDisabled}
+              onClick={handlePrimary}
+              style={{
+                width: '100%',
+                padding: '15px 0',
+                borderRadius: 999,
+                border: 'none',
+                background: primaryDisabled ? '#a7e9d0' : '#10b981',
+                color: '#fff',
+                fontSize: 17,
+                fontWeight: 700,
+                cursor: primaryDisabled ? 'not-allowed' : 'pointer',
+                boxShadow: primaryDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.25)',
+              }}
+            >
+              {primaryLabel}
+            </button>
           )}
           <button
             style={{
