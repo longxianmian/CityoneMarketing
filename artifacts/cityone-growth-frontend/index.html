@@ -56,17 +56,31 @@
     <script>
       (function () {
         var pathname = window.location.pathname || ''
-        if (pathname !== '/welfare') return
+        var titleEl = document.querySelector('.boot-title')
+        var descEl = document.querySelector('.boot-desc')
+        if (!titleEl || !descEl) return
+
+        if (pathname !== '/welfare') {
+          titleEl.textContent = '页面加载中'
+          descEl.textContent = '系统正在准备页面内容。'
+          return
+        }
 
         var params = new URLSearchParams(window.location.search || '')
         var directIntent = (params.get('intent') || '').trim()
         if (directIntent) {
+          titleEl.textContent = '正在继续领取'
+          descEl.textContent = '系统正在确认 LINE 身份并自动完成后续步骤。'
           history.replaceState(null, '', '/welfare/continue?intent=' + encodeURIComponent(directIntent))
           return
         }
 
         var rawState = (params.get('liff.state') || '').trim()
-        if (!rawState) return
+        if (!rawState) {
+          titleEl.textContent = '正在加载福利中心'
+          descEl.textContent = '系统正在准备活动、卡券和权益内容。'
+          return
+        }
 
         var decoded = decodeURIComponent(rawState)
         if (decoded.indexOf(window.location.origin) === 0) {
@@ -80,8 +94,14 @@
           decoded.indexOf('/open-in-line?') === 0 ||
           decoded.indexOf('/follow-confirm?') === 0
         ) {
+          titleEl.textContent = '正在继续领取'
+          descEl.textContent = '系统正在确认 LINE 身份并自动完成后续步骤。'
           history.replaceState(null, '', '/welfare' + decoded)
+          return
         }
+
+        titleEl.textContent = '正在加载福利中心'
+        descEl.textContent = '系统正在准备活动、卡券和权益内容。'
       })()
     </script>
   </head>

@@ -13,11 +13,18 @@ function isCallbackEntryPath(pathname: string, search: string) {
   )
 }
 
+function isHomeEntryPath(pathname: string, search: string) {
+  const params = new URLSearchParams(search || '')
+  return pathname === '/welfare' && !params.has('intent') && !params.has('liff.state')
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root')!)
 
 const entryLoader = isCallbackEntryPath(window.location.pathname, window.location.search)
   ? import('./callback-entry')
-  : import('./full-entry')
+  : isHomeEntryPath(window.location.pathname, window.location.search)
+    ? import('./home-entry')
+    : import('./full-entry')
 
 entryLoader
   .then((mod) => {
