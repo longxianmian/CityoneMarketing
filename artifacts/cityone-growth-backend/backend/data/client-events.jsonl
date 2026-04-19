@@ -1,0 +1,2 @@
+{"server_ts":"2026-04-19T17:38:24.235Z","ip":"127.0.0.1","ua":"curl/8.14.1","client_ts":"2026-04-19T17:30:00.000Z","session_id":"manual_probe","event":"manual_probe","data":{"note":"agent curl"}}
+{"server_ts":"2026-04-19T17:38:51.688Z","ip":"127.0.0.1","ua":"curl/8.14.1","client_ts":"2026-04-19T17:40:00.000Z","session_id":"probe_8080","event":"probe_8080"}
