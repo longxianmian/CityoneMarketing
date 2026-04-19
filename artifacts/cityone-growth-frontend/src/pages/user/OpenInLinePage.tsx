@@ -2,8 +2,9 @@
 import React, { useMemo } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
+import { buildOaAddFriendUrl, buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
+import { clientLog } from '../../lib/clientLogger'
 
 /**
  * 先读规范再改代码：
@@ -37,32 +38,68 @@ export default function OpenInLinePage() {
       navigate(returnPath, { replace: true })
     }
   }
-  const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, getRuntimeLineConfig().liffId)
+  const lineCfg = getRuntimeLineConfig()
+  const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, lineCfg.liffId)
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
+  const oaAddFriendUrl = buildOaAddFriendUrl(lineCfg.officialAccountId)
+  // 是否走外部浏览器分支（非 LINE in-app）。inLineClient=false 即代表外部浏览器，
+  // LIFF 在外部浏览器里点击会被 LINE 平台 redirect 回 LIFF endpoint，造成
+  // ContinuePage→OpenInLinePage 死循环；正确做法是直接跳 OA 加好友直链拉起 LINE app。
+  const isExternalBrowser = !inLineClient
 
   React.useEffect(() => {
     console.info('[follow-flow] open_in_line_view', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
     })
-  }, [payload?.action, payload?.intent_id])
+    clientLog('open_in_line_view', {
+      intent_id: payload?.intent_id || '',
+      action_type: payload?.action || '',
+      in_line_client: inLineClient,
+      has_oa_url: !!oaAddFriendUrl,
+      has_liff_url: !!liffUrl,
+    })
+  }, [payload?.action, payload?.intent_id, inLineClient, oaAddFriendUrl, liffUrl])
 
-  const handleOpenInLine = () => {
+  const handlePrimary = () => {
     if (!intentToken) return
+    if (isExternalBrowser) {
+      // 外部浏览器：直接拉起 LINE app 进 OA 加好友页。OA basicId 缺失时降级回 LIFF
+      // （走死循环也比按钮无反馈强；同时上报 fallback 标记便于诊断）。
+      const target = oaAddFriendUrl || liffUrl
+      clientLog('oa_add_friend_click', {
+        intent_id: payload?.intent_id || '',
+        action_type: payload?.action || '',
+        target_kind: oaAddFriendUrl ? 'oa_direct' : (liffUrl ? 'liff_fallback' : 'none'),
+      })
+      console.info('[follow-flow] oa_add_friend_click', {
+        intent_id: payload?.intent_id || '',
+        action_type: payload?.action || '',
+        target_kind: oaAddFriendUrl ? 'oa_direct' : 'liff_fallback',
+      })
+      if (!target) return
+      window.location.href = target
+      return
+    }
+    // LINE 内：LIFF 已 ready，直接跳 continue 路由让 LiffProvider 接管身份恢复
+    clientLog('open_in_line_click', {
+      intent_id: payload?.intent_id || '',
+      action_type: payload?.action || '',
+      target: '/welfare/continue?intent=...',
+    })
     console.info('[follow-flow] open_in_line_click', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
-      target: inLineClient ? '/welfare/continue?intent=...' : 'liff:/continue?intent=...',
+      target: '/welfare/continue?intent=...',
     })
-    if (inLineClient) {
-      window.location.assign(continuePath)
-      return
-    }
-    if (!liffUrl) return
-    window.location.href = liffUrl
+    window.location.assign(continuePath)
   }
 
-  const followDisabled = (!liffUrl && !inLineClient) || !intentToken
+  // 主按钮文案/可用性：外部浏览器走 OA 加好友直链；LINE 内沿用"关注并继续"
+  const primaryLabel = isExternalBrowser ? '添加 LINE 好友' : '关注并继续'
+  const primaryDisabled = isExternalBrowser
+    ? (!oaAddFriendUrl && !liffUrl) || !intentToken
+    : !intentToken
 
   return (
     <div
@@ -164,23 +201,29 @@ export default function OpenInLinePage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8, marginTop: 32 }}>
           <button
-            disabled={followDisabled}
-            onClick={handleOpenInLine}
+            disabled={primaryDisabled}
+            onClick={handlePrimary}
             style={{
               width: '100%',
               padding: '15px 0',
               borderRadius: 999,
               border: 'none',
-              background: followDisabled ? '#a7e9d0' : '#10b981',
+              background: primaryDisabled ? '#a7e9d0' : '#10b981',
               color: '#fff',
               fontSize: 17,
               fontWeight: 700,
-              cursor: followDisabled ? 'not-allowed' : 'pointer',
-              boxShadow: followDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.25)',
+              cursor: primaryDisabled ? 'not-allowed' : 'pointer',
+              boxShadow: primaryDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.25)',
             }}
           >
-            关注并继续
+            {primaryLabel}
           </button>
+          {isExternalBrowser && (
+            <p style={{ margin: '8px 4px 0', fontSize: 12, lineHeight: 1.6, color: '#888', textAlign: 'center' }}>
+              点击后会打开 LINE App 进入 CityOne 官方账号加好友页。<br />
+              加好友完成后请回到本页继续操作。
+            </p>
+          )}
           <button
             style={{
               width: '100%',

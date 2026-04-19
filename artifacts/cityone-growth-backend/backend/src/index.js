@@ -717,16 +717,34 @@ const server = http.createServer(async (req, res) => {
       return handleCouponDelete(req, res, url, sendJson, readBody);
     }
 
-    // ─── 前端事件埋点接收（dev 调试用）────────────────────────────────────
-    // 前端 clientLogger 把关键事件 POST 过来，append 到 data/client-events.jsonl
+    // ─── 前端事件埋点接收（dev / prod 通用，带容量保护）────────────────────
+    // 前端 clientLogger 把关键事件 POST 过来，append 到 data/client-events.jsonl。
     // 我（agent）grep 这个文件就能精确还原用户在 iframe 里每一步发生了什么。
+    //
+    // prod 防污染策略：
+    //   1. 文件 > 5MB 时切换写入到 .1 备份再清空主文件（最多保留 1 份历史）
+    //   2. 通过环境变量 DISABLE_CLIENT_LOG=1 可彻底关闭（紧急止血用）
     if (req.method === "POST" && url.pathname === "/api/growth/client-log") {
+      if (process.env.DISABLE_CLIENT_LOG === "1") {
+        return ok(res, { received: false, reason: "disabled" });
+      }
       try {
         const body = await readBody(req);
         const events = Array.isArray(body?.events) ? body.events : [body];
         const dataDir = path.join(__dirname, "..", "data");
         if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
         const logFile = path.join(dataDir, "client-events.jsonl");
+
+        // 容量上限保护：超过 5MB 滚动一次，避免 prod 长时间累积撑爆磁盘
+        try {
+          const st = fs.existsSync(logFile) ? fs.statSync(logFile) : null;
+          if (st && st.size > 5 * 1024 * 1024) {
+            const rotated = logFile + ".1";
+            try { fs.unlinkSync(rotated); } catch { /* not exist */ }
+            fs.renameSync(logFile, rotated);
+          }
+        } catch { /* 滚动失败不影响 append */ }
+
         const lines = events.map((e) => {
           const enriched = {
             server_ts: new Date().toISOString(),

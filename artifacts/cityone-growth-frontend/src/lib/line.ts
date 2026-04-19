@@ -62,6 +62,24 @@ export function buildRuntimeLiffUrlWithPath(extraPath?: string | null, value?: s
   return `${liffUrl}${normalized}`
 }
 
+/**
+ * 构造 LINE OA 加好友直链。
+ * 外部浏览器场景下，"关注 OA" 必须用 https://line.me/R/ti/p/{basicId} 拉起 LINE app
+ * 直接进入 OA 加好友页 —— 不能再用 LIFF URL（LIFF 在外部浏览器里会 redirect 回 LIFF
+ * endpoint，反而触发 ContinuePage→OpenInLinePage 死循环，见 README-外部浏览器…）。
+ *
+ * basicId 形如 "@cityone_th"。本函数对 @ 做 URL 编码（%40），并对前后空格容错。
+ * 配置里没填 OA basic id 时返回空串，调用方需做降级。
+ */
+export function buildOaAddFriendUrl(value?: string | null) {
+  const raw = String(value ?? runtimeLineConfig.officialAccountId ?? '').trim()
+  if (!raw) return ''
+  // 去掉前置 @，统一编码后拼回
+  const id = raw.replace(/^@+/, '')
+  if (!id) return ''
+  return `https://line.me/R/ti/p/%40${encodeURIComponent(id)}`
+}
+
 export function isRuntimeFollowGateReady() {
   if (!runtimeLineConfig.requireFollow) return true
   return !!runtimeLineConfig.officialAccountId && !!runtimeLineConfig.liffId
