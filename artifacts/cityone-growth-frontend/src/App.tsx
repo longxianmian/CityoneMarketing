@@ -1,6 +1,5 @@
 import React, { Suspense, lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Spin } from 'antd'
 import useAuthStore from './store/auth'
 import AdminLayout from './layout/AdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -85,7 +84,17 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 const Loading = () => (
   <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
     <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
-      <Spin size="large" />
+      <div
+        style={{
+          width: 34,
+          height: 34,
+          margin: '0 auto',
+          borderRadius: '50%',
+          border: '3px solid rgba(44, 219, 206, 0.18)',
+          borderTopColor: '#2cdbce',
+          animation: 'boot-spin 0.8s linear infinite',
+        }}
+      />
       <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#172b24' }}>正在继续领取</div>
       <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8 }}>系统正在确认 LINE 身份并自动完成后续步骤。</div>
     </div>

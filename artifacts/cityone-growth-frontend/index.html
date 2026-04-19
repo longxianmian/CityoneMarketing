@@ -53,6 +53,37 @@
         to { transform: rotate(360deg); }
       }
     </style>
+    <script>
+      (function () {
+        var pathname = window.location.pathname || ''
+        if (pathname !== '/welfare') return
+
+        var params = new URLSearchParams(window.location.search || '')
+        var directIntent = (params.get('intent') || '').trim()
+        if (directIntent) {
+          history.replaceState(null, '', '/welfare/continue?intent=' + encodeURIComponent(directIntent))
+          return
+        }
+
+        var rawState = (params.get('liff.state') || '').trim()
+        if (!rawState) return
+
+        var decoded = decodeURIComponent(rawState)
+        if (decoded.indexOf(window.location.origin) === 0) {
+          decoded = decoded.slice(window.location.origin.length)
+        }
+        if (decoded.charAt(0) !== '/') decoded = '/' + decoded
+        if (decoded.indexOf('/welfare/') === 0) decoded = decoded.slice('/welfare'.length)
+        decoded = decoded.replace(/^\/+/, '/')
+        if (
+          decoded.indexOf('/continue?') === 0 ||
+          decoded.indexOf('/open-in-line?') === 0 ||
+          decoded.indexOf('/follow-confirm?') === 0
+        ) {
+          history.replaceState(null, '', '/welfare' + decoded)
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root">

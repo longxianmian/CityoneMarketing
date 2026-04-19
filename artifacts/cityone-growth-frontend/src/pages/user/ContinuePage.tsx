@@ -1,6 +1,5 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止在 continue 页复活首页/个人中心 fallback 或页面自执行业务动作。
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Card, Spin } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
@@ -215,13 +214,23 @@ export default function ContinuePage() {
   if (status === 'idle' || status === 'resolving_identity' || status === 'checking_follow' || status === 'consuming') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6ffed', padding: 24 }}>
-        <Card style={{ maxWidth: 360, width: '100%', textAlign: 'center', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
-          <Spin size="large" />
+        <div style={{ maxWidth: 360, width: '100%', textAlign: 'center', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', background: '#fff', padding: '28px 24px' }}>
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              margin: '0 auto',
+              borderRadius: '50%',
+              border: '3px solid rgba(44, 219, 206, 0.18)',
+              borderTopColor: '#2cdbce',
+              animation: 'boot-spin 0.8s linear infinite',
+            }}
+          />
           <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700 }}>正在继续领取</div>
           <div style={{ color: '#666', lineHeight: 1.8, marginTop: 10 }}>
             系统正在确认 LINE 身份并自动完成后续步骤。
           </div>
-        </Card>
+        </div>
       </div>
     )
   }
@@ -229,16 +238,22 @@ export default function ContinuePage() {
   if (status === 'error') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
-        <Card style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20 }}>
+        <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>继续当前操作失败</div>
           <div style={{ color: '#666', marginBottom: 16 }}>{errorText || '当前步骤未能完成，你可以重试，或返回当前详情页重新发起。'}</div>
-          <Button type="primary" block onClick={() => void runFlow()}>
+          <button
+            onClick={() => void runFlow()}
+            style={{ width: '100%', height: 44, borderRadius: 999, border: 'none', background: '#12b981', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
+          >
             重试
-          </Button>
-          <Button style={{ marginTop: 12 }} block onClick={() => navigate(failPath || returnPath, { replace: true })}>
+          </button>
+          <button
+            onClick={() => navigate(failPath || returnPath, { replace: true })}
+            style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
+          >
             返回当前详情页
-          </Button>
-        </Card>
+          </button>
+        </div>
       </div>
     )
   }
