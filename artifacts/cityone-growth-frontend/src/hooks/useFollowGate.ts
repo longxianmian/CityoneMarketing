@@ -111,6 +111,17 @@ export function useFollowGate() {
           return
         }
 
+        // dev / 测试环境保护：当前 hostname 不是 LIFF endpoint 配置的生产域时，
+        // 走 LIFF URL 会被 LINE 服务器 redirect 到生产 endpoint（growth.cityone.app），
+        // 整页跳出 dev 域后再也回不来，dev 链路完全断掉。
+        // 这种情况下直接走本地 /welfare/continue，由 ContinuePage 内部识别 identity 缺失
+        // 后跳 /welfare/open-in-line，至少保证 dev 链路可以端到端验证。
+        const isProductionHost = /(^|\.)growth\.cityone\.app$/i.test(window.location.hostname)
+        if (!isProductionHost) {
+          navigate(continuePath)
+          return
+        }
+
         const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(issued.token)}`, getRuntimeLineConfig().liffId)
         if (liffUrl) {
           window.location.assign(liffUrl)
