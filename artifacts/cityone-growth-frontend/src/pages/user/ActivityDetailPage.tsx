@@ -42,6 +42,14 @@ export default function ActivityDetailPage() {
   const heroVideoRef = useRef<HTMLVideoElement>(null)
   const { guard, checking } = useFollowGate()
 
+  // ⚠️ Hooks 必须在任何 early return 之前调用。activity loading 时为 undefined,
+  //    传空字符串 / undefined 给 useOssUrl 是安全的,且能保证渲染顺序稳定。
+  const coverImage = activity?.cover_image || activity?.coverImage || ''
+  const coverVideo = activity?.cover_video || activity?.coverVideo || ''
+  const resolvedCoverImage = useOssUrl(coverImage || undefined)
+  const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
+  const videoReady = !!resolvedCoverVideo
+
   const handleStartVideo = async () => {
     setVideoStarted(true)
     const el = heroVideoRef.current
@@ -100,11 +108,6 @@ export default function ActivityDetailPage() {
   const participationGuide = pick(activity?.participation_guide || activity?.participationGuide) || ''
   const rewardGuide = pick(activity?.reward_guide || activity?.rewardGuide) || ''
   const noticeText = pick(activity?.notice_text || activity?.noticeText) || ''
-  const coverImage = activity?.cover_image || activity?.coverImage || ''
-  const coverVideo = activity?.cover_video || activity?.coverVideo || ''
-  const resolvedCoverImage = useOssUrl(coverImage || undefined)
-  const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
-  const videoReady = !!resolvedCoverVideo
   const linkedProducts: any[] = activity?.linkedProducts || []
   const buttonText = activity?.buttonText ? pick(activity.buttonText) : typeBtnText
   const isInteractive = ['lucky_wheel', 'spin_wheel', 'scratch_card', 'thai_fortune_draw'].includes(actType)
