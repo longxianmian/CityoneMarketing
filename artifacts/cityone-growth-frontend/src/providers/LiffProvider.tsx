@@ -18,6 +18,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import useLineUserStore from '../store/lineUser'
 import { resolveRuntimeLiffId, setRuntimeLineConfig } from '../lib/line'
+import { clientLog } from '../lib/clientLogger'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -55,6 +56,13 @@ async function initLiff(
 ) {
   if (_liffInitiated) return
   _liffInitiated = true
+  const url = (() => { try { return new URL(window.location.href) } catch { return null } })()
+  clientLog('liff_init_start', {
+    has_liff_state: !!url?.searchParams.get('liff.state'),
+    has_code: !!url?.searchParams.get('code'),
+    in_line_ua: /Line\/\d/i.test(navigator.userAgent),
+    pathname: url?.pathname || '',
+  })
 
   try {
     // 1. 从后端拉取 LIFF ID
@@ -65,6 +73,7 @@ async function initLiff(
     _liffId = liffId  // 供 catch 块使用
 
     if (!liffId) {
+      clientLog('liff_init_no_liff_id', {})
       onReady({ liffReady: false, inLineClient: false, liffChecked: true })
       return
     }
@@ -76,6 +85,7 @@ async function initLiff(
 
     _liffInstance = liff
     const isInClient = liff.isInClient()
+    clientLog('liff_init_done', { in_client: isInClient, logged_in: liff.isLoggedIn() })
 
     // 3. 获取真实 LINE 用户资料
     if (!liff.isLoggedIn()) {

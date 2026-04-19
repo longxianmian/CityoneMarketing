@@ -1,9 +1,10 @@
 // 先读文档再改代码：本页只负责 /welfare 入口分流，禁止把 LIFF 回流再交给首页渲染后补救。
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import WelfareHomePage from './WelfareHomePage'
 import { normalizeRuntimeLiffExtraPath } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
+import { clientLog } from '../../lib/clientLogger'
 
 /**
  * 强约束：
@@ -51,6 +52,17 @@ export default function WelfareEntryPage() {
   // 普通 intent 直跳无此约束（intent 走自家 ContinuePage 链路，与 LIFF SDK 无关）。
   const hasLiffCallback =
     searchParams.has('liff.state') || searchParams.has('code')
+
+  useEffect(() => {
+    clientLog('welfare_entry_render', {
+      has_intent: searchParams.has('intent'),
+      has_liff_state: searchParams.has('liff.state'),
+      has_code: searchParams.has('code'),
+      target_path: targetPath || '(home)',
+      liff_checked: liffChecked,
+      will_wait_for_liff: !!(targetPath && hasLiffCallback && !liffChecked),
+    })
+  }, [searchParams, targetPath, liffChecked, hasLiffCallback])
 
   if (targetPath && hasLiffCallback && !liffChecked) {
     // 占位，不渲染首页（避免闪屏），等 LIFF init 完成后再跳

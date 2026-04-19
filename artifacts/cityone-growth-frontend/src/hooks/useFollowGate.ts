@@ -35,6 +35,7 @@ import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, consumePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
 import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../lib/line'
 import { useLiff } from '../providers/LiffProvider'
+import { clientLog } from '../lib/clientLogger'
 
 interface GuardOptions {
   label?: string
@@ -102,9 +103,22 @@ export function useFollowGate() {
       }
 
       // 防双击同步锁：连续点击在 React state 更新前重入会发出多次 issue
-      if (inFlightRef.current) return
+      if (inFlightRef.current) {
+        clientLog('guard_reentry_blocked', { action: intentAction, resource_id: resourceId })
+        return
+      }
       inFlightRef.current = true
       setChecking(true)
+      clientLog('guard_enter', {
+        action: intentAction,
+        resource_id: resourceId,
+        in_line_client: inLineClient,
+        in_line_ua: /Line\/\d/i.test(navigator.userAgent),
+        liff_checked: liffChecked,
+        liff_ready: liffReady,
+        is_friend: isFriendFromStore,
+        has_canonical_uid: !!canonicalUserId,
+      })
       try {
         const fullReturn = buildReturnPath(returnPath)
         const backPath = back ?? returnPath.split('?')[0]
@@ -130,6 +144,7 @@ export function useFollowGate() {
           /^U/i.test(lineUidForFast)
 
         if (fastPathReady) {
+          clientLog('guard_branch_fast_path', { action: intentAction })
           const issuedFast = await issuePendingIntent({
             userId: userIdForFast,
             lineUserId: lineUidForFast,
@@ -156,18 +171,15 @@ export function useFollowGate() {
                 consumedFast?.payload?.return_path ||
                 successOrReturn
             )
-            console.info('[follow-flow] fast_path_consume_success', {
-              intent_id:
-                consumedFast?.payload?.intent_id || issuedFast.payload?.intent_id || '',
-              action_type: intentAction,
+            clientLog('guard_fast_consume_ok', {
+              action: intentAction,
               next_path: nextPath,
             })
             // 硬跳出 callback shell，让浏览器重新走 main 入口（同 ContinuePage 收尾）
             window.location.assign(nextPath)
           } catch (consumeErr: any) {
-            console.info('[follow-flow] fast_path_consume_fail_handoff_to_continue', {
-              intent_id: issuedFast.payload?.intent_id || '',
-              action_type: intentAction,
+            clientLog('guard_fast_consume_fail_to_continue', {
+              action: intentAction,
               error: consumeErr?.message || 'consume failed',
             })
             // 用同一 token 跳 ContinuePage，由其内部重试链路（identity → check-follow → consume）
@@ -202,6 +214,11 @@ export function useFollowGate() {
         //   navigator.userAgent 是同步的，可立即可靠识别 LINE 内置 WebView (Line/x.x)。
         const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
         if (inLineClient || isLineWebView) {
+          clientLog('guard_branch_slow_in_line', {
+            in_line_client: inLineClient,
+            in_line_ua: isLineWebView,
+            target: continuePath,
+          })
           // 在 LINE 内置 WebView 内：进 ContinuePage，由其调用 identity / check-follow
           // 完成"是 OA 粉丝 → 系统用户"识别后再 dispatch 业务路径。
           navigate(continuePath)
@@ -216,6 +233,7 @@ export function useFollowGate() {
         if (!isProductionHost) {
           // dev / 测试域：走 LIFF URL 会被 LINE 服务器 redirect 到生产 endpoint，dev 链路
           // 断掉。直接跳本地 open-in-line（按钮内部仍然支持点击进 LIFF）。
+          clientLog('guard_branch_slow_dev_open_in_line', { target: openInLinePath })
           navigate(openInLinePath)
           return
         }
@@ -224,13 +242,16 @@ export function useFollowGate() {
         // /continue?intent=...，进 LIFF 后由 ContinuePage 完成粉丝识别 + 业务继续。
         const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(issued.token)}`, getRuntimeLineConfig().liffId)
         if (liffUrl) {
+          clientLog('guard_branch_slow_prod_liff_url', { has_liff_url: true })
           window.location.assign(liffUrl)
           return
         }
 
         // LIFF 配置缺失 fallback：直接跳本地 open-in-line 引导页。
+        clientLog('guard_branch_slow_no_liff_fallback', { target: openInLinePath })
         navigate(openInLinePath)
       } catch (err: any) {
+        clientLog('guard_error', { message: err?.message || 'unknown' })
         message.error(err?.message || '创建待恢复动作失败')
       } finally {
         inFlightRef.current = false

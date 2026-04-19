@@ -717,6 +717,32 @@ const server = http.createServer(async (req, res) => {
       return handleCouponDelete(req, res, url, sendJson, readBody);
     }
 
+    // ─── 前端事件埋点接收（dev 调试用）────────────────────────────────────
+    // 前端 clientLogger 把关键事件 POST 过来，append 到 data/client-events.jsonl
+    // 我（agent）grep 这个文件就能精确还原用户在 iframe 里每一步发生了什么。
+    if (req.method === "POST" && url.pathname === "/api/growth/client-log") {
+      try {
+        const body = await readBody(req);
+        const events = Array.isArray(body?.events) ? body.events : [body];
+        const dataDir = path.join(__dirname, "..", "data");
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        const logFile = path.join(dataDir, "client-events.jsonl");
+        const lines = events.map((e) => {
+          const enriched = {
+            server_ts: new Date().toISOString(),
+            ip: (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").toString().split(",")[0].trim(),
+            ua: req.headers["user-agent"] || "",
+            ...e,
+          };
+          return JSON.stringify(enriched);
+        }).join("\n") + "\n";
+        fs.appendFileSync(logFile, lines);
+      } catch (err) {
+        // 日志接收失败不影响业务，吞掉
+      }
+      return ok(res, { received: true });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/growth/line/config") {
       const cfg = loadLineConfig();
 
