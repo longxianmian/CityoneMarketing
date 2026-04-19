@@ -128,6 +128,36 @@
         if (descEl && boot.desc) descEl.textContent = boot.desc
       })()
     </script>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      const pathname = window.location.pathname || ''
+      const params = new URLSearchParams(window.location.search || '')
+      const isCallbackEntry =
+        (pathname === '/welfare' && (params.has('intent') || params.has('liff.state'))) ||
+        pathname === '/welfare/continue' ||
+        pathname === '/welfare/open-in-line' ||
+        pathname === '/welfare/follow-confirm' ||
+        pathname === '/continue'
+      const isHomeEntry = pathname === '/welfare' && !params.has('intent') && !params.has('liff.state')
+      const root = document.getElementById('root')
+
+      const entryLoader = isCallbackEntry
+        ? import('/src/callback-entry.tsx')
+        : isHomeEntry
+          ? import('/src/home-entry.tsx')
+          : import('/src/full-entry.tsx')
+
+      entryLoader
+        .then((mod) => {
+          if (!root) throw new Error('root element missing')
+          mod.mount(root)
+        })
+        .catch((error) => {
+          console.error('[boot] failed to load entry module', error)
+          const titleEl = document.querySelector('.boot-title')
+          const descEl = document.querySelector('.boot-desc')
+          if (titleEl) titleEl.textContent = '页面加载异常'
+          if (descEl) descEl.textContent = '请刷新重试，或联系客服。'
+        })
+    </script>
   </body>
 </html>

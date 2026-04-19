@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactDOM from 'react-dom/client'
 import { BrowserRouter, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
@@ -44,4 +45,8 @@ export default function FullEntry() {
       </I18nProvider>
     </QueryClientProvider>
   )
+}
+
+export function mount(rootElement: HTMLElement) {
+  ReactDOM.createRoot(rootElement).render(<FullEntry />)
 }

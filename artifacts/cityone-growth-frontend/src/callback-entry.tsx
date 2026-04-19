@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Navigate, Routes, Route, useSearchParams } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -88,4 +89,8 @@ export default function CallbackEntry() {
       </BrowserRouter>
     </QueryClientProvider>
   )
+}
+
+export function mount(rootElement: HTMLElement) {
+  ReactDOM.createRoot(rootElement).render(<CallbackEntry />)
 }

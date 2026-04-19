@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { I18nProvider } from './i18n'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -25,4 +26,8 @@ export default function HomeEntry() {
       </BrowserRouter>
     </I18nProvider>
   )
+}
+
+export function mount(rootElement: HTMLElement) {
+  ReactDOM.createRoot(rootElement).render(<HomeEntry />)
 }
