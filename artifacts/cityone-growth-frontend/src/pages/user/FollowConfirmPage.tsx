@@ -63,7 +63,7 @@ export default function FollowConfirmPage() {
         <button
           style={{ marginTop: 12, width: '100%', height: 44, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', cursor: submitting ? 'not-allowed' : 'pointer' }}
           disabled={submitting}
-          onClick={() => navigate(returnPath, { replace: true })}
+          onClick={() => window.location.assign(returnPath)}
         >
           返回当前详情页
         </button>

@@ -1,61 +1,51 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { BrowserRouter, useLocation } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import App from './App'
+import { I18nProvider, useI18n } from './i18n'
+import { LiffProvider } from './providers/LiffProvider'
+import queryClient from './lib/queryClient'
+import AntdShell from './components/AntdShell'
 import './styles/global.css'
 
-function isCallbackEntryPath(pathname: string, search: string) {
-  const params = new URLSearchParams(search || '')
-  if (pathname === '/welfare' && (params.has('intent') || params.has('liff.state'))) return true
+function DocumentTitleSync() {
+  const location = useLocation()
+  const { language } = useI18n()
+
+  React.useEffect(() => {
+    const isAdmin = location.pathname.startsWith('/admin')
+    if (isAdmin) {
+      document.title = 'CityOne Admin'
+      return
+    }
+    const titleMap = {
+      zh: 'CityOne 福利中心',
+      th: 'CityOne Benefits Center',
+      en: 'CityOne Benefits Center',
+    } as const
+    document.title = titleMap[language] || titleMap.en
+  }, [location.pathname, language])
+
+  return null
+}
+
+function MainEntry() {
   return (
-    pathname === '/welfare/continue' ||
-    pathname === '/welfare/open-in-line' ||
-    pathname === '/welfare/follow-confirm' ||
-    pathname === '/continue'
+    <QueryClientProvider client={queryClient}>
+      <I18nProvider>
+        <BrowserRouter>
+          <AntdShell>
+            <LiffProvider>
+              <DocumentTitleSync />
+              <App />
+            </LiffProvider>
+          </AntdShell>
+        </BrowserRouter>
+      </I18nProvider>
+    </QueryClientProvider>
   )
 }
 
-function isHomeEntryPath(pathname: string, search: string) {
-  const params = new URLSearchParams(search || '')
-  return pathname === '/welfare' && !params.has('intent') && !params.has('liff.state')
-}
-
 const root = ReactDOM.createRoot(document.getElementById('root')!)
-
-const entryLoader = isCallbackEntryPath(window.location.pathname, window.location.search)
-  ? import('./callback-entry')
-  : isHomeEntryPath(window.location.pathname, window.location.search)
-    ? import('./home-entry')
-    : import('./full-entry')
-
-entryLoader
-  .then((mod) => {
-    root.render(<mod.default />)
-  })
-  .catch((error) => {
-    console.error('[boot] failed to load entry module', error)
-    root.render(
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#f6ffed' }}>
-        <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#172b24' }}>页面加载异常</div>
-          <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8, fontSize: 14 }}>请刷新重试，或联系客服。</div>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: 20,
-              width: '100%',
-              border: 'none',
-              borderRadius: 999,
-              background: '#2cdbce',
-              color: '#fff',
-              fontSize: 16,
-              fontWeight: 700,
-              padding: '14px 18px',
-              cursor: 'pointer',
-            }}
-          >
-            刷新页面
-          </button>
-        </div>
-      </div>,
-    )
-  })
+root.render(<MainEntry />)

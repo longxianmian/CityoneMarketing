@@ -96,7 +96,7 @@ export default function OpenInLinePage() {
           </button>
           <button
             style={{ marginTop: 12, height: 44, borderRadius: 999, width: '100%', border: '1px solid #d9d9d9', background: '#fff', cursor: 'pointer' }}
-            onClick={() => navigate(returnPath, { replace: true })}
+            onClick={() => window.location.assign(returnPath)}
           >
             返回当前详情页
           </button>

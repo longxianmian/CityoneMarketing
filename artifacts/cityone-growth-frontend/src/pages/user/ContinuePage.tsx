@@ -179,10 +179,8 @@ export default function ContinuePage() {
       })
 
       setStatus('done')
-      navigate(nextPath, {
-        replace: true,
-        state: { followResumeResult: consumed?.result?.action_result || null },
-      })
+      // 续接成功后跳出 callback shell，必须用硬跳转让浏览器重新走 main 入口（callback-entry 路由表只含 callback 三件套）
+      window.location.assign(nextPath)
     } catch (err: any) {
       if (!mountedRef.current) return
       consumedRef.current = false
@@ -248,7 +246,7 @@ export default function ContinuePage() {
             重试
           </button>
           <button
-            onClick={() => navigate(failPath || returnPath, { replace: true })}
+            onClick={() => window.location.assign(failPath || returnPath)}
             style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
           >
             返回当前详情页

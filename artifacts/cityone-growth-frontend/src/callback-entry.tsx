@@ -44,6 +44,15 @@ function WelfareCallbackEntryPage() {
     return ''
   }, [searchParams])
 
+  // 兜底：未识别的 liff.state / 缺失 intent，1.2s 后回 /welfare 主页（避免无限转圈）
+  React.useEffect(() => {
+    if (targetPath) return
+    const t = window.setTimeout(() => {
+      window.location.replace('/welfare')
+    }, 1200)
+    return () => window.clearTimeout(t)
+  }, [targetPath])
+
   if (targetPath) {
     return <Navigate to={targetPath} replace />
   }

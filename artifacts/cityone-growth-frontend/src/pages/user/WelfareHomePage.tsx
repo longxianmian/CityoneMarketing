@@ -419,20 +419,6 @@ export default function WelfareHomePage() {
     [t]
   )
   const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
-  useEffect(() => {
-    if (Date.now() - _pageCache.bannersAt < CACHE_TTL_MS) return
-    request.get('/growth/banners', { params: { enabled: 'true' } }).then((res: any) => {
-      const list = res.data?.list || []
-      if (list.length > 0) {
-        _pageCache.banners = list; _pageCache.bannersAt = Date.now(); setApiBanners(list)
-        list.forEach((b: any) => {
-          const m = typeof b.link_url === 'string' && b.link_url.match(/\/activity\/([^/?]+)/)
-          if (m) prefetchActivity(m[1])
-        })
-        lsSave({ banners: list, activities: _pageCache.activities, coupons: _pageCache.coupons, mallItems: _pageCache.mallItems })
-      }
-    }).catch(() => {})
-  }, [])
   const bannerItems = apiBanners.length > 0 ? apiBanners : fallbackBanners
 
   useEffect(() => {
@@ -476,8 +462,14 @@ export default function WelfareHomePage() {
   const [apiCoupons, setApiCoupons] = useState<ContentCard[]>(_pageCache.coupons)
   const [apiMallItems, setApiMallItems] = useState<ContentCard[]>(_pageCache.mallItems)
 
+  // 单一 useEffect + requestIdleCallback 推迟到主线程空闲时再发请求；
+  // 4 路 API 用 Promise.all 并发，避免 4 次串行 setState 触发的级联重渲染。
+  // L2 命中时卡片立刻显示，刷新静默在背后完成，不抢首屏可交互时间。
   useEffect(() => {
-    if (Date.now() - _pageCache.couponsAt < CACHE_TTL_MS) return
+    const fresh = (at: number) => Date.now() - at < CACHE_TTL_MS
+    if (fresh(_pageCache.bannersAt) && fresh(_pageCache.couponsAt)
+      && fresh(_pageCache.activitiesAt) && fresh(_pageCache.mallItemsAt)) return
+
     const DISCOUNT_COVERS: Record<string, string> = {
       free_time:  'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
       free_order: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
@@ -491,93 +483,127 @@ export default function WelfareHomePage() {
       if (c.discount_type === 'percent')    return `${100 - val}% OFF`
       return `฿${val} OFF`
     }
-    ;(request.get('/user/coupons') as any).then((res: any) => {
-      const list: any[] = res.data || []
-      const rawCards: ContentCard[] = list.map(c => ({
-        id: c.id,
-        type: 'coupon' as const,
-        title: (c.name && typeof c.name === 'object' && !Array.isArray(c.name)) ? c.name : { zh: c.name, th: c.name, en: c.name },
-        badge: { zh: '卡券', th: 'คูปอง', en: 'Coupon' },
-        cover: isLegacyLocalUpload(c.cover_image) ? (DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed) : (c.cover_image || DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed),
-        views: c.claimed_count || 0,
-        price: fmtPrice(c),
-        points: 0,
-        route: `/coupon/${c.id}`,
-        footerTone: '#2F80FF',
-      }))
-      _pageCache.coupons = rawCards; _pageCache.couponsAt = Date.now()
-      setApiCoupons(rawCards)
-      lsSave({ banners: _pageCache.banners, activities: _pageCache.activities, coupons: rawCards, mallItems: _pageCache.mallItems })
-    }).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (Date.now() - _pageCache.activitiesAt < CACHE_TTL_MS) return
-    getActivities({ status: 'active' }).then(res => {
-      const COVER_GRADIENTS = [
-        'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)',
-        'linear-gradient(135deg, #7B61FF 0%, #2F80FF 100%)',
-        'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
-        'linear-gradient(135deg, #2F80FF 0%, #2CDBCE 100%)',
-        'linear-gradient(135deg, #7B61FF 0%, #C3B5FF 100%)',
-      ]
-      const GOAL_BADGE: Record<string, { zh: string; th: string; en: string }> = {
-        '拉新': { zh: '拉新', th: 'หาผู้ใช้ใหม่', en: 'Acquire' },
-        '促关注': { zh: '促关注', th: 'เพิ่มผู้ติดตาม', en: 'Follow' },
-        '转用户': { zh: '转用户', th: 'แปลงผู้ใช้', en: 'Convert' },
-        '转会员': { zh: '转会员', th: 'สมาชิก', en: 'Member' },
-        '复购': { zh: '复购', th: 'ซื้อซ้ำ', en: 'Repurchase' },
-        '召回': { zh: '召回', th: 'ดึงกลับ', en: 'Recall' },
-        '联合活动': { zh: '联合', th: 'ร่วมกิจกรรม', en: 'Joint' },
-      }
-      const list: any[] = (res as any).data || []
-      const toML = (v: any, fb: Record<string, string>) =>
-        (v && typeof v === 'object' && !Array.isArray(v)) ? v : (v ? { zh: v, th: v, en: v } : fb)
-      const rawCards: ContentCard[] = list.map((a, idx) => ({
-        id: a.activity_id,
-        type: 'activity' as const,
-        title: toML(a.activity_name || a.activity_title, { zh: '活动', th: 'กิจกรรม', en: 'Activity' }),
-        badge: GOAL_BADGE[a.goal] || { zh: '活动', th: 'กิจกรรม', en: 'Activity' },
-        cover: isLegacyLocalUpload(a.cover_image) ? COVER_GRADIENTS[idx % COVER_GRADIENTS.length] : (a.cover_image || COVER_GRADIENTS[idx % COVER_GRADIENTS.length]),
-        views: 0,
-        route: `/activity/${a.activity_id}`,
-      }))
-      _pageCache.activities = rawCards; _pageCache.activitiesAt = Date.now()
-      setApiActivities(rawCards)
-      rawCards.forEach(c => prefetchActivity(c.id))
-      lsSave({ banners: _pageCache.banners, activities: rawCards, coupons: _pageCache.coupons, mallItems: _pageCache.mallItems })
-    }).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (Date.now() - _pageCache.mallItemsAt < CACHE_TTL_MS) return
+    const COVER_GRADIENTS = [
+      'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)',
+      'linear-gradient(135deg, #7B61FF 0%, #2F80FF 100%)',
+      'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
+      'linear-gradient(135deg, #2F80FF 0%, #2CDBCE 100%)',
+      'linear-gradient(135deg, #7B61FF 0%, #C3B5FF 100%)',
+    ]
+    const GOAL_BADGE: Record<string, { zh: string; th: string; en: string }> = {
+      '拉新': { zh: '拉新', th: 'หาผู้ใช้ใหม่', en: 'Acquire' },
+      '促关注': { zh: '促关注', th: 'เพิ่มผู้ติดตาม', en: 'Follow' },
+      '转用户': { zh: '转用户', th: 'แปลงผู้ใช้', en: 'Convert' },
+      '转会员': { zh: '转会员', th: 'สมาชิก', en: 'Member' },
+      '复购': { zh: '复购', th: 'ซื้อซ้ำ', en: 'Repurchase' },
+      '召回': { zh: '召回', th: 'ดึงกลับ', en: 'Recall' },
+      '联合活动': { zh: '联合', th: 'ร่วมกิจกรรม', en: 'Joint' },
+    }
     const ITEM_TYPE_COVERS: Record<string, string> = {
       digital:  'linear-gradient(135deg, #7B61FF 0%, #2CDBCE 100%)',
       physical: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
       service:  'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
     }
-    ;(request.get('/growth/mall/items', { params: { onShelf: 'true', pageSize: 50 } }) as any)
-      .then((res: any) => {
-        const list: any[] = (res.data || res)?.list || []
-        const toML = (v: any, fb: Record<string, string>) =>
-          (v && typeof v === 'object' && !Array.isArray(v)) ? v : (v ? { zh: v, th: v, en: v } : fb)
-        const rawCards: ContentCard[] = list.map(item => ({
-          id: item.id,
-          type: 'redeem' as const,
-          title: toML(item.name, { zh: '商品', th: 'สินค้า', en: 'Item' }),
-          badge: { zh: '积分兑换', th: 'แลกพอยต์', en: 'Redeem' },
-          cover: isLegacyLocalUpload(item.cover_image) ? (ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital) : (item.cover_image || ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital),
-          views: 0,
-          price: item.price_thb ? `THB ${item.price_thb}` : undefined,
-          points: item.points_required || 0,
-          route: `/redeem/${item.id}`,
-          footerTone: '#7B61FF',
-        }))
-        _pageCache.mallItems = rawCards; _pageCache.mallItemsAt = Date.now()
-        setApiMallItems(rawCards)
-        lsSave({ banners: _pageCache.banners, activities: _pageCache.activities, coupons: _pageCache.coupons, mallItems: rawCards })
+    const toML = (v: any, fb: Record<string, string>) =>
+      (v && typeof v === 'object' && !Array.isArray(v)) ? v : (v ? { zh: v, th: v, en: v } : fb)
+
+    let cancelled = false
+    const runRefresh = () => {
+      if (cancelled) return
+      const pBanners    = fresh(_pageCache.bannersAt)    ? Promise.resolve(null) : request.get('/growth/banners', { params: { enabled: 'true' } }).catch(() => null)
+      const pCoupons    = fresh(_pageCache.couponsAt)    ? Promise.resolve(null) : (request.get('/user/coupons') as any).catch(() => null)
+      const pActivities = fresh(_pageCache.activitiesAt) ? Promise.resolve(null) : getActivities({ status: 'active' }).catch(() => null)
+      const pMall       = fresh(_pageCache.mallItemsAt)  ? Promise.resolve(null) : (request.get('/growth/mall/items', { params: { onShelf: 'true', pageSize: 50 } }) as any).catch(() => null)
+
+      Promise.all([pBanners, pCoupons, pActivities, pMall]).then(([bRes, cRes, aRes, mRes]: any[]) => {
+        if (cancelled) return
+
+        let nextBanners = _pageCache.banners
+        let nextCoupons = _pageCache.coupons
+        let nextActivities = _pageCache.activities
+        let nextMall = _pageCache.mallItems
+
+        if (bRes) {
+          const list = bRes.data?.list || []
+          if (list.length > 0) {
+            nextBanners = list
+            _pageCache.banners = list; _pageCache.bannersAt = Date.now()
+          }
+        }
+        if (cRes) {
+          const list: any[] = cRes.data || []
+          nextCoupons = list.map((c: any) => ({
+            id: c.id, type: 'coupon' as const,
+            title: (c.name && typeof c.name === 'object' && !Array.isArray(c.name)) ? c.name : { zh: c.name, th: c.name, en: c.name },
+            badge: { zh: '卡券', th: 'คูปอง', en: 'Coupon' },
+            cover: isLegacyLocalUpload(c.cover_image) ? (DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed) : (c.cover_image || DISCOUNT_COVERS[c.discount_type] || DISCOUNT_COVERS.fixed),
+            views: c.claimed_count || 0,
+            price: fmtPrice(c), points: 0,
+            route: `/coupon/${c.id}`, footerTone: '#2F80FF',
+          }))
+          _pageCache.coupons = nextCoupons; _pageCache.couponsAt = Date.now()
+        }
+        if (aRes) {
+          const list: any[] = (aRes as any).data || []
+          nextActivities = list.map((a: any, idx: number) => ({
+            id: a.activity_id, type: 'activity' as const,
+            title: toML(a.activity_name || a.activity_title, { zh: '活动', th: 'กิจกรรม', en: 'Activity' }),
+            badge: GOAL_BADGE[a.goal] || { zh: '活动', th: 'กิจกรรม', en: 'Activity' },
+            cover: isLegacyLocalUpload(a.cover_image) ? COVER_GRADIENTS[idx % COVER_GRADIENTS.length] : (a.cover_image || COVER_GRADIENTS[idx % COVER_GRADIENTS.length]),
+            views: 0,
+            route: `/activity/${a.activity_id}`,
+          }))
+          _pageCache.activities = nextActivities; _pageCache.activitiesAt = Date.now()
+        }
+        if (mRes) {
+          const list: any[] = (mRes.data || mRes)?.list || []
+          nextMall = list.map((item: any) => ({
+            id: item.id, type: 'redeem' as const,
+            title: toML(item.name, { zh: '商品', th: 'สินค้า', en: 'Item' }),
+            badge: { zh: '积分兑换', th: 'แลกพอยต์', en: 'Redeem' },
+            cover: isLegacyLocalUpload(item.cover_image) ? (ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital) : (item.cover_image || ITEM_TYPE_COVERS[item.item_type] || ITEM_TYPE_COVERS.digital),
+            views: 0,
+            price: item.price_thb ? `THB ${item.price_thb}` : undefined,
+            points: item.points_required || 0,
+            route: `/redeem/${item.id}`, footerTone: '#7B61FF',
+          }))
+          _pageCache.mallItems = nextMall; _pageCache.mallItemsAt = Date.now()
+        }
+
+        // 一次性 setState（React 18 自动批处理）
+        if (bRes) setApiBanners(nextBanners)
+        if (cRes) setApiCoupons(nextCoupons)
+        if (aRes) setApiActivities(nextActivities)
+        if (mRes) setApiMallItems(nextMall)
+
+        // 写 L2（任一刷新成功才写）
+        if (bRes || cRes || aRes || mRes) {
+          lsSave({ banners: nextBanners, activities: nextActivities, coupons: nextCoupons, mallItems: nextMall })
+        }
+
+        // 预取放到下一个 idle 窗口，绝不抢首屏交互
+        const ric: any = (window as any).requestIdleCallback || ((fn: () => void) => setTimeout(fn, 200))
+        ric(() => {
+          if (cancelled) return
+          if (bRes) {
+            (nextBanners as any[]).forEach((b: any) => {
+              const m = typeof b.link_url === 'string' && b.link_url.match(/\/activity\/([^/?]+)/)
+              if (m) prefetchActivity(m[1])
+            })
+          }
+          if (aRes) nextActivities.forEach((c) => prefetchActivity(c.id))
+        })
       })
-      .catch(() => {})
+    }
+
+    // 推迟到主线程 idle 再发请求，让 mount/事件绑定先完成 → 卡片立即可点击
+    const ric: any = (window as any).requestIdleCallback || ((fn: () => void) => setTimeout(fn, 0))
+    const handle = ric(runRefresh)
+    return () => {
+      cancelled = true
+      const cic: any = (window as any).cancelIdleCallback
+      if (cic && typeof handle === 'number') cic(handle)
+    }
   }, [])
 
   const allCards: ContentCard[] = useMemo(

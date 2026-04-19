@@ -129,6 +129,8 @@
       })()
     </script>
     <script type="module">
+      // 入口分流：仅 LIFF 续接路径走轻量 callback-entry（无 admin 路由 / 不挂载 App）
+      // 其它一律走 main 完整入口，避免路由表分裂导致页面跳转失效
       const pathname = window.location.pathname || ''
       const params = new URLSearchParams(window.location.search || '')
       const isCallbackEntry =
@@ -137,14 +139,11 @@
         pathname === '/welfare/open-in-line' ||
         pathname === '/welfare/follow-confirm' ||
         pathname === '/continue'
-      const isHomeEntry = pathname === '/welfare' && !params.has('intent') && !params.has('liff.state')
       const root = document.getElementById('root')
 
       const entryLoader = isCallbackEntry
-        ? import('/src/callback-entry.tsx')
-        : isHomeEntry
-          ? import('/src/home-entry.tsx')
-          : import('/src/full-entry.tsx')
+        ? import('/src/callback-entry.tsx').then((m) => ({ mount: m.mount }))
+        : import('/src/main.tsx').then(() => ({ mount: () => {} }))
 
       entryLoader
         .then((mod) => {
