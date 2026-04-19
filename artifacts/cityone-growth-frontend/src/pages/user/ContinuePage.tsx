@@ -234,6 +234,34 @@ export default function ContinuePage() {
     waitForIdentityReady,
   ])
 
+  // 缺失/非法 intent 立即进入 error，避免在 idle/loading 上无限转圈。
+  // 注意：runFlow 内部也会判断 intentPayload 缺失，但 runFlow 必须等 liffChecked=true 才跑，
+  // 这里前置判断让用户立即看到 error 不必等 LIFF init。
+  useEffect(() => {
+    if (!intentToken) {
+      setErrorText('待恢复动作无效或已损坏')
+      setStatus('error')
+      return
+    }
+    if (!intentPayload) {
+      setErrorText('待恢复动作无效或已损坏')
+      setStatus('error')
+    }
+  }, [intentToken, intentPayload])
+
+  // 外部浏览器预判：UA 不含 "Line/" 时 LIFF 永远不会 ready，
+  // 不必等 LiffProvider init（冷启动 ~800ms：fetch line/config + 动态 import @line/liff + liff.init），
+  // 立即跳 OpenInLinePage，避免用户看到无意义的"正在继续领取"过场页。
+  // LINE 内 UA 走原慢路径，由 liffChecked 闸门控制。
+  // ⚠️ 必须 intentPayload 有效才跳：非法 intent 必须停在前置 error，不能被重定向覆盖。
+  useEffect(() => {
+    if (!intentToken || !intentPayload) return
+    const isLineUA = /Line\/\d/i.test(navigator.userAgent)
+    if (!isLineUA) {
+      navigate(openInLinePath, { replace: true })
+    }
+  }, [intentToken, intentPayload, navigate, openInLinePath])
+
   useEffect(() => {
     if (!intentToken || !liffChecked) return
     void runFlow()

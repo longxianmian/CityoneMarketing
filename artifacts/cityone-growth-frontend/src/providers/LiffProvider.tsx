@@ -155,6 +155,11 @@ async function initLiff(
     const isInLineApp = /Line\/\d/i.test(navigator.userAgent)
     const notAtEndpoint = !window.location.pathname.startsWith('/welfare')
     if (isInLineApp && notAtEndpoint && _liffId) {
+      // 即使要 redirect，也必须先解锁 ctx，否则在 redirect 完成前若有任何
+      // 等待 liffChecked 的下游（ContinuePage useEffect）会被永久卡住。
+      if (!signal.cancelled) {
+        onReady({ liffReady: false, inLineClient: true, liffChecked: true })
+      }
       window.location.replace('/welfare')
       return
     }
@@ -163,13 +168,36 @@ async function initLiff(
   }
 }
 
+// LIFF init 整链路（fetch line/config + dynamic import @line/liff + liff.init + getProfile + identify）
+// 网络半挂时可能长期 pending，导致 liffChecked 永远 false，下游 ContinuePage 卡死在 loading。
+// 5s 兜底：超时强制解锁 ctx，让 ContinuePage runFlow 跑起来（!liffReady 会跳 OpenInLinePage 让用户重试）。
+const LIFF_INIT_TIMEOUT_MS = 5000
+
 export function LiffProvider({ children }: { children: React.ReactNode }) {
   const [ctx, setCtx] = useState<LiffContextValue>({ liffReady: false, inLineClient: false, liffChecked: false })
 
   useEffect(() => {
     const signal = { cancelled: false }
-    initLiff(setCtx, signal)
-    return () => { signal.cancelled = true }
+    let resolved = false
+    let timer = 0
+    const safeSetCtx = (next: LiffContextValue) => {
+      // 严格"先到胜出"：cancelled 或已解锁过都不再回调，避免超时 fallback 后
+      // initLiff 真实结果二次覆盖 ctx（造成状态来回切换）。
+      if (signal.cancelled || resolved) return
+      resolved = true
+      window.clearTimeout(timer)
+      setCtx(next)
+    }
+    timer = window.setTimeout(() => {
+      if (resolved || signal.cancelled) return
+      console.warn('[LIFF] init timeout after', LIFF_INIT_TIMEOUT_MS, 'ms — falling back to liffChecked:true / liffReady:false')
+      safeSetCtx({ liffReady: false, inLineClient: false, liffChecked: true })
+    }, LIFF_INIT_TIMEOUT_MS)
+    initLiff(safeSetCtx, signal)
+    return () => {
+      signal.cancelled = true
+      window.clearTimeout(timer)
+    }
   }, [])
 
   return <LiffContext.Provider value={ctx}>{children}</LiffContext.Provider>
