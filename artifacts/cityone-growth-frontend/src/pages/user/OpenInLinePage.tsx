@@ -1,6 +1,6 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把外部浏览器引导页改回报错页或首页 fallback。
 import React, { useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
@@ -19,6 +19,7 @@ import { useLiff } from '../../providers/LiffProvider'
 const LOGO_URL = `${import.meta.env.BASE_URL}cityone-logo.webp`
 
 export default function OpenInLinePage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { inLineClient } = useLiff()
   const intentToken = searchParams.get('intent') || ''
@@ -180,7 +181,7 @@ export default function OpenInLinePage() {
               fontWeight: 600,
               cursor: 'pointer',
             }}
-            onClick={() => window.location.assign(returnPath)}
+            onClick={() => navigate(returnPath)}
           >
             返回详情页
           </button>
