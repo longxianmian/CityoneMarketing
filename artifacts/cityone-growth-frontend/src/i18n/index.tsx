@@ -1,8 +1,4 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import type { Locale } from 'antd/es/locale'
-import zhCN from 'antd/locale/zh_CN'
-import enUS from 'antd/locale/en_US'
-import thTH from 'antd/locale/th_TH'
 
 export type AppLanguage = 'zh' | 'th' | 'en'
 export type LanguageMode = 'auto' | 'manual'
@@ -6185,16 +6181,9 @@ type I18nContextValue = {
   setLanguage: (lang: AppLanguage) => void
   setAutoLanguage: () => void
   t: (path: string) => string
-  antdLocale: Locale
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null)
-
-function getAntdLocale(lang: AppLanguage): Locale {
-  if (lang === 'zh') return zhCN
-  if (lang === 'th') return thTH
-  return enUS
-}
 
 function getMessage(lang: AppLanguage, path: string): string {
   const parts = path.split('.')
@@ -6264,7 +6253,6 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
         setLanguageState(detectBrowserLanguage())
       },
       t: (path) => getMessage(language, path),
-      antdLocale: getAntdLocale(language),
     }),
     [language, languageMode]
   )
