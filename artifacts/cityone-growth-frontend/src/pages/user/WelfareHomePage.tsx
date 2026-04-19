@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Drawer, Button, Tag, Carousel } from 'antd'
 import {
   MenuOutlined,
   GlobalOutlined,
@@ -281,6 +280,101 @@ function WaterfallCard({
   )
 }
 
+function PlainIconButton({
+  children,
+  onClick,
+  style,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+  style?: React.CSSProperties
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        padding: 0,
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SidePanel({
+  open,
+  onClose,
+  side,
+  title,
+  width,
+  children,
+}: {
+  open: boolean
+  onClose: () => void
+  side: 'left' | 'right'
+  title: string
+  width: string
+  children: React.ReactNode
+}) {
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.32)',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+          transition: 'opacity 0.2s ease',
+          zIndex: 80,
+        }}
+      />
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          bottom: 0,
+          [side]: 0,
+          width,
+          maxWidth: '88vw',
+          background: '#F7F9FC',
+          boxShadow: side === 'left' ? '10px 0 24px rgba(15,23,42,0.16)' : '-10px 0 24px rgba(15,23,42,0.16)',
+          transform: open ? 'translateX(0)' : side === 'left' ? 'translateX(-100%)' : 'translateX(100%)',
+          transition: 'transform 0.22s ease',
+          zIndex: 81,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 16px',
+            borderBottom: '1px solid rgba(17,24,39,0.06)',
+            background: '#fff',
+            fontWeight: 800,
+            color: '#111827',
+          }}
+        >
+          <span>{title}</span>
+          <PlainIconButton onClick={onClose} style={{ width: 32, height: 32, fontSize: 20, color: '#667085' }}>
+            ×
+          </PlainIconButton>
+        </div>
+        <div style={{ padding: side === 'right' ? '8px 10px' : '8px 16px', overflowY: 'auto' }}>{children}</div>
+      </div>
+    </>
+  )
+}
+
 // ---------- 页面主体 ----------
 export default function WelfareHomePage() {
   const navigate = useNavigate()
@@ -314,6 +408,8 @@ export default function WelfareHomePage() {
     return map[language]
   }, [language])
 
+  const [bannerIndex, setBannerIndex] = useState(0)
+
   const fallbackBanners = useMemo(
     () => [
       { id: '1', title: t('welfare.banner1Title'), sub_title: t('welfare.banner1Sub'), image_url: '', link_type: 'internal', link_url: '', cover: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)' },
@@ -338,6 +434,14 @@ export default function WelfareHomePage() {
     }).catch(() => {})
   }, [])
   const bannerItems = apiBanners.length > 0 ? apiBanners : fallbackBanners
+
+  useEffect(() => {
+    if (bannerItems.length <= 1) return
+    const timer = window.setInterval(() => {
+      setBannerIndex((current) => (current + 1) % bannerItems.length)
+    }, 4200)
+    return () => window.clearInterval(timer)
+  }, [bannerItems.length])
 
   const getBannerTitle = (b: any): string => {
     if (typeof b.title === 'string') return b.title
@@ -513,14 +617,16 @@ export default function WelfareHomePage() {
           }}
         >
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, minHeight: 44 }}>
-            <Button type="text" icon={<MenuOutlined style={{ fontSize: 20 }} />} onClick={() => setMenuOpen(true)} style={{ width: 40, height: 40, flexShrink: 0 }} />
+            <PlainIconButton onClick={() => setMenuOpen(true)} style={{ width: 40, height: 40, flexShrink: 0, display: 'grid', placeItems: 'center' }}>
+              <MenuOutlined style={{ fontSize: 20 }} />
+            </PlainIconButton>
             <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', pointerEvents: 'none' }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: '#111827', whiteSpace: 'nowrap' }}>{t('welfare.title')}</div>
               <div style={{ fontSize: 12, color: '#667085', whiteSpace: 'nowrap' }}>{t('welfare.subtitle')}</div>
             </div>
-            <Button type="text" onClick={() => setCityOpen(true)} style={{ height: 40, paddingInline: 8, fontWeight: 700, color: '#2CDBCE', flexShrink: 0 }}>
+            <PlainIconButton onClick={() => setCityOpen(true)} style={{ height: 40, paddingInline: 8, fontWeight: 700, color: '#2CDBCE', flexShrink: 0 }}>
               {getCityLabel(cityCode, language)} <DownOutlined style={{ fontSize: 11, marginLeft: 3 }} />
-            </Button>
+            </PlainIconButton>
           </div>
 
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
@@ -538,32 +644,62 @@ export default function WelfareHomePage() {
         <div style={{ padding: '6px 6px 90px' }}>
           {/* 轮播 Banner */}
           <div style={{ marginBottom: 6, borderRadius: 24, overflow: 'hidden', boxShadow: '0 14px 28px rgba(15,23,42,0.10)' }}>
-            <Carousel autoplay dots swipe={false} touchMove={false}>
-              {bannerItems.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => handleBannerClick(item)}
-                  style={{ cursor: item.link_url ? 'pointer' : 'default' }}
-                >
-                  {item.image_url ? (
-                    <div style={{ height: 172, position: 'relative', overflow: 'hidden' }}>
-                      <img src={item.image_url} alt={getBannerTitle(item)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      {(getBannerTitle(item) || getBannerSub(item)) && (
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '32px 20px 16px', background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }}>
-                          {getBannerTitle(item) && <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>{getBannerTitle(item)}</div>}
-                          {getBannerSub(item) && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)' }}>{getBannerSub(item)}</div>}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ height: 172, ...(item.cover ? coverBgStyle(item.cover) : {}), color: '#fff', padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                      <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{getBannerTitle(item)}</div>
-                      <div style={{ fontSize: 14, opacity: 0.96 }}>{getBannerSub(item)}</div>
-                    </div>
-                  )}
+            <div style={{ position: 'relative', height: 172, overflow: 'hidden' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  width: `${bannerItems.length * 100}%`,
+                  transform: `translateX(-${bannerIndex * (100 / bannerItems.length)}%)`,
+                  transition: 'transform 0.28s ease',
+                  height: '100%',
+                }}
+              >
+                {bannerItems.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => handleBannerClick(item)}
+                    style={{ cursor: item.link_url ? 'pointer' : 'default', flex: `0 0 ${100 / bannerItems.length}%`, height: '100%' }}
+                  >
+                    {item.image_url ? (
+                      <div style={{ height: 172, position: 'relative', overflow: 'hidden' }}>
+                        <img src={item.image_url} alt={getBannerTitle(item)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        {(getBannerTitle(item) || getBannerSub(item)) && (
+                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '32px 20px 16px', background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }}>
+                            {getBannerTitle(item) && <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>{getBannerTitle(item)}</div>}
+                            {getBannerSub(item) && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)' }}>{getBannerSub(item)}</div>}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ height: 172, ...(item.cover ? coverBgStyle(item.cover) : {}), color: '#fff', padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                        <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{getBannerTitle(item)}</div>
+                        <div style={{ fontSize: 14, opacity: 0.96 }}>{getBannerSub(item)}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {bannerItems.length > 1 && (
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 12, display: 'flex', justifyContent: 'center', gap: 6 }}>
+                  {bannerItems.map((item, idx) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setBannerIndex(idx)}
+                      style={{
+                        width: bannerIndex === idx ? 18 : 6,
+                        height: 6,
+                        borderRadius: 999,
+                        border: 'none',
+                        background: bannerIndex === idx ? '#fff' : 'rgba(255,255,255,0.45)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  ))}
                 </div>
-              ))}
-            </Carousel>
+              )}
+            </div>
           </div>
 
           {/* 双列网格卡片 — CSS Grid 保证各浏览器排列一致（行→列），避免 Safari/LINE 分栏错位 */}
@@ -603,7 +739,7 @@ export default function WelfareHomePage() {
       </div>
 
       {/* 汉堡菜单 */}
-      <Drawer placement="left" open={menuOpen} onClose={() => setMenuOpen(false)} title={t('common.systemMenu')} width="72%" styles={{ body: { paddingTop: 8, background: '#F7F9FC' } }}>
+      <SidePanel open={menuOpen} onClose={() => setMenuOpen(false)} side="left" title={t('common.systemMenu')} width="72%">
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: 14, boxShadow: '0 8px 18px rgba(15,23,42,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 10 }}>
@@ -630,10 +766,10 @@ export default function WelfareHomePage() {
             </div>
           ))}
         </div>
-      </Drawer>
+      </SidePanel>
 
       {/* 城市选择 */}
-      <Drawer placement="right" open={cityOpen} onClose={() => setCityOpen(false)} title={pageText.city} width="30%" styles={{ body: { paddingTop: 8, padding: '8px 10px', background: '#F7F9FC' } }}>
+      <SidePanel open={cityOpen} onClose={() => setCityOpen(false)} side="right" title={pageText.city} width="30%">
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: 14, boxShadow: '0 8px 18px rgba(15,23,42,0.06)' }}>
             <div style={{ color: '#667085', marginBottom: 10 }}>{pageText.autoLocate}</div>
@@ -651,7 +787,7 @@ export default function WelfareHomePage() {
             )
           })}
         </div>
-      </Drawer>
+      </SidePanel>
     </div>
   )
 }
