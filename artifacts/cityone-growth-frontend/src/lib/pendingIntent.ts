@@ -72,6 +72,11 @@ export async function consumePendingIntent({
       nextPath?: string
       resultCode?: string
       action_result?: any
+      // 后端 pending-intent-service 对 status='failed' 的 intent 在 replay 时
+      // 会返回 { error: true, code, message }（见 services/pending-intent-service.js 269-275）
+      error?: boolean
+      code?: string
+      message?: string
     }
   }
 }

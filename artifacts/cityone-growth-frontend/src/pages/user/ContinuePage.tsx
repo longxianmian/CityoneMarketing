@@ -163,6 +163,26 @@ export default function ContinuePage() {
       })
       if (!mountedRef.current) return
 
+      // 后端 pending-intent-service 对 status='failed' 的 intent 在 replay 时会返回
+      // HTTP 200 + { replayed: true, result: { error: true, code, message } }
+      // （见 services/pending-intent-service.js 269-275）。这里必须显式识别错误回放，
+      // 否则会 fallback 到 success_path 误跳成功页。
+      if (consumed?.result?.error === true) {
+        consumedRef.current = false
+        const errMsg = String(
+          (consumed.result as any)?.message || '原操作此前已执行失败，无法继续'
+        )
+        console.info('[follow-flow] consume_replay_error', {
+          intent_id: consumed?.payload?.intent_id || intentPayload.intent_id || '',
+          action_type: consumed?.payload?.action || intentPayload.action || '',
+          error_code: (consumed.result as any)?.code || '',
+          replayed: consumed?.replayed === true,
+        })
+        setErrorText(errMsg)
+        setStatus('error')
+        return
+      }
+
       const nextPath =
         consumed?.payload?.action === 'claim_coupon'
           ? buildClaimSuccessPath(
