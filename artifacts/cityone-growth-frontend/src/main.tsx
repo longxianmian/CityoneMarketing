@@ -7,7 +7,27 @@ import { I18nProvider, useI18n } from './i18n'
 import { LiffProvider } from './providers/LiffProvider'
 import queryClient from './lib/queryClient'
 import AntdShell from './components/AntdShell'
+import { clientLog } from './lib/clientLogger'
 import './styles/global.css'
+
+/** 路由变化埋点：每次 SPA navigate 都打一条 route_change，方便复盘"点了什么 → 跳到哪" */
+function RouteLogger() {
+  const location = useLocation()
+  const lastKeyRef = React.useRef<string>('')
+  React.useEffect(() => {
+    const key = location.pathname + location.search
+    if (key === lastKeyRef.current) return
+    const prev = lastKeyRef.current
+    lastKeyRef.current = key
+    clientLog('route_change', {
+      from: prev || '(initial)',
+      to: location.pathname + location.search,
+      pathname: location.pathname,
+      key: location.key,
+    })
+  }, [location])
+  return null
+}
 
 function DocumentTitleSync() {
   const location = useLocation()
@@ -37,6 +57,7 @@ function MainEntry() {
         <BrowserRouter>
           <AntdShell>
             <LiffProvider>
+              <RouteLogger />
               <DocumentTitleSync />
               <App />
             </LiffProvider>

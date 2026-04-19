@@ -96,4 +96,39 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush()
   })
+
+  // 全局点击埋点：捕获冒泡到 document 的所有点击，提取按钮/链接的关键属性
+  // 用 capture=false（冒泡）避免干扰元素自身的点击处理。
+  document.addEventListener('click', (ev) => {
+    try {
+      const target = ev.target as HTMLElement | null
+      if (!target) return
+      // 沿 DOM 向上找最近的可交互元素（button / a / [role=button]）
+      const interactive = target.closest(
+        'button, a, [role="button"], [data-clog]'
+      ) as HTMLElement | null
+      if (!interactive) return
+      const text = (interactive.textContent || '').trim().slice(0, 50)
+      const role = interactive.tagName.toLowerCase()
+      const href =
+        role === 'a' ? (interactive as HTMLAnchorElement).getAttribute('href') || '' : ''
+      const ariaLabel = interactive.getAttribute('aria-label') || ''
+      const dataTestId = interactive.getAttribute('data-testid') || ''
+      const dataClog = interactive.getAttribute('data-clog') || ''
+      const disabled =
+        (interactive as HTMLButtonElement).disabled === true ||
+        interactive.getAttribute('aria-disabled') === 'true'
+      clientLog('ui_click', {
+        role,
+        text,
+        href,
+        aria_label: ariaLabel,
+        testid: dataTestId,
+        clog_id: dataClog,
+        disabled,
+      })
+    } catch {
+      // 静默吞，绝不干扰业务点击
+    }
+  }, false)
 }
