@@ -193,7 +193,15 @@ export function useFollowGate() {
         })
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
         const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
-        if (inLineClient) {
+
+        // UA 兜底（2026-04 nginx 死循环诊断后加）：
+        //   `inLineClient` 来自 LIFF SDK，必须 LIFF init 完成后才会 true。
+        //   LINE 内冷启动时 init 异步，用户若在 init 完成前点击，inLineClient 仍为 false，
+        //   会被误判为外部 UA → window.location.assign(liffUrl) → LINE 服务器 redirect 回
+        //   /welfare?liff.state=... → LIFF SDK 又触发 OAuth → 死循环。
+        //   navigator.userAgent 是同步的，可立即可靠识别 LINE 内置 WebView (Line/x.x)。
+        const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
+        if (inLineClient || isLineWebView) {
           // 在 LINE 内置 WebView 内：进 ContinuePage，由其调用 identity / check-follow
           // 完成"是 OA 粉丝 → 系统用户"识别后再 dispatch 业务路径。
           navigate(continuePath)
