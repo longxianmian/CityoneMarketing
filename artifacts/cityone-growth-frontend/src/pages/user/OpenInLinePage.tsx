@@ -1,6 +1,6 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把外部浏览器引导页改回报错页或首页 fallback。
 import React, { useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
@@ -20,11 +20,23 @@ const LOGO_URL = `${import.meta.env.BASE_URL}cityone-logo.webp`
 
 export default function OpenInLinePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { inLineClient } = useLiff()
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(payload?.return_path || '/welfare')
+
+  // 返回详情页：优先用浏览器后退，避免在 history 里又 push 一条详情页副本
+  // 副作用是详情页左上角的"再返回"会回到本页(open-in-line)而不是 /welfare。
+  // 仅在用户直接以 URL 打开本页(location.key === 'default')时才 replace 跳。
+  const handleBackToDetail = () => {
+    if (location.key !== 'default') {
+      navigate(-1)
+    } else {
+      navigate(returnPath, { replace: true })
+    }
+  }
   const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, getRuntimeLineConfig().liffId)
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
 
@@ -181,7 +193,7 @@ export default function OpenInLinePage() {
               fontWeight: 600,
               cursor: 'pointer',
             }}
-            onClick={() => navigate(returnPath)}
+            onClick={handleBackToDetail}
           >
             返回详情页
           </button>
