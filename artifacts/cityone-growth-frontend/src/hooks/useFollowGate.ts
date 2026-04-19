@@ -192,29 +192,36 @@ export function useFollowGate() {
           source,
         })
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
+        const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
         if (inLineClient) {
+          // 在 LINE 内置 WebView 内：进 ContinuePage，由其调用 identity / check-follow
+          // 完成"是 OA 粉丝 → 系统用户"识别后再 dispatch 业务路径。
           navigate(continuePath)
           return
         }
 
-        // dev / 测试环境保护：当前 hostname 不是 LIFF endpoint 配置的生产域时，
-        // 走 LIFF URL 会被 LINE 服务器 redirect 到生产 endpoint（growth.cityone.app），
-        // 整页跳出 dev 域后再也回不来，dev 链路完全断掉。
-        // 这种情况下直接走本地 /welfare/continue，由 ContinuePage 内部识别 identity 缺失
-        // 后跳 /welfare/open-in-line，至少保证 dev 链路可以端到端验证。
+        // 外部浏览器 fast path：外部 UA 没有 LIFF 身份，ContinuePage 必然走 dispatch_mode
+        // = open_in_line 把用户引导到 /welfare/open-in-line。中间这一道"处理中..."过场
+        // 对外部 UA 永远是冗余的（用户在 LINE 内打开 LIFF 后，ContinuePage 仍会负责粉丝
+        // 识别 + 业务继续，链路闭合），所以这里直接跳到 open-in-line，省 ~270ms 闪屏。
         const isProductionHost = /(^|\.)growth\.cityone\.app$/i.test(window.location.hostname)
         if (!isProductionHost) {
-          navigate(continuePath)
+          // dev / 测试域：走 LIFF URL 会被 LINE 服务器 redirect 到生产 endpoint，dev 链路
+          // 断掉。直接跳本地 open-in-line（按钮内部仍然支持点击进 LIFF）。
+          navigate(openInLinePath)
           return
         }
 
+        // 生产域 + 外部 UA：优先走 LIFF URL，让 LINE 帮我们用 LINE 内置 WebView 打开
+        // /continue?intent=...，进 LIFF 后由 ContinuePage 完成粉丝识别 + 业务继续。
         const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(issued.token)}`, getRuntimeLineConfig().liffId)
         if (liffUrl) {
           window.location.assign(liffUrl)
           return
         }
 
-        navigate(`/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`)
+        // LIFF 配置缺失 fallback：直接跳本地 open-in-line 引导页。
+        navigate(openInLinePath)
       } catch (err: any) {
         message.error(err?.message || '创建待恢复动作失败')
       } finally {
