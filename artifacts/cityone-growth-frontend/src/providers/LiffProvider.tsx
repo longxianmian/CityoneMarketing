@@ -20,6 +20,7 @@ import useLineUserStore from '../store/lineUser'
 import { resolveRuntimeLiffId, setRuntimeLineConfig } from '../lib/line'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const LIFF_LOGIN_GUARD_PREFIX = 'cityone:liff-login-attempt:'
 
 export interface LiffContextValue {
   liffReady: boolean
@@ -57,6 +58,24 @@ async function initLiff(
   _liffInitiated = true
 
   try {
+    const initialSearch = window.location.search || ''
+    const initialParams = new URLSearchParams(initialSearch)
+    const resumeSignature = String(
+      initialParams.get('intent') ||
+        initialParams.get('liff.state') ||
+        initialParams.get('rp') ||
+        initialParams.get('resume_return') ||
+        ''
+    ).trim()
+    const loginGuardKey = resumeSignature
+      ? `${LIFF_LOGIN_GUARD_PREFIX}${resumeSignature}`
+      : ''
+    const hasOAuthCallbackParams =
+      Boolean(initialParams.get('code')) ||
+      Boolean(initialParams.get('state')) ||
+      Boolean(initialParams.get('liffClientId')) ||
+      Boolean(initialParams.get('liffRedirectUri'))
+
     // 1. 从后端拉取 LIFF ID
     const res = await fetch(`${API_BASE}/api/growth/line/config`)
     const json = await res.json()
@@ -82,15 +101,24 @@ async function initLiff(
     // 但当 URL 已携带动作恢复参数（rp / liff.state）时，说明用户刚从“关注并继续”回流，
     // 这时必须确保完成 LIFF 登录，否则 identify/check-follow/动作恢复都不会发生。
     if (!liff.isLoggedIn()) {
-      const sp = new URLSearchParams(window.location.search)
+      const sp = new URLSearchParams(initialSearch)
       const hasResumeHint =
         Boolean(sp.get('rp') || sp.get('resume_return') || sp.get('liff.state') || sp.get('intent'))
 
       if (hasResumeHint) {
+        const alreadyAttempted = loginGuardKey
+          ? window.sessionStorage.getItem(loginGuardKey) === '1'
+          : false
+
         try {
-          const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.search || ''}`
-          liff.login({ redirectUri })
-          return
+          if (!hasOAuthCallbackParams && !alreadyAttempted) {
+            if (loginGuardKey) {
+              window.sessionStorage.setItem(loginGuardKey, '1')
+            }
+            const redirectUri = `${window.location.origin}${window.location.pathname}${initialSearch}`
+            liff.login({ redirectUri })
+            return
+          }
         } catch {
           // login 调起失败时降级为未登录态，不阻塞页面浏览
         }
@@ -107,6 +135,10 @@ async function initLiff(
     // 否则会出现“关注并继续 -> 回到 /welfare -> 又弹关注”的循环。
     const lineProfile = await liff.getProfile()
     if (signal.cancelled) return
+
+    if (loginGuardKey) {
+      window.sessionStorage.removeItem(loginGuardKey)
+    }
 
     // 4. 检查是否已关注 OA（用于 useFollowGate 快速判断）
     let isFriend: boolean | undefined
