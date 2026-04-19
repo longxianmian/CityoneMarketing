@@ -56,29 +56,31 @@
     <script>
       (function () {
         var pathname = window.location.pathname || ''
-        var titleEl = document.querySelector('.boot-title')
-        var descEl = document.querySelector('.boot-desc')
-        if (!titleEl || !descEl) return
+        var boot = {
+          title: '页面加载中',
+          desc: '系统正在准备页面内容。'
+        }
 
         if (pathname !== '/welfare') {
-          titleEl.textContent = '页面加载中'
-          descEl.textContent = '系统正在准备页面内容。'
+          window.__CITYONE_BOOT__ = boot
           return
         }
 
         var params = new URLSearchParams(window.location.search || '')
         var directIntent = (params.get('intent') || '').trim()
         if (directIntent) {
-          titleEl.textContent = '正在继续领取'
-          descEl.textContent = '系统正在确认 LINE 身份并自动完成后续步骤。'
+          boot.title = '正在继续领取'
+          boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
+          window.__CITYONE_BOOT__ = boot
           history.replaceState(null, '', '/welfare/continue?intent=' + encodeURIComponent(directIntent))
           return
         }
 
         var rawState = (params.get('liff.state') || '').trim()
         if (!rawState) {
-          titleEl.textContent = '正在加载福利中心'
-          descEl.textContent = '系统正在准备活动、卡券和权益内容。'
+          boot.title = '正在加载福利中心'
+          boot.desc = '系统正在准备活动、卡券和权益内容。'
+          window.__CITYONE_BOOT__ = boot
           return
         }
 
@@ -94,14 +96,16 @@
           decoded.indexOf('/open-in-line?') === 0 ||
           decoded.indexOf('/follow-confirm?') === 0
         ) {
-          titleEl.textContent = '正在继续领取'
-          descEl.textContent = '系统正在确认 LINE 身份并自动完成后续步骤。'
+          boot.title = '正在继续领取'
+          boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
+          window.__CITYONE_BOOT__ = boot
           history.replaceState(null, '', '/welfare' + decoded)
           return
         }
 
-        titleEl.textContent = '正在加载福利中心'
-        descEl.textContent = '系统正在准备活动、卡券和权益内容。'
+        boot.title = '正在加载福利中心'
+        boot.desc = '系统正在准备活动、卡券和权益内容。'
+        window.__CITYONE_BOOT__ = boot
       })()
     </script>
   </head>
@@ -110,11 +114,20 @@
       <div class="boot-shell">
         <div class="boot-card">
           <div class="boot-spinner"></div>
-          <div class="boot-title">正在继续领取</div>
-          <div class="boot-desc">系统正在确认 LINE 身份并自动完成后续步骤。</div>
+          <div class="boot-title">页面加载中</div>
+          <div class="boot-desc">系统正在准备页面内容。</div>
         </div>
       </div>
     </div>
+    <script>
+      (function () {
+        var boot = window.__CITYONE_BOOT__ || {}
+        var titleEl = document.querySelector('.boot-title')
+        var descEl = document.querySelector('.boot-desc')
+        if (titleEl && boot.title) titleEl.textContent = boot.title
+        if (descEl && boot.desc) descEl.textContent = boot.desc
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
