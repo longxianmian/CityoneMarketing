@@ -94,7 +94,10 @@ export default function ContinuePage() {
   }, [intentPayload])
 
   const waitForIdentityReady = useCallback(async () => {
-    const deadline = Date.now() + 3000
+    // 缩短到 600ms：LIFF init 完成后 identity 应当已同步注入 store。继续等只对
+    // setProfile / setCanonicalUserId 之间的 React batch 微秒级时序差有意义。
+    // 真正的"无 identity"场景（外部浏览器/未登录）由调用方的 liffReady 快速分支处理，不进这里。
+    const deadline = Date.now() + 600
     while (Date.now() < deadline) {
       const state = useLineUserStore.getState()
       const canonicalUserId = state.canonicalUserId || state.profile?.lineUserId || ''
@@ -102,7 +105,7 @@ export default function ContinuePage() {
       if (canonicalUserId && lineUserId) {
         return { canonicalUserId, lineUserId }
       }
-      await sleep(120)
+      await sleep(60)
     }
     const state = useLineUserStore.getState()
     return {
@@ -118,6 +121,13 @@ export default function ContinuePage() {
       if (!intentPayload) {
         setErrorText('待恢复动作无效或已损坏')
         setStatus('error')
+        return
+      }
+
+      // 快速分支：LIFF 已检查但未 ready（外部浏览器/未登录场景），identity 永远不会自动就绪，
+      // 不需要再花 600ms 轮询 store，直接跳 OpenInLinePage 让用户在 LINE 内打开。
+      if (!liffReady) {
+        navigate(openInLinePath, { replace: true })
         return
       }
 
