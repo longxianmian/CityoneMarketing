@@ -1,8 +1,21 @@
 import axios from 'axios'
 import { getToken, removeToken } from '../store/auth'
-import { message } from 'antd'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+
+let antdMessageLoader: Promise<typeof import('antd')> | null = null
+
+function showErrorMessage(content: string) {
+  if (typeof window === 'undefined') return
+  antdMessageLoader ||= import('antd')
+  antdMessageLoader
+    .then(({ message }) => {
+      message.error(content)
+    })
+    .catch(() => {
+      console.error('[request] message.error fallback', content)
+    })
+}
 
 const request = axios.create({
   baseURL: BASE_URL,
@@ -48,7 +61,7 @@ request.interceptors.response.use(
     }
 
     const msg = data?.msg || data?.message || '请求失败'
-    message.error(msg)
+    showErrorMessage(msg)
     return Promise.reject(new Error(msg))
   },
   (err) => {
@@ -61,7 +74,7 @@ request.interceptors.response.use(
     const apiMsg = err.response?.data?.msg || err.response?.data?.message
     const displayMsg = apiMsg || err.message || '网络错误'
     if (!(err.config as any)?.silentError) {
-      message.error(displayMsg)
+      showErrorMessage(displayMsg)
     }
     // 将业务消息挂到 error 上，方便 catch 块取用
     const enhancedErr = Object.assign(err, { displayMsg })
