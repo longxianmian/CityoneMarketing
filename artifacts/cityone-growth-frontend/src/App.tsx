@@ -95,8 +95,8 @@ const Loading = () => (
           animation: 'boot-spin 0.8s linear infinite',
         }}
       />
-      <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#172b24' }}>正在继续领取</div>
-      <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8 }}>系统正在确认 LINE 身份并自动完成后续步骤。</div>
+      <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#172b24' }}>正在加载</div>
+      <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8 }}>页面正在准备中，请稍候…</div>
     </div>
   </div>
 )
