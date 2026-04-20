@@ -24,9 +24,27 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 export interface LiffContextValue {
   liffReady: boolean
+  /**
+   * 用户是否在 LINE App 内（含 LIFF Browser 与 LINE In-App Browser 两种）。
+   *
+   * 历史坑（LINE 官方文档 / LIFF 社区共识）：
+   * - liff.isInClient() 只在 "LIFF Browser"（点 liff.line.me 链接进入）返回 true，
+   *   对于 "LINE In-App Browser"（聊天里点 endpoint URL / 扫 endpoint 二维码）返回 false。
+   * - 官方推荐："要判断是否在 LINE 内，必须 isInClient() || /Line\\/\\d/.test(UA)"。
+   *
+   * 我们的所有下游分支（OpenInLinePage / ContinuePage / useFollowGate / FollowConfirmPage）
+   * 想知道的都是 "用户能不能在 LINE 内继续"，因此一律使用本字段（已是 OR 后的结果），
+   * 不要在下游再单独取 liff.isInClient()。
+   */
   inLineClient: boolean
   /** initLiff() 已完成（无论成功/失败），可安全读取 isFriend */
   liffChecked: boolean
+}
+
+/** UA 兜底：LINE In-App Browser 里 isInClient() 返回 false，但 UA 一定带 "Line/" */
+function detectLineAppUA(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Line\/\d/i.test(navigator.userAgent)
 }
 
 export const LiffContext = createContext<LiffContextValue>({
@@ -84,13 +102,22 @@ async function initLiff(
     if (signal.cancelled) return
 
     _liffInstance = liff
-    const isInClient = liff.isInClient()
-    clientLog('liff_init_done', { in_client: isInClient, logged_in: liff.isLoggedIn() })
+    const isInClientSdk = liff.isInClient()
+    const isLineUA = detectLineAppUA()
+    // 在 LINE 内（含 LIFF Browser + LINE In-App Browser）一律视为 in_line_client。
+    // 见 LiffContextValue.inLineClient 的注释（LINE 官方文档）。
+    const isInLineClient = isInClientSdk || isLineUA
+    clientLog('liff_init_done', {
+      in_client: isInLineClient,
+      in_client_sdk: isInClientSdk,
+      in_line_ua: isLineUA,
+      logged_in: liff.isLoggedIn(),
+    })
 
     // 3. 获取真实 LINE 用户资料
     if (!liff.isLoggedIn()) {
       if (!signal.cancelled) {
-        onReady({ liffReady: false, inLineClient: isInClient, liffChecked: true })
+        onReady({ liffReady: false, inLineClient: isInLineClient, liffChecked: true })
       }
       return
     }
@@ -157,14 +184,14 @@ async function initLiff(
     }
 
     if (!signal.cancelled) {
-      onReady({ liffReady: true, inLineClient: isInClient, liffChecked: true })
+      onReady({ liffReady: true, inLineClient: isInLineClient, liffChecked: true })
     }
   } catch (err) {
     // 若在 LINE 内置浏览器但当前 URL 不在 LIFF 端点 (/welfare) 下，重定向到正确端点
     // 这解决了同事从根链接 / 或其他路径进入时 LIFF 初始化失败的问题
-    const isInLineApp = /Line\/\d/i.test(navigator.userAgent)
+    const isLineUA = detectLineAppUA()
     const notAtEndpoint = !window.location.pathname.startsWith('/welfare')
-    if (isInLineApp && notAtEndpoint && _liffId) {
+    if (isLineUA && notAtEndpoint && _liffId) {
       // 即使要 redirect，也必须先解锁 ctx，否则在 redirect 完成前若有任何
       // 等待 liffChecked 的下游（ContinuePage useEffect）会被永久卡住。
       if (!signal.cancelled) {
@@ -174,7 +201,10 @@ async function initLiff(
       return
     }
     console.warn('[LIFF] init failed, production LINE identity is unavailable:', err)
-    onReady({ liffReady: false, inLineClient: false, liffChecked: true })
+    // init 失败时：UA 仍是关键判据。LINE In-App Browser 里 init 经常失败但 UA 一定是 Line/，
+    // 此时把 inLineClient 设为 true 让下游走 in_line 分支（client-side navigate），
+    // 避免再次跳 liffUrl 触发 endpoint reload 死循环。
+    onReady({ liffReady: false, inLineClient: isLineUA, liffChecked: true })
   }
 }
 
@@ -201,7 +231,8 @@ export function LiffProvider({ children }: { children: React.ReactNode }) {
     timer = window.setTimeout(() => {
       if (resolved || signal.cancelled) return
       console.warn('[LIFF] init timeout after', LIFF_INIT_TIMEOUT_MS, 'ms — falling back to liffChecked:true / liffReady:false')
-      safeSetCtx({ liffReady: false, inLineClient: false, liffChecked: true })
+      // 兜底也用 UA 推断 inLineClient，避免 LINE In-App Browser 内 timeout 后下游误判为外部浏览器
+      safeSetCtx({ liffReady: false, inLineClient: detectLineAppUA(), liffChecked: true })
     }, LIFF_INIT_TIMEOUT_MS)
     initLiff(safeSetCtx, signal)
     return () => {
