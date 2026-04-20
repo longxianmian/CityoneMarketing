@@ -153,6 +153,41 @@ async function initLiff(
     const lineProfile = await liff.getProfile()
     if (signal.cancelled) return
 
+    // 清理 URL 上 LIFF / OAuth 残留参数（仅 isLoggedIn=true 后做，避免清掉时 SDK 还没 exchange code）。
+    // LIFF login 完成后 redirect 回来的 URL 长这样：
+    //   /welfare?code=xxx&state=xxx&liffClientId=xxx&liffRedirectUri=xxx&liff.state=xxx
+    // 这些参数对业务路由无意义，留着会污染 react-router 的 search、被 welfare-entry 之类
+    // 误判 has_code，且让用户地址栏看起来很乱。用 history.replaceState 静默清掉，
+    // 不触发 navigate（不会引发组件二次 render / route_change）。
+    try {
+      const u = new URL(window.location.href)
+      const STRIP_KEYS = [
+        'code',
+        'state',
+        'liffClientId',
+        'liffRedirectUri',
+        'liffReferer',
+        'liff.state',
+        'error',
+        'error_description',
+      ]
+      let touched = false
+      for (const k of STRIP_KEYS) {
+        if (u.searchParams.has(k)) {
+          u.searchParams.delete(k)
+          touched = true
+        }
+      }
+      if (touched) {
+        const cleanQs = u.searchParams.toString()
+        const cleanUrl = u.pathname + (cleanQs ? `?${cleanQs}` : '') + u.hash
+        window.history.replaceState(window.history.state, '', cleanUrl)
+        clientLog('liff_url_cleaned', { stripped_keys: STRIP_KEYS.filter(k => !u.searchParams.has(k)) })
+      }
+    } catch {
+      // URL 解析失败不影响主流程
+    }
+
     // 4. 检查是否已关注 OA（用于 useFollowGate 快速判断）
     let isFriend: boolean | undefined
     if (isInClientSdk) {
