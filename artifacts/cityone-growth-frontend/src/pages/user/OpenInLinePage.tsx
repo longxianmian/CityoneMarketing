@@ -2,7 +2,11 @@
 import React, { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
+import {
+  buildRuntimeLiffUrlWithPath,
+  buildRuntimeLineSchemeUrlWithPath,
+  getRuntimeLineConfig,
+} from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
 
@@ -44,6 +48,8 @@ export default function OpenInLinePage() {
 
   const lineCfg = getRuntimeLineConfig()
   const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, lineCfg.liffId)
+  // line:// scheme 兜底（已安装 LINE 时直接被系统拦截拉起 LINE app）
+  const lineSchemeUrl = buildRuntimeLineSchemeUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, lineCfg.liffId)
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
 
   const isExternalBrowser = !inLineClient
@@ -231,6 +237,32 @@ export default function OpenInLinePage() {
           >
             返回详情页
           </button>
+          {/* URL scheme 兜底链接：当 https Universal Link 在某些设备/浏览器拉不起 LINE app
+              时（部分 Android 国行/Chromium 内嵌浏览器/iOS Safari 拒绝 Universal Link 时），
+              用户可点这条 line:// scheme 直接由系统拉起 LINE。桌面浏览器无 LINE 时点击
+              不会有反应，所以放在主按钮下方作为辅助。 */}
+          {isExternalBrowser && lineSchemeUrl ? (
+            <div style={{ textAlign: 'center', marginTop: 4 }}>
+              <a
+                href={lineSchemeUrl}
+                onClick={() => {
+                  clientLog('open_in_line_scheme_click', {
+                    intent_id: payload?.intent_id || '',
+                    action_type: payload?.action || '',
+                    branch: 'external',
+                    target: 'line_scheme',
+                  })
+                }}
+                style={{
+                  fontSize: 13,
+                  color: '#10b981',
+                  textDecoration: 'underline',
+                }}
+              >
+                如未自动跳转，点这里在 LINE 中打开
+              </a>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

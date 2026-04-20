@@ -33,7 +33,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, consumePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
-import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../lib/line'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
 
@@ -233,30 +232,16 @@ export function useFollowGate() {
           return
         }
 
-        // 外部浏览器 fast path：外部 UA 没有 LIFF 身份，ContinuePage 必然走 dispatch_mode
-        // = open_in_line 把用户引导到 /welfare/open-in-line。中间这一道"处理中..."过场
-        // 对外部 UA 永远是冗余的（用户在 LINE 内打开 LIFF 后，ContinuePage 仍会负责粉丝
-        // 识别 + 业务继续，链路闭合），所以这里直接跳到 open-in-line，省 ~270ms 闪屏。
-        const isProductionHost = /(^|\.)growth\.cityone\.app$/i.test(window.location.hostname)
-        if (!isProductionHost) {
-          // dev / 测试域：走 LIFF URL 会被 LINE 服务器 redirect 到生产 endpoint，dev 链路
-          // 断掉。直接跳本地 open-in-line（按钮内部仍然支持点击进 LIFF）。
-          clientLog('guard_branch_slow_dev_open_in_line', { target: openInLinePath })
-          navigate(openInLinePath)
-          return
-        }
-
-        // 生产域 + 外部 UA：优先走 LIFF URL，让 LINE 帮我们用 LINE 内置 WebView 打开
-        // /continue?intent=...，进 LIFF 后由 ContinuePage 完成粉丝识别 + 业务继续。
-        const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(issued.token)}`, getRuntimeLineConfig().liffId)
-        if (liffUrl) {
-          clientLog('guard_branch_slow_prod_liff_url', { has_liff_url: true })
-          window.location.assign(liffUrl)
-          return
-        }
-
-        // LIFF 配置缺失 fallback：直接跳本地 open-in-line 引导页。
-        clientLog('guard_branch_slow_no_liff_fallback', { target: openInLinePath })
+        // 外部浏览器：统一走 OpenInLinePage 中转页，让用户先看到"请在 LINE 中继续"
+        // 提示再点按钮拉 LINE app（用户预期 / 信任度更高）。
+        //
+        // 历史上为省 ~270ms 闪屏，prod 域曾直接 window.location.assign(liffUrl)，
+        // 但这样用户从详情页点"立即参加"会立刻被甩到外部 LINE app，没有任何视觉
+        // 过渡，体感像"网页突然失控"。OpenInLinePage 的过渡虽多一步，但对用户
+        // 第一次进入 LIFF 体验更友好（同时支持 https Universal Link 主按钮 +
+        // line:// scheme 兜底链接，最大化拉起成功率）。
+        // 不再使用 buildRuntimeLiffUrlWithPath/getRuntimeLineConfig 直接跳。
+        clientLog('guard_branch_slow_external_open_in_line', { target: openInLinePath })
         navigate(openInLinePath)
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })

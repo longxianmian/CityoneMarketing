@@ -1,7 +1,7 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止在 continue 页复活首页/个人中心 fallback 或页面自执行业务动作。
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useLiff } from '../../providers/LiffProvider'
+import { useLiff, getLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 
@@ -150,8 +150,75 @@ export default function ContinuePage() {
           return
         }
         setStatus('waiting_follow_or_ready')
-        navigate(followConfirmPath, { replace: true })
-        return
+        // 先尝试 LIFF SDK 原生 requestFriendship() 弹关注 UI（2024+ 新增方法）。
+        // 用户在 LIFF 里点接受 → friendFlag 变 true → 重新 check-follow → 直接 consume。
+        // 失败/拒绝/SDK 不支持 → fallback 到 FollowConfirmPage 显式引导加好友。
+        //
+        // 后端 check-follow 依赖 LINE bot 的 follow webhook 写入 line_followers 表，
+        // 用户接受加好友后 webhook 可能有几百 ms 延迟，所以接受后做最多 3 次轮询
+        // (200ms / 600ms / 1500ms)，任一次拿到 followed=true 就 consume。
+        const liff = getLiff()
+        const canTryRequest = liff && typeof liff.requestFriendship === 'function'
+        if (canTryRequest) {
+          console.info('[follow-flow] request_friendship_start', {
+            intent_id: intentPayload.intent_id || '',
+            action_type: intentPayload.action || '',
+          })
+          let userAccepted = false
+          try {
+            await liff.requestFriendship()
+            userAccepted = true
+          } catch (e: any) {
+            console.info('[follow-flow] request_friendship_rejected_or_failed', {
+              intent_id: intentPayload.intent_id || '',
+              error: e?.message || 'unknown',
+            })
+          }
+          if (userAccepted && mountedRef.current) {
+            // 信任 LIFF 的 friendFlag，把 store 也同步一下（让其他页面立即看到 isFriend）
+            try {
+              const fr = await liff.getFriendship()
+              if (fr?.friendFlag === true) {
+                useLineUserStore.getState().setIsFriend(true)
+              }
+            } catch {
+              // getFriendship 失败不影响后续 check-follow 主链
+            }
+            // 后端 check-follow 重试（webhook 写库可能有延迟）
+            const delays = [200, 600, 1500]
+            let backendFollowed = false
+            for (const ms of delays) {
+              await sleep(ms)
+              if (!mountedRef.current) return
+              try {
+                if (await checkFollow(identity.canonicalUserId)) {
+                  backendFollowed = true
+                  break
+                }
+              } catch {
+                // 单次失败继续重试
+              }
+            }
+            if (backendFollowed) {
+              console.info('[follow-flow] request_friendship_consume_continue', {
+                intent_id: intentPayload.intent_id || '',
+              })
+              // followed=true 落定，跳出本块走主链 consume
+            } else {
+              // 后端仍未识别 → 走 FollowConfirmPage 让用户显式确认
+              navigate(followConfirmPath, { replace: true })
+              return
+            }
+          } else {
+            // 用户拒绝/接口失败 → fallback FollowConfirmPage
+            navigate(followConfirmPath, { replace: true })
+            return
+          }
+        } else {
+          // SDK 不支持 requestFriendship（旧版 LIFF / 非 LINE 内）→ 直接 fallback
+          navigate(followConfirmPath, { replace: true })
+          return
+        }
       }
 
       consumedRef.current = true
