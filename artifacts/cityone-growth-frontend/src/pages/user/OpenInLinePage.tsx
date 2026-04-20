@@ -7,18 +7,28 @@ import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
 
 /**
- * 强约束（2026-04-20 重构）：
+ * 强约束（2026-04-20 重构 v3）：
  * - 外部浏览器是进入 LINE 的前置引导层，不是失败页
  * - 不允许把"当前会话未识别到 LINE 身份"表达成"未注册/请先注册"
  * - 不允许在此页自动跳 /welfare 或 /mine
  *
  * 设计要点：
- * - 不区分桌面/手机 UA（UA 检测不可靠，且手机用户不可能扫自己屏幕上的二维码）
- * - 所有外部浏览器场景统一一个动作：跳 liffUrl 让 LINE 平台 / LINE app 自己处理
- *   - 手机：Universal Link 拉起 LINE app → LIFF /continue → 身份恢复 → 业务执行
- *   - 桌面：LINE 平台自己引导（极少数场景）
- * - 不引导用户先关注 OA 再回来。加好友这件事让用户进入 LINE app 后由 ContinuePage
- *   在 isFriend === false 时再处理。
+ * 这个页面只表达一个用户意图："我同意关注 CityOne LINE 官方账号 + 继续业务"。
+ * 不向用户暴露任何技术动作（"用 LINE 打开"、"扫码"、"添加好友"），
+ * 所有"如何关注 / 如何恢复身份 / 如何执行业务"的复杂度由下游 ContinuePage 接管。
+ *
+ * 点击"关注并继续"的行为按场景区分（用户无感知）：
+ * - LINE 内 WebView：client-side navigate 到 /welfare/continue（已经在 LIFF 容器内，
+ *   直接走 ContinuePage，避免跳 liffUrl 触发自指死循环）
+ * - 外部浏览器：跳 liffUrl，LINE 平台 Universal Link 拉起 LINE app → LIFF /continue
+ *
+ * ContinuePage 的职责（已有）：
+ * - 恢复 LINE 身份（LIFF login）
+ * - 检查 isFriend：已关注 → consume intent；未关注 → 引导用户在 LINE 内点加好友
+ * - 完成后回到本页自动 consume + 跳 success
+ *
+ * LINE 平台硬约束：H5 不能静默替用户关注 OA。"关注"必须用户在 LINE app 内手动点
+ * "加为好友"。"关注并继续"按钮的语义是"用户表态愿意关注 + 系统送他到 LINE 内完成"。
  */
 
 const LOGO_URL = `${import.meta.env.BASE_URL}cityone-logo.webp`
@@ -52,7 +62,7 @@ export default function OpenInLinePage() {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
       in_line_client: inLineClient,
-      branch: isExternalBrowser ? 'external_open_in_line' : 'in_line_continue',
+      branch: isExternalBrowser ? 'external' : 'in_line',
       has_liff_url: !!liffUrl,
     })
     console.info('[follow-flow] open_in_line_view', {
@@ -62,29 +72,30 @@ export default function OpenInLinePage() {
     })
   }, [payload?.action, payload?.intent_id, inLineClient, isExternalBrowser, liffUrl])
 
-  const handlePrimary = () => {
+  const handleFollowAndContinue = () => {
     if (!intentToken) return
     if (isExternalBrowser) {
-      // 外部浏览器：跳 liffUrl 让 LINE 平台接管（手机会拉起 LINE app）
+      // 外部浏览器：跳 liffUrl，LINE 平台拉起 LINE app
       if (!liffUrl) return
-      clientLog('open_in_line_external_click', {
+      clientLog('follow_and_continue_click', {
         intent_id: payload?.intent_id || '',
         action_type: payload?.action || '',
+        branch: 'external',
         target: 'liff_url',
       })
       window.location.href = liffUrl
       return
     }
-    // LINE 内：直接跳 continue 路由让 LiffProvider 接管
-    clientLog('open_in_line_click', {
+    // LINE 内：直接 client-side navigate，避免跳 liffUrl 自指死循环
+    clientLog('follow_and_continue_click', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
-      target: '/welfare/continue?intent=...',
+      branch: 'in_line',
+      target: '/welfare/continue',
     })
-    window.location.assign(continuePath)
+    navigate(continuePath, { replace: true })
   }
 
-  const primaryLabel = isExternalBrowser ? '用 LINE 打开本页' : '继续'
   const primaryDisabled = !intentToken || (isExternalBrowser && !liffUrl)
 
   return (
@@ -169,7 +180,9 @@ export default function OpenInLinePage() {
               margin: 0,
             }}
           >
-            请在 LINE 中继续操作
+            请关注 CityOne LINE
+            <br />
+            官方账号
           </h1>
           <p
             style={{
@@ -179,16 +192,14 @@ export default function OpenInLinePage() {
               color: '#666',
             }}
           >
-            点击下方按钮在 LINE App 中打开本页面，
-            <br />
-            完成后续流程（领取卡券 / 参与活动等）。
+            关注后即可继续领取卡券、参与活动或进入后续流程。
           </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8, marginTop: 32 }}>
           <button
             disabled={primaryDisabled}
-            onClick={handlePrimary}
+            onClick={handleFollowAndContinue}
             style={{
               width: '100%',
               padding: '15px 0',
@@ -202,7 +213,7 @@ export default function OpenInLinePage() {
               boxShadow: primaryDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.25)',
             }}
           >
-            {primaryLabel}
+            关注并继续
           </button>
           <button
             style={{
