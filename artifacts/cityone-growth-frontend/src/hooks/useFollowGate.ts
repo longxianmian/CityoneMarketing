@@ -175,8 +175,16 @@ export function useFollowGate() {
               action: intentAction,
               next_path: nextPath,
             })
-            // 硬跳出 callback shell，让浏览器重新走 main 入口（同 ContinuePage 收尾）
-            window.location.assign(nextPath)
+            // 关键修复（2026-04-20 真机 LINE 内体验诊断）：
+            // 之前这里 window.location.assign(nextPath) → 整页 reload → LiffProvider
+            // 在非 /welfare 路径上 init 偶发失败 → catch 块 window.location.replace('/welfare')
+            // → 用户被强制踢回首页，看不到 claim 成功的结果，体感"啥都没发生"。
+            //
+            // useFollowGate 是 main app 入口里的 hook（不在 callback-entry 路由表内），
+            // 根本不需要"硬跳出 callback shell"。直接 SPA navigate，目标页根据 query
+            // (?owned=1&source=claim_success&up=xxx) 渲染领取成功状态即可。
+            // ContinuePage 那条收尾链路因为在 callback-entry 路由表里跑，仍需保留 location.assign。
+            navigate(nextPath, { replace: true })
           } catch (consumeErr: any) {
             clientLog('guard_fast_consume_fail_to_continue', {
               action: intentAction,
