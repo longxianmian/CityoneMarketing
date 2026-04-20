@@ -116,11 +116,36 @@ async function initLiff(
 
     // 3. 获取真实 LINE 用户资料
     if (!liff.isLoggedIn()) {
+      // LINE 内未登录：主动触发 LIFF login（LINE 官方推荐流程）。
+      // LINE In-App Browser 里第一次进 LIFF endpoint 通常 isLoggedIn=false，
+      // 必须由 SDK 调 liff.login() 触发 OAuth → LINE 自动同意 basic scope (profile+openid)
+      // → redirect 回当前 URL → 二次 init 时 isLoggedIn=true。
+      // 不调 login 则下游永远拿不到 identity，会陷入 ContinuePage <-> OpenInLinePage 循环。
+      //
+      // 防护：用 sessionStorage 防止 login 失败/拒绝后无限循环跳 OAuth。
+      // 一次跳转都失败 → 把 ctx 解锁，让 OpenInLinePage 展示重试 UI。
+      const LOGIN_ATTEMPTED_KEY = '_liff_login_attempted'
+      const alreadyAttempted = (() => {
+        try { return sessionStorage.getItem(LOGIN_ATTEMPTED_KEY) === '1' } catch { return false }
+      })()
+      if (isInLineClient && !alreadyAttempted) {
+        try { sessionStorage.setItem(LOGIN_ATTEMPTED_KEY, '1') } catch {}
+        clientLog('liff_login_trigger', { in_line_client: isInLineClient })
+        try {
+          liff.login()  // 触发整页跳 LINE OAuth，函数不返回（页面会被替换）
+        } catch (e) {
+          console.warn('[LIFF] login() call failed', e)
+        }
+        return
+      }
+      // 外部浏览器或已尝试过 login 仍未登录 → 解锁让下游做"请在 LINE 内打开"提示
       if (!signal.cancelled) {
         onReady({ liffReady: false, inLineClient: isInLineClient, liffChecked: true })
       }
       return
     }
+    // 登录成功后清除 attempt flag，避免下次首屏被误判为"已尝试过失败"
+    try { sessionStorage.removeItem('_liff_login_attempted') } catch {}
 
     // 已完成 LIFF 登录后，无论是在 LINE 内还是外部浏览器，都要建立真实 LINE 身份。
     // 生产链路要求外部浏览器中的 LIFF 回流也能完成 identify / follow 校验，
@@ -130,7 +155,7 @@ async function initLiff(
 
     // 4. 检查是否已关注 OA（用于 useFollowGate 快速判断）
     let isFriend: boolean | undefined
-    if (isInClient) {
+    if (isInClientSdk) {
       try {
         const friendship = await liff.getFriendship()
         isFriend = friendship.friendFlag
