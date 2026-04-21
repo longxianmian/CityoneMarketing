@@ -16,6 +16,7 @@ type ContinueStatus =
   | 'waiting_follow_or_ready'
   | 'consuming'
   | 'done'
+  | 'need_line_login'
   | 'error'
 
 async function checkFollow(userId: string) {
@@ -128,14 +129,23 @@ export default function ContinuePage() {
     }
   }, [])
 
-  const runFlow = useCallback(async () => {
-    if (!mountedRef.current) return
-    if (!intentToken) {
-      setErrorText('待恢复动作无效或已损坏')
+  const handleExplicitLineLogin = useCallback(() => {
+    try {
+      const liff = getLiff()
+      if (liff && typeof liff.login === 'function') {
+        liff.login({ redirectUri: window.location.href })
+        return
+      }
+      setErrorText('当前环境无法拉起 LINE 登录，请返回详情页重试')
       setStatus('error')
-      return
+    } catch (err: any) {
+      setErrorText(err?.message || '拉起 LINE 登录失败，请返回详情页重试')
+      setStatus('error')
     }
-    if (!intentPayload) {
+  }, [])
+
+  const runFlow = useCallback(async () => {
+    if (!mountedRef.current || !intentToken || !intentPayload) {
       setErrorText('待恢复动作无效或已损坏')
       setStatus('error')
       return
@@ -148,8 +158,8 @@ export default function ContinuePage() {
     }
 
     if (!liffReady) {
-      setErrorText('LINE 登录初始化未完成，请稍后重试')
-      setStatus('error')
+      setErrorText('请先使用 LINE 登录，再继续当前操作')
+      setStatus('need_line_login')
       return
     }
 
@@ -161,8 +171,8 @@ export default function ContinuePage() {
       if (!mountedRef.current) return
 
       if (!identity.canonicalUserId || !identity.lineUserId) {
-        setErrorText('LINE 身份初始化超时，请点击重试')
-        setStatus('error')
+        setErrorText('当前 LINE 身份尚未建立，请先完成 LINE 登录')
+        setStatus('need_line_login')
         return
       }
 
@@ -222,7 +232,7 @@ export default function ContinuePage() {
               break
             }
           } catch {
-            // ignore single retry error
+            // ignore
           }
         }
 
@@ -317,7 +327,6 @@ export default function ContinuePage() {
     if (!intentPayload) {
       setErrorText('待恢复动作无效或已损坏')
       setStatus('error')
-      return
     }
   }, [intentToken, intentPayload])
 
@@ -329,12 +338,15 @@ export default function ContinuePage() {
   }, [intentToken, intentPayload, inLineContext, navigate, openInLinePath])
 
   useEffect(() => {
-    if (!intentToken || !intentPayload || !inLineContext || !liffChecked) return
-    if (!liffReady) return
+    if (!intentToken || !intentPayload || !liffChecked || !inLineContext) return
+
+    if (!liffReady) {
+      setErrorText('请先使用 LINE 登录，再继续当前操作')
+      setStatus('need_line_login')
+      return
+    }
 
     if (hitAutoRunCooldown()) {
-      setErrorText('检测到流程重复进入，请点击重试')
-      setStatus('error')
       return
     }
 
@@ -351,19 +363,17 @@ export default function ContinuePage() {
     setAutoRunLock,
   ])
 
-  useEffect(() => {
-    if (!intentToken || !intentPayload || !inLineContext || !liffChecked || liffReady) return
-    const timer = window.setTimeout(() => {
-      setErrorText('LINE 登录初始化超时，请点击重试')
-      setStatus((prev) => (prev === 'done' ? prev : 'error'))
-    }, 2500)
-    return () => window.clearTimeout(timer)
-  }, [intentToken, intentPayload, inLineContext, liffChecked, liffReady])
-
   const handleRetry = async () => {
     clearAutoRunLock()
     consumedRef.current = false
     inFlightRef.current = false
+
+    if (inLineContext && !liffReady) {
+      setErrorText('请先使用 LINE 登录，再继续当前操作')
+      setStatus('need_line_login')
+      return
+    }
+
     await runFlow()
   }
 
@@ -392,6 +402,31 @@ export default function ContinuePage() {
           <div style={{ color: '#666', lineHeight: 1.8, marginTop: 10 }}>
             系统正在确认 LINE 身份、关注状态，并自动继续当前操作。
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'need_line_login') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
+        <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>请先完成 LINE 登录</div>
+          <div style={{ color: '#666', marginBottom: 16 }}>
+            当前已进入 LINE，但尚未完成登录。请点击下方按钮登录后继续当前操作。
+          </div>
+          <button
+            onClick={handleExplicitLineLogin}
+            style={{ width: '100%', height: 44, borderRadius: 999, border: 'none', background: '#12b981', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
+          >
+            使用 LINE 登录并继续
+          </button>
+          <button
+            onClick={() => window.location.assign(failPath || returnPath)}
+            style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
+          >
+            返回当前详情页
+          </button>
         </div>
       </div>
     )
