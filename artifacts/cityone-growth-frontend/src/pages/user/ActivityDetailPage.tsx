@@ -41,6 +41,10 @@ export default function ActivityDetailPage() {
   const [videoPaused, setVideoPaused] = useState(false)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
   const { guard, checking } = useFollowGate()
+  const coverImage = activity?.cover_image || activity?.coverImage || ''
+  const coverVideo = activity?.cover_video || activity?.coverVideo || ''
+  const resolvedCoverImage = useOssUrl(coverImage || undefined)
+  const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
 
   const handleStartVideo = async () => {
     setVideoStarted(true)
@@ -100,10 +104,6 @@ export default function ActivityDetailPage() {
   const participationGuide = pick(activity?.participation_guide || activity?.participationGuide) || ''
   const rewardGuide = pick(activity?.reward_guide || activity?.rewardGuide) || ''
   const noticeText = pick(activity?.notice_text || activity?.noticeText) || ''
-  const coverImage = activity?.cover_image || activity?.coverImage || ''
-  const coverVideo = activity?.cover_video || activity?.coverVideo || ''
-  const resolvedCoverImage = useOssUrl(coverImage || undefined)
-  const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
   const videoReady = !!resolvedCoverVideo
   const linkedProducts: any[] = activity?.linkedProducts || []
   const buttonText = activity?.buttonText ? pick(activity.buttonText) : typeBtnText
