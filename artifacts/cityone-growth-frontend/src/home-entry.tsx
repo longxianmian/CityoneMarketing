@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { I18nProvider } from './i18n'
 import ErrorBoundary from './components/ErrorBoundary'
 import WelfareHomePage from './pages/user/WelfareHomePage'
@@ -12,6 +12,18 @@ function HomeTitleSync() {
   return null
 }
 
+function NonHomeRouteRedirect() {
+  const location = useLocation()
+
+  React.useEffect(() => {
+    const target = `${location.pathname}${location.search}${location.hash}`
+    if (target === '/welfare') return
+    window.location.replace(target)
+  }, [location.hash, location.pathname, location.search])
+
+  return null
+}
+
 export default function HomeEntry() {
   return (
     <I18nProvider>
@@ -20,7 +32,7 @@ export default function HomeEntry() {
         <ErrorBoundary>
           <Routes>
             <Route path="/welfare" element={<WelfareHomePage />} />
-            <Route path="*" element={<Navigate to="/welfare" replace />} />
+            <Route path="*" element={<NonHomeRouteRedirect />} />
           </Routes>
         </ErrorBoundary>
       </BrowserRouter>
