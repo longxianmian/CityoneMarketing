@@ -53,8 +53,6 @@ function getInitAttemptKey(initKey: string) {
   return `_liff_init_attempted:${initKey}`
 }
 
-function getLoginAttemptKey(initKey: string) {
-  return `_liff_login_attempted:${initKey}`
 }
 
 function shouldBlockInitByCooldown(initKey: string) {
@@ -148,46 +146,14 @@ async function initLiffOnce(
       })(),
     })
 
-    const loginAttemptKey = getLoginAttemptKey(initKey)
-
     if (!liff.isLoggedIn()) {
-      const alreadyAttemptedLogin = (() => {
-        try {
-          return sessionStorage.getItem(loginAttemptKey) === '1'
-        } catch {
-          return false
-        }
-      })()
-
-      if (inLineClient && !alreadyAttemptedLogin) {
-        try {
-          sessionStorage.setItem(loginAttemptKey, '1')
-        } catch {
-          // ignore
-        }
-
-        clientLog('liff_login_trigger', {
-          pathname: window.location.pathname,
-          search: window.location.search,
-          in_line_client: inLineClient,
-        })
-
-        try {
-          liff.login()
-        } catch (e) {
-          console.warn('[LIFF] login() call failed', e)
-        }
-        return
-      }
-
+      clientLog('liff_not_logged_in_unlock', {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        in_line_client: inLineClient,
+      })
       onReady({ liffReady: false, inLineClient, liffChecked: true })
       return
-    }
-
-    try {
-      sessionStorage.removeItem(loginAttemptKey)
-    } catch {
-      // ignore
     }
 
     const lineProfile = await liff.getProfile()
