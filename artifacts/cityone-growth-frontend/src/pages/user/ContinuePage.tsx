@@ -66,6 +66,7 @@ export default function ContinuePage() {
   const [searchParams] = useSearchParams()
   const { liffReady, liffChecked, inLineClient } = useLiff()
   const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
+  const inLineContext = inLineClient || isLineWebView
   const [status, setStatus] = useState<ContinueStatus>('idle')
   const [errorText, setErrorText] = useState('')
   const inFlightRef = useRef(false)
@@ -141,6 +142,11 @@ export default function ContinuePage() {
       if (!mountedRef.current) return
 
       if (!identity.canonicalUserId || !identity.lineUserId) {
+        if (inLineContext) {
+          setErrorText('LINE 身份初始化超时，请点击重试')
+          setStatus('error')
+          return
+        }
         navigate(openInLinePath, { replace: true })
         return
       }
@@ -150,7 +156,7 @@ export default function ContinuePage() {
       if (!mountedRef.current) return
 
       if (!followed) {
-        if (!isLineWebView && (!inLineClient || !liffReady)) {
+        if (!inLineContext && !liffReady) {
           navigate(openInLinePath, { replace: true })
           return
         }
@@ -338,6 +344,15 @@ export default function ContinuePage() {
     if (!intentToken || !liffChecked) return
     void runFlow()
   }, [intentToken, liffChecked, runFlow])
+
+  useEffect(() => {
+    if (!intentToken || !liffChecked || liffReady || !inLineContext) return
+    const timer = window.setTimeout(() => {
+      setErrorText('LINE 登录初始化超时，请点击重试')
+      setStatus((prev) => (prev === 'done' ? prev : 'error'))
+    }, 2500)
+    return () => window.clearTimeout(timer)
+  }, [intentToken, liffChecked, liffReady, inLineContext])
 
   if (status === 'idle' || status === 'resolving_identity' || status === 'checking_follow' || status === 'consuming') {
     return (
