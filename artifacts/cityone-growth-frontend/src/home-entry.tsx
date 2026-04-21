@@ -1,7 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { I18nProvider } from './i18n'
 import ErrorBoundary from './components/ErrorBoundary'
 import WelfareHomePage from './pages/user/WelfareHomePage'
 
@@ -26,17 +25,15 @@ function NonHomeRouteRedirect() {
 
 export default function HomeEntry() {
   return (
-    <I18nProvider>
-      <BrowserRouter>
-        <HomeTitleSync />
-        <ErrorBoundary>
-          <Routes>
-            <Route path="/welfare" element={<WelfareHomePage />} />
-            <Route path="*" element={<NonHomeRouteRedirect />} />
-          </Routes>
-        </ErrorBoundary>
-      </BrowserRouter>
-    </I18nProvider>
+    <BrowserRouter>
+      <HomeTitleSync />
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/welfare" element={<WelfareHomePage />} />
+          <Route path="*" element={<NonHomeRouteRedirect />} />
+        </Routes>
+      </ErrorBoundary>
+    </BrowserRouter>
   )
 }
 

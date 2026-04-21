@@ -5,6 +5,8 @@ type RuntimeLineConfig = {
   requireFollow: boolean
 }
 
+export type Terminal = 'chrome' | 'safari' | 'line_client' | 'other'
+
 const runtimeLineConfig: RuntimeLineConfig = {
   channelId: '',
   officialAccountId: '',
@@ -88,6 +90,19 @@ export function buildContinueLaunchTargets(
     continueLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(continueExtraPath, liffId),
     oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
   }
+}
+
+export function detectTerminal(userAgent: string = navigator.userAgent): Terminal {
+  if (/Line\/\d/i.test(userAgent)) return 'line_client'
+  if (/CriOS|Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent)) return 'chrome'
+  if (/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent)) return 'safari'
+  return 'other'
+}
+
+export function isDesktopBrowser(userAgent: string = navigator.userAgent): boolean {
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(userAgent)) return false
+  if (/Line\/\d/i.test(userAgent)) return false
+  return true
 }
 
 export function isRuntimeFollowGateReady() {

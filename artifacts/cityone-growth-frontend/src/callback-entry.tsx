@@ -78,6 +78,35 @@ function CallbackLiffShell({ children }: { children: React.ReactNode }) {
   )
 }
 
+function CallbackInvalidRoutePage() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f5f5f5', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 380, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#172b24' }}>当前继续路径无效</div>
+        <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8 }}>请返回上一页重新发起当前操作。</div>
+        <button
+          type="button"
+          onClick={() => window.history.back()}
+          style={{
+            marginTop: 20,
+            width: '100%',
+            border: 'none',
+            borderRadius: 999,
+            background: '#12b981',
+            color: '#fff',
+            fontSize: 16,
+            fontWeight: 700,
+            padding: '14px 18px',
+            cursor: 'pointer',
+          }}
+        >
+          返回上一页
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function CallbackEntry() {
   return (
     <BrowserRouter>
@@ -88,7 +117,7 @@ export default function CallbackEntry() {
         <Route path="/welfare/continue" element={<CallbackLiffShell><ContinuePage /></CallbackLiffShell>} />
         <Route path="/welfare/follow-confirm" element={<CallbackLiffShell><FollowConfirmPage /></CallbackLiffShell>} />
         <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
-        <Route path="*" element={<Navigate to="/welfare" replace />} />
+        <Route path="*" element={<CallbackInvalidRoutePage />} />
       </Routes>
     </BrowserRouter>
   )

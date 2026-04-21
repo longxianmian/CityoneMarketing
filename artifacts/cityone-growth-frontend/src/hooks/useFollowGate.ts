@@ -24,7 +24,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
-import { buildContinueLaunchTargets, getRuntimeLineConfig } from '../lib/line'
+import {
+  buildContinueLaunchTargets,
+  detectTerminal,
+  getRuntimeLineConfig,
+  isDesktopBrowser,
+} from '../lib/line'
 import { useLiff } from '../providers/LiffProvider'
 
 interface GuardOptions {
@@ -46,12 +51,15 @@ export function writeResumeKeys() {
   return
 }
 
+const SCHEME_FALLBACK_WAIT_MS = 1500
+const OPEN_IN_LINE_WAIT_MS = 1500
+
 export function useFollowGate() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const lineProfile = useLineUserStore((s) => s.profile)
   const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
-  const { inLineClient } = useLiff()
+  const { inLineContext } = useLiff()
   const [checking, setChecking] = useState(false)
 
   const buildReturnPath = useCallback(
@@ -91,6 +99,7 @@ export function useFollowGate() {
 
       setChecking(true)
       try {
+        const terminal = detectTerminal()
         const fullReturn = buildReturnPath(returnPath)
         const backPath = back ?? returnPath.split('?')[0]
         const issued = await issuePendingIntent({
@@ -104,11 +113,17 @@ export function useFollowGate() {
           backPath,
           actionName: label,
           source,
+          terminal,
         })
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
         const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
-        if (inLineClient) {
+        if (inLineContext) {
           navigate(continuePath)
+          return
+        }
+
+        if (isDesktopBrowser()) {
+          navigate(openInLinePath)
           return
         }
 
@@ -124,12 +139,12 @@ export function useFollowGate() {
           return
         }
 
-        let fallbackTriggered = false
         let pageLeft = false
-        let fallbackTimer = 0
+        let stage: 'liff' | 'scheme' | 'done' = 'liff'
+        let stageTimer = 0
 
         const clearAll = () => {
-          window.clearTimeout(fallbackTimer)
+          window.clearTimeout(stageTimer)
           window.removeEventListener('blur', handleBlur)
           document.removeEventListener('visibilitychange', handleVisibilityChange)
           window.removeEventListener('pagehide', handlePageHide)
@@ -156,20 +171,29 @@ export function useFollowGate() {
         document.addEventListener('visibilitychange', handleVisibilityChange)
         window.addEventListener('pagehide', handlePageHide, { once: true })
 
-        fallbackTimer = window.setTimeout(() => {
-          if (pageLeft || fallbackTriggered) return
-          fallbackTriggered = true
+        const tryFinalFallback = () => {
+          if (pageLeft || stage === 'done') return
+          stage = 'done'
           clearAll()
           navigate(openInLinePath)
-        }, 3000)
+        }
 
-        window.location.assign(continueLiffUrl)
+        const tryScheme = () => {
+          if (pageLeft || stage !== 'liff') return
+          stage = 'scheme'
+          if (!continueLineSchemeUrl) {
+            tryFinalFallback()
+            return
+          }
+          stageTimer = window.setTimeout(tryFinalFallback, OPEN_IN_LINE_WAIT_MS)
+          window.location.assign(continueLineSchemeUrl)
+        }
 
-        if (continueLineSchemeUrl) {
-          window.setTimeout(() => {
-            if (pageLeft || fallbackTriggered) return
-            window.location.assign(continueLineSchemeUrl)
-          }, 600)
+        if (continueLiffUrl) {
+          stageTimer = window.setTimeout(tryScheme, SCHEME_FALLBACK_WAIT_MS)
+          window.location.assign(continueLiffUrl)
+        } else {
+          tryScheme()
         }
       } catch (err: any) {
         message.error(err?.message || '创建待恢复动作失败')
@@ -177,7 +201,7 @@ export function useFollowGate() {
         setChecking(false)
       }
     },
-    [buildReturnPath, canonicalUserId, inLineClient, lineProfile?.lineUserId, navigate]
+    [buildReturnPath, canonicalUserId, inLineContext, lineProfile?.lineUserId, navigate]
   )
 
   return { guard, checking }

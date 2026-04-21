@@ -17,6 +17,7 @@ type IssuePendingIntentInput = {
   backPath: string
   actionName?: string
   source?: Record<string, any>
+  terminal?: string
 }
 
 export async function issuePendingIntent(input: IssuePendingIntentInput) {
@@ -34,6 +35,7 @@ export async function issuePendingIntent(input: IssuePendingIntentInput) {
       back_path: input.backPath,
       action_name: input.actionName || '',
       source: input.source || {},
+      terminal: input.terminal || '',
     }),
   })
   const json = await res.json()
@@ -62,18 +64,36 @@ export async function consumePendingIntent({
     }),
   })
   const json = await res.json()
+
+  if (res.ok && json?.code === 200) {
+    return json.data as {
+      replayed: boolean
+      payload: any
+      result: {
+        nextPath?: string
+        resultCode?: string
+        action_result?: any
+      }
+    }
+  }
+
+  if (json?.code === 4090) {
+    return {
+      replayed: true,
+      payload: json?.data?.payload || null,
+      result: {
+        error: true,
+        message: String(json?.msg || '原操作此前已执行失败'),
+        nextPath: json?.data?.result?.nextPath || '',
+        action_result: json?.data?.result?.action_result || null,
+      },
+    }
+  }
+
   if (!res.ok || json?.code !== 200) {
     throw new Error(json?.msg || 'pending intent 消费失败')
   }
-  return json.data as {
-    replayed: boolean
-    payload: any
-    result: {
-      nextPath?: string
-      resultCode?: string
-      action_result?: any
-    }
-  }
+  return json.data
 }
 
 export function decodePendingIntentPayload(token: string) {

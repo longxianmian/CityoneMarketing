@@ -15,13 +15,15 @@ import { buildOaAddFriendUrl, getRuntimeLineConfig } from '../../lib/line'
 export default function FollowConfirmPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { liffReady, inLineClient } = useLiff()
+  const { liffReady, inLineContext } = useLiff()
   const [submitting, setSubmitting] = useState(false)
 
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
+  const tokenValid = !!intentToken && !!payload
   const returnPath = String(payload?.return_path || '/welfare')
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
+  const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
   const lineCfg = getRuntimeLineConfig()
   const oaAddFriendUrl = buildOaAddFriendUrl(lineCfg.officialAccountId)
 
@@ -34,13 +36,22 @@ export default function FollowConfirmPage() {
 
   const handleConfirm = async () => {
     const liff = getLiff()
-    if (submitting) return
+    if (submitting || !tokenValid) return
     setSubmitting(true)
 
     try {
-      if (inLineClient && liffReady && liff?.requestFriendship) {
-        await liff.requestFriendship()
+      if (inLineContext && liffReady && liff?.requestFriendship) {
+        try {
+          await liff.requestFriendship()
+        } catch {
+          // 真源判定交给 ContinuePage 二次校验，这里不直接下结论
+        }
         navigate(continuePath, { replace: true })
+        return
+      }
+
+      if (!inLineContext) {
+        navigate(openInLinePath, { replace: true })
         return
       }
 
@@ -57,6 +68,23 @@ export default function FollowConfirmPage() {
       }
       setSubmitting(false)
     }
+  }
+
+  if (!tokenValid) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
+        <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>当前操作已失效</div>
+          <div style={{ color: '#666', marginBottom: 16 }}>请返回原页面重新点击操作入口。</div>
+          <button
+            onClick={() => window.history.back()}
+            style={{ width: '100%', height: 44, borderRadius: 999, border: 'none', background: '#12b981', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
+          >
+            返回上一页
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

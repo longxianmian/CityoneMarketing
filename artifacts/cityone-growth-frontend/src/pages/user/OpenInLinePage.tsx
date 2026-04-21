@@ -1,5 +1,5 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把外部浏览器引导页改回报错页或首页 fallback。
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildContinueLaunchTargets, getRuntimeLineConfig, setRuntimeLineConfig } from '../../lib/line'
@@ -23,8 +23,12 @@ export default function OpenInLinePage() {
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(payload?.return_path || '/welfare')
   const inLineClient = /Line\/\d/i.test(navigator.userAgent)
+  const [opening, setOpening] = useState(false)
+  const openStateRef = useRef<{ stage: 'idle' | 'liff' | 'scheme' | 'done' }>({
+    stage: 'idle',
+  })
   const [lineCfg, setLineCfg] = useState(() => getRuntimeLineConfig())
-  const { continueLiffUrl, continueLineSchemeUrl, oaAddFriendUrl } = buildContinueLaunchTargets(
+  const { continueLiffUrl, continueLineSchemeUrl } = buildContinueLaunchTargets(
     intentToken,
     lineCfg.liffId,
     lineCfg.officialAccountId,
@@ -60,19 +64,61 @@ export default function OpenInLinePage() {
   }, [continuePath, inLineClient, navigate, payload?.action, payload?.intent_id])
 
   const handleOpenInLine = () => {
-    if (!intentToken) return
+    if (!intentToken || opening) return
+    setOpening(true)
     console.info('[follow-flow] open_in_line_click', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
       target: inLineClient ? '/welfare/continue?intent=...' : 'liff:/continue?intent=...',
     })
+    const state = openStateRef.current
+
+    const markDone = () => {
+      state.stage = 'done'
+    }
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') markDone()
+    }
+    const clearListeners = () => {
+      window.removeEventListener('blur', markDone)
+      document.removeEventListener('visibilitychange', onHidden)
+      window.removeEventListener('pagehide', markDone)
+    }
+
+    window.addEventListener('blur', markDone, { once: true })
+    document.addEventListener('visibilitychange', onHidden)
+    window.addEventListener('pagehide', markDone, { once: true })
+
+    const tryScheme = () => {
+      if (state.stage === 'done') {
+        clearListeners()
+        return
+      }
+      if (!continueLineSchemeUrl) {
+        clearListeners()
+        setOpening(false)
+        return
+      }
+      state.stage = 'scheme'
+      window.location.assign(continueLineSchemeUrl)
+      window.setTimeout(() => {
+        if (state.stage === 'done') {
+          clearListeners()
+          return
+        }
+        clearListeners()
+        setOpening(false)
+      }, 1500)
+    }
+
     if (continueLiffUrl) {
+      state.stage = 'liff'
+      window.setTimeout(tryScheme, 1500)
       window.location.assign(continueLiffUrl)
       return
     }
-    if (continueLineSchemeUrl) {
-      window.location.assign(continueLineSchemeUrl)
-    }
+
+    tryScheme()
   }
 
   const handleResetIdentity = () => {
@@ -101,20 +147,14 @@ export default function OpenInLinePage() {
             系统已为你准备好当前操作，请点击下方按钮继续。
           </div>
           <button
-            disabled={(!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken}
+            disabled={
+              opening || ((!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken)
+            }
             onClick={handleOpenInLine}
-            style={{ width: '100%', height: 48, borderRadius: 999, fontWeight: 700, border: 'none', background: ((!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken) ? '#b7ead7' : '#12b981', color: '#fff', cursor: (!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken ? 'not-allowed' : 'pointer' }}
+            style={{ width: '100%', height: 48, borderRadius: 999, fontWeight: 700, border: 'none', background: (opening || ((!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken)) ? '#b7ead7' : '#12b981', color: '#fff', cursor: (opening || ((!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken)) ? 'not-allowed' : 'pointer' }}
           >
-            打开 LINE 继续
+            {opening ? '正在打开 LINE…' : '打开 LINE 继续'}
           </button>
-          {oaAddFriendUrl ? (
-            <button
-              style={{ marginTop: 12, height: 44, borderRadius: 999, width: '100%', border: '1px solid #d9d9d9', background: '#fff', cursor: 'pointer' }}
-              onClick={() => window.location.assign(oaAddFriendUrl)}
-            >
-              关注 OA
-            </button>
-          ) : null}
           <button
             style={{ marginTop: 12, height: 44, borderRadius: 999, width: '100%', border: '1px solid #d9d9d9', background: '#fff', cursor: 'pointer' }}
             onClick={() => navigate(returnPath, { replace: true })}

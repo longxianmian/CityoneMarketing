@@ -25,14 +25,15 @@ const INIT_COOLDOWN_MS = 4000
 
 export interface LiffContextValue {
   liffReady: boolean
-  inLineClient: boolean
-  /** initLiff() 已完成（无论成功/失败），可安全读取 isFriend */
+  inLineContext: boolean
+  needLineLogin: boolean
   liffChecked: boolean
 }
 
 export const LiffContext = createContext<LiffContextValue>({
   liffReady: false,
-  inLineClient: false,
+  inLineContext: false,
+  needLineLogin: false,
   liffChecked: false,
 })
 
@@ -93,7 +94,12 @@ async function initLiffOnce(
   const inLineUA = detectLineAppUA()
 
   if (shouldBlockInitByCooldown(initKey)) {
-    onReady({ liffReady: false, inLineClient: inLineUA, liffChecked: true })
+    onReady({
+      liffReady: false,
+      inLineContext: inLineUA,
+      needLineLogin: false,
+      liffChecked: true,
+    })
     return
   }
 
@@ -106,7 +112,13 @@ async function initLiffOnce(
 
     const liffId = resolveRuntimeLiffId(json?.data?.liffId)
     if (!liffId) {
-      onReady({ liffReady: false, inLineClient: false, liffChecked: true })
+      clearInitAttempt(initKey)
+      onReady({
+        liffReady: false,
+        inLineContext: inLineUA,
+        needLineLogin: false,
+        liffChecked: true,
+      })
       return
     }
 
@@ -115,10 +127,17 @@ async function initLiffOnce(
     if (signal.cancelled) return
 
     _liffInstance = liff
-    const inLineClient = (typeof liff.isInClient === 'function' ? liff.isInClient() : false) || inLineUA
+    const inLineContext =
+      (typeof liff.isInClient === 'function' ? liff.isInClient() : false) || inLineUA
 
     if (!liff.isLoggedIn()) {
-      onReady({ liffReady: false, inLineClient, liffChecked: true })
+      clearInitAttempt(initKey)
+      onReady({
+        liffReady: false,
+        inLineContext,
+        needLineLogin: true,
+        liffChecked: true,
+      })
       return
     }
 
@@ -142,11 +161,11 @@ async function initLiffOnce(
       }
     } catch {}
 
-    let isFriend: boolean | undefined
+    let localFriendHint: boolean | undefined
     if (typeof liff.isInClient === 'function' && liff.isInClient()) {
       try {
         const friendship = await liff.getFriendship()
-        isFriend = friendship.friendFlag
+        localFriendHint = friendship.friendFlag
       } catch {}
     }
 
@@ -160,7 +179,7 @@ async function initLiffOnce(
       couponCount: 0,
       deposit: 0,
       depositPaid: false,
-      isFriend,
+      isFriend: localFriendHint,
     })
 
     try {
@@ -171,7 +190,6 @@ async function initLiffOnce(
           line_user_id: lineProfile.userId,
           display_name: lineProfile.displayName,
           picture_url: lineProfile.pictureUrl || '',
-          is_fan: isFriend === true,
         }),
       })
       const idJson = await idRes.json()
@@ -188,15 +206,31 @@ async function initLiffOnce(
     }
 
     clearInitAttempt(initKey)
-    onReady({ liffReady: true, inLineClient, liffChecked: true })
+    onReady({
+      liffReady: true,
+      inLineContext,
+      needLineLogin: false,
+      liffChecked: true,
+    })
   } catch (err) {
     console.warn('[LIFF] init failed, production LINE identity is unavailable:', err)
-    onReady({ liffReady: false, inLineClient: inLineUA, liffChecked: true })
+    clearInitAttempt(initKey)
+    onReady({
+      liffReady: false,
+      inLineContext: inLineUA,
+      needLineLogin: false,
+      liffChecked: true,
+    })
   }
 }
 
 export function LiffProvider({ children }: { children: React.ReactNode }) {
-  const [ctx, setCtx] = useState<LiffContextValue>({ liffReady: false, inLineClient: false, liffChecked: false })
+  const [ctx, setCtx] = useState<LiffContextValue>({
+    liffReady: false,
+    inLineContext: false,
+    needLineLogin: false,
+    liffChecked: false,
+  })
   const initStartedRef = useRef(false)
   const initResolvedRef = useRef(false)
   const initKeyRef = useRef('')
@@ -221,7 +255,12 @@ export function LiffProvider({ children }: { children: React.ReactNode }) {
 
     timer = window.setTimeout(() => {
       if (signal.cancelled || initResolvedRef.current) return
-      safeSetCtx({ liffReady: false, inLineClient: detectLineAppUA(), liffChecked: true })
+      safeSetCtx({
+        liffReady: false,
+        inLineContext: detectLineAppUA(),
+        needLineLogin: false,
+        liffChecked: true,
+      })
     }, LIFF_INIT_TIMEOUT_MS)
 
     void initLiffOnce(safeSetCtx, signal, initKey)

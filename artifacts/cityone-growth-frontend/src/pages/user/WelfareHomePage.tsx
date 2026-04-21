@@ -1,29 +1,115 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  MenuOutlined,
-  GlobalOutlined,
-  InfoCircleOutlined,
-  FileTextOutlined,
-  SafetyCertificateOutlined,
-  TeamOutlined,
-  FireOutlined,
-  EyeOutlined,
-  HomeOutlined,
-  RobotOutlined,
-  UserOutlined,
-  EnvironmentOutlined,
-  DownOutlined,
-  RightOutlined,
-} from '@ant-design/icons'
-import { useI18n, type AppLanguage, pickLocalizedText } from '../../i18n'
-import UserBottomNav from '../../components/user/UserBottomNav'
-import { getActivities } from '../../api/growth'
-import request from '../../api/request'
-import { isObjectKey, useOssUrl } from '../../components/OssImage'
-import { prefetchActivity } from '../../cache/activityCache'
 
+type AppLanguage = 'zh' | 'th' | 'en'
 type LocalizedField = Partial<Record<AppLanguage, string>>
+const STORAGE_KEY = 'cityone_growth_lang'
+const STORAGE_MODE_KEY = 'cityone_growth_lang_mode'
+
+function normalizeLanguage(input?: string | null): AppLanguage {
+  const raw = (input || '').toLowerCase()
+  if (raw.startsWith('zh')) return 'zh'
+  if (raw.startsWith('th')) return 'th'
+  return 'en'
+}
+
+function detectBrowserLanguage(): AppLanguage {
+  if (typeof navigator === 'undefined') return 'en'
+  const browserLang = navigator.language || (Array.isArray(navigator.languages) ? navigator.languages[0] : 'en')
+  return normalizeLanguage(browserLang)
+}
+
+function detectHomeLanguage(): AppLanguage {
+  if (typeof window === 'undefined') return 'en'
+  const mode = window.localStorage.getItem(STORAGE_MODE_KEY)
+  if (mode === 'manual') {
+    return normalizeLanguage(window.localStorage.getItem(STORAGE_KEY))
+  }
+  return detectBrowserLanguage()
+}
+
+function pickLocalizedValue(value: LocalizedField | string | undefined, language: AppLanguage, fallback = '') {
+  if (!value) return fallback
+  if (typeof value === 'string') return value
+  return value[language] || value.zh || value.en || value.th || fallback
+}
+
+const HOME_MESSAGES = {
+  zh: {
+    common: {
+      home: '首页',
+      agent: '问问',
+      mine: '我的',
+      systemMenu: '系统菜单',
+      language: '增长系统语言',
+      systemInfo: '系统说明',
+      userAgreement: '用户协议',
+      privacyPolicy: '隐私政策',
+      aboutUs: '关于我们',
+    },
+    welfare: {
+      title: '福利中心',
+      subtitle: 'CityOne Growth Hub',
+      banner1Title: '首借福利季',
+      banner1Sub: '新用户关注 OA 即享专属权益',
+      banner2Title: 'Battery SOS',
+      banner2Sub: '低电量也能快速找到附近站点',
+      banner3Title: '闪电券限时开抢',
+      banner3Sub: '限量福利，先到先得',
+    },
+  },
+  th: {
+    common: {
+      home: 'หน้าแรก',
+      agent: 'ผู้ช่วย',
+      mine: 'ของฉัน',
+      systemMenu: 'เมนูระบบ',
+      language: 'ภาษาระบบ',
+      systemInfo: 'คำอธิบายระบบ',
+      userAgreement: 'ข้อตกลงผู้ใช้',
+      privacyPolicy: 'นโยบายความเป็นส่วนตัว',
+      aboutUs: 'เกี่ยวกับเรา',
+    },
+    welfare: {
+      title: 'ศูนย์สิทธิประโยชน์',
+      subtitle: 'CityOne Growth Hub',
+      banner1Title: 'สิทธิพิเศษผู้ใช้ใหม่',
+      banner1Sub: 'ติดตาม OA เพื่อรับสิทธิ์พิเศษทันที',
+      banner2Title: 'Battery SOS',
+      banner2Sub: 'แบตใกล้หมดก็หาสถานีใกล้คุณได้ทันที',
+      banner3Title: 'คูปองด่วนจำนวนจำกัด',
+      banner3Sub: 'สิทธิ์มีจำนวนจำกัด มาก่อนได้ก่อน',
+    },
+  },
+  en: {
+    common: {
+      home: 'Home',
+      agent: 'Agent',
+      mine: 'Mine',
+      systemMenu: 'System Menu',
+      language: 'System Language',
+      systemInfo: 'System Info',
+      userAgreement: 'User Agreement',
+      privacyPolicy: 'Privacy Policy',
+      aboutUs: 'About Us',
+    },
+    welfare: {
+      title: 'Welfare Center',
+      subtitle: 'CityOne Growth Hub',
+      banner1Title: 'First Borrow Season',
+      banner1Sub: 'Follow the OA to unlock newcomer benefits',
+      banner2Title: 'Battery SOS',
+      banner2Sub: 'Find nearby stations even on low battery',
+      banner3Title: 'Flash Coupon Drop',
+      banner3Sub: 'Limited quantity, first come first served',
+    },
+  },
+} as const
+
+function getHomeMessage(language: AppLanguage, group: 'common' | 'welfare', key: string) {
+  const messages = HOME_MESSAGES[language] || HOME_MESSAGES.en
+  return (messages[group] as Record<string, string>)[key] || (HOME_MESSAGES.en[group] as Record<string, string>)[key] || key
+}
 
 // ─── 双层 Stale-While-Revalidate 缓存 ────────────────────────────
 //
@@ -40,6 +126,59 @@ type LocalizedField = Partial<Record<AppLanguage, string>>
 const CACHE_TTL_MS = 2 * 60 * 1000           // 内存：2 分钟内不重复请求
 const LS_KEY = 'cityone_welfare_v3'
 const LS_TTL_MS = 30 * 60 * 1000             // localStorage：30 分钟有效
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+
+async function fetchPublicJson(path: string, params?: Record<string, string | number | boolean | undefined>) {
+  const url = new URL(`${API_BASE}${path}`, window.location.origin)
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    url.searchParams.set(key, String(value))
+  })
+  const res = await fetch(url.toString(), { credentials: 'same-origin' })
+  const json = await res.json()
+  if (!res.ok) {
+    throw new Error(json?.msg || json?.message || `Request failed: ${path}`)
+  }
+  return json
+}
+
+function isObjectKey(v?: string): boolean {
+  if (!v) return false
+  if (v.startsWith('http') || v.startsWith('/')) return false
+  return v.includes('/')
+}
+
+function usePublicOssUrl(src?: string) {
+  const [url, setUrl] = useState('')
+
+  useEffect(() => {
+    if (!src) {
+      setUrl('')
+      return
+    }
+    if (!isObjectKey(src)) {
+      setUrl(src)
+      return
+    }
+
+    let cancelled = false
+    fetchPublicJson('/media/view-url', { key: src })
+      .then((json: any) => {
+        if (cancelled) return
+        setUrl(json?.data?.previewUrl || '')
+      })
+      .catch(() => {
+        if (!cancelled) setUrl('')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [src])
+
+  return url
+}
+
 function isLegacyLocalUpload(value: any) {
   return typeof value === 'string' && value.trim().startsWith('/uploads/')
 }
@@ -122,6 +261,35 @@ function getCityLabel(cityCode: string, lang: AppLanguage) {
   return item.en
 }
 
+function InlineIcon({
+  label,
+  children,
+  color = '#667085',
+  size = 16,
+}: {
+  label: string
+  children: React.ReactNode
+  color?: string
+  size?: number
+}) {
+  return (
+    <span
+      aria-label={label}
+      style={{
+        color,
+        fontSize: size,
+        lineHeight: 1,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: size,
+      }}
+    >
+      {children}
+    </span>
+  )
+}
+
 // ---------- cover 样式辅助 ----------
 // cover 可能是 CSS 渐变字符串，也可能是真实图片 URL
 // 图片 URL 须用 backgroundImage + url() 才能正确显示
@@ -166,7 +334,7 @@ function WaterfallCard({
   const ptLabel = lang === 'zh' ? '积分' : lang === 'th' ? 'คะแนน' : 'pts'
 
   // Resolve OSS object keys to signed HTTPS URLs reactively
-  const ossUrl = useOssUrl(isObjectKey(cover) ? cover : undefined)
+  const ossUrl = usePublicOssUrl(isObjectKey(cover) ? cover : undefined)
   const resolvedCover = isObjectKey(cover) ? ossUrl : cover
 
   return (
@@ -254,7 +422,7 @@ function WaterfallCard({
                   lineHeight: 1.3,
                 }}
               >
-                <EyeOutlined style={{ fontSize: 10 }} />
+                <InlineIcon label="views" size={10}>◔</InlineIcon>
                 {viewsLabel}
               </div>
             </div>
@@ -270,7 +438,7 @@ function WaterfallCard({
                 lineHeight: 1.3,
               }}
             >
-              <FireOutlined style={{ fontSize: 11, color: '#F59E0B' }} />
+              <InlineIcon label="hot" size={11} color="#F59E0B">✦</InlineIcon>
               {viewsLabel}
             </div>
           )}
@@ -379,7 +547,21 @@ function SidePanel({
 export default function WelfareHomePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { t, language, setLanguage } = useI18n()
+  const [language, setLanguageState] = useState<AppLanguage>(() => detectHomeLanguage())
+
+  const t = React.useCallback((key: string) => {
+    const [group, name] = key.split('.')
+    if (group !== 'common' && group !== 'welfare') return key
+    return getHomeMessage(language, group, name)
+  }, [language])
+
+  const setLanguage = React.useCallback((next: AppLanguage) => {
+    setLanguageState(next)
+    try {
+      window.localStorage.setItem(STORAGE_MODE_KEY, 'manual')
+      window.localStorage.setItem(STORAGE_KEY, next)
+    } catch {}
+  }, [])
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
@@ -421,14 +603,10 @@ export default function WelfareHomePage() {
   const [apiBanners, setApiBanners] = useState<any[]>(_pageCache.banners)
   useEffect(() => {
     if (Date.now() - _pageCache.bannersAt < CACHE_TTL_MS) return
-    request.get('/growth/banners', { params: { enabled: 'true' } }).then((res: any) => {
-      const list = res.data?.list || []
+    fetchPublicJson('/growth/banners', { enabled: 'true' }).then((res: any) => {
+      const list = res?.data?.list || res?.list || []
       if (list.length > 0) {
         _pageCache.banners = list; _pageCache.bannersAt = Date.now(); setApiBanners(list)
-        list.forEach((b: any) => {
-          const m = typeof b.link_url === 'string' && b.link_url.match(/\/activity\/([^/?]+)/)
-          if (m) prefetchActivity(m[1])
-        })
         lsSave({ banners: list, activities: _pageCache.activities, coupons: _pageCache.coupons, mallItems: _pageCache.mallItems })
       }
     }).catch(() => {})
@@ -491,8 +669,8 @@ export default function WelfareHomePage() {
       if (c.discount_type === 'percent')    return `${100 - val}% OFF`
       return `฿${val} OFF`
     }
-    ;(request.get('/user/coupons') as any).then((res: any) => {
-      const list: any[] = res.data || []
+    fetchPublicJson('/user/coupons').then((res: any) => {
+      const list: any[] = res?.data || []
       const rawCards: ContentCard[] = list.map(c => ({
         id: c.id,
         type: 'coupon' as const,
@@ -513,7 +691,7 @@ export default function WelfareHomePage() {
 
   useEffect(() => {
     if (Date.now() - _pageCache.activitiesAt < CACHE_TTL_MS) return
-    getActivities({ status: 'active' }).then(res => {
+    fetchPublicJson('/activities', { status: 'active' }).then((res: any) => {
       const COVER_GRADIENTS = [
         'linear-gradient(135deg, #2CDBCE 0%, #2F80FF 100%)',
         'linear-gradient(135deg, #7B61FF 0%, #2F80FF 100%)',
@@ -530,7 +708,7 @@ export default function WelfareHomePage() {
         '召回': { zh: '召回', th: 'ดึงกลับ', en: 'Recall' },
         '联合活动': { zh: '联合', th: 'ร่วมกิจกรรม', en: 'Joint' },
       }
-      const list: any[] = (res as any).data || []
+      const list: any[] = res?.data || []
       const toML = (v: any, fb: Record<string, string>) =>
         (v && typeof v === 'object' && !Array.isArray(v)) ? v : (v ? { zh: v, th: v, en: v } : fb)
       const rawCards: ContentCard[] = list.map((a, idx) => ({
@@ -544,7 +722,6 @@ export default function WelfareHomePage() {
       }))
       _pageCache.activities = rawCards; _pageCache.activitiesAt = Date.now()
       setApiActivities(rawCards)
-      rawCards.forEach(c => prefetchActivity(c.id))
       lsSave({ banners: _pageCache.banners, activities: rawCards, coupons: _pageCache.coupons, mallItems: _pageCache.mallItems })
     }).catch(() => {})
   }, [])
@@ -556,9 +733,9 @@ export default function WelfareHomePage() {
       physical: 'linear-gradient(135deg, #FF7A59 0%, #FFB36B 100%)',
       service:  'linear-gradient(135deg, #2F80FF 0%, #91C4FF 100%)',
     }
-    ;(request.get('/growth/mall/items', { params: { onShelf: 'true', pageSize: 50 } }) as any)
+    fetchPublicJson('/growth/mall/items', { onShelf: 'true', pageSize: 50 })
       .then((res: any) => {
-        const list: any[] = (res.data || res)?.list || []
+        const list: any[] = res?.data?.list || res?.list || []
         const toML = (v: any, fb: Record<string, string>) =>
           (v && typeof v === 'object' && !Array.isArray(v)) ? v : (v ? { zh: v, th: v, en: v } : fb)
         const rawCards: ContentCard[] = list.map(item => ({
@@ -618,14 +795,14 @@ export default function WelfareHomePage() {
         >
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, minHeight: 44 }}>
             <PlainIconButton onClick={() => setMenuOpen(true)} style={{ width: 40, height: 40, flexShrink: 0, display: 'grid', placeItems: 'center' }}>
-              <MenuOutlined style={{ fontSize: 20 }} />
+              <InlineIcon label="menu" size={20}>☰</InlineIcon>
             </PlainIconButton>
             <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', pointerEvents: 'none' }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: '#111827', whiteSpace: 'nowrap' }}>{t('welfare.title')}</div>
               <div style={{ fontSize: 12, color: '#667085', whiteSpace: 'nowrap' }}>{t('welfare.subtitle')}</div>
             </div>
             <PlainIconButton onClick={() => setCityOpen(true)} style={{ height: 40, paddingInline: 8, fontWeight: 700, color: '#2CDBCE', flexShrink: 0 }}>
-              {getCityLabel(cityCode, language)} <DownOutlined style={{ fontSize: 11, marginLeft: 3 }} />
+              {getCityLabel(cityCode, language)} <InlineIcon label="expand" size={11} color="#2CDBCE">▾</InlineIcon>
             </PlainIconButton>
           </div>
 
@@ -708,7 +885,7 @@ export default function WelfareHomePage() {
               <WaterfallCard
                 key={item.id}
                 type={item.type}
-                title={pickLocalizedText({ title: item.title }, 'title', language)}
+                title={pickLocalizedValue(item.title, language)}
                 cover={item.cover}
                 views={item.views}
                 price={item.price}
@@ -729,12 +906,49 @@ export default function WelfareHomePage() {
         </div>
 
         <div style={{ maxWidth: 560, margin: '0 auto' }}>
-          <UserBottomNav
-            current="home"
-            onHome={() => navigate('/welfare')}
-            onAgent={() => navigate('/agent/chat')}
-            onMine={() => navigate('/mine')}
-          />
+          <div
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 100,
+              background: 'rgba(255,255,255,0.96)',
+              backdropFilter: 'blur(10px)',
+              borderTop: '1px solid rgba(0,0,0,0.06)',
+              display: 'flex',
+              paddingBottom: 8,
+              paddingTop: 4,
+            }}
+          >
+            {[
+              { key: 'home', label: t('common.home'), icon: '⌂', onClick: () => navigate('/welfare') },
+              { key: 'agent', label: t('common.agent'), icon: '◎', onClick: () => navigate('/agent/chat') },
+              { key: 'mine', label: t('common.mine'), icon: '◉', onClick: () => navigate('/mine') },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={item.onClick}
+                style={{
+                  flex: 1,
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '10px 0 8px',
+                  color: item.key === 'home' ? '#2CDBCE' : '#7a7a7a',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontWeight: item.key === 'home' ? 700 : 500,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -743,7 +957,7 @@ export default function WelfareHomePage() {
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: 14, boxShadow: '0 8px 18px rgba(15,23,42,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 10 }}>
-              <GlobalOutlined />{t('common.language')}
+              <InlineIcon label="language">🌐</InlineIcon>{t('common.language')}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button style={langButtonStyle('zh')} onClick={() => setLanguage('zh')}>中文</button>
@@ -752,17 +966,17 @@ export default function WelfareHomePage() {
             </div>
           </div>
           {[
-            { icon: <InfoCircleOutlined />, title: t('common.systemInfo'), onClick: () => { setMenuOpen(false); navigate('/system-desc') } },
-            { icon: <FileTextOutlined />, title: t('common.userAgreement'), onClick: () => { setMenuOpen(false); navigate('/user-agreement') } },
-            { icon: <SafetyCertificateOutlined />, title: t('common.privacyPolicy'), onClick: () => { setMenuOpen(false); navigate('/privacy-policy') } },
-            { icon: <TeamOutlined />, title: t('common.aboutUs'), onClick: () => { setMenuOpen(false); navigate('/about-us') } },
+            { icon: <InlineIcon label="info">ⓘ</InlineIcon>, title: t('common.systemInfo'), onClick: () => { setMenuOpen(false); navigate('/system-desc') } },
+            { icon: <InlineIcon label="agreement">≣</InlineIcon>, title: t('common.userAgreement'), onClick: () => { setMenuOpen(false); navigate('/user-agreement') } },
+            { icon: <InlineIcon label="privacy">☑</InlineIcon>, title: t('common.privacyPolicy'), onClick: () => { setMenuOpen(false); navigate('/privacy-policy') } },
+            { icon: <InlineIcon label="about">◎</InlineIcon>, title: t('common.aboutUs'), onClick: () => { setMenuOpen(false); navigate('/about-us') } },
           ].map((item) => (
             <div
               key={item.title} onClick={item.onClick}
               style={{ background: '#fff', borderRadius: 18, padding: 14, boxShadow: '0 8px 18px rgba(15,23,42,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>{item.icon}{item.title}</div>
-              <RightOutlined style={{ fontSize: 12, color: '#A0A7B3' }} />
+              <InlineIcon label="next" size={12} color="#A0A7B3">›</InlineIcon>
             </div>
           ))}
         </div>
