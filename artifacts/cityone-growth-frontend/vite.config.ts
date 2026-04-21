@@ -30,6 +30,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, 'dist/public'),
     emptyOutDir: true,
+    modulePreload: false,
     rollupOptions: {
       output: {
         manualChunks: {

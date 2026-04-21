@@ -1,9 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Navigate, Routes, Route, useSearchParams } from 'react-router-dom'
-import { QueryClientProvider } from '@tanstack/react-query'
 import ErrorBoundary from './components/ErrorBoundary'
-import queryClient from './lib/queryClient'
 import { LiffProvider } from './providers/LiffProvider'
 import ContinuePage from './pages/user/ContinuePage'
 import OpenInLinePage from './pages/user/OpenInLinePage'
@@ -44,9 +42,12 @@ function WelfareCallbackEntryPage() {
     return ''
   }, [searchParams])
 
-  if (targetPath) {
-    return <Navigate to={targetPath} replace />
-  }
+  React.useEffect(() => {
+    if (!targetPath) return
+    window.location.replace(targetPath)
+  }, [targetPath])
+
+  if (targetPath) return null
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
@@ -69,25 +70,27 @@ function WelfareCallbackEntryPage() {
   )
 }
 
+function CallbackLiffShell({ children }: { children: React.ReactNode }) {
+  return (
+    <LiffProvider>
+      <ErrorBoundary>{children}</ErrorBoundary>
+    </LiffProvider>
+  )
+}
+
 export default function CallbackEntry() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <LiffProvider>
-          <CallbackTitleSync />
-          <ErrorBoundary>
-            <Routes>
-              <Route path="/welfare" element={<WelfareCallbackEntryPage />} />
-              <Route path="/welfare/continue" element={<ContinuePage />} />
-              <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
-              <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
-              <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
-              <Route path="*" element={<Navigate to="/welfare" replace />} />
-            </Routes>
-          </ErrorBoundary>
-        </LiffProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <BrowserRouter>
+      <CallbackTitleSync />
+      <Routes>
+        <Route path="/welfare" element={<WelfareCallbackEntryPage />} />
+        <Route path="/welfare/open-in-line" element={<ErrorBoundary><OpenInLinePage /></ErrorBoundary>} />
+        <Route path="/welfare/continue" element={<CallbackLiffShell><ContinuePage /></CallbackLiffShell>} />
+        <Route path="/welfare/follow-confirm" element={<CallbackLiffShell><FollowConfirmPage /></CallbackLiffShell>} />
+        <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
+        <Route path="*" element={<Navigate to="/welfare" replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

@@ -1,9 +1,8 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把外部浏览器引导页改回报错页或首页 fallback。
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import { buildContinueLaunchTargets, getRuntimeLineConfig } from '../../lib/line'
-import { useLiff } from '../../providers/LiffProvider'
+import { buildContinueLaunchTargets, getRuntimeLineConfig, setRuntimeLineConfig } from '../../lib/line'
 import { resetCurrentIdentitySession } from '../../lib/identitySession'
 
 /**
@@ -20,11 +19,11 @@ import { resetCurrentIdentitySession } from '../../lib/identitySession'
 export default function OpenInLinePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { inLineClient } = useLiff()
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(payload?.return_path || '/welfare')
-  const lineCfg = getRuntimeLineConfig()
+  const inLineClient = /Line\/\d/i.test(navigator.userAgent)
+  const [lineCfg, setLineCfg] = useState(() => getRuntimeLineConfig())
   const { continueLiffUrl, continueLineSchemeUrl, oaAddFriendUrl } = buildContinueLaunchTargets(
     intentToken,
     lineCfg.liffId,
@@ -32,7 +31,26 @@ export default function OpenInLinePage() {
   )
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (lineCfg.liffId && lineCfg.officialAccountId) return
+    let cancelled = false
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+    void fetch(`${API_BASE}/api/growth/line/config`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return
+        setRuntimeLineConfig(json?.data || null)
+        setLineCfg(getRuntimeLineConfig())
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [lineCfg.liffId, lineCfg.officialAccountId])
+
+  useEffect(() => {
     console.info('[follow-flow] open_in_line_view', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
