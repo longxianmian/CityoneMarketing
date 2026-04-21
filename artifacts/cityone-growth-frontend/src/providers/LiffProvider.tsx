@@ -53,8 +53,6 @@ function getInitAttemptKey(initKey: string) {
   return `_liff_init_attempted:${initKey}`
 }
 
-}
-
 function shouldBlockInitByCooldown(initKey: string) {
   try {
     const raw = sessionStorage.getItem(getInitAttemptKey(initKey))
