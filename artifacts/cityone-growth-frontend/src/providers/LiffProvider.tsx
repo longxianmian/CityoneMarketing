@@ -15,11 +15,13 @@
  *   - 通过 useLineUserStore.getState().setProfile() 更新 store（无需 hook）
  *   - 暴露 getLiff() 让页面可以直接调用 liff.getFriendship() 等 API
  */
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import useLineUserStore from '../store/lineUser'
 import { resolveRuntimeLiffId, setRuntimeLineConfig } from '../lib/line'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const LIFF_INIT_TIMEOUT_MS = 5000
+const INIT_COOLDOWN_MS = 4000
 
 export interface LiffContextValue {
   liffReady: boolean
@@ -41,69 +43,113 @@ export function useLiff() {
 // 模块级缓存，页面组件可通过 getLiff() 直接调用 LIFF API
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _liffInstance: any = null
-let _liffInitiated = false
-let _liffId = ''  // 缓存已拉取的 LIFF ID，catch 块中也可访问
 
 /** 获取已初始化的 liff 实例（可能为 null，需判断）*/
 export function getLiff() {
   return _liffInstance
 }
 
-async function initLiff(
+function detectLineAppUA(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Line\/\d/i.test(navigator.userAgent)
+}
+
+function buildInitKey() {
+  return `${window.location.pathname}${window.location.search}`
+}
+
+function getInitAttemptKey(initKey: string) {
+  return `_liff_init_attempted:${initKey}`
+}
+
+function shouldBlockInitByCooldown(initKey: string) {
+  try {
+    const raw = sessionStorage.getItem(getInitAttemptKey(initKey))
+    const ts = Number(raw || 0)
+    if (!ts) return false
+    return Date.now() - ts < INIT_COOLDOWN_MS
+  } catch {
+    return false
+  }
+}
+
+function markInitAttempt(initKey: string) {
+  try {
+    sessionStorage.setItem(getInitAttemptKey(initKey), String(Date.now()))
+  } catch {}
+}
+
+function clearInitAttempt(initKey: string) {
+  try {
+    sessionStorage.removeItem(getInitAttemptKey(initKey))
+  } catch {}
+}
+
+async function initLiffOnce(
   onReady: (ctx: LiffContextValue) => void,
-  signal: { cancelled: boolean }
+  signal: { cancelled: boolean },
+  initKey: string,
 ) {
-  if (_liffInitiated) return
-  _liffInitiated = true
+  const inLineUA = detectLineAppUA()
+
+  if (shouldBlockInitByCooldown(initKey)) {
+    onReady({ liffReady: false, inLineClient: inLineUA, liffChecked: true })
+    return
+  }
+
+  markInitAttempt(initKey)
 
   try {
-    // 1. 从后端拉取 LIFF ID
     const res = await fetch(`${API_BASE}/api/growth/line/config`)
     const json = await res.json()
     setRuntimeLineConfig(json?.data || null)
-    const liffId: string = resolveRuntimeLiffId(json?.data?.liffId)
-    _liffId = liffId  // 供 catch 块使用
 
+    const liffId = resolveRuntimeLiffId(json?.data?.liffId)
     if (!liffId) {
       onReady({ liffReady: false, inLineClient: false, liffChecked: true })
       return
     }
 
-    // 2. 动态导入 LIFF SDK（避免 SSR/测试环境问题）
     const liff = (await import('@line/liff')).default
     await liff.init({ liffId })
     if (signal.cancelled) return
 
     _liffInstance = liff
-    const isInClient = liff.isInClient()
+    const inLineClient = (typeof liff.isInClient === 'function' ? liff.isInClient() : false) || inLineUA
 
-    // 3. 获取真实 LINE 用户资料
     if (!liff.isLoggedIn()) {
-      if (!signal.cancelled) {
-        onReady({ liffReady: false, inLineClient: isInClient, liffChecked: true })
-      }
+      onReady({ liffReady: false, inLineClient, liffChecked: true })
       return
     }
 
-    // 已完成 LIFF 登录后，无论是在 LINE 内还是外部浏览器，都要建立真实 LINE 身份。
-    // 生产链路要求外部浏览器中的 LIFF 回流也能完成 identify / follow 校验，
-    // 否则会出现“关注并继续 -> 回到 /welfare -> 又弹关注”的循环。
     const lineProfile = await liff.getProfile()
     if (signal.cancelled) return
 
-    // 4. 检查是否已关注 OA（用于 useFollowGate 快速判断）
+    try {
+      const url = new URL(window.location.href)
+      const stripKeys = ['code', 'state', 'liffClientId', 'liffRedirectUri', 'liffReferer', 'liff.state', 'error', 'error_description']
+      let touched = false
+      for (const key of stripKeys) {
+        if (url.searchParams.has(key)) {
+          url.searchParams.delete(key)
+          touched = true
+        }
+      }
+      if (touched) {
+        const cleanQs = url.searchParams.toString()
+        const cleanUrl = url.pathname + (cleanQs ? `?${cleanQs}` : '') + url.hash
+        window.history.replaceState(window.history.state, '', cleanUrl)
+      }
+    } catch {}
+
     let isFriend: boolean | undefined
-    if (isInClient) {
+    if (typeof liff.isInClient === 'function' && liff.isInClient()) {
       try {
         const friendship = await liff.getFriendship()
         isFriend = friendship.friendFlag
-      } catch {
-        // getFriendship 在 LINE 外部浏览器里会打 friendship/v1/status 并返回 400，
-        // 这里仅在 LINE 内置浏览器中调用；外部浏览器统一交给后端 check-follow 收口。
-      }
+      } catch {}
     }
 
-    // 写入 store（不使用 hook，避免 React 版本冲突）
     useLineUserStore.getState().setProfile({
       lineUserId: lineProfile.userId,
       lineDisplayName: lineProfile.displayName,
@@ -117,7 +163,6 @@ async function initLiff(
       isFriend,
     })
 
-    // 调用 identify 接口：写入 users 表，获取 canonical user_id 和身份标签
     try {
       const idRes = await fetch(`${API_BASE}/api/user/identify`, {
         method: 'POST',
@@ -131,45 +176,60 @@ async function initLiff(
       })
       const idJson = await idRes.json()
       const idData = idJson?.data || {}
-      if (idData.user_id) {
-        useLineUserStore.getState().setCanonicalUserId(idData.user_id)
-      }
-      const identityLevel = idData.identity_level || idData.identity_tag
-      if (identityLevel) {
-        useLineUserStore.getState().setIdentityTag(identityLevel)
+      useLineUserStore.getState().setCanonicalUserId(idData.user_id || lineProfile.userId)
+      if (idData.identity_level || idData.identity_tag) {
+        useLineUserStore.getState().setIdentityTag(idData.identity_level || idData.identity_tag)
       }
       if (typeof idData.is_fan === 'boolean') {
         useLineUserStore.getState().setIsFriend(idData.is_fan)
       }
     } catch {
-      // identify 失败不阻塞用户，降级使用 LINE User ID 作为 canonical ID
       useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
     }
 
-    if (!signal.cancelled) {
-      onReady({ liffReady: true, inLineClient: isInClient, liffChecked: true })
-    }
+    clearInitAttempt(initKey)
+    onReady({ liffReady: true, inLineClient, liffChecked: true })
   } catch (err) {
-    // 若在 LINE 内置浏览器但当前 URL 不在 LIFF 端点 (/welfare) 下，重定向到正确端点
-    // 这解决了同事从根链接 / 或其他路径进入时 LIFF 初始化失败的问题
-    const isInLineApp = /Line\/\d/i.test(navigator.userAgent)
-    const notAtEndpoint = !window.location.pathname.startsWith('/welfare')
-    if (isInLineApp && notAtEndpoint && _liffId) {
-      window.location.replace('/welfare')
-      return
-    }
     console.warn('[LIFF] init failed, production LINE identity is unavailable:', err)
-    onReady({ liffReady: false, inLineClient: false, liffChecked: true })
+    onReady({ liffReady: false, inLineClient: inLineUA, liffChecked: true })
   }
 }
 
 export function LiffProvider({ children }: { children: React.ReactNode }) {
   const [ctx, setCtx] = useState<LiffContextValue>({ liffReady: false, inLineClient: false, liffChecked: false })
+  const initStartedRef = useRef(false)
+  const initResolvedRef = useRef(false)
+  const initKeyRef = useRef('')
 
   useEffect(() => {
     const signal = { cancelled: false }
-    initLiff(setCtx, signal)
-    return () => { signal.cancelled = true }
+    const initKey = buildInitKey()
+
+    if (initStartedRef.current && initKeyRef.current === initKey) return
+
+    initStartedRef.current = true
+    initResolvedRef.current = false
+    initKeyRef.current = initKey
+
+    let timer = 0
+    const safeSetCtx = (next: LiffContextValue) => {
+      if (signal.cancelled || initResolvedRef.current) return
+      initResolvedRef.current = true
+      window.clearTimeout(timer)
+      setCtx(next)
+    }
+
+    timer = window.setTimeout(() => {
+      if (signal.cancelled || initResolvedRef.current) return
+      safeSetCtx({ liffReady: false, inLineClient: detectLineAppUA(), liffChecked: true })
+    }, LIFF_INIT_TIMEOUT_MS)
+
+    void initLiffOnce(safeSetCtx, signal, initKey)
+
+    return () => {
+      signal.cancelled = true
+      window.clearTimeout(timer)
+    }
   }, [])
 
   return <LiffContext.Provider value={ctx}>{children}</LiffContext.Provider>

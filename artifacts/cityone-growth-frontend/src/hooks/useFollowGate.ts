@@ -24,7 +24,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
-import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../lib/line'
+import { buildContinueLaunchTargets, getRuntimeLineConfig } from '../lib/line'
 import { useLiff } from '../providers/LiffProvider'
 
 interface GuardOptions {
@@ -106,18 +106,71 @@ export function useFollowGate() {
           source,
         })
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
+        const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
         if (inLineClient) {
           navigate(continuePath)
           return
         }
 
-        const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(issued.token)}`, getRuntimeLineConfig().liffId)
-        if (liffUrl) {
-          window.location.assign(liffUrl)
+        const lineCfg = getRuntimeLineConfig()
+        const { continueLiffUrl, continueLineSchemeUrl } = buildContinueLaunchTargets(
+          issued.token,
+          lineCfg.liffId,
+          lineCfg.officialAccountId,
+        )
+
+        if (!continueLiffUrl) {
+          navigate(openInLinePath)
           return
         }
 
-        navigate(`/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`)
+        let fallbackTriggered = false
+        let pageLeft = false
+        let fallbackTimer = 0
+
+        const clearAll = () => {
+          window.clearTimeout(fallbackTimer)
+          window.removeEventListener('blur', handleBlur)
+          document.removeEventListener('visibilitychange', handleVisibilityChange)
+          window.removeEventListener('pagehide', handlePageHide)
+        }
+
+        const handleBlur = () => {
+          pageLeft = true
+          clearAll()
+        }
+
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === 'hidden') {
+            pageLeft = true
+            clearAll()
+          }
+        }
+
+        const handlePageHide = () => {
+          pageLeft = true
+          clearAll()
+        }
+
+        window.addEventListener('blur', handleBlur, { once: true })
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        window.addEventListener('pagehide', handlePageHide, { once: true })
+
+        fallbackTimer = window.setTimeout(() => {
+          if (pageLeft || fallbackTriggered) return
+          fallbackTriggered = true
+          clearAll()
+          navigate(openInLinePath)
+        }, 3000)
+
+        window.location.assign(continueLiffUrl)
+
+        if (continueLineSchemeUrl) {
+          window.setTimeout(() => {
+            if (pageLeft || fallbackTriggered) return
+            window.location.assign(continueLineSchemeUrl)
+          }, 600)
+        }
       } catch (err: any) {
         message.error(err?.message || '创建待恢复动作失败')
       } finally {

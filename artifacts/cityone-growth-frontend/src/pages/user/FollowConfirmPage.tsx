@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getLiff, useLiff } from '../../providers/LiffProvider'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
+import { buildOaAddFriendUrl, getRuntimeLineConfig } from '../../lib/line'
 
 /**
  * 强约束：
@@ -21,6 +22,8 @@ export default function FollowConfirmPage() {
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(payload?.return_path || '/welfare')
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
+  const lineCfg = getRuntimeLineConfig()
+  const oaAddFriendUrl = buildOaAddFriendUrl(lineCfg.officialAccountId)
 
   useEffect(() => {
     console.info('[follow-flow] follow_confirm_view', {
@@ -31,17 +34,27 @@ export default function FollowConfirmPage() {
 
   const handleConfirm = async () => {
     const liff = getLiff()
+    if (submitting) return
     setSubmitting(true)
+
     try {
       if (inLineClient && liffReady && liff?.requestFriendship) {
         await liff.requestFriendship()
+        navigate(continuePath, { replace: true })
+        return
       }
-      console.info('[follow-flow] follow_confirm_success', {
-        intent_id: payload?.intent_id || '',
-        action_type: payload?.action || '',
-      })
-      navigate(continuePath, { replace: true })
+
+      if (oaAddFriendUrl) {
+        window.location.assign(oaAddFriendUrl)
+        return
+      }
+
+      setSubmitting(false)
     } catch {
+      if (oaAddFriendUrl) {
+        window.location.assign(oaAddFriendUrl)
+        return
+      }
       setSubmitting(false)
     }
   }

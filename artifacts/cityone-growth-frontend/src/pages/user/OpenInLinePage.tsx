@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import { buildRuntimeLiffUrlWithPath, getRuntimeLineConfig } from '../../lib/line'
+import { buildContinueLaunchTargets, getRuntimeLineConfig } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { resetCurrentIdentitySession } from '../../lib/identitySession'
 
@@ -24,16 +24,22 @@ export default function OpenInLinePage() {
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const returnPath = String(payload?.return_path || '/welfare')
-  const actionName = String(payload?.action_name || payload?.action || '当前操作')
-  const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, getRuntimeLineConfig().liffId)
+  const lineCfg = getRuntimeLineConfig()
+  const { continueLiffUrl, continueLineSchemeUrl, oaAddFriendUrl } = buildContinueLaunchTargets(
+    intentToken,
+    lineCfg.liffId,
+    lineCfg.officialAccountId,
+  )
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
 
   React.useEffect(() => {
     console.info('[follow-flow] open_in_line_view', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
+      in_line_client: inLineClient,
     })
-  }, [payload?.action, payload?.intent_id])
+    if (inLineClient) navigate(continuePath, { replace: true })
+  }, [continuePath, inLineClient, navigate, payload?.action, payload?.intent_id])
 
   const handleOpenInLine = () => {
     if (!intentToken) return
@@ -42,12 +48,13 @@ export default function OpenInLinePage() {
       action_type: payload?.action || '',
       target: inLineClient ? '/welfare/continue?intent=...' : 'liff:/continue?intent=...',
     })
-    if (inLineClient) {
-      navigate(continuePath, { replace: true })
+    if (continueLiffUrl) {
+      window.location.assign(continueLiffUrl)
       return
     }
-    if (!liffUrl) return
-    window.location.href = liffUrl
+    if (continueLineSchemeUrl) {
+      window.location.assign(continueLineSchemeUrl)
+    }
   }
 
   const handleResetIdentity = () => {
@@ -71,29 +78,25 @@ export default function OpenInLinePage() {
           </div>
         </div>
         <div style={{ padding: 24 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#172b24', marginBottom: 10, textAlign: 'center' }}>关注 LINE OA</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#172b24', marginBottom: 10, textAlign: 'center' }}>请在 LINE 中继续</div>
           <div style={{ color: '#5f6f68', lineHeight: 1.8, marginBottom: 16, textAlign: 'center' }}>
-            点击下方按钮后，系统会先判断你是否已经关注 CityOne LINE OA。
-            <br />
-            已是粉丝会直接继续{actionName}；未关注用户会先进入关注确认，完成后自动继续后续步骤。
-          </div>
-          <div style={{ borderRadius: 18, background: '#fff8ef', border: '1px solid #fde4be', padding: '14px 16px', color: '#a45b10', marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>继续后你会获得什么</div>
-            <div>完成关注后即可继续领取卡券、参与活动、兑换权益或进入下一业务流程。</div>
-          </div>
-          <div style={{ borderRadius: 18, background: '#f4fff9', border: '1px solid #d7f4e5', padding: '14px 16px', color: '#2f5c45', marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>操作步骤</div>
-            <div>1. 点击“关注 LINE OA 并继续”</div>
-            <div>2. 系统判断当前会话是否已是 OA 粉丝</div>
-            <div>3. 粉丝直接继续业务，非粉丝先关注后再自动继续</div>
+            系统已为你准备好当前操作，请点击下方按钮继续。
           </div>
           <button
-            disabled={(!liffUrl && !inLineClient) || !intentToken}
+            disabled={(!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken}
             onClick={handleOpenInLine}
-            style={{ width: '100%', height: 48, borderRadius: 999, fontWeight: 700, border: 'none', background: ((!liffUrl && !inLineClient) || !intentToken) ? '#b7ead7' : '#12b981', color: '#fff', cursor: (!liffUrl && !inLineClient) || !intentToken ? 'not-allowed' : 'pointer' }}
+            style={{ width: '100%', height: 48, borderRadius: 999, fontWeight: 700, border: 'none', background: ((!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken) ? '#b7ead7' : '#12b981', color: '#fff', cursor: (!continueLiffUrl && !continueLineSchemeUrl && !inLineClient) || !intentToken ? 'not-allowed' : 'pointer' }}
           >
-            关注 LINE OA 并继续
+            打开 LINE 继续
           </button>
+          {oaAddFriendUrl ? (
+            <button
+              style={{ marginTop: 12, height: 44, borderRadius: 999, width: '100%', border: '1px solid #d9d9d9', background: '#fff', cursor: 'pointer' }}
+              onClick={() => window.location.assign(oaAddFriendUrl)}
+            >
+              关注 OA
+            </button>
+          ) : null}
           <button
             style={{ marginTop: 12, height: 44, borderRadius: 999, width: '100%', border: '1px solid #d9d9d9', background: '#fff', cursor: 'pointer' }}
             onClick={() => navigate(returnPath, { replace: true })}

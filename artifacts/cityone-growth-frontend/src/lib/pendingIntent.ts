@@ -80,8 +80,11 @@ export function decodePendingIntentPayload(token: string) {
   try {
     const [encoded] = String(token || '').trim().split('.')
     if (!encoded) return null
-    const padded = encoded.replace(/-/g, '+').replace(/_/g, '/')
-    const json = atob(padded)
+    const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4)
+    const binary = window.atob(padded)
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+    const json = new TextDecoder().decode(bytes)
     return JSON.parse(json)
   } catch {
     return null

@@ -62,6 +62,34 @@ export function buildRuntimeLiffUrlWithPath(extraPath?: string | null, value?: s
   return `${liffUrl}${normalized}`
 }
 
+export function buildRuntimeLineSchemeUrlWithPath(extraPath?: string | null, value?: string | null) {
+  const liffId = resolveRuntimeLiffId(value)
+  if (!liffId) return ''
+  const normalized = normalizeRuntimeLiffExtraPath(extraPath)
+  return `line://app/${liffId}${normalized}`
+}
+
+export function buildOaAddFriendUrl(value?: string | null) {
+  const raw = String(value || runtimeLineConfig.officialAccountId || '').trim()
+  if (!raw) return ''
+  const officialAccountId = raw.startsWith('@') ? raw.slice(1) : raw
+  if (!officialAccountId) return ''
+  return `https://line.me/R/ti/p/@${encodeURIComponent(officialAccountId)}`
+}
+
+export function buildContinueLaunchTargets(
+  intentToken: string,
+  liffId?: string | null,
+  officialAccountId?: string | null,
+) {
+  const continueExtraPath = `/continue?intent=${encodeURIComponent(intentToken)}`
+  return {
+    continueLiffUrl: buildRuntimeLiffUrlWithPath(continueExtraPath, liffId),
+    continueLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(continueExtraPath, liffId),
+    oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
+  }
+}
+
 export function isRuntimeFollowGateReady() {
   if (!runtimeLineConfig.requireFollow) return true
   return !!runtimeLineConfig.officialAccountId && !!runtimeLineConfig.liffId
