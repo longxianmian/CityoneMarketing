@@ -260,15 +260,45 @@ export function useFollowGate() {
           has_scheme_fallback: !!continueLineSchemeUrl,
         })
 
+        let fallbackTriggered = false
+        let pageLeft = false
+
+        const clearAll = () => {
+          window.clearTimeout(fallbackTimer)
+          window.removeEventListener('blur', handleBlur)
+          document.removeEventListener('visibilitychange', handleVisibilityChange)
+          window.removeEventListener('pagehide', handlePageHide)
+        }
+
+        const handleBlur = () => {
+          pageLeft = true
+          clearAll()
+        }
+
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === 'hidden') {
+            pageLeft = true
+            clearAll()
+          }
+        }
+
+        const handlePageHide = () => {
+          pageLeft = true
+          clearAll()
+        }
+
+        window.addEventListener('blur', handleBlur, { once: true })
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        window.addEventListener('pagehide', handlePageHide, { once: true })
+
         const fallbackTimer = window.setTimeout(() => {
+          if (pageLeft || fallbackTriggered) return
+          fallbackTriggered = true
+          clearAll()
           navigate(openInLinePath)
-        }, 1200)
+        }, 1500)
 
         window.location.assign(continueLiffUrl)
-
-        window.setTimeout(() => {
-          window.clearTimeout(fallbackTimer)
-        }, 2500)
 
         return
       } catch (err: any) {
