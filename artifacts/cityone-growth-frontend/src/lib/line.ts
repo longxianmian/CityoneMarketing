@@ -105,6 +105,19 @@ export function buildOaAddFriendUrl(value?: string | null) {
   return `https://line.me/R/ti/p/%40${encodeURIComponent(id)}`
 }
 
+export function buildContinueLaunchTargets(
+  intentToken: string,
+  liffId?: string | null,
+  officialAccountId?: string | null,
+) {
+  const continueExtraPath = `/continue?intent=${encodeURIComponent(intentToken)}`
+  return {
+    continueLiffUrl: buildRuntimeLiffUrlWithPath(continueExtraPath, liffId),
+    continueLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(continueExtraPath, liffId),
+    oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
+  }
+}
+
 export function isRuntimeFollowGateReady() {
   if (!runtimeLineConfig.requireFollow) return true
   return !!runtimeLineConfig.officialAccountId && !!runtimeLineConfig.liffId

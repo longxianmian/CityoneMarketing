@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getLiff, useLiff } from '../../providers/LiffProvider'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
+import { buildOaAddFriendUrl, getRuntimeLineConfig } from '../../lib/line'
 
 /**
  * 强约束：
@@ -19,8 +20,9 @@ export default function FollowConfirmPage() {
 
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
-  const returnPath = String(payload?.return_path || '/welfare')
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
+  const lineCfg = getRuntimeLineConfig()
+  const oaAddFriendUrl = buildOaAddFriendUrl(lineCfg.officialAccountId)
 
   useEffect(() => {
     console.info('[follow-flow] follow_confirm_view', {
@@ -35,13 +37,32 @@ export default function FollowConfirmPage() {
     try {
       if (inLineClient && liffReady && liff?.requestFriendship) {
         await liff.requestFriendship()
+        console.info('[follow-flow] follow_confirm_success', {
+          intent_id: payload?.intent_id || '',
+          action_type: payload?.action || '',
+        })
+        navigate(continuePath, { replace: true })
+        return
       }
-      console.info('[follow-flow] follow_confirm_success', {
+
+      if (oaAddFriendUrl) {
+        window.location.assign(oaAddFriendUrl)
+        return
+      }
+
+      setSubmitting(false)
+    } catch (e: any) {
+      console.info('[follow-flow] follow_confirm_failed', {
         intent_id: payload?.intent_id || '',
         action_type: payload?.action || '',
+        error: e?.message || 'unknown',
       })
-      navigate(continuePath, { replace: true })
-    } catch {
+
+      if (oaAddFriendUrl) {
+        window.location.assign(oaAddFriendUrl)
+        return
+      }
+
       setSubmitting(false)
     }
   }
@@ -49,23 +70,23 @@ export default function FollowConfirmPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
       <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>请先关注 LINE OA</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>请先关注官方账号</div>
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>
-          当前领取操作需要先完成 LINE OA 关注确认。关注完成后，系统会自动继续当前领取步骤，不需要重新返回详情页再次点击。
+          当前操作需要先完成官方账号关注确认。关注完成后，系统会自动继续当前步骤，不需要重新返回详情页再次点击。
         </div>
         <button
           onClick={() => void handleConfirm()}
           disabled={submitting}
           style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: submitting ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}
         >
-          关注 LINE OA 并继续
+          关注官方账号并继续
         </button>
         <button
-          style={{ marginTop: 12, width: '100%', height: 44, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', cursor: submitting ? 'not-allowed' : 'pointer' }}
-          disabled={submitting}
-          onClick={() => window.location.assign(returnPath)}
+          style={{ marginTop: 12, width: '100%', height: 44, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', cursor: !oaAddFriendUrl || submitting ? 'not-allowed' : 'pointer' }}
+          disabled={!oaAddFriendUrl || submitting}
+          onClick={() => window.location.assign(oaAddFriendUrl)}
         >
-          返回当前详情页
+          去关注 OA
         </button>
       </div>
     </div>

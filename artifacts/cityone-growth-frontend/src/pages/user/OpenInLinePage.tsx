@@ -1,10 +1,9 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把外部浏览器引导页改回报错页或首页 fallback。
 import React, { useEffect, useMemo } from 'react'
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import {
-  buildRuntimeLiffUrlWithPath,
-  buildRuntimeLineSchemeUrlWithPath,
+  buildContinueLaunchTargets,
   getRuntimeLineConfig,
 } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
@@ -39,29 +38,19 @@ const LOGO_URL = `${import.meta.env.BASE_URL}cityone-logo.webp`
 
 export default function OpenInLinePage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { inLineClient } = useLiff()
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
-  const returnPath = String(payload?.return_path || '/welfare')
-
   const lineCfg = getRuntimeLineConfig()
-  const liffUrl = buildRuntimeLiffUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, lineCfg.liffId)
-  // line:// scheme 兜底（已安装 LINE 时直接被系统拦截拉起 LINE app）
-  const lineSchemeUrl = buildRuntimeLineSchemeUrlWithPath(`/continue?intent=${encodeURIComponent(intentToken)}`, lineCfg.liffId)
+  const { continueLiffUrl, continueLineSchemeUrl, oaAddFriendUrl } = buildContinueLaunchTargets(
+    intentToken,
+    lineCfg.liffId,
+    lineCfg.officialAccountId,
+  )
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
 
   const isExternalBrowser = !inLineClient
-
-  // 返回详情页：优先用浏览器后退，避免 history 里又 push 一条详情页副本
-  const handleBackToDetail = () => {
-    if (location.key !== 'default') {
-      navigate(-1)
-    } else {
-      navigate(returnPath, { replace: true })
-    }
-  }
 
   useEffect(() => {
     clientLog('open_in_line_view', {
@@ -69,40 +58,54 @@ export default function OpenInLinePage() {
       action_type: payload?.action || '',
       in_line_client: inLineClient,
       branch: isExternalBrowser ? 'external' : 'in_line',
-      has_liff_url: !!liffUrl,
+      has_liff_url: !!continueLiffUrl,
     })
     console.info('[follow-flow] open_in_line_view', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
       in_line_client: inLineClient,
     })
-  }, [payload?.action, payload?.intent_id, inLineClient, isExternalBrowser, liffUrl])
+  }, [payload?.action, payload?.intent_id, inLineClient, isExternalBrowser, continueLiffUrl])
 
-  const handleFollowAndContinue = () => {
+  const handleOpenLineContinue = () => {
     if (!intentToken) return
-    if (isExternalBrowser) {
-      // 外部浏览器：跳 liffUrl，LINE 平台拉起 LINE app
-      if (!liffUrl) return
-      clientLog('follow_and_continue_click', {
+
+    if (!isExternalBrowser) {
+      clientLog('open_in_line_continue_click', {
         intent_id: payload?.intent_id || '',
         action_type: payload?.action || '',
-        branch: 'external',
-        target: 'liff_url',
+        branch: 'in_line',
+        target: continuePath,
       })
-      window.location.href = liffUrl
+      navigate(continuePath, { replace: true })
       return
     }
-    // LINE 内：直接 client-side navigate，避免跳 liffUrl 自指死循环
-    clientLog('follow_and_continue_click', {
+
+    if (!continueLiffUrl) return
+
+    clientLog('open_in_line_continue_click', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
-      branch: 'in_line',
-      target: '/welfare/continue',
+      branch: 'external',
+      target: 'continue_liff_url',
     })
-    navigate(continuePath, { replace: true })
+
+    window.location.assign(continueLiffUrl)
   }
 
-  const primaryDisabled = !intentToken || (isExternalBrowser && !liffUrl)
+  const handleFollowOa = () => {
+    if (!oaAddFriendUrl) return
+
+    clientLog('open_in_line_follow_oa_click', {
+      intent_id: payload?.intent_id || '',
+      action_type: payload?.action || '',
+      target: 'oa_add_friend_url',
+    })
+
+    window.location.assign(oaAddFriendUrl)
+  }
+
+  const primaryDisabled = !intentToken || (isExternalBrowser && !continueLiffUrl)
 
   return (
     <div
@@ -186,9 +189,7 @@ export default function OpenInLinePage() {
               margin: 0,
             }}
           >
-            请关注 CityOne LINE
-            <br />
-            官方账号
+            请在 LINE 中继续
           </h1>
           <p
             style={{
@@ -198,14 +199,14 @@ export default function OpenInLinePage() {
               color: '#666',
             }}
           >
-            关注后即可继续领取卡券、参与活动或进入后续流程。
+            当前操作需要在 LINE 内继续完成。系统会在进入 LINE 后自动判断是否已关注官方账号，并继续原业务流程。
           </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8, marginTop: 32 }}>
           <button
             disabled={primaryDisabled}
-            onClick={handleFollowAndContinue}
+            onClick={handleOpenLineContinue}
             style={{
               width: '100%',
               padding: '15px 0',
@@ -219,9 +220,10 @@ export default function OpenInLinePage() {
               boxShadow: primaryDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.25)',
             }}
           >
-            关注并继续
+            打开 LINE 继续
           </button>
           <button
+            disabled={!oaAddFriendUrl}
             style={{
               width: '100%',
               padding: '15px 0',
@@ -231,20 +233,23 @@ export default function OpenInLinePage() {
               color: '#222',
               fontSize: 17,
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: oaAddFriendUrl ? 'pointer' : 'not-allowed',
             }}
-            onClick={handleBackToDetail}
+            onClick={handleFollowOa}
           >
-            返回详情页
+            关注 OA
           </button>
+          <div style={{ textAlign: 'center', fontSize: 13, color: '#666' }}>
+            若未自动跳转，请点击按钮继续。
+          </div>
           {/* URL scheme 兜底链接：当 https Universal Link 在某些设备/浏览器拉不起 LINE app
               时（部分 Android 国行/Chromium 内嵌浏览器/iOS Safari 拒绝 Universal Link 时），
               用户可点这条 line:// scheme 直接由系统拉起 LINE。桌面浏览器无 LINE 时点击
               不会有反应，所以放在主按钮下方作为辅助。 */}
-          {isExternalBrowser && lineSchemeUrl ? (
+          {isExternalBrowser && continueLineSchemeUrl ? (
             <div style={{ textAlign: 'center', marginTop: 4 }}>
               <a
-                href={lineSchemeUrl}
+                href={continueLineSchemeUrl}
                 onClick={() => {
                   clientLog('open_in_line_scheme_click', {
                     intent_id: payload?.intent_id || '',

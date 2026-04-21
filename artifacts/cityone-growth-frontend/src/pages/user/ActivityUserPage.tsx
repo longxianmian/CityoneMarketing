@@ -5,6 +5,7 @@ import { Button, Card, Tag, Space, Spin } from 'antd'
 import { CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { pickLocalizedText, useI18n, type AppLanguage } from '../../i18n'
 import request from '../../api/request'
+import { useFollowGate } from '../../hooks/useFollowGate'
 
 type LocalizedField = Partial<Record<AppLanguage, string>>
 
@@ -128,9 +129,10 @@ function pick(v: LocalizedField | undefined, lang: AppLanguage): string {
 
 export default function ActivityUserPage() {
   const { id = '' } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { language, t } = useI18n()
+  const { guard, checking } = useFollowGate()
 
   const [activity, setActivity] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -146,7 +148,6 @@ export default function ActivityUserPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const followed = searchParams.get('followed') === '1'
 
   const title = pick(toML(activity?.activity_name || activity?.activity_title), language)
   const subTitle = pick(toML(activity?.activity_subtitle), language)
@@ -157,8 +158,6 @@ export default function ActivityUserPage() {
   const noticeText = pick(toML(activity?.notice_text), language)
   const coverImage = activity?.cover_image || ''
   const coverVideo = activity?.cover_video || ''
-  const requireFollow = !!activity?.require_oa_follow
-  const needFollowGate = requireFollow && !followed
   const buttonText = t('detail.joinActivity') || '参与活动'
 
   if (loading) {
@@ -179,55 +178,24 @@ export default function ActivityUserPage() {
     )
   }
 
-  const handleFollowDone = () => {
-    const next = new URLSearchParams(searchParams)
-    next.set('followed', '1')
-    setSearchParams(next)
-  }
-
   const handlePrimaryAction = () => {
-    navigate('/mine')
+    const entryCode = searchParams.get('entry_code') || ''
+    const utmSource = searchParams.get('utm_source') || ''
+    guard({
+      label: title,
+      returnPath: `/activity/${id}`,
+      successPath: `/activity/${id}`,
+      failPath: `/activity/${id}`,
+      back: '/welfare',
+      intentAction: 'participate_activity',
+      resourceId: id || '',
+      source: {
+        ...(entryCode && { source_landing_id: entryCode }),
+        ...(utmSource && { source_channel_id: utmSource }),
+      },
+    })
   }
 
-  if (needFollowGate) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '24px 16px' }}>
-        <div style={{ maxWidth: 480, margin: '0 auto' }}>
-          <Card style={{ borderRadius: 16 }}>
-            <div style={{ textAlign: 'center', padding: '12px 0 4px 0' }}>
-              <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{title}</div>
-              <div style={{ color: '#666', marginBottom: 18 }}>{subTitle}</div>
-              <Tag color="orange" style={{ fontSize: 13, padding: '4px 10px' }}>
-                {t('detail.followRequiredTag')}
-              </Tag>
-            </div>
-
-            <div
-              style={{
-                marginTop: 18,
-                padding: 18,
-                borderRadius: 14,
-                background: 'linear-gradient(135deg, #e6f4ff 0%, #f6ffed 100%)',
-                border: '1px solid #d9f7be',
-              }}
-            >
-              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{t('detail.followTitle')}</div>
-              <div style={{ color: '#555', lineHeight: 1.8 }}>{t('detail.followDescActivity')}</div>
-            </div>
-
-            <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
-              <Button type="primary" size="large" block onClick={handleFollowDone}>
-                {t('detail.continueAfterFollow')}
-              </Button>
-              <Button size="large" block onClick={() => navigate('/welfare')}>
-                {t('detail.backToWelfare')}
-              </Button>
-            </Space>
-          </Card>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
@@ -287,7 +255,7 @@ export default function ActivityUserPage() {
           </Card>
 
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Button type="primary" size="large" block icon={<CheckCircleOutlined />} onClick={handlePrimaryAction}>
+            <Button type="primary" size="large" block icon={<CheckCircleOutlined />} onClick={handlePrimaryAction} disabled={checking}>
               {buttonText}
             </Button>
             <Button size="large" block onClick={() => navigate('/welfare')}>

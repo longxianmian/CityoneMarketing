@@ -318,7 +318,7 @@ export default function ContinuePage() {
 
   // 外部浏览器预判：UA 不含 "Line/" 时 LIFF 永远不会 ready，
   // 不必等 LiffProvider init（冷启动 ~800ms：fetch line/config + 动态 import @line/liff + liff.init），
-  // 立即跳 OpenInLinePage，避免用户看到无意义的"正在继续领取"过场页。
+  // 立即跳 OpenInLinePage，避免用户看到无意义的"正在继续处理"过场页。
   // LINE 内 UA 走原慢路径，由 liffChecked 闸门控制。
   // ⚠️ 必须 intentPayload 有效才跳：非法 intent 必须停在前置 error，不能被重定向覆盖。
   useEffect(() => {
@@ -349,9 +349,9 @@ export default function ContinuePage() {
               animation: 'boot-spin 0.8s linear infinite',
             }}
           />
-          <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700 }}>正在继续领取</div>
+          <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700 }}>正在继续处理</div>
           <div style={{ color: '#666', lineHeight: 1.8, marginTop: 10 }}>
-            系统正在确认 LINE 身份并自动完成后续步骤。
+            系统正在确认 LINE 身份、关注状态，并自动继续当前操作。
           </div>
         </div>
       </div>

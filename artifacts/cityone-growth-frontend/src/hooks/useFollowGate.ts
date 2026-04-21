@@ -35,6 +35,7 @@ import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, consumePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
+import { getRuntimeLineConfig, buildRuntimeLiffUrlWithPath, buildRuntimeLineSchemeUrlWithPath } from '../lib/line'
 
 interface GuardOptions {
   label?: string
@@ -232,17 +233,44 @@ export function useFollowGate() {
           return
         }
 
-        // 外部浏览器：统一走 OpenInLinePage 中转页，让用户先看到"请在 LINE 中继续"
-        // 提示再点按钮拉 LINE app（用户预期 / 信任度更高）。
-        //
-        // 历史上为省 ~270ms 闪屏，prod 域曾直接 window.location.assign(liffUrl)，
-        // 但这样用户从详情页点"立即参加"会立刻被甩到外部 LINE app，没有任何视觉
-        // 过渡，体感像"网页突然失控"。OpenInLinePage 的过渡虽多一步，但对用户
-        // 第一次进入 LIFF 体验更友好（同时支持 https Universal Link 主按钮 +
-        // line:// scheme 兜底链接，最大化拉起成功率）。
-        // 不再使用 buildRuntimeLiffUrlWithPath/getRuntimeLineConfig 直接跳。
-        clientLog('guard_branch_slow_external_open_in_line', { target: openInLinePath })
-        navigate(openInLinePath)
+        // 外部浏览器：点击强互动按钮时，直接尝试拉起 LINE。
+        // 只有没配 LIFF，或浏览器没能拉起 LINE 时，才回退到 OpenInLinePage。
+        const lineCfg = getRuntimeLineConfig()
+        const continueLiffUrl = buildRuntimeLiffUrlWithPath(
+          `/continue?intent=${encodeURIComponent(issued.token)}`,
+          lineCfg.liffId
+        )
+        const continueLineSchemeUrl = buildRuntimeLineSchemeUrlWithPath(
+          `/continue?intent=${encodeURIComponent(issued.token)}`,
+          lineCfg.liffId
+        )
+
+        if (!continueLiffUrl) {
+          clientLog('guard_branch_slow_external_no_liff_fallback', {
+            action: intentAction,
+            target: openInLinePath,
+          })
+          navigate(openInLinePath)
+          return
+        }
+
+        clientLog('guard_branch_slow_external_direct_open_line', {
+          action: intentAction,
+          continue_path: continuePath,
+          has_scheme_fallback: !!continueLineSchemeUrl,
+        })
+
+        const fallbackTimer = window.setTimeout(() => {
+          navigate(openInLinePath)
+        }, 1200)
+
+        window.location.assign(continueLiffUrl)
+
+        window.setTimeout(() => {
+          window.clearTimeout(fallbackTimer)
+        }, 2500)
+
+        return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })
         message.error(err?.message || '创建待恢复动作失败')
