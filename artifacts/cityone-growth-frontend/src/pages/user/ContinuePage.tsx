@@ -45,6 +45,30 @@ function buildClaimSuccessPath(intentPayload: any, actionResult: any) {
   return query ? `${pathname}?${query}` : pathname
 }
 
+function buildActivitySuccessPath(intentPayload: any, actionResult: any) {
+  const rawReturnPath = String(intentPayload?.return_path || '/welfare')
+  const [pathname, search = ''] = rawReturnPath.split('?')
+  const params = new URLSearchParams(search)
+  const alreadyJoined = actionResult?.already_joined === true
+  const pointsAwarded = Number(actionResult?.points_awarded || 0)
+
+  params.set('joined', '1')
+  params.set('source', 'activity_success')
+  if (alreadyJoined) {
+    params.set('already_joined', '1')
+  } else {
+    params.delete('already_joined')
+  }
+  if (pointsAwarded > 0) {
+    params.set('points', String(pointsAwarded))
+  } else {
+    params.delete('points')
+  }
+
+  const query = params.toString()
+  return query ? `${pathname}?${query}` : pathname
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -252,6 +276,11 @@ export default function ContinuePage() {
               consumed?.payload || intentPayload,
               consumed?.result?.action_result,
             )
+          : consumed?.payload?.action === 'participate_activity'
+            ? buildActivitySuccessPath(
+                consumed?.payload || intentPayload,
+                consumed?.result?.action_result,
+              )
           : String(
               consumed?.result?.nextPath ||
                 consumed?.payload?.success_path ||
