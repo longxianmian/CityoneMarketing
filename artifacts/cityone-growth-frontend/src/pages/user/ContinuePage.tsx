@@ -1,7 +1,7 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止在 continue 页复活首页/个人中心 fallback 或页面自执行业务动作。
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useLiff, getLiff, syncLiffFriendshipIdentity } from '../../providers/LiffProvider'
+import { useLiff, getLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
@@ -183,17 +183,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     try {
       setStatus('resolving_identity')
       const identity = await waitForIdentityReady()
-      try {
-        const refreshed = await syncLiffFriendshipIdentity()
-        if (refreshed?.canonicalUserId) {
-          identity.canonicalUserId = refreshed.canonicalUserId
-        }
-        if (refreshed?.lineUserId) {
-          identity.lineUserId = refreshed.lineUserId
-        }
-      } catch {
-        // ignore, fall back to the identity already present in store
-      }
       if (!mountedRef.current) return
 
       if (!identity.canonicalUserId || !identity.lineUserId) {
