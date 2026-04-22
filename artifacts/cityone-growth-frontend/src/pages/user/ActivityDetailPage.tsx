@@ -46,6 +46,20 @@ export default function ActivityDetailPage() {
   const resolvedCoverImage = useOssUrl(coverImage || undefined)
   const resolvedCoverVideo = useOssUrl(coverVideo || undefined)
 
+  useEffect(() => {
+    const joined = searchParams.get('joined') === '1'
+    if (!joined) {
+      setStep('detail')
+      setAlreadyJoined(false)
+      setPointsAwarded(0)
+      return
+    }
+
+    setStep('success')
+    setAlreadyJoined(searchParams.get('already_joined') === '1')
+    setPointsAwarded(Number(searchParams.get('points') || 0))
+  }, [searchParams])
+
   const handleStartVideo = async () => {
     setVideoStarted(true)
     const el = heroVideoRef.current
@@ -116,20 +130,6 @@ export default function ActivityDetailPage() {
     th: 'คุณเข้าร่วมกิจกรรมสำเร็จแล้ว รางวัลจะเข้าบัญชีโดยอัตโนมัติ',
     en: 'You have successfully joined. Rewards will be credited to your account automatically.',
   }[language]!
-
-  useEffect(() => {
-    const joined = searchParams.get('joined') === '1'
-    if (!joined) {
-      setStep('detail')
-      setAlreadyJoined(false)
-      setPointsAwarded(0)
-      return
-    }
-
-    setStep('success')
-    setAlreadyJoined(searchParams.get('already_joined') === '1')
-    setPointsAwarded(Number(searchParams.get('points') || 0))
-  }, [searchParams])
 
   // 核心：点击操作按钮 → 使用预加载结果（或按需查询）决定路径
   const handleAction = () => {
