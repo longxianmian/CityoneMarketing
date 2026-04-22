@@ -193,6 +193,17 @@ export default function RedeemUserPage() {
     physicalTip:  language === 'zh' ? '实物商品兑换逻辑后续开放，敬请期待。' : language === 'th' ? 'การแลกสินค้าจริงจะเปิดให้บริการเร็ว ๆ นี้' : 'Physical item redemption will be available soon.',
   }
 
+  const redeemPageFooterStyle: React.CSSProperties = {
+    position: 'sticky',
+    bottom: 0,
+    zIndex: 4,
+    flexShrink: 0,
+    padding: '12px 16px calc(24px + env(safe-area-inset-bottom, 0px))',
+    background: 'rgba(245,247,251,0.96)',
+    borderTop: '1px solid #eaeef5',
+    backdropFilter: 'blur(12px)',
+  }
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -232,8 +243,17 @@ export default function RedeemUserPage() {
   const itemDesc = pickML(item.description, language) || ''
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-      <div style={{ maxWidth: 540, margin: '0 auto', paddingBottom: 32 }}>
+    <div style={{ minHeight: '100vh', height: '100dvh', background: '#f5f7fb', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+      <div style={{ maxWidth: 540, margin: '0 auto', width: '100%' }}>
         <div style={{ height: 280, ...coverBg, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 20 }}>
           <Button
             icon={<ArrowLeftOutlined />}
@@ -290,13 +310,22 @@ export default function RedeemUserPage() {
             </Card>
           )}
 
+        </div>
+      </div>
+      </div>
+
+      <div style={redeemPageFooterStyle}>
+        <div style={{ maxWidth: 540, margin: '0 auto', width: '100%' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Button
-              type="primary" size="large" block
+              type="primary"
+              size="large"
+              block
               icon={<ShoppingCartOutlined />}
               disabled={item.item_type === 'physical' || checking}
               loading={checking}
               onClick={handleRedeem}
+              style={{ borderRadius: 50, height: 48 }}
             >
               {checking
                 ? labels.checkingLabel
@@ -304,7 +333,9 @@ export default function RedeemUserPage() {
                   ? (language === 'zh' ? '实物商品，后续开放' : language === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon')
                   : labels.redeemBtn}
             </Button>
-            <Button size="large" block onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
+            <Button size="large" block onClick={() => navigate('/welfare')} style={{ borderRadius: 50, height: 48 }}>
+              {labels.backWelfare}
+            </Button>
           </Space>
         </div>
       </div>

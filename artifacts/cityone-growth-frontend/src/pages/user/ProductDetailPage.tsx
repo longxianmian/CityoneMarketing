@@ -331,8 +331,19 @@ export default function ProductDetailPage() {
       : (ACTION_MAP[actionType]?.color || ACTION_MAP.free_claim.color)
   const linkedActivities: any[] = product.linkedActivities || []
 
+  const productPageFooterStyle: React.CSSProperties = {
+    position: 'sticky',
+    bottom: 0,
+    zIndex: 4,
+    flexShrink: 0,
+    padding: '12px 16px calc(24px + env(safe-area-inset-bottom, 0px))',
+    background: 'rgba(255,255,255,0.96)',
+    borderTop: '1px solid #f0f0f0',
+    backdropFilter: 'blur(12px)',
+  }
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
+    <div style={{ minHeight: '100vh', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
       <div style={{ flexShrink: 0, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
         <button onClick={() => { const b = (location.state as any)?.backTo; b ? nav(b) : location.key !== 'default' ? nav(-1) : nav('/welfare') }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
           <ArrowLeftOutlined style={{ fontSize: 20 }} />
@@ -502,7 +513,7 @@ export default function ProductDetailPage() {
       </div>
       </div>
 
-      <div style={{ flexShrink: 0, padding: '12px 16px 24px', background: '#fff', borderTop: '1px solid #f0f0f0' }}>
+      <div style={productPageFooterStyle}>
         <button
           onClick={isOutOfStock ? undefined : handleAction}
           disabled={checking || isOutOfStock}
