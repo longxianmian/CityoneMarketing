@@ -1,7 +1,7 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止在 continue 页复活首页/个人中心 fallback 或页面自执行业务动作。
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useLiff, getLiff } from '../../providers/LiffProvider'
+import { useLiff, getLiff, syncLiffFriendshipIdentity } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
@@ -14,7 +14,6 @@ type ContinueStatus =
   | 'idle'
   | 'resolving_identity'
   | 'checking_follow'
-  | 'waiting_follow_or_ready'
   | 'consuming'
   | 'done'
   | 'need_line_login'
@@ -177,70 +176,25 @@ export default function ContinuePage() {
       }
 
       setStatus('checking_follow')
+      try {
+        const refreshed = await syncLiffFriendshipIdentity()
+        if (refreshed?.canonicalUserId) {
+          identity.canonicalUserId = refreshed.canonicalUserId
+        }
+        if (refreshed?.lineUserId) {
+          identity.lineUserId = refreshed.lineUserId
+        }
+      } catch {
+        // ignore, fall back to backend follow state
+      }
+
       const followed = await checkFollow(identity.canonicalUserId)
       if (!mountedRef.current) return
 
       if (!followed) {
-        setStatus('waiting_follow_or_ready')
-
-        const liff = getLiff()
-        const canTryRequest = liff && typeof liff.requestFriendship === 'function'
-        if (!canTryRequest) {
-          clearAutoRunLock()
-          navigate(followConfirmPath, { replace: true })
-          return
-        }
-
-        let userAccepted = false
-        try {
-          console.info('[follow-flow] request_friendship_start', {
-            intent_id: intentPayload.intent_id || '',
-            action_type: intentPayload.action || '',
-          })
-          await liff.requestFriendship()
-          userAccepted = true
-        } catch (e: any) {
-          console.info('[follow-flow] request_friendship_rejected_or_failed', {
-            intent_id: intentPayload.intent_id || '',
-            error: e?.message || 'unknown',
-          })
-        }
-
-        if (!userAccepted) {
-          clearAutoRunLock()
-          navigate(followConfirmPath, { replace: true })
-          return
-        }
-
-        try {
-          const fr = await liff.getFriendship()
-          if (fr?.friendFlag === true) {
-            useLineUserStore.getState().setIsFriend(true)
-          }
-        } catch {
-          // ignore
-        }
-
-        const delays = [200, 600, 1500]
-        let backendFollowed = false
-        for (const ms of delays) {
-          await sleep(ms)
-          if (!mountedRef.current) return
-          try {
-            if (await checkFollow(identity.canonicalUserId)) {
-              backendFollowed = true
-              break
-            }
-          } catch {
-            // ignore
-          }
-        }
-
-        if (!backendFollowed) {
-          clearAutoRunLock()
-          navigate(followConfirmPath, { replace: true })
-          return
-        }
+        clearAutoRunLock()
+        navigate(followConfirmPath, { replace: true })
+        return
       }
 
       consumedRef.current = true
@@ -380,7 +334,6 @@ export default function ContinuePage() {
     status === 'idle' ||
     status === 'resolving_identity' ||
     status === 'checking_follow' ||
-    status === 'waiting_follow_or_ready' ||
     status === 'consuming'
   ) {
     return (
@@ -399,7 +352,7 @@ export default function ContinuePage() {
           />
           <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700 }}>正在继续处理</div>
           <div style={{ color: '#666', lineHeight: 1.8, marginTop: 10 }}>
-            系统正在确认 LINE 身份、关注状态，并自动继续当前操作。
+            系统正在识别当前用户，并判断是否已关注 LINE 官方账号。
           </div>
         </div>
       </div>

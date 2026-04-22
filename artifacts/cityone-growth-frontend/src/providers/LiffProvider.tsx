@@ -57,6 +57,121 @@ export function getLiff() {
   return _liffInstance
 }
 
+async function readLiffFriendship(liff: any, inLineContext: boolean) {
+  if (!inLineContext || !liff || typeof liff.getFriendship !== 'function') {
+    return undefined
+  }
+
+  try {
+    const friendship = await liff.getFriendship()
+    if (typeof friendship?.friendFlag === 'boolean') {
+      return friendship.friendFlag
+    }
+  } catch {
+    // ignore
+  }
+
+  return undefined
+}
+
+async function syncIdentifyFromLineProfile(
+  lineProfile: { userId: string; displayName: string; pictureUrl?: string },
+  isFriend?: boolean
+) {
+  useLineUserStore.getState().setProfile({
+    lineUserId: lineProfile.userId,
+    lineDisplayName: lineProfile.displayName,
+    linePictureUrl: lineProfile.pictureUrl || '',
+    identityTag: undefined,
+    memberLevel: 'standard',
+    points: 0,
+    couponCount: 0,
+    deposit: 0,
+    depositPaid: false,
+    isFriend,
+  })
+
+  let canonicalUserId = lineProfile.userId
+  try {
+    const idRes = await fetch(`${API_BASE}/api/user/identify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        line_user_id: lineProfile.userId,
+        display_name: lineProfile.displayName,
+        picture_url: lineProfile.pictureUrl || '',
+        is_fan: isFriend === true,
+      }),
+    })
+    const idJson = await idRes.json()
+    const idData = idJson?.data || {}
+    canonicalUserId = idData.user_id || lineProfile.userId
+    useLineUserStore.getState().setCanonicalUserId(canonicalUserId)
+    const identityLevel = idData.identity_level || idData.identity_tag
+    if (identityLevel) {
+      useLineUserStore.getState().setIdentityTag(identityLevel)
+    }
+    if (typeof idData.is_fan === 'boolean') {
+      useLineUserStore.getState().setIsFriend(idData.is_fan)
+    }
+  } catch {
+    useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
+  }
+
+  return {
+    canonicalUserId,
+    isFriend: useLineUserStore.getState().profile?.isFriend,
+  }
+}
+
+function updateReadyCacheFromStore(
+  lineProfile: { userId: string; displayName: string; pictureUrl?: string },
+  inLineClient: boolean
+) {
+  _liffReadyCache = {
+    ctx: { liffReady: true, inLineClient, liffChecked: true },
+    profile: {
+      lineUserId: lineProfile.userId,
+      lineDisplayName: lineProfile.displayName,
+      linePictureUrl: lineProfile.pictureUrl || '',
+      identityTag: useLineUserStore.getState().profile?.identityTag,
+      memberLevel: useLineUserStore.getState().profile?.memberLevel || 'standard',
+      points: useLineUserStore.getState().profile?.points || 0,
+      couponCount: useLineUserStore.getState().profile?.couponCount || 0,
+      deposit: useLineUserStore.getState().profile?.deposit || 0,
+      depositPaid: useLineUserStore.getState().profile?.depositPaid,
+      isFriend: useLineUserStore.getState().profile?.isFriend,
+    },
+    canonicalUserId: useLineUserStore.getState().canonicalUserId || lineProfile.userId,
+  }
+}
+
+export async function syncLiffFriendshipIdentity() {
+  const liff = getLiff()
+  if (!liff || typeof liff.getProfile !== 'function') {
+    return { lineUserId: '', canonicalUserId: '', isFriend: undefined as boolean | undefined }
+  }
+
+  const inLineClient = (() => {
+    try {
+      return liff.isInClient?.() === true || detectLineAppUA()
+    } catch {
+      return detectLineAppUA()
+    }
+  })()
+
+  const lineProfile = await liff.getProfile()
+  const isFriend = await readLiffFriendship(liff, inLineClient)
+  const synced = await syncIdentifyFromLineProfile(lineProfile, isFriend)
+  updateReadyCacheFromStore(lineProfile, inLineClient)
+
+  return {
+    lineUserId: lineProfile.userId,
+    canonicalUserId: synced.canonicalUserId || lineProfile.userId,
+    isFriend: synced.isFriend,
+  }
+}
+
 function buildInitKey() {
   return `${window.location.pathname}${window.location.search}`
 }
@@ -257,75 +372,11 @@ async function initLiffOnce(
       // ignore
     }
 
-    let isFriend: boolean | undefined
-    if (isInClientSdk) {
-      try {
-        const friendship = await liff.getFriendship()
-        isFriend = friendship.friendFlag
-      } catch {
-        // ignore
-      }
-    }
-
-    useLineUserStore.getState().setProfile({
-      lineUserId: lineProfile.userId,
-      lineDisplayName: lineProfile.displayName,
-      linePictureUrl: lineProfile.pictureUrl || '',
-      identityTag: undefined,
-      memberLevel: 'standard',
-      points: 0,
-      couponCount: 0,
-      deposit: 0,
-      depositPaid: false,
-      isFriend,
-    })
-
-    try {
-      const idRes = await fetch(`${API_BASE}/api/user/identify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          line_user_id: lineProfile.userId,
-          display_name: lineProfile.displayName,
-          picture_url: lineProfile.pictureUrl || '',
-          is_fan: isFriend === true,
-        }),
-      })
-      const idJson = await idRes.json()
-      const idData = idJson?.data || {}
-      if (idData.user_id) {
-        useLineUserStore.getState().setCanonicalUserId(idData.user_id)
-      } else {
-        useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
-      }
-      const identityLevel = idData.identity_level || idData.identity_tag
-      if (identityLevel) {
-        useLineUserStore.getState().setIdentityTag(identityLevel)
-      }
-      if (typeof idData.is_fan === 'boolean') {
-        useLineUserStore.getState().setIsFriend(idData.is_fan)
-      }
-    } catch {
-      useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
-    }
+    const isFriend = await readLiffFriendship(liff, inLineClient)
+    await syncIdentifyFromLineProfile(lineProfile, isFriend)
 
     clearInitAttempt(initKey)
-    _liffReadyCache = {
-      ctx: { liffReady: true, inLineClient, liffChecked: true },
-      profile: {
-        lineUserId: lineProfile.userId,
-        lineDisplayName: lineProfile.displayName,
-        linePictureUrl: lineProfile.pictureUrl || '',
-        identityTag: useLineUserStore.getState().profile?.identityTag,
-        memberLevel: useLineUserStore.getState().profile?.memberLevel || 'standard',
-        points: useLineUserStore.getState().profile?.points || 0,
-        couponCount: useLineUserStore.getState().profile?.couponCount || 0,
-        deposit: useLineUserStore.getState().profile?.deposit || 0,
-        depositPaid: useLineUserStore.getState().profile?.depositPaid,
-        isFriend: useLineUserStore.getState().profile?.isFriend,
-      },
-      canonicalUserId: useLineUserStore.getState().canonicalUserId || lineProfile.userId,
-    }
+    updateReadyCacheFromStore(lineProfile, inLineClient)
     onReady({ liffReady: true, inLineClient, liffChecked: true })
   } catch (err) {
     clearInitAttempt(initKey)

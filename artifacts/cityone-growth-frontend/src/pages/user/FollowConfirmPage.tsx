@@ -1,7 +1,7 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把关注确认页改回首页 fallback 或技术报错页。
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getLiff, useLiff } from '../../providers/LiffProvider'
+import { getLiff, syncLiffFriendshipIdentity, useLiff } from '../../providers/LiffProvider'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildOaAddFriendUrl, getRuntimeLineConfig } from '../../lib/line'
 
@@ -17,6 +17,7 @@ export default function FollowConfirmPage() {
   const [searchParams] = useSearchParams()
   const { liffReady, inLineClient } = useLiff()
   const [submitting, setSubmitting] = useState(false)
+  const [checkingFollow, setCheckingFollow] = useState(false)
 
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
@@ -31,18 +32,66 @@ export default function FollowConfirmPage() {
     })
   }, [payload?.action, payload?.intent_id])
 
+  useEffect(() => {
+    let cancelled = false
+
+    const tryResumeIfFollowed = async () => {
+      if (!inLineClient || !liffReady || checkingFollow) return
+      setCheckingFollow(true)
+      try {
+        const refreshed = await syncLiffFriendshipIdentity()
+        if (!cancelled && refreshed?.isFriend === true) {
+          console.info('[follow-flow] follow_confirm_auto_resume', {
+            intent_id: payload?.intent_id || '',
+            action_type: payload?.action || '',
+          })
+          navigate(continuePath, { replace: true })
+          return
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setCheckingFollow(false)
+      }
+    }
+
+    void tryResumeIfFollowed()
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void tryResumeIfFollowed()
+      }
+    }
+    window.addEventListener('focus', handleVisibilityChange)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', handleVisibilityChange)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [checkingFollow, continuePath, inLineClient, liffReady, navigate, payload?.action, payload?.intent_id])
+
   const handleConfirm = async () => {
     const liff = getLiff()
     setSubmitting(true)
     try {
       if (inLineClient && liffReady && liff?.requestFriendship) {
         await liff.requestFriendship()
+        const refreshed = await syncLiffFriendshipIdentity()
+        if (refreshed?.isFriend === true) {
+          console.info('[follow-flow] follow_confirm_success', {
+            intent_id: payload?.intent_id || '',
+            action_type: payload?.action || '',
+          })
+          navigate(continuePath, { replace: true })
+          return
+        }
+
         console.info('[follow-flow] follow_confirm_success', {
           intent_id: payload?.intent_id || '',
           action_type: payload?.action || '',
         })
-        navigate(continuePath, { replace: true })
-        return
       }
 
       if (oaAddFriendUrl) {
@@ -76,14 +125,14 @@ export default function FollowConfirmPage() {
         </div>
         <button
           onClick={() => void handleConfirm()}
-          disabled={submitting}
-          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: submitting ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}
+          disabled={submitting || checkingFollow}
+          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: (submitting || checkingFollow) ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: (submitting || checkingFollow) ? 'not-allowed' : 'pointer' }}
         >
           关注官方账号并继续
         </button>
         <button
-          style={{ marginTop: 12, width: '100%', height: 44, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', cursor: !oaAddFriendUrl || submitting ? 'not-allowed' : 'pointer' }}
-          disabled={!oaAddFriendUrl || submitting}
+          style={{ marginTop: 12, width: '100%', height: 44, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', cursor: !oaAddFriendUrl || submitting || checkingFollow ? 'not-allowed' : 'pointer' }}
+          disabled={!oaAddFriendUrl || submitting || checkingFollow}
           onClick={() => window.location.assign(oaAddFriendUrl)}
         >
           去关注 OA
