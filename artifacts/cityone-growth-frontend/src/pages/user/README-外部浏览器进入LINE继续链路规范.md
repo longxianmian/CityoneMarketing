@@ -6,7 +6,7 @@
 
 - 外部浏览器可浏览内容
 - 点击业务动作统一创建 `pending_intent`
-- 外部浏览器统一进入 `OpenInLinePage`
+- 外部浏览器统一进入 `/welfare/follow-confirm`
 - LINE 内统一进入 `/welfare/continue?intent=...`
 - 关注确认后自动继续原业务下一步
 - 禁止传统“先关注 -> 再找业务页”路径
@@ -23,7 +23,7 @@
 
 统一链路固定为：
 
-`浏览内容 -> 点击业务动作 -> 创建 pending_intent -> 外部浏览器进入 OpenInLinePage -> 跳入 LINE -> /welfare/continue?intent=... -> identify -> check-follow -> consume -> 自动继续原业务下一步`
+`浏览内容 -> 点击业务动作 -> 创建 pending_intent -> 外部浏览器进入 /welfare/follow-confirm -> 跳入 LINE -> /welfare/continue?intent=... -> identify -> check-follow -> consume -> 自动继续原业务下一步`
 
 ## 页面职责
 
@@ -35,7 +35,7 @@
 - 禁止页面自己恢复业务动作
 - 禁止页面自己决定跳首页或跳个人中心
 
-### OpenInLinePage
+### /welfare/follow-confirm
 
 - 是引导页，不是报错页
 - 只负责提示“请在 LINE 内继续完成身份识别”
@@ -84,7 +84,7 @@
 - 浏览开放
 - 动作门控
 - 点击后立即创建业务 intent
-- 外部浏览器统一进入 OpenInLinePage
+- 外部浏览器统一进入 `/welfare/follow-confirm`
 - LINE 内统一进入 `/welfare/continue?intent=...`
 - 关注确认后自动继续原业务下一步
 - 不再走传统“先关注 -> 再找业务页 -> 再点下一步”的长路径

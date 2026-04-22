@@ -9,7 +9,7 @@ import { clientLog } from '../../lib/clientLogger'
 /**
  * 强约束：
  * - /welfare 只承担首页展示与 LIFF 回流入口分流
- * - 当 URL 已携带 liff.state / intent 时，必须先进入 continue/open-in-line/follow-confirm
+ * - 当 URL 已携带 liff.state / intent 时，必须先进入 continue/follow-confirm
  * - 不允许先渲染首页再靠后续 effect 抢救式跳转
  *
  * LIFF OAuth 死循环防御（2026-04 nginx 日志诊断后修复）：

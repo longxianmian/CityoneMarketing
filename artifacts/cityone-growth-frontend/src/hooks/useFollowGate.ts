@@ -13,9 +13,9 @@
  *
  * 执行型动作统一流程（默认/慢路径）：
  *   1. 创建 pending intent
- *   2. 外部浏览器直接进入 LINE `/welfare/continue?intent=...`
- *   3. LINE 内统一进入 /welfare/continue?intent=...
- *   4. 仅异常场景才进入 open-in-line 引导页
+ *   2. 外部浏览器统一进入 `/welfare/follow-confirm?intent=...`
+ *   3. 门控页负责拉起 LINE，再进入 `/welfare/continue?intent=...`
+ *   4. LINE 内统一完成 identify -> check-follow -> consume
  *
  * 不保留任何 fast path。所有执行动作一律经过同一条 pending-intent 主链：
  * identify -> check-follow -> consume -> 落业务结果页。
@@ -27,12 +27,6 @@ import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
-import {
-  getRuntimeLineConfig,
-  buildRuntimeLiffUrlWithPath,
-  buildRuntimeLineSchemeUrlWithPath,
-  isRuntimeSchemePreferredBrowser,
-} from '../lib/line'
 
 interface GuardOptions {
   label?: string
@@ -137,7 +131,7 @@ export function useFollowGate() {
           source,
         })
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
-        const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
+        const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(issued.token)}`
 
         // UA 兜底（2026-04 nginx 死循环诊断后加）：
         //   `inLineClient` 来自 LIFF SDK，必须 LIFF init 完成后才会 true。
@@ -158,85 +152,11 @@ export function useFollowGate() {
           return
         }
 
-        // 外部浏览器：点击强互动按钮时，直接尝试拉起 LINE。
-        // 只有没配 LIFF，或浏览器没能拉起 LINE 时，才回退到 OpenInLinePage。
-        const lineCfg = getRuntimeLineConfig()
-        const continueLiffUrl = buildRuntimeLiffUrlWithPath(
-          `/welfare/continue?intent=${encodeURIComponent(issued.token)}`,
-          lineCfg.liffId
-        )
-        const continueLineSchemeUrl = buildRuntimeLineSchemeUrlWithPath(
-          `/welfare/continue?intent=${encodeURIComponent(issued.token)}`,
-          lineCfg.liffId
-        )
-        const preferSchemeBrowser = isRuntimeSchemePreferredBrowser()
-
-        if (preferSchemeBrowser) {
-          clientLog('guard_branch_external_interstitial', {
-            action: intentAction,
-            target: openInLinePath,
-            reason: 'scheme_preferred_browser',
-            has_scheme_fallback: !!continueLineSchemeUrl,
-          })
-          navigate(openInLinePath)
-          return
-        }
-
-        if (!continueLiffUrl) {
-          clientLog('guard_branch_external_no_liff_fallback', {
-            action: intentAction,
-            target: openInLinePath,
-          })
-          navigate(openInLinePath)
-          return
-        }
-
-        clientLog('guard_branch_external_direct_open_line', {
+        clientLog('guard_branch_external_follow_gate', {
           action: intentAction,
-          continue_path: continuePath,
-          has_scheme_fallback: !!continueLineSchemeUrl,
+          target: followConfirmPath,
         })
-
-        let fallbackTriggered = false
-        let pageLeft = false
-
-        const clearAll = () => {
-          window.clearTimeout(fallbackTimer)
-          window.removeEventListener('blur', handleBlur)
-          document.removeEventListener('visibilitychange', handleVisibilityChange)
-          window.removeEventListener('pagehide', handlePageHide)
-        }
-
-        const handleBlur = () => {
-          pageLeft = true
-          clearAll()
-        }
-
-        const handleVisibilityChange = () => {
-          if (document.visibilityState === 'hidden') {
-            pageLeft = true
-            clearAll()
-          }
-        }
-
-        const handlePageHide = () => {
-          pageLeft = true
-          clearAll()
-        }
-
-        window.addEventListener('blur', handleBlur, { once: true })
-        document.addEventListener('visibilitychange', handleVisibilityChange)
-        window.addEventListener('pagehide', handlePageHide, { once: true })
-
-        const fallbackTimer = window.setTimeout(() => {
-          if (pageLeft || fallbackTriggered) return
-          fallbackTriggered = true
-          clearAll()
-          navigate(openInLinePath)
-        }, 1500)
-
-        window.location.assign(continueLiffUrl)
-
+        navigate(followConfirmPath)
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })

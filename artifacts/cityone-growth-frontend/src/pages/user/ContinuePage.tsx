@@ -52,7 +52,6 @@ function canUseCallbackShellNavigate(target: string) {
     pathname === '/welfare' ||
     pathname.startsWith('/welfare?') ||
     pathname.startsWith('/welfare/continue') ||
-    pathname.startsWith('/welfare/open-in-line') ||
     pathname.startsWith('/welfare/follow-confirm')
   )
 }
@@ -81,7 +80,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   const returnPath = String(intentPayload?.return_path || '/welfare')
   const failPath = String(intentPayload?.fail_path || returnPath)
-  const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
   const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
   const internalFailPath = useMemo(
@@ -168,7 +166,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     if (inFlightRef.current || consumedRef.current) return
 
     if (!inLineContext) {
-      navigate(openInLinePath, { replace: true })
+      navigate(followConfirmPath, { replace: true })
       return
     }
 
@@ -268,8 +266,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     intentPayload,
     intentToken,
     liffReady,
-    navigate,
-    openInLinePath,
     returnPath,
     waitForIdentityReady,
     navigate,
@@ -290,9 +286,9 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   useEffect(() => {
     if (!intentToken || !intentPayload) return
     if (!inLineContext) {
-      navigate(openInLinePath, { replace: true })
+      navigate(followConfirmPath, { replace: true })
     }
-  }, [intentToken, intentPayload, inLineContext, navigate, openInLinePath])
+  }, [intentToken, intentPayload, followConfirmPath, inLineContext, navigate])
 
   useEffect(() => {
     if (!intentToken || !intentPayload || !liffChecked || !inLineContext) return

@@ -231,7 +231,7 @@ return 'fan'
 - ProductDetailPage
 - RedeemUserPage
 - BenefitUsePage
-- OpenInLinePage
+- /welfare/follow-confirm（外部浏览器与未关注确认统一门控页）
 
 ## 文案规范
 

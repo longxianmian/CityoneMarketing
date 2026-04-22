@@ -99,7 +99,6 @@ export default function CallbackEntry() {
               <Route path="/" element={<RootCallbackEntryPage />} />
               <Route path="/welfare" element={<WelfareCallbackEntryPage />} />
               <Route path="/welfare/continue" element={<ContinuePage />} />
-              <Route path="/welfare/open-in-line" element={<FollowConfirmPage />} />
               <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
               <Route path="*" element={<Navigate to="/welfare" replace />} />
             </Routes>

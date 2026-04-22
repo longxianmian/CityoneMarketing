@@ -21,7 +21,6 @@ const PERSISTED_LINE_CONFIG_KEY = '_cityone_line_config_v1'
 const PERSISTED_LINE_CONFIG_TTL_MS = 10 * 60 * 1000
 const INIT_COOLDOWN_BYPASS_PATHS = new Set([
   '/welfare/continue',
-  '/welfare/open-in-line',
   '/welfare/follow-confirm',
 ])
 

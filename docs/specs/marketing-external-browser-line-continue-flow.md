@@ -88,7 +88,7 @@ Google Chrome、Safari、TikTok、Meta、Facebook、Instagram、Messenger 等外
 
 统一业务链路固定为：
 
-`浏览落地页 -> 点击业务动作 -> 创建 pending intent -> 判断当前终端 -> 若外部浏览器则进入 OpenInLinePage -> 跳转 LINE 内 -> identify -> check-follow -> 若未关注则关注确认 -> consume intent -> 自动继续原业务下一步`
+`浏览落地页 -> 点击业务动作 -> 创建 pending intent -> 判断当前终端 -> 若外部浏览器则进入 /welfare/follow-confirm 门控页并跳转 LINE 内 -> identify -> check-follow -> 若未关注则关注确认 -> consume intent -> 自动继续原业务下一步`
 
 ## 页面职责
 
@@ -108,7 +108,7 @@ Google Chrome、Safari、TikTok、Meta、Facebook、Instagram、Messenger 等外
 - 页面自己决定回首页或回个人中心
 - 页面自己直接执行业务动作
 
-### OpenInLinePage
+### /welfare/follow-confirm（统一门控页）
 
 只负责：
 
@@ -207,13 +207,13 @@ Google Chrome、Safari、TikTok、Meta、Facebook、Instagram、Messenger 等外
 - `continue` 二次拼接
 - 打开 LINE 后再补一层 `/welfare`
 
-OpenInLinePage 统一使用：
+统一门控页使用：
 
-- `/welfare/open-in-line?intent=...`
+- `/welfare/follow-confirm?intent=...`
 
 失败时只允许：
 
-- 停留在 `OpenInLinePage`
+- 停留在 `/welfare/follow-confirm`
 - 或停留在 `ContinuePage`
 - 给“重试”“返回详情页”按钮
 
@@ -249,13 +249,13 @@ OpenInLinePage 统一使用：
 
 外部浏览器需额外记录：
 
-- `open_in_line_view`
-- `open_in_line_click`
+- `follow_gate_view`
+- `follow_gate_continue_click`
 - `line_continue_enter`
 
 ## 文案规范
 
-OpenInLinePage：
+/welfare/follow-confirm：
 
 - 标题：`请在 LINE 内继续完成身份识别`
 - 副文案：`当前操作需要在 LINE 内继续完成，返回原详情页后可重新发起。`
@@ -279,7 +279,7 @@ OpenInLinePage：
 - 浏览开放
 - 动作门控
 - 点击后立即创建业务 intent
-- 外部浏览器统一进入 OpenInLinePage
+- 外部浏览器统一进入 `/welfare/follow-confirm`
 - 跳入 LINE 内完成身份识别与 OA 确认
 - 确认后自动继续原业务动作的下一步
 - 不再走传统“先关注 -> 再找业务页 -> 再点下一步”的长路径

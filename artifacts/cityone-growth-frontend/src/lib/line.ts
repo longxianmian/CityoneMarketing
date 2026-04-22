@@ -7,7 +7,6 @@ type RuntimeLineConfig = {
 
 const RUNTIME_WELFARE_CALLBACK_PATHS = [
   '/welfare/continue',
-  '/welfare/open-in-line',
   '/welfare/follow-confirm',
 ] as const
 
@@ -95,7 +94,6 @@ export function isRuntimeCallbackBootPath(pathname: string, search: string) {
   return (
     ((pathname === '/' || pathname === '/welfare') && hasCallbackPayload) ||
     pathname === '/welfare/continue' ||
-    pathname === '/welfare/open-in-line' ||
     pathname === '/welfare/follow-confirm'
   )
 }
@@ -155,7 +153,7 @@ export function buildRuntimeLineSchemeUrlWithPath(extraPath?: string | null, val
  * 构造 LINE OA 加好友直链。
  * 外部浏览器场景下，"关注 OA" 必须用 https://line.me/R/ti/p/{basicId} 拉起 LINE app
  * 直接进入 OA 加好友页 —— 不能再用 LIFF URL（LIFF 在外部浏览器里会 redirect 回 LIFF
- * endpoint，反而触发 ContinuePage→OpenInLinePage 死循环，见 README-外部浏览器…）。
+ * endpoint，反而触发 ContinuePage→follow-confirm 门控页循环，见 README-外部浏览器…）。
  *
  * basicId 形如 "@cityone_th"。本函数对 @ 做 URL 编码（%40），并对前后空格容错。
  * 配置里没填 OA basic id 时返回空串，调用方需做降级。

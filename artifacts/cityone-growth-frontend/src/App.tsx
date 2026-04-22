@@ -122,7 +122,6 @@ export default function App() {
         {/* 用户端路由 */}
         <Route path="/welfare" element={<WelfareEntryPage />} />
         <Route path="/welfare/continue" element={<ContinuePage />} />
-        <Route path="/welfare/open-in-line" element={<FollowConfirmPage />} />
         <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
         <Route path="/nearby" element={<NearbyPage />} />
         <Route path="/agent" element={<AgentPage />} />

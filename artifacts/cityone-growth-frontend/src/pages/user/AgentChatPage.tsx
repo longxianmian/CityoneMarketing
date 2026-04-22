@@ -9,6 +9,8 @@ import UserPageHeader from '../../components/user/UserPageHeader'
 import AgentMessageList from '../../components/user/agent/AgentMessageList'
 import AgentIdentityBanner from '../../components/user/agent/AgentIdentityBanner'
 import { initAgentSession, sendAgentMessage, confirmAgentAction, getAgentSessionLatest } from '../../api/agent'
+import { buildOaAddFriendUrl, getRuntimeLineConfig } from '../../lib/line'
+import { clientLog } from '../../lib/clientLogger'
 
 type Lang = 'zh' | 'th' | 'en'
 
@@ -564,7 +566,14 @@ export default function AgentChatPage() {
             onSuggestionClick={sendMessage}
             onConfirm={handleConfirm}
             onFollowOA={() => {
-              navigate('/welfare/open-in-line')
+              const oaUrl = buildOaAddFriendUrl(getRuntimeLineConfig().officialAccountId)
+              if (oaUrl) {
+                clientLog('agent_follow_oa_click', { target: 'oa_add_friend_url' })
+                window.location.assign(oaUrl)
+                return
+              }
+              clientLog('agent_follow_oa_click', { target: '/welfare', fallback: true })
+              navigate('/welfare')
             }}
           />
 
