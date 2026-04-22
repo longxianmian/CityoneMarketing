@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiff, getLiff } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
+import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const AUTO_RUN_PREFIX = 'continue:auto-run:'
@@ -26,24 +27,6 @@ async function checkFollow(userId: string) {
     throw new Error(json?.msg || '关注状态校验失败')
   }
   return json?.data?.is_fan === true
-}
-
-function buildClaimSuccessPath(intentPayload: any, actionResult: any) {
-  const rawReturnPath = String(intentPayload?.return_path || '/welfare')
-  const [pathname, search = ''] = rawReturnPath.split('?')
-  const params = new URLSearchParams(search)
-  const userProductId = String(
-    actionResult?.user_product?.id ||
-      actionResult?.user_product_id ||
-      ''
-  ).trim()
-
-  params.set('owned', '1')
-  params.set('source', 'claim_success')
-  if (userProductId) params.set('up', userProductId)
-
-  const query = params.toString()
-  return query ? `${pathname}?${query}` : pathname
 }
 
 function sleep(ms: number) {
@@ -286,18 +269,11 @@ export default function ContinuePage() {
         return
       }
 
-      const nextPath =
-        consumed?.payload?.action === 'claim_coupon'
-          ? buildClaimSuccessPath(
-              consumed?.payload || intentPayload,
-              consumed?.result?.action_result
-            )
-          : String(
-              consumed?.result?.nextPath ||
-                consumed?.payload?.success_path ||
-                consumed?.payload?.return_path ||
-                returnPath
-            )
+      const nextPath = resolvePendingIntentNextPath({
+        payload: consumed?.payload || intentPayload,
+        result: consumed?.result,
+        fallbackPath: returnPath,
+      })
 
       console.info('[follow-flow] consume_success', {
         intent_id: consumed?.payload?.intent_id || intentPayload.intent_id || '',

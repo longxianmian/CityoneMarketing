@@ -33,6 +33,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, consumePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
+import { resolvePendingIntentNextPath } from '../lib/pendingIntentResult'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
 import { getRuntimeLineConfig, buildRuntimeLiffUrlWithPath, buildRuntimeLineSchemeUrlWithPath } from '../lib/line'
@@ -54,24 +55,6 @@ export function hasFreshResumePending() {
 
 export function writeResumeKeys() {
   return
-}
-
-function buildClaimSuccessPath(intentPayload: any, actionResult: any) {
-  const rawReturnPath = String(intentPayload?.return_path || '/welfare')
-  const [pathname, search = ''] = rawReturnPath.split('?')
-  const params = new URLSearchParams(search)
-  const userProductId = String(
-    actionResult?.user_product?.id ||
-      actionResult?.user_product_id ||
-      ''
-  ).trim()
-
-  params.set('owned', '1')
-  params.set('source', 'claim_success')
-  if (userProductId) params.set('up', userProductId)
-
-  const query = params.toString()
-  return query ? `${pathname}?${query}` : pathname
 }
 
 export function useFollowGate() {
@@ -183,18 +166,11 @@ export function useFollowGate() {
               userId: userIdForFast,
               lineUserId: lineUidForFast,
             })
-            const nextPath =
-              consumedFast?.payload?.action === 'claim_coupon'
-                ? buildClaimSuccessPath(
-                    consumedFast?.payload,
-                    consumedFast?.result?.action_result
-                  )
-                : String(
-                    consumedFast?.result?.nextPath ||
-                      consumedFast?.payload?.success_path ||
-                      consumedFast?.payload?.return_path ||
-                      successOrReturn
-                  )
+            const nextPath = resolvePendingIntentNextPath({
+              payload: consumedFast?.payload,
+              result: consumedFast?.result,
+              fallbackPath: successOrReturn,
+            })
             clientLog('guard_fast_consume_ok', {
               action: intentAction,
               next_path: nextPath,

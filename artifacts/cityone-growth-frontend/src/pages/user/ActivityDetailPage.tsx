@@ -18,8 +18,6 @@ const TYPE_LABELS_ML: Record<string, { label: ML; color: string; btnText: ML; ro
   default:           { label: { zh:'活动',   th:'กิจกรรม',     en:'Activity'       }, color:'#52c41a', btnText:{ zh:'立即参与', th:'เข้าร่วมเลย',    en:'Join Now'     }, route:'' },
 }
 
-type Step = 'detail' | 'success'
-
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
@@ -33,14 +31,14 @@ export default function ActivityDetailPage() {
     enabled: !!id,
   })
   const [shareVisible, setShareVisible] = useState(false)
-  const [step, setStep] = useState<Step>('detail')
-  const [pointsAwarded, setPointsAwarded] = useState<number>(0)
-  const [alreadyJoined, setAlreadyJoined] = useState(false)
-  const [participating, setParticipating] = useState(false)
   const [videoStarted, setVideoStarted] = useState(false)
   const [videoPaused, setVideoPaused] = useState(false)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
   const { guard, checking } = useFollowGate()
+  const joined = searchParams.get('joined') === '1'
+  const participationResult = String(searchParams.get('result') || '').trim()
+  const pointsAwarded = Number(searchParams.get('points_awarded') || 0)
+  const alreadyJoined = participationResult === 'already_joined'
 
   // ⚠️ Hooks 必须在任何 early return 之前调用。activity loading 时为 undefined,
   //    传空字符串 / undefined 给 useOssUrl 是安全的,且能保证渲染顺序稳定。
@@ -141,17 +139,8 @@ export default function ActivityDetailPage() {
     )
   }
 
-  // ── 参与中 loading ────────────────────────────────────────────────────────
-  if (participating) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(180deg, #52c41a 0%, #95de64 100%)' }}>
-        <Spin size="large" />
-      </div>
-    )
-  }
-
   // ── 参与成功步骤 ──────────────────────────────────────────────────────────
-  if (step === 'success') {
+  if (joined) {
     const pointsLabel = {
       zh: alreadyJoined ? '您已参与过此活动' : (pointsAwarded > 0 ? `已获得 ${pointsAwarded} 积分` : '参与成功'),
       th: alreadyJoined ? 'คุณเคยเข้าร่วมกิจกรรมนี้แล้ว' : (pointsAwarded > 0 ? `ได้รับ ${pointsAwarded} คะแนน` : 'เข้าร่วมสำเร็จ'),
