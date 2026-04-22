@@ -11,6 +11,9 @@ import {
 } from '../../lib/line'
 import { clientLog } from '../../lib/clientLogger'
 
+const FOLLOW_GATE_VERSION = '20260423_follow_gate_v2'
+const FOLLOW_GATE_PENDING_RESET_MS = 1800
+
 /**
  * 强约束：
  * - 仅未关注用户进入此页
@@ -38,6 +41,9 @@ export default function FollowConfirmPage() {
   )
   const needsLineContinue = !inLineContext
   const preferSchemeLaunch = needsLineContinue && isRuntimeSchemePreferredBrowser()
+  const primaryHref = needsLineContinue
+    ? ''
+    : oaAddFriendUrl
 
   useEffect(() => {
     clientLog('follow_gate_view', {
@@ -46,12 +52,14 @@ export default function FollowConfirmPage() {
       stage: needsLineContinue ? 'line_continue' : 'follow_confirm',
       in_line_client: inLineContext,
       has_liff_url: !!continueLiffUrl,
+      version: FOLLOW_GATE_VERSION,
     })
     console.info('[follow-flow] follow_gate_view', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
       stage: needsLineContinue ? 'line_continue' : 'follow_confirm',
       in_line_client: inLineContext,
+      version: FOLLOW_GATE_VERSION,
     })
   }, [continueLiffUrl, inLineContext, needsLineContinue, payload?.action, payload?.intent_id])
 
@@ -97,6 +105,15 @@ export default function FollowConfirmPage() {
   }, [checkingFollow, continuePath, inLineContext, liffReady, navigate, needsLineContinue, payload?.action, payload?.intent_id])
 
   const handleConfirm = async () => {
+    clientLog('follow_gate_primary_click', {
+      intent_id: payload?.intent_id || '',
+      action_type: payload?.action || '',
+      stage: needsLineContinue ? 'line_continue' : 'follow_confirm',
+      in_line_client: inLineContext,
+      has_oa_url: !!oaAddFriendUrl,
+      has_liff_url: !!continueLiffUrl,
+      version: FOLLOW_GATE_VERSION,
+    })
     setSubmitting(true)
     try {
       if (needsLineContinue) {
@@ -195,6 +212,29 @@ export default function FollowConfirmPage() {
     }
   }
 
+  const handleFollowAnchorClick = () => {
+    clientLog('follow_confirm_open_oa', {
+      intent_id: payload?.intent_id || '',
+      action_type: payload?.action || '',
+      branch: inLineContext ? 'in_line' : 'external',
+      target: 'oa_add_friend_url',
+      navigation: 'anchor',
+      version: FOLLOW_GATE_VERSION,
+    })
+    console.info('[follow-flow] follow_confirm_open_oa', {
+      intent_id: payload?.intent_id || '',
+      action_type: payload?.action || '',
+      in_line_client: inLineContext,
+      version: FOLLOW_GATE_VERSION,
+    })
+    setSubmitting(true)
+    window.setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        setSubmitting(false)
+      }
+    }, FOLLOW_GATE_PENDING_RESET_MS)
+  }
+
   const title = needsLineContinue ? '请在 LINE 中继续' : '请先关注官方账号'
   const description = needsLineContinue
     ? '当前操作需要在 LINE 内继续完成。进入 LINE 后，系统会自动识别身份并继续当前业务流程。'
@@ -216,13 +256,39 @@ export default function FollowConfirmPage() {
             正在确认当前账号是否已完成关注...
           </div>
         ) : null}
-        <button
-          onClick={() => void handleConfirm()}
-          disabled={primaryDisabled}
-          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: primaryDisabled ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: primaryDisabled ? 'not-allowed' : 'pointer' }}
-        >
-          {primaryLabel}
-        </button>
+        {primaryHref ? (
+          <a
+            href={primaryHref}
+            data-clog="follow-confirm-primary"
+            onClick={handleFollowAnchorClick}
+            aria-disabled={primaryDisabled ? 'true' : 'false'}
+            style={{
+              width: '100%',
+              height: 48,
+              borderRadius: 999,
+              background: primaryDisabled ? '#b7ead7' : '#12b981',
+              color: '#fff',
+              fontWeight: 700,
+              cursor: primaryDisabled ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textDecoration: 'none',
+              pointerEvents: primaryDisabled ? 'none' : 'auto',
+            }}
+          >
+            {primaryLabel}
+          </a>
+        ) : (
+          <button
+            onClick={() => void handleConfirm()}
+            data-clog="follow-confirm-primary"
+            disabled={primaryDisabled}
+            style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: primaryDisabled ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: primaryDisabled ? 'not-allowed' : 'pointer' }}
+          >
+            {primaryLabel}
+          </button>
+        )}
         {needsLineContinue ? (
           <div style={{ color: '#666', fontSize: 13, marginTop: 12 }}>
             若未自动跳转，请点击按钮继续。

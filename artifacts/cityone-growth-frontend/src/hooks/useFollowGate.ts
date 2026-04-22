@@ -155,8 +155,9 @@ export function useFollowGate() {
         clientLog('guard_branch_external_follow_gate', {
           action: intentAction,
           target: followConfirmPath,
+          navigation: 'document',
         })
-        navigate(followConfirmPath)
+        window.location.assign(followConfirmPath)
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })

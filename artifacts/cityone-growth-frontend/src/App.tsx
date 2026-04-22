@@ -4,6 +4,7 @@ import useAuthStore from './store/auth'
 import AdminLayout from './layout/AdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
 import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
+import FollowConfirmPage from './pages/user/FollowConfirmPage'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -22,7 +23,6 @@ const PrivacyPolicyPage = lazy(() => import('./pages/user/PrivacyPolicyPage'))
 const AboutUsPage = lazy(() => import('./pages/user/AboutUsPage'))
 const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
 const ContinuePage = lazy(() => import('./pages/user/ContinuePage'))
-const FollowConfirmPage = lazy(() => import('./pages/user/FollowConfirmPage'))
 const ScratchCardPage = lazy(() => import('./pages/user/ScratchCardPage'))
 const ThaiFortuneDrawPage = lazy(() => import('./pages/user/ThaiFortuneDrawPage'))
 const MyAddressPage = lazy(() => import('./pages/user/MyAddressPage'))

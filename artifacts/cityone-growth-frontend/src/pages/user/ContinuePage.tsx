@@ -166,7 +166,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     if (inFlightRef.current || consumedRef.current) return
 
     if (!inLineContext) {
-      navigate(followConfirmPath, { replace: true })
+      window.location.replace(followConfirmPath)
       return
     }
 
@@ -195,7 +195,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
       if (!followed) {
         clearAutoRunLock()
-        navigate(followConfirmPath, { replace: true })
+        window.location.replace(followConfirmPath)
         return
       }
 
