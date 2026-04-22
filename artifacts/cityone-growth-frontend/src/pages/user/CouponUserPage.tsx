@@ -457,7 +457,16 @@ export default function CouponUserPage() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        height: '100dvh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        background: '#f5f5f5',
+      }}
+    >
       <div
         style={{
           flexShrink: 0,
@@ -705,7 +714,15 @@ export default function CouponUserPage() {
         )}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+        } as React.CSSProperties}
+      >
         <div style={{ padding: '20px 16px 0' }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px 16px', marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: '#1677ff', fontWeight: 700, marginBottom: 6 }}>{L.benefit}</div>
@@ -752,10 +769,14 @@ export default function CouponUserPage() {
 
       <div
         style={{
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 4,
           flexShrink: 0,
-          padding: '12px 16px 24px',
-          background: '#fff',
+          padding: '12px 16px calc(24px + env(safe-area-inset-bottom, 0px))',
+          background: 'rgba(255,255,255,0.96)',
           borderTop: '1px solid #f0f0f0',
+          backdropFilter: 'blur(12px)',
         }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>

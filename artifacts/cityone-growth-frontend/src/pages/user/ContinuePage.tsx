@@ -73,7 +73,11 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
-export default function ContinuePage() {
+export default function ContinuePage({
+  intentTokenOverride = '',
+}: {
+  intentTokenOverride?: string
+}) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffReady, liffChecked, inLineContext, needLineLogin } = useLiff()
@@ -87,7 +91,7 @@ export default function ContinuePage() {
   const mountedRef = useRef(true)
   const autoStartedRef = useRef(false)
 
-  const intentToken = searchParams.get('intent') || ''
+  const intentToken = intentTokenOverride || searchParams.get('intent') || ''
   const intentPayload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
 
   const returnPath = String(intentPayload?.return_path || '/welfare')

@@ -86,13 +86,22 @@ function WelfareCallbackEntryPage() {
   const openInLinePath = intentToken
     ? `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
     : '/welfare'
+  const directContinueRender = Boolean(
+    intentToken &&
+      targetPath &&
+      targetPath.startsWith('/welfare/continue?') &&
+      hasLiffState &&
+      liffChecked &&
+      (liffReady || needLineLogin),
+  )
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
+    if (directContinueRender) return
     if (!targetPath) return
     if (hasLiffState && !liffChecked) return
     if (hasLiffState && !liffReady && !needLineLogin) return
     navigate(targetPath, { replace: true })
-  }, [hasLiffState, liffChecked, liffReady, navigate, needLineLogin, targetPath])
+  }, [directContinueRender, hasLiffState, liffChecked, liffReady, navigate, needLineLogin, targetPath])
 
   if (hasLiffState && liffChecked && !liffReady && !needLineLogin) {
     return (
@@ -121,6 +130,10 @@ function WelfareCallbackEntryPage() {
         </div>
       </div>
     )
+  }
+
+  if (directContinueRender) {
+    return <ContinuePage intentTokenOverride={intentToken} />
   }
 
   if (targetPath) {
