@@ -58,23 +58,16 @@
 - 禁止默认回个人中心
 - 禁止把业务动作恢复交给首页或个人中心
 
-### useFollowGate Fast Path（绕过 ContinuePage）
+### useFollowGate 单一路径约束
 
-为消除已是粉丝场景下的"正在继续领取"过场页，`useFollowGate.guard()` 内置一条 fast path。仅当三个条件**全部成立**时触发：
+`useFollowGate.guard()` 不再保留任何 fast path，也不再允许页面侧绕过 `ContinuePage` 直接执行 `consume`。
 
-- `profile.isFriend === true`
-- `canonicalUserId` 已写入
-- `lineUserId` 以 `U` 开头（真实 LINE UID）
+所有执行动作统一流程：
 
-三个值均由 `LiffProvider` 在 LIFF init 后调用 `POST /api/user/identify` 后写入 store，是后端真源的镜像。命中 fast path 后：
-
-- 直接串 `issuePendingIntent` + `consumePendingIntent` 两个接口
-- 硬跳到 `success_path`
-- 跳过 `/welfare/continue` 中转页
-
-任一条件不满足 → 回到原 ContinuePage 慢路径,行为不变。
-
-> 强调：fast path 不是"前端推断身份等级",而是"复用后端 identify 接口刚刚写回 store 的真源结果"。如果后端口径要变,只需改 identify 返回值,fast path 自然跟随。
+- 创建 `pendingIntent`
+- LINE 内进入 `/welfare/continue?intent=...`
+- 统一完成 `identify -> check-follow -> consume`
+- 已关注则继续业务结果页，未关注则先进入 `/welfare/follow-confirm`，完成关注后再回 `/welfare/continue`
 
 ## 禁止事项
 

@@ -109,9 +109,6 @@ export default function CallbackEntry() {
               <Route path="/welfare/continue" element={<ContinuePage />} />
               <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
               <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
-              <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
-              <Route path="/open-in-line" element={<Navigate to="/welfare/open-in-line" replace />} />
-              <Route path="/follow-confirm" element={<Navigate to="/welfare/follow-confirm" replace />} />
               <Route path="*" element={<Navigate to="/welfare" replace />} />
             </Routes>
           </ErrorBoundary>

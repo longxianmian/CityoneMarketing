@@ -16,14 +16,14 @@ import { clientLog } from '../../lib/clientLogger'
  * - 不允许在此页自动跳 /welfare 或 /mine
  *
  * 设计要点：
- * 这个页面只表达一个用户意图："我同意关注 CityOne LINE 官方账号 + 继续业务"。
+ * 这个页面只表达一个用户意图："进入 LINE，继续当前业务"。
  * 不向用户暴露任何技术动作（"用 LINE 打开"、"扫码"、"添加好友"），
  * 所有"如何关注 / 如何恢复身份 / 如何执行业务"的复杂度由下游 ContinuePage 接管。
  *
  * 点击"关注并继续"的行为按场景区分（用户无感知）：
  * - LINE 内 WebView：client-side navigate 到 /welfare/continue（已经在 LIFF 容器内，
  *   直接走 ContinuePage，避免跳 liffUrl 触发自指死循环）
- * - 外部浏览器：跳 liffUrl，LINE 平台 Universal Link 拉起 LINE app → LIFF /continue
+ * - 外部浏览器：跳 liffUrl，LINE 平台 Universal Link 拉起 LINE app → LIFF /welfare/continue
  *
  * ContinuePage 的职责（已有）：
  * - 恢复 LINE 身份（LIFF login）
@@ -31,7 +31,8 @@ import { clientLog } from '../../lib/clientLogger'
  * - 完成后回到本页自动 consume + 跳 success
  *
  * LINE 平台硬约束：H5 不能静默替用户关注 OA。"关注"必须用户在 LINE app 内手动点
- * "加为好友"。"关注并继续"按钮的语义是"用户表态愿意关注 + 系统送他到 LINE 内完成"。
+ * "加为好友"。本页只负责把用户带进 LINE，真正的"已关注/未关注"判断与后续继续动作
+ * 一律由 ContinuePage / FollowConfirmPage 处理。
  */
 
 const LOGO_URL = `${import.meta.env.BASE_URL}cityone-logo.webp`
@@ -43,10 +44,9 @@ export default function OpenInLinePage() {
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const lineCfg = getRuntimeLineConfig()
-  const { continueLiffUrl, continueLineSchemeUrl, oaAddFriendUrl } = buildContinueLaunchTargets(
+  const { continueLiffUrl, continueLineSchemeUrl } = buildContinueLaunchTargets(
     intentToken,
     lineCfg.liffId,
-    lineCfg.officialAccountId,
   )
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
 
@@ -91,18 +91,6 @@ export default function OpenInLinePage() {
     })
 
     window.location.assign(continueLiffUrl)
-  }
-
-  const handleFollowOa = () => {
-    if (!oaAddFriendUrl) return
-
-    clientLog('open_in_line_follow_oa_click', {
-      intent_id: payload?.intent_id || '',
-      action_type: payload?.action || '',
-      target: 'oa_add_friend_url',
-    })
-
-    window.location.assign(oaAddFriendUrl)
   }
 
   const primaryDisabled = !intentToken || (isExternalBrowser && !continueLiffUrl)
@@ -221,23 +209,6 @@ export default function OpenInLinePage() {
             }}
           >
             打开 LINE 继续
-          </button>
-          <button
-            disabled={!oaAddFriendUrl}
-            style={{
-              width: '100%',
-              padding: '15px 0',
-              borderRadius: 999,
-              border: '1px solid #d4d4d4',
-              background: '#fff',
-              color: '#222',
-              fontSize: 17,
-              fontWeight: 600,
-              cursor: oaAddFriendUrl ? 'pointer' : 'not-allowed',
-            }}
-            onClick={handleFollowOa}
-          >
-            关注 OA
           </button>
           <div style={{ textAlign: 'center', fontSize: 13, color: '#666' }}>
             若未自动跳转，请点击按钮继续。

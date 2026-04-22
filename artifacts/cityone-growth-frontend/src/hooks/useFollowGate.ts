@@ -13,27 +13,18 @@
  *
  * 执行型动作统一流程（默认/慢路径）：
  *   1. 创建 pending intent
- *   2. 外部浏览器直接进入 LINE `/continue?intent=...`
+ *   2. 外部浏览器直接进入 LINE `/welfare/continue?intent=...`
  *   3. LINE 内统一进入 /welfare/continue?intent=...
  *   4. 仅异常场景才进入 open-in-line 引导页
  *
- * Fast path（仅在以下三者全部成立时绕过 ContinuePage 中转）：
- *   - profile.isFriend === true
- *   - canonicalUserId 已写入
- *   - lineUserId 是真实 LINE UID（U 开头）
- *
- * 三者均由 LiffProvider 在 LIFF init 后调 /api/user/identify 写入 store，是后端真源
- * 的镜像（不是前端推断）。命中后直接串 issue + consume 两次接口，硬跳 successPath，
- * 跳过 ContinuePage 的"正在继续领取"过场。任一不满足 → 回到上面的默认/慢路径。
- *
- * 不在这里直接执行 claim / participate / redeem / use（后端 consume 执行）。
+ * 不保留任何 fast path。所有执行动作一律经过同一条 pending-intent 主链：
+ * identify -> check-follow -> consume -> 落业务结果页。
  */
 import { useState, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
-import { issuePendingIntent, consumePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
-import { resolvePendingIntentNextPath } from '../lib/pendingIntentResult'
+import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
 import { getRuntimeLineConfig, buildRuntimeLiffUrlWithPath, buildRuntimeLineSchemeUrlWithPath } from '../lib/line'
@@ -125,80 +116,9 @@ export function useFollowGate() {
         const backPath = back ?? returnPath.split('?')[0]
         const successOrReturn = successPath || fullReturn
 
-        // ─── FAST PATH ────────────────────────────────────────────────────────
-        // 触发条件（必须全部成立，缺一不可）：
-        //   - liffChecked && liffReady（本次会话 LIFF init 真的完成了，不是 persist 残留）
-        //   - profile.isFriend === true（来自 identify 接口的后端真源）
-        //   - canonicalUserId 已写入（identify 接口成功返回过）
-        //   - lineUserId 是真实 LINE UID（U 开头）
-        //
-        // liffReady 门槛是关键：persist store 会保留上一次会话的 isFriend/canonicalUserId，
-        // 在 LIFF init 失败/未完成的当前会话中，绝对不能用陈旧数据走 fast path 执行业务动作
-        // （共享设备/冷启动/异常网络场景下会变成"用前一个用户身份替当前用户执行"）。
-        const lineUidForFast = lineProfile?.lineUserId || ''
-        const userIdForFast = canonicalUserId || ''
-        const fastPathReady =
-          liffChecked &&
-          liffReady &&
-          isFriendFromStore &&
-          !!userIdForFast &&
-          /^U/i.test(lineUidForFast)
-
-        if (fastPathReady) {
-          clientLog('guard_branch_fast_path', { action: intentAction })
-          const issuedFast = await issuePendingIntent({
-            userId: userIdForFast,
-            lineUserId: lineUidForFast,
-            action: intentAction,
-            resourceId,
-            returnPath: fullReturn,
-            successPath: successOrReturn,
-            failPath: failPath || fullReturn,
-            backPath,
-            actionName: label,
-            source,
-          })
-          // consume 失败 → 不能直接 toast 完事，否则用户重试会再 issue 新 token，
-          // 失去同 token 幂等 replay 保障。把控制权交给 ContinuePage 做幂等重试。
-          try {
-            const consumedFast = await consumePendingIntent({
-              token: issuedFast.token,
-              userId: userIdForFast,
-              lineUserId: lineUidForFast,
-            })
-            const nextPath = resolvePendingIntentNextPath({
-              payload: consumedFast?.payload,
-              result: consumedFast?.result,
-              fallbackPath: successOrReturn,
-            })
-            clientLog('guard_fast_consume_ok', {
-              action: intentAction,
-              next_path: nextPath,
-            })
-            // 关键修复（2026-04-20 真机 LINE 内体验诊断）：
-            // 之前这里 window.location.assign(nextPath) → 整页 reload → LiffProvider
-            // 在非 /welfare 路径上 init 偶发失败 → catch 块 window.location.replace('/welfare')
-            // → 用户被强制踢回首页，看不到 claim 成功的结果，体感"啥都没发生"。
-            //
-            // useFollowGate 是 main app 入口里的 hook（不在 callback-entry 路由表内），
-            // 根本不需要"硬跳出 callback shell"。直接 SPA navigate，目标页根据 query
-            // (?owned=1&source=claim_success&up=xxx) 渲染领取成功状态即可。
-            // ContinuePage 那条收尾链路因为在 callback-entry 路由表里跑，仍需保留 location.assign。
-            navigate(nextPath, { replace: true })
-          } catch (consumeErr: any) {
-            clientLog('guard_fast_consume_fail_to_continue', {
-              action: intentAction,
-              error: consumeErr?.message || 'consume failed',
-            })
-            // 用同一 token 跳 ContinuePage，由其内部重试链路（identity → check-follow → consume）
-            // 走幂等 replay。绝不在此处再次发起新 issue。
-            navigate(`/welfare/continue?intent=${encodeURIComponent(issuedFast.token)}`)
-          }
-          return
-        }
-
-        // ─── SLOW PATH ────────────────────────────────────────────────────────
-        // 关注状态未知 / 身份未就绪 / 在外部浏览器，走原 ContinuePage 收口。
+        // ─── 唯一主路径 ────────────────────────────────────────────────────────
+        // 所有执行动作先发 pending intent，再进入 ContinuePage 统一完成：
+        // identify -> check-follow -> consume。
         const issued = await issuePendingIntent({
           userId: canonicalUserId || lineProfile?.lineUserId || '',
           lineUserId: lineProfile?.lineUserId || '',
@@ -222,7 +142,7 @@ export function useFollowGate() {
         //   navigator.userAgent 是同步的，可立即可靠识别 LINE 内置 WebView (Line/x.x)。
         const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
         if (inLineClient || isLineWebView) {
-          clientLog('guard_branch_slow_in_line', {
+          clientLog('guard_branch_in_line_continue', {
             in_line_client: inLineClient,
             in_line_ua: isLineWebView,
             target: continuePath,
@@ -237,16 +157,16 @@ export function useFollowGate() {
         // 只有没配 LIFF，或浏览器没能拉起 LINE 时，才回退到 OpenInLinePage。
         const lineCfg = getRuntimeLineConfig()
         const continueLiffUrl = buildRuntimeLiffUrlWithPath(
-          `/continue?intent=${encodeURIComponent(issued.token)}`,
+          `/welfare/continue?intent=${encodeURIComponent(issued.token)}`,
           lineCfg.liffId
         )
         const continueLineSchemeUrl = buildRuntimeLineSchemeUrlWithPath(
-          `/continue?intent=${encodeURIComponent(issued.token)}`,
+          `/welfare/continue?intent=${encodeURIComponent(issued.token)}`,
           lineCfg.liffId
         )
 
         if (!continueLiffUrl) {
-          clientLog('guard_branch_slow_external_no_liff_fallback', {
+          clientLog('guard_branch_external_no_liff_fallback', {
             action: intentAction,
             target: openInLinePath,
           })
@@ -254,7 +174,7 @@ export function useFollowGate() {
           return
         }
 
-        clientLog('guard_branch_slow_external_direct_open_line', {
+        clientLog('guard_branch_external_direct_open_line', {
           action: intentAction,
           continue_path: continuePath,
           has_scheme_fallback: !!continueLineSchemeUrl,

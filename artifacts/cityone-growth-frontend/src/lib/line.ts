@@ -5,7 +5,15 @@ type RuntimeLineConfig = {
   requireFollow: boolean
 }
 
-const RUNTIME_WELFARE_CALLBACK_ALIASES = ['/continue', '/open-in-line', '/follow-confirm'] as const
+const RUNTIME_WELFARE_CALLBACK_PATHS = [
+  '/welfare/continue',
+  '/welfare/open-in-line',
+  '/welfare/follow-confirm',
+] as const
+
+const LEGACY_WELFARE_CALLBACK_PATH_ALIASES: Record<string, Extract<(typeof RUNTIME_WELFARE_CALLBACK_PATHS)[number], '/welfare/continue'>> = {
+  '/continue': '/welfare/continue',
+}
 
 const runtimeLineConfig: RuntimeLineConfig = {
   channelId: '',
@@ -48,19 +56,18 @@ export function normalizeRuntimeLiffExtraPath(value?: string | null) {
     normalized = `/${normalized}`
   }
 
-  if (normalized === '/welfare') return ''
-  if (normalized.startsWith('/welfare/')) {
-    normalized = normalized.slice('/welfare'.length)
-  }
-
   normalized = normalized.replace(/^\/+/, '/')
+  if (normalized === '/welfare') return ''
+  if (LEGACY_WELFARE_CALLBACK_PATH_ALIASES[normalized]) {
+    return LEGACY_WELFARE_CALLBACK_PATH_ALIASES[normalized]
+  }
   return normalized
 }
 
 export function isRuntimeWelfareCallbackExtraPath(value?: string | null) {
   const normalized = normalizeRuntimeLiffExtraPath(value)
   if (!normalized) return false
-  return RUNTIME_WELFARE_CALLBACK_ALIASES.some((basePath) => (
+  return RUNTIME_WELFARE_CALLBACK_PATHS.some((basePath) => (
     normalized === basePath || normalized.startsWith(`${basePath}?`)
   ))
 }
@@ -78,7 +85,7 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
   const normalized = normalizeRuntimeLiffExtraPath(decoded)
   if (!isRuntimeWelfareCallbackExtraPath(normalized)) return ''
 
-  return `/welfare${normalized}`
+  return normalized
 }
 
 export function isRuntimeCallbackBootPath(pathname: string, search: string) {
@@ -89,10 +96,7 @@ export function isRuntimeCallbackBootPath(pathname: string, search: string) {
     ((pathname === '/' || pathname === '/welfare') && hasCallbackPayload) ||
     pathname === '/welfare/continue' ||
     pathname === '/welfare/open-in-line' ||
-    pathname === '/welfare/follow-confirm' ||
-    pathname === '/continue' ||
-    pathname === '/open-in-line' ||
-    pathname === '/follow-confirm'
+    pathname === '/welfare/follow-confirm'
   )
 }
 
@@ -101,10 +105,24 @@ export function isRuntimeHomeBootPath(pathname: string, search: string) {
   return pathname === '/welfare' && !params.has('intent') && !params.has('liff.state')
 }
 
+function toRuntimeLiffEndpointExtraPath(value?: string | null) {
+  const normalized = normalizeRuntimeLiffExtraPath(value)
+  if (!normalized) return ''
+
+  for (const [legacyPath, canonicalPath] of Object.entries(LEGACY_WELFARE_CALLBACK_PATH_ALIASES)) {
+    if (normalized === canonicalPath) return legacyPath
+    if (normalized.startsWith(`${canonicalPath}?`)) {
+      return `${legacyPath}${normalized.slice(canonicalPath.length)}`
+    }
+  }
+
+  return normalized
+}
+
 export function buildRuntimeLiffUrlWithPath(extraPath?: string | null, value?: string | null) {
   const liffUrl = resolveRuntimeLiffUrl(value)
   if (!liffUrl) return ''
-  const normalized = normalizeRuntimeLiffExtraPath(extraPath)
+  const normalized = toRuntimeLiffEndpointExtraPath(extraPath)
   return `${liffUrl}${normalized}`
 }
 
@@ -114,13 +132,13 @@ export function buildRuntimeLiffUrlWithPath(extraPath?: string | null, value?: s
  * 时的兜底（已安装 LINE 时 line:// 直接被系统拦截拉起 LINE）。桌面浏览器无 LINE
  * 时点击不会有任何反应，所以只作为辅助链接，不替代主按钮的 https URL。
  *
- * extraPath 形如 "/continue?intent=xxx"。LINE app URL scheme 不支持 path-style，
+ * extraPath 形如 "/welfare/continue?intent=xxx"。LINE app URL scheme 不支持 path-style，
  * 所有参数必须编码进 query；这里把 extraPath 的 query 拆开拼到 line:// app 后。
  */
 export function buildRuntimeLineSchemeUrlWithPath(extraPath?: string | null, value?: string | null) {
   const liffId = resolveRuntimeLiffId(value)
   if (!liffId) return ''
-  const normalized = normalizeRuntimeLiffExtraPath(extraPath)
+  const normalized = toRuntimeLiffEndpointExtraPath(extraPath)
   if (!normalized) return `line://app/${liffId}`
   // normalized 形如 "/continue?intent=xxx"，转成 line app 的 query 形式
   const [pathPart, search = ''] = normalized.split('?')
@@ -154,13 +172,11 @@ export function buildOaAddFriendUrl(value?: string | null) {
 export function buildContinueLaunchTargets(
   intentToken: string,
   liffId?: string | null,
-  officialAccountId?: string | null,
 ) {
-  const continueExtraPath = `/continue?intent=${encodeURIComponent(intentToken)}`
+  const continueExtraPath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   return {
     continueLiffUrl: buildRuntimeLiffUrlWithPath(continueExtraPath, liffId),
     continueLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(continueExtraPath, liffId),
-    oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
   }
 }
 

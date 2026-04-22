@@ -115,17 +115,6 @@ function RootEntryRedirectPage() {
   return <Navigate to="/welfare" replace />
 }
 
-function LegacyFollowOARedirectPage() {
-  const [searchParams] = useSearchParams()
-  const intent = searchParams.get('intent') || ''
-
-  if (intent) {
-    return <Navigate to={`/welfare/continue?intent=${encodeURIComponent(intent)}`} replace />
-  }
-
-  return <Navigate to="/welfare/open-in-line" replace />
-}
-
 export default function App() {
   return (
     <ErrorBoundary>
@@ -136,9 +125,6 @@ export default function App() {
         <Route path="/welfare/continue" element={<ContinuePage />} />
         <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
         <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
-        <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
-        <Route path="/open-in-line" element={<Navigate to="/welfare/open-in-line" replace />} />
-        <Route path="/follow-confirm" element={<Navigate to="/welfare/follow-confirm" replace />} />
         <Route path="/nearby" element={<NearbyPage />} />
         <Route path="/agent" element={<AgentPage />} />
         <Route path="/agent/chat" element={<AgentChatPage />} />
@@ -153,7 +139,6 @@ export default function App() {
         <Route path="/my-points" element={<Navigate to="/mine?tab=member" replace />} />
         <Route path="/my-addresses" element={<MyAddressPage />} />
         <Route path="/redeem/:id" element={<ProductDetailPage />} />
-        <Route path="/follow-oa" element={<LegacyFollowOARedirectPage />} />
         <Route path="/system-desc" element={<SystemDescPage />} />
         <Route path="/user-agreement" element={<UserAgreementPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

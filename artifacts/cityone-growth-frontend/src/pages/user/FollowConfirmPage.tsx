@@ -130,13 +130,6 @@ export default function FollowConfirmPage() {
         >
           关注官方账号并继续
         </button>
-        <button
-          style={{ marginTop: 12, width: '100%', height: 44, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', cursor: !oaAddFriendUrl || submitting || checkingFollow ? 'not-allowed' : 'pointer' }}
-          disabled={!oaAddFriendUrl || submitting || checkingFollow}
-          onClick={() => window.location.assign(oaAddFriendUrl)}
-        >
-          去关注 OA
-        </button>
       </div>
     </div>
   )
