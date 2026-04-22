@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildContinueLaunchTargets, getRuntimeLineConfig, setRuntimeLineConfig } from '../../lib/line'
-import { resetCurrentIdentitySession } from '../../lib/identitySession'
 
 /**
  * 先读规范再改代码：
@@ -121,12 +120,6 @@ export default function OpenInLinePage() {
     tryScheme()
   }
 
-  const handleResetIdentity = () => {
-    resetCurrentIdentitySession()
-    const target = returnPath || '/welfare'
-    window.location.assign(target)
-  }
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(180deg, #f2fbf8 0%, #ffffff 100%)', padding: 20 }}>
       <div style={{ maxWidth: 420, width: '100%', borderRadius: 24, overflow: 'hidden', boxShadow: '0 20px 50px rgba(15, 111, 86, 0.12)', background: '#fff' }}>
@@ -144,7 +137,7 @@ export default function OpenInLinePage() {
         <div style={{ padding: 24 }}>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#172b24', marginBottom: 10, textAlign: 'center' }}>请在 LINE 中继续</div>
           <div style={{ color: '#5f6f68', lineHeight: 1.8, marginBottom: 16, textAlign: 'center' }}>
-            系统已为你准备好当前操作，请点击下方按钮继续。
+            需要进入LINE官方OA继续操作，请点击下方按钮继续！
           </div>
           <button
             disabled={
@@ -159,13 +152,7 @@ export default function OpenInLinePage() {
             style={{ marginTop: 12, height: 44, borderRadius: 999, width: '100%', border: '1px solid #d9d9d9', background: '#fff', cursor: 'pointer' }}
             onClick={() => navigate(returnPath, { replace: true })}
           >
-            返回当前详情页
-          </button>
-          <button
-            style={{ marginTop: 12, height: 44, borderRadius: 999, width: '100%', border: '1px solid #d9d9d9', background: '#fff', cursor: 'pointer' }}
-            onClick={handleResetIdentity}
-          >
-            重新识别 LINE 身份
+            返回
           </button>
         </div>
       </div>
