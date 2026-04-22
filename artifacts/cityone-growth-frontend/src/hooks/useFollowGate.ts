@@ -56,6 +56,24 @@ export function writeResumeKeys() {
   return
 }
 
+function buildClaimSuccessPath(intentPayload: any, actionResult: any) {
+  const rawReturnPath = String(intentPayload?.return_path || '/welfare')
+  const [pathname, search = ''] = rawReturnPath.split('?')
+  const params = new URLSearchParams(search)
+  const userProductId = String(
+    actionResult?.user_product?.id ||
+      actionResult?.user_product_id ||
+      ''
+  ).trim()
+
+  params.set('owned', '1')
+  params.set('source', 'claim_success')
+  if (userProductId) params.set('up', userProductId)
+
+  const query = params.toString()
+  return query ? `${pathname}?${query}` : pathname
+}
+
 export function useFollowGate() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -165,12 +183,18 @@ export function useFollowGate() {
               userId: userIdForFast,
               lineUserId: lineUidForFast,
             })
-            const nextPath = String(
-              consumedFast?.result?.nextPath ||
-                consumedFast?.payload?.success_path ||
-                consumedFast?.payload?.return_path ||
-                successOrReturn
-            )
+            const nextPath =
+              consumedFast?.payload?.action === 'claim_coupon'
+                ? buildClaimSuccessPath(
+                    consumedFast?.payload,
+                    consumedFast?.result?.action_result
+                  )
+                : String(
+                    consumedFast?.result?.nextPath ||
+                      consumedFast?.payload?.success_path ||
+                      consumedFast?.payload?.return_path ||
+                      successOrReturn
+                  )
             clientLog('guard_fast_consume_ok', {
               action: intentAction,
               next_path: nextPath,
