@@ -8,7 +8,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
-import useLineUserStore from '../store/lineUser'
+import useLineUserStore, { type LineUserProfile } from '../store/lineUser'
 import { resolveRuntimeLiffId, setRuntimeLineConfig } from '../lib/line'
 import { clientLog } from '../lib/clientLogger'
 
@@ -45,6 +45,13 @@ export function useLiff() {
 // 模块级缓存，只缓存已成功 import/init 的实例
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _liffInstance: any = null
+let _liffReadyCache:
+  | {
+      ctx: LiffContextValue
+      profile: LineUserProfile
+      canonicalUserId: string | null
+    }
+  | null = null
 
 export function getLiff() {
   return _liffInstance
@@ -96,6 +103,27 @@ function clearInitAttempt(initKey: string) {
   }
 }
 
+function getReusableReadyCtx() {
+  if (!_liffInstance || !_liffReadyCache?.ctx?.liffReady) return null
+
+  try {
+    if (!_liffInstance.isLoggedIn()) return null
+  } catch {
+    return null
+  }
+
+  const inLineClient = _liffReadyCache.ctx.inLineClient || detectLineAppUA()
+  return {
+    ctx: {
+      liffReady: true,
+      inLineClient,
+      liffChecked: true,
+    } as LiffContextValue,
+    profile: _liffReadyCache.profile,
+    canonicalUserId: _liffReadyCache.canonicalUserId,
+  }
+}
+
 async function initLiffOnce(
   onReady: (ctx: LiffContextValue) => void,
   signal: { cancelled: boolean },
@@ -108,6 +136,21 @@ async function initLiffOnce(
     search: window.location.search,
     in_line_ua: inLineUA,
   })
+
+  const reusableReady = getReusableReadyCtx()
+  if (reusableReady) {
+    useLineUserStore.getState().mergeProfile(reusableReady.profile)
+    if (reusableReady.canonicalUserId) {
+      useLineUserStore.getState().setCanonicalUserId(reusableReady.canonicalUserId)
+    }
+    clientLog('liff_init_reused_ready_ctx', {
+      pathname: window.location.pathname,
+      search: window.location.search,
+      in_line_client: reusableReady.ctx.inLineClient,
+    })
+    onReady(reusableReady.ctx)
+    return
+  }
 
   const cooldownRemainingMs = getInitCooldownRemainingMs(initKey)
   if (cooldownRemainingMs > 0) {
@@ -267,6 +310,22 @@ async function initLiffOnce(
     }
 
     clearInitAttempt(initKey)
+    _liffReadyCache = {
+      ctx: { liffReady: true, inLineClient, liffChecked: true },
+      profile: {
+        lineUserId: lineProfile.userId,
+        lineDisplayName: lineProfile.displayName,
+        linePictureUrl: lineProfile.pictureUrl || '',
+        identityTag: useLineUserStore.getState().profile?.identityTag,
+        memberLevel: useLineUserStore.getState().profile?.memberLevel || 'standard',
+        points: useLineUserStore.getState().profile?.points || 0,
+        couponCount: useLineUserStore.getState().profile?.couponCount || 0,
+        deposit: useLineUserStore.getState().profile?.deposit || 0,
+        depositPaid: useLineUserStore.getState().profile?.depositPaid,
+        isFriend: useLineUserStore.getState().profile?.isFriend,
+      },
+      canonicalUserId: useLineUserStore.getState().canonicalUserId || lineProfile.userId,
+    }
     onReady({ liffReady: true, inLineClient, liffChecked: true })
   } catch (err) {
     clearInitAttempt(initKey)

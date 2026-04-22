@@ -50,6 +50,19 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+function resolveInternalNavigationTarget(target: string) {
+  const raw = String(target || '').trim()
+  if (!raw) return null
+
+  try {
+    const url = new URL(raw, window.location.origin)
+    if (url.origin !== window.location.origin) return null
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return raw.startsWith('/') ? raw : null
+  }
+}
+
 export default function ContinuePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -73,6 +86,10 @@ export default function ContinuePage() {
   const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
   const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
+  const internalFailPath = useMemo(
+    () => resolveInternalNavigationTarget(failPath || returnPath),
+    [failPath, returnPath]
+  )
 
   useEffect(() => {
     mountedRef.current = true
@@ -291,6 +308,11 @@ export default function ContinuePage() {
 
       clearAutoRunLock()
       setStatus('done')
+      const internalNextPath = resolveInternalNavigationTarget(nextPath)
+      if (internalNextPath) {
+        navigate(internalNextPath, { replace: true })
+        return
+      }
       window.location.assign(nextPath)
     } catch (err: any) {
       if (!mountedRef.current) return
@@ -316,6 +338,7 @@ export default function ContinuePage() {
     openInLinePath,
     returnPath,
     waitForIdentityReady,
+    navigate,
   ])
 
   useEffect(() => {
@@ -422,7 +445,13 @@ export default function ContinuePage() {
             使用 LINE 登录并继续
           </button>
           <button
-            onClick={() => window.location.assign(failPath || returnPath)}
+            onClick={() => {
+              if (internalFailPath) {
+                navigate(internalFailPath, { replace: true })
+                return
+              }
+              window.location.assign(failPath || returnPath)
+            }}
             style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
           >
             返回当前详情页
@@ -447,6 +476,10 @@ export default function ContinuePage() {
           <button
             onClick={() => {
               clearAutoRunLock()
+              if (internalFailPath) {
+                navigate(internalFailPath, { replace: true })
+                return
+              }
               window.location.assign(failPath || returnPath)
             }}
             style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
