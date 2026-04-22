@@ -457,10 +457,13 @@ export default function CouponUserPage() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
       <div
         style={{
           flexShrink: 0,
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
           background: '#fff',
           display: 'flex',
           alignItems: 'center',
@@ -649,7 +652,17 @@ export default function CouponUserPage() {
         </div>
       </Modal>
 
-      <div style={{ flexShrink: 0, width: '100%', aspectRatio: '16/9', background: '#f0f0f0', overflow: 'hidden', position: 'relative' } as React.CSSProperties}>
+      <div
+        style={{
+          flexShrink: 0,
+          width: '100%',
+          height: 'clamp(188px, 31vh, 280px)',
+          minHeight: 188,
+          background: '#f0f0f0',
+          overflow: 'hidden',
+          position: 'relative',
+        } as React.CSSProperties}
+      >
         {videoReady && (
           <video
             ref={heroVideoRef}
@@ -706,11 +719,11 @@ export default function CouponUserPage() {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-        <div style={{ padding: '20px 16px 0' }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '20px 16px', marginBottom: 12 }}>
+        <div style={{ padding: '16px 16px 0' }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '18px 16px', marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: '#1677ff', fontWeight: 700, marginBottom: 6 }}>{L.benefit}</div>
-            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{name}</div>
-            <div style={{ fontSize: 26, color: '#fa8c16', fontWeight: 800, marginBottom: 12 }}>{discountText}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, lineHeight: 1.35 }}>{name}</div>
+            <div style={{ fontSize: 24, color: '#fa8c16', fontWeight: 800, marginBottom: 12, lineHeight: 1.15 }}>{discountText}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {detailData.coupon_type && <Tag color="blue">{detailData.coupon_type}</Tag>}
               <Tag color={statusMeta.color}>{statusMeta.text}</Tag>
@@ -753,9 +766,10 @@ export default function CouponUserPage() {
       <div
         style={{
           flexShrink: 0,
-          padding: '12px 16px 24px',
           background: '#fff',
           borderTop: '1px solid #f0f0f0',
+          boxShadow: '0 -8px 24px rgba(15, 23, 42, 0.06)',
+          padding: '12px 16px calc(14px + env(safe-area-inset-bottom, 0px))',
         }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
