@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildContinueLaunchTargets, getRuntimeLineConfig, setRuntimeLineConfig } from '../../lib/line'
+import cityoneLogoWhite from '../../assets/cityone-logo-white.svg'
 
 /**
  * 先读规范再改代码：
@@ -124,10 +125,13 @@ export default function OpenInLinePage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(180deg, #f2fbf8 0%, #ffffff 100%)', padding: 20 }}>
       <div style={{ maxWidth: 420, width: '100%', borderRadius: 24, overflow: 'hidden', boxShadow: '0 20px 50px rgba(15, 111, 86, 0.12)', background: '#fff' }}>
         <div style={{ background: 'linear-gradient(135deg, #13c267 0%, #12b981 100%)', color: '#fff', padding: '30px 24px 28px', textAlign: 'center' }}>
-          <div style={{ width: 64, height: 64, margin: '0 auto 16px', borderRadius: '50%', background: 'rgba(255,255,255,0.16)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
-            💬
+          <div style={{ width: 164, margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src={cityoneLogoWhite}
+              alt="CityOne"
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: 0.2 }}>CityOne</div>
           <div style={{ marginTop: 8 }}>
             <span style={{ display: 'inline-block', color: '#fff', border: 'none', padding: '0 12px', lineHeight: '24px', borderRadius: 999, background: 'rgba(255,255,255,0.18)', fontSize: 12 }}>
               官方认证账号
