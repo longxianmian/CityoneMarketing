@@ -88,13 +88,11 @@
           decoded = decoded.slice(window.location.origin.length)
         }
         if (decoded.charAt(0) !== '/') decoded = '/' + decoded
-        if (decoded.indexOf('/welfare/') === 0) decoded = decoded.slice('/welfare'.length)
         decoded = decoded.replace(/^\/+/, '/')
-        if (
-          decoded.indexOf('/continue?') === 0 ||
-          decoded.indexOf('/open-in-line?') === 0 ||
-          decoded.indexOf('/follow-confirm?') === 0
-        ) {
+        if (decoded.indexOf('/continue?') === 0) {
+          decoded = '/welfare' + decoded
+        }
+        if (decoded.indexOf('/welfare/continue?') === 0) {
           boot.title = '正在继续领取'
           boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
           window.__CITYONE_BOOT__ = boot
@@ -135,10 +133,7 @@
         ((pathname === '/' || pathname === '/welfare') && (params.has('intent') || params.has('liff.state'))) ||
         pathname === '/welfare/continue' ||
         pathname === '/welfare/open-in-line' ||
-        pathname === '/welfare/follow-confirm' ||
-        pathname === '/continue' ||
-        pathname === '/open-in-line' ||
-        pathname === '/follow-confirm'
+        pathname === '/welfare/follow-confirm'
       const root = document.getElementById('root')
 
       const entryLoader = isCallbackEntry
