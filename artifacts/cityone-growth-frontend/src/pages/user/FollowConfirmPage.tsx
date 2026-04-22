@@ -1,9 +1,10 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把关注确认页改回首页 fallback 或技术报错页。
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getLiff, syncLiffFriendshipIdentity, useLiff } from '../../providers/LiffProvider'
+import { syncLiffFriendshipIdentity, useLiff } from '../../providers/LiffProvider'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildOaAddFriendUrl, getRuntimeLineConfig } from '../../lib/line'
+import { clientLog } from '../../lib/clientLogger'
 
 /**
  * 强约束：
@@ -73,28 +74,19 @@ export default function FollowConfirmPage() {
   }, [checkingFollow, continuePath, inLineClient, liffReady, navigate, payload?.action, payload?.intent_id])
 
   const handleConfirm = async () => {
-    const liff = getLiff()
     setSubmitting(true)
     try {
-      if (inLineClient && liffReady && liff?.requestFriendship) {
-        await liff.requestFriendship()
-        const refreshed = await syncLiffFriendshipIdentity()
-        if (refreshed?.isFriend === true) {
-          console.info('[follow-flow] follow_confirm_success', {
-            intent_id: payload?.intent_id || '',
-            action_type: payload?.action || '',
-          })
-          navigate(continuePath, { replace: true })
-          return
-        }
-
-        console.info('[follow-flow] follow_confirm_success', {
+      if (oaAddFriendUrl) {
+        clientLog('follow_confirm_open_oa', {
           intent_id: payload?.intent_id || '',
           action_type: payload?.action || '',
+          branch: inLineClient ? 'in_line' : 'external',
         })
-      }
-
-      if (oaAddFriendUrl) {
+        console.info('[follow-flow] follow_confirm_open_oa', {
+          intent_id: payload?.intent_id || '',
+          action_type: payload?.action || '',
+          in_line_client: inLineClient,
+        })
         window.location.assign(oaAddFriendUrl)
         return
       }
@@ -123,12 +115,17 @@ export default function FollowConfirmPage() {
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>
           当前操作需要先完成官方账号关注确认。关注完成后，系统会自动继续当前步骤，不需要重新返回详情页再次点击。
         </div>
+        {checkingFollow ? (
+          <div style={{ color: '#10b981', fontSize: 13, marginBottom: 12 }}>
+            正在确认当前账号是否已完成关注...
+          </div>
+        ) : null}
         <button
           onClick={() => void handleConfirm()}
-          disabled={submitting || checkingFollow}
-          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: (submitting || checkingFollow) ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: (submitting || checkingFollow) ? 'not-allowed' : 'pointer' }}
+          disabled={submitting}
+          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: submitting ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}
         >
-          关注官方账号并继续
+          {submitting ? '打开中...' : '打开官方账号并关注'}
         </button>
       </div>
     </div>
