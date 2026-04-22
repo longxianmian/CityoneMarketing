@@ -15,6 +15,11 @@ import { clientLog } from '../lib/clientLogger'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const LIFF_INIT_TIMEOUT_MS = 5000
 const INIT_COOLDOWN_MS = 4000
+const INIT_COOLDOWN_BYPASS_PATHS = new Set([
+  '/welfare/continue',
+  '/welfare/open-in-line',
+  '/welfare/follow-confirm',
+])
 
 export interface LiffContextValue {
   liffReady: boolean
@@ -53,15 +58,26 @@ function getInitAttemptKey(initKey: string) {
   return `_liff_init_attempted:${initKey}`
 }
 
-function shouldBlockInitByCooldown(initKey: string) {
+function getInitCooldownRemainingMs(initKey: string) {
   try {
     const raw = sessionStorage.getItem(getInitAttemptKey(initKey))
     const ts = Number(raw || 0)
-    if (!ts) return false
-    return Date.now() - ts < INIT_COOLDOWN_MS
+    if (!ts) return 0
+    return Math.max(0, INIT_COOLDOWN_MS - (Date.now() - ts))
   } catch {
-    return false
+    return 0
   }
+}
+
+function shouldBypassInitCooldown() {
+  const pathname = window.location.pathname || ''
+  const search = window.location.search || ''
+  return (
+    INIT_COOLDOWN_BYPASS_PATHS.has(pathname) ||
+    search.includes('code=') ||
+    search.includes('liff.state=') ||
+    search.includes('liff.hback=')
+  )
 }
 
 function markInitAttempt(initKey: string) {
@@ -93,13 +109,23 @@ async function initLiffOnce(
     in_line_ua: inLineUA,
   })
 
-  if (shouldBlockInitByCooldown(initKey)) {
-    clientLog('liff_init_blocked_by_cooldown', {
-      pathname: window.location.pathname,
-      search: window.location.search,
-    })
-    onReady({ liffReady: false, inLineClient: inLineUA, liffChecked: true })
-    return
+  const cooldownRemainingMs = getInitCooldownRemainingMs(initKey)
+  if (cooldownRemainingMs > 0) {
+    if (shouldBypassInitCooldown()) {
+      clientLog('liff_init_cooldown_bypassed', {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        remaining_ms: cooldownRemainingMs,
+      })
+    } else {
+      clientLog('liff_init_delayed_by_cooldown', {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        remaining_ms: cooldownRemainingMs,
+      })
+      await new Promise((resolve) => window.setTimeout(resolve, cooldownRemainingMs))
+      if (signal.cancelled) return
+    }
   }
 
   markInitAttempt(initKey)
@@ -111,6 +137,7 @@ async function initLiffOnce(
 
     const liffId: string = resolveRuntimeLiffId(json?.data?.liffId)
     if (!liffId) {
+      clearInitAttempt(initKey)
       clientLog('liff_init_no_liff_id', {})
       onReady({ liffReady: false, inLineClient: false, liffChecked: true })
       return
@@ -145,6 +172,7 @@ async function initLiffOnce(
     })
 
     if (!liff.isLoggedIn()) {
+      clearInitAttempt(initKey)
       clientLog('liff_not_logged_in_unlock', {
         pathname: window.location.pathname,
         search: window.location.search,
@@ -241,6 +269,7 @@ async function initLiffOnce(
     clearInitAttempt(initKey)
     onReady({ liffReady: true, inLineClient, liffChecked: true })
   } catch (err) {
+    clearInitAttempt(initKey)
     console.warn('[LIFF] init failed:', err)
     onReady({ liffReady: false, inLineClient: inLineUA, liffChecked: true })
   }
@@ -280,6 +309,7 @@ export function LiffProvider({ children }: { children: React.ReactNode }) {
     timer = window.setTimeout(() => {
       if (signal.cancelled || initResolvedRef.current) return
       console.warn('[LIFF] init timeout after', LIFF_INIT_TIMEOUT_MS, 'ms')
+      clearInitAttempt(initKey)
       safeSetCtx({
         liffReady: false,
         inLineClient: detectLineAppUA(),
