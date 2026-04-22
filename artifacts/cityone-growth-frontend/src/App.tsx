@@ -22,7 +22,6 @@ const PrivacyPolicyPage = lazy(() => import('./pages/user/PrivacyPolicyPage'))
 const AboutUsPage = lazy(() => import('./pages/user/AboutUsPage'))
 const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
 const ContinuePage = lazy(() => import('./pages/user/ContinuePage'))
-const OpenInLinePage = lazy(() => import('./pages/user/OpenInLinePage'))
 const FollowConfirmPage = lazy(() => import('./pages/user/FollowConfirmPage'))
 const ScratchCardPage = lazy(() => import('./pages/user/ScratchCardPage'))
 const ThaiFortuneDrawPage = lazy(() => import('./pages/user/ThaiFortuneDrawPage'))
@@ -123,7 +122,7 @@ export default function App() {
         {/* 用户端路由 */}
         <Route path="/welfare" element={<WelfareEntryPage />} />
         <Route path="/welfare/continue" element={<ContinuePage />} />
-        <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
+        <Route path="/welfare/open-in-line" element={<FollowConfirmPage />} />
         <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
         <Route path="/nearby" element={<NearbyPage />} />
         <Route path="/agent" element={<AgentPage />} />

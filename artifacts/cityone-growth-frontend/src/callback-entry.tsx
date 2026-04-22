@@ -6,7 +6,6 @@ import ErrorBoundary from './components/ErrorBoundary'
 import queryClient from './lib/queryClient'
 import { LiffProvider } from './providers/LiffProvider'
 import ContinuePage from './pages/user/ContinuePage'
-import OpenInLinePage from './pages/user/OpenInLinePage'
 import FollowConfirmPage from './pages/user/FollowConfirmPage'
 import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
 import { useLiff } from './providers/LiffProvider'
@@ -100,7 +99,7 @@ export default function CallbackEntry() {
               <Route path="/" element={<RootCallbackEntryPage />} />
               <Route path="/welfare" element={<WelfareCallbackEntryPage />} />
               <Route path="/welfare/continue" element={<ContinuePage />} />
-              <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
+              <Route path="/welfare/open-in-line" element={<FollowConfirmPage />} />
               <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
               <Route path="*" element={<Navigate to="/welfare" replace />} />
             </Routes>
