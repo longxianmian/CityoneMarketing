@@ -1,10 +1,11 @@
 // 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止在 continue 页复活首页/个人中心 fallback 或页面自执行业务动作。
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useLiff, getLiff } from '../../providers/LiffProvider'
+import { useLiff, getLiff, syncLiffFriendshipIdentity } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
+import { clientLog } from '../../lib/clientLogger'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const AUTO_RUN_PREFIX = 'continue:auto-run:'
@@ -190,7 +191,38 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       }
 
       setStatus('checking_follow')
-      const followed = await checkFollow(identity.canonicalUserId)
+      let effectiveUserId = identity.canonicalUserId
+      let followed = false
+
+      if (inLineContext && liffReady) {
+        try {
+          const refreshed = await syncLiffFriendshipIdentity()
+          if (!mountedRef.current) return
+          if (refreshed?.canonicalUserId) {
+            effectiveUserId = refreshed.canonicalUserId
+          }
+          clientLog('continue_friendship_refresh', {
+            intent_id: intentPayload.intent_id || '',
+            action_type: intentPayload.action || '',
+            line_user_id: refreshed?.lineUserId || identity.lineUserId,
+            canonical_user_id: effectiveUserId,
+            is_friend: refreshed?.isFriend === true,
+          })
+          if (refreshed?.isFriend === true) {
+            followed = true
+          }
+        } catch (err: any) {
+          clientLog('continue_friendship_refresh_failed', {
+            intent_id: intentPayload.intent_id || '',
+            action_type: intentPayload.action || '',
+            error: err?.message || 'unknown',
+          })
+        }
+      }
+
+      if (!followed) {
+        followed = await checkFollow(effectiveUserId)
+      }
       if (!mountedRef.current) return
 
       if (!followed) {
@@ -204,7 +236,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
       const consumed = await consumePendingIntent({
         token: intentToken,
-        userId: identity.canonicalUserId,
+        userId: effectiveUserId,
         lineUserId: identity.lineUserId,
       })
       if (!mountedRef.current) return
