@@ -5,6 +5,8 @@ type RuntimeLineConfig = {
   requireFollow: boolean
 }
 
+const RUNTIME_WELFARE_CALLBACK_ALIASES = ['/continue', '/open-in-line', '/follow-confirm'] as const
+
 const runtimeLineConfig: RuntimeLineConfig = {
   channelId: '',
   officialAccountId: '',
@@ -53,6 +55,50 @@ export function normalizeRuntimeLiffExtraPath(value?: string | null) {
 
   normalized = normalized.replace(/^\/+/, '/')
   return normalized
+}
+
+export function isRuntimeWelfareCallbackExtraPath(value?: string | null) {
+  const normalized = normalizeRuntimeLiffExtraPath(value)
+  if (!normalized) return false
+  return RUNTIME_WELFARE_CALLBACK_ALIASES.some((basePath) => (
+    normalized === basePath || normalized.startsWith(`${basePath}?`)
+  ))
+}
+
+export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParams) {
+  const intent = searchParams.get('intent') || ''
+  if (intent) {
+    return `/welfare/continue?intent=${encodeURIComponent(intent)}`
+  }
+
+  const liffState = searchParams.get('liff.state') || ''
+  if (!liffState) return ''
+
+  const decoded = decodeURIComponent(liffState)
+  const normalized = normalizeRuntimeLiffExtraPath(decoded)
+  if (!isRuntimeWelfareCallbackExtraPath(normalized)) return ''
+
+  return `/welfare${normalized}`
+}
+
+export function isRuntimeCallbackBootPath(pathname: string, search: string) {
+  const params = new URLSearchParams(search || '')
+  const hasCallbackPayload = params.has('intent') || params.has('liff.state')
+
+  return (
+    ((pathname === '/' || pathname === '/welfare') && hasCallbackPayload) ||
+    pathname === '/welfare/continue' ||
+    pathname === '/welfare/open-in-line' ||
+    pathname === '/welfare/follow-confirm' ||
+    pathname === '/continue' ||
+    pathname === '/open-in-line' ||
+    pathname === '/follow-confirm'
+  )
+}
+
+export function isRuntimeHomeBootPath(pathname: string, search: string) {
+  const params = new URLSearchParams(search || '')
+  return pathname === '/welfare' && !params.has('intent') && !params.has('liff.state')
 }
 
 export function buildRuntimeLiffUrlWithPath(extraPath?: string | null, value?: string | null) {

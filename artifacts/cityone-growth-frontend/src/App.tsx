@@ -1,8 +1,9 @@
 import React, { Suspense, lazy } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import useAuthStore from './store/auth'
 import AdminLayout from './layout/AdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
+import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -22,7 +23,6 @@ const UserAgreementPage = lazy(() => import('./pages/user/UserAgreementPage'))
 const PrivacyPolicyPage = lazy(() => import('./pages/user/PrivacyPolicyPage'))
 const AboutUsPage = lazy(() => import('./pages/user/AboutUsPage'))
 const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
-const FollowOAPage = lazy(() => import('./pages/user/FollowOAPage'))
 const ContinuePage = lazy(() => import('./pages/user/ContinuePage'))
 const OpenInLinePage = lazy(() => import('./pages/user/OpenInLinePage'))
 const FollowConfirmPage = lazy(() => import('./pages/user/FollowConfirmPage'))
@@ -105,6 +105,29 @@ function CS({ title, description }: { title: string; description?: string }) {
   return <ComingSoon title={title} description={description} />
 }
 
+function RootEntryRedirectPage() {
+  const [searchParams] = useSearchParams()
+  const targetPath = resolveRuntimeWelfareCallbackTarget(searchParams)
+
+  if (targetPath) {
+    const query = searchParams.toString()
+    return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
+  }
+
+  return <Navigate to="/welfare" replace />
+}
+
+function LegacyFollowOARedirectPage() {
+  const [searchParams] = useSearchParams()
+  const intent = searchParams.get('intent') || ''
+
+  if (intent) {
+    return <Navigate to={`/welfare/continue?intent=${encodeURIComponent(intent)}`} replace />
+  }
+
+  return <Navigate to="/welfare/open-in-line" replace />
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -116,6 +139,8 @@ export default function App() {
         <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
         <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
         <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
+        <Route path="/open-in-line" element={<Navigate to="/welfare/open-in-line" replace />} />
+        <Route path="/follow-confirm" element={<Navigate to="/welfare/follow-confirm" replace />} />
         <Route path="/nearby" element={<NearbyPage />} />
         <Route path="/agent" element={<AgentPage />} />
         <Route path="/agent/chat" element={<AgentChatPage />} />
@@ -130,7 +155,7 @@ export default function App() {
         <Route path="/my-points" element={<Navigate to="/mine?tab=member" replace />} />
         <Route path="/my-addresses" element={<MyAddressPage />} />
         <Route path="/redeem/:id" element={<ProductDetailPage />} />
-        <Route path="/follow-oa" element={<FollowOAPage />} />
+        <Route path="/follow-oa" element={<LegacyFollowOARedirectPage />} />
         <Route path="/system-desc" element={<SystemDescPage />} />
         <Route path="/user-agreement" element={<UserAgreementPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -227,7 +252,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/admin/growth/activity" replace />} />
         </Route>
 
-        <Route path="/" element={<Navigate to="/welfare" replace />} />
+        <Route path="/" element={<RootEntryRedirectPage />} />
         <Route path="*" element={<Navigate to="/welfare" replace />} />
       </Routes>
     </Suspense>

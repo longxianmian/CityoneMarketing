@@ -8,7 +8,7 @@ import { LiffProvider } from './providers/LiffProvider'
 import ContinuePage from './pages/user/ContinuePage'
 import OpenInLinePage from './pages/user/OpenInLinePage'
 import FollowConfirmPage from './pages/user/FollowConfirmPage'
-import { normalizeRuntimeLiffExtraPath } from './lib/line'
+import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
 
 function CallbackTitleSync() {
   React.useEffect(() => {
@@ -21,27 +21,7 @@ function WelfareCallbackEntryPage() {
   const [searchParams] = useSearchParams()
 
   const targetPath = React.useMemo(() => {
-    const intent = searchParams.get('intent') || ''
-    if (intent) {
-      return `/welfare/continue?intent=${encodeURIComponent(intent)}`
-    }
-
-    const liffState = searchParams.get('liff.state') || ''
-    if (!liffState) return ''
-
-    const decoded = decodeURIComponent(liffState)
-    const normalized = normalizeRuntimeLiffExtraPath(decoded)
-    if (!normalized) return ''
-
-    if (
-      normalized.startsWith('/continue?') ||
-      normalized.startsWith('/open-in-line?') ||
-      normalized.startsWith('/follow-confirm?')
-    ) {
-      return `/welfare${normalized}`
-    }
-
-    return ''
+    return resolveRuntimeWelfareCallbackTarget(searchParams)
   }, [searchParams])
 
   // 兜底：未识别的 liff.state / 缺失 intent，1.2s 后回 /welfare 主页（避免无限转圈）
@@ -78,6 +58,19 @@ function WelfareCallbackEntryPage() {
   )
 }
 
+function RootCallbackEntryPage() {
+  const [searchParams] = useSearchParams()
+  const targetPath = React.useMemo(() => resolveRuntimeWelfareCallbackTarget(searchParams), [searchParams])
+
+  // LINE 回流有时会落在站点根路径，必须保留原 query 并重定向到福利回调入口。
+  if (targetPath) {
+    const query = searchParams.toString()
+    return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
+  }
+
+  return <Navigate to="/welfare" replace />
+}
+
 export default function CallbackEntry() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -86,11 +79,14 @@ export default function CallbackEntry() {
           <CallbackTitleSync />
           <ErrorBoundary>
             <Routes>
+              <Route path="/" element={<RootCallbackEntryPage />} />
               <Route path="/welfare" element={<WelfareCallbackEntryPage />} />
               <Route path="/welfare/continue" element={<ContinuePage />} />
               <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
               <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
               <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
+              <Route path="/open-in-line" element={<Navigate to="/welfare/open-in-line" replace />} />
+              <Route path="/follow-confirm" element={<Navigate to="/welfare/follow-confirm" replace />} />
               <Route path="*" element={<Navigate to="/welfare" replace />} />
             </Routes>
           </ErrorBoundary>

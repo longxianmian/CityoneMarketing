@@ -134,11 +134,13 @@
       const pathname = window.location.pathname || ''
       const params = new URLSearchParams(window.location.search || '')
       const isCallbackEntry =
-        (pathname === '/welfare' && (params.has('intent') || params.has('liff.state'))) ||
+        ((pathname === '/' || pathname === '/welfare') && (params.has('intent') || params.has('liff.state'))) ||
         pathname === '/welfare/continue' ||
         pathname === '/welfare/open-in-line' ||
         pathname === '/welfare/follow-confirm' ||
-        pathname === '/continue'
+        pathname === '/continue' ||
+        pathname === '/open-in-line' ||
+        pathname === '/follow-confirm'
       const root = document.getElementById('root')
 
       const entryLoader = isCallbackEntry

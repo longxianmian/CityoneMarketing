@@ -564,12 +564,7 @@ export default function AgentChatPage() {
             onSuggestionClick={sendMessage}
             onConfirm={handleConfirm}
             onFollowOA={() => {
-              const name = encodeURIComponent({
-                zh: '关注后解锁积分、卡券、活动等功能',
-                th: 'ติดตามเพื่อใช้งานคะแนน คูปอง และกิจกรรม',
-                en: 'Follow to unlock points, coupons & activities',
-              }[lang])
-              navigate(`/follow-oa?to=${encodeURIComponent('/agent/chat')}&name=${name}&back=${encodeURIComponent('/welfare')}`)
+              navigate('/welfare/open-in-line')
             }}
           />
 

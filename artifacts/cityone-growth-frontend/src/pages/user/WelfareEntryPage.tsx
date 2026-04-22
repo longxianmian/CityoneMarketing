@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import WelfareHomePage from './WelfareHomePage'
-import { normalizeRuntimeLiffExtraPath } from '../../lib/line'
+import { resolveRuntimeWelfareCallbackTarget } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
 
@@ -24,27 +24,7 @@ export default function WelfareEntryPage() {
   const { liffChecked } = useLiff()
 
   const targetPath = useMemo(() => {
-    const intent = searchParams.get('intent') || ''
-    if (intent) {
-      return `/welfare/continue?intent=${encodeURIComponent(intent)}`
-    }
-
-    const liffState = searchParams.get('liff.state') || ''
-    if (!liffState) return ''
-
-    const decoded = decodeURIComponent(liffState)
-    const normalized = normalizeRuntimeLiffExtraPath(decoded)
-    if (!normalized) return ''
-
-    if (
-      normalized.startsWith('/continue?') ||
-      normalized.startsWith('/open-in-line?') ||
-      normalized.startsWith('/follow-confirm?')
-    ) {
-      return `/welfare${normalized}`
-    }
-
-    return ''
+    return resolveRuntimeWelfareCallbackTarget(searchParams)
   }, [searchParams])
 
   // 有 LIFF 回流参数（liff.state / code）时，必须等 LiffProvider 完成 OAuth

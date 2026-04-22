@@ -26,6 +26,7 @@ export default function ProductDetailPage() {
   const couponExchangeMode = searchParams.get('coupon_owned') === '1' && !!searchParams.get('coupon_id')
   const couponId = searchParams.get('coupon_id') || ''
   const couponUserProductId = searchParams.get('up') || ''
+  const currentDetailPath = `${location.pathname}${location.search}`
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const { guard, checking } = useFollowGate()
@@ -107,10 +108,10 @@ export default function ProductDetailPage() {
     guard(
       {
         label: pick(product?.name) || '',
-        returnPath: `/redeem/${id}`,
+        returnPath: currentDetailPath,
         successPath: couponExchangeMode ? '/mine?tab=benefit' : '/mine?tab=member',
-        failPath: `/redeem/${id}`,
-        back: couponExchangeMode ? '/mine?tab=benefit' : '/my-points',
+        failPath: currentDetailPath,
+        back: couponExchangeMode ? currentDetailPath : '/my-points',
         intentAction: 'redeem_product',
         resourceId: product.id,
         source: {
