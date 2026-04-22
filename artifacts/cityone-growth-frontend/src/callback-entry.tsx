@@ -1,12 +1,13 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Navigate, Routes, Route, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import ErrorBoundary from './components/ErrorBoundary'
 import { LiffProvider, useLiff } from './providers/LiffProvider'
-import ContinuePage from './pages/user/ContinuePage'
-import OpenInLinePage from './pages/user/OpenInLinePage'
-import FollowConfirmPage from './pages/user/FollowConfirmPage'
 import { normalizeRuntimeLiffExtraPath } from './lib/line'
+
+const ContinuePage = React.lazy(() => import('./pages/user/ContinuePage'))
+const OpenInLinePage = React.lazy(() => import('./pages/user/OpenInLinePage'))
+const FollowConfirmPage = React.lazy(() => import('./pages/user/FollowConfirmPage'))
 
 function CallbackTitleSync() {
   React.useEffect(() => {
@@ -15,8 +16,37 @@ function CallbackTitleSync() {
   return null
 }
 
+function CallbackLoadingShell({
+  title = '正在继续处理',
+  desc = '系统正在确认 LINE 身份、关注状态，并自动继续当前操作。',
+}: {
+  title?: string
+  desc?: string
+}) {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            margin: '0 auto',
+            borderRadius: '50%',
+            border: '3px solid rgba(44, 219, 206, 0.18)',
+            borderTopColor: '#2cdbce',
+            animation: 'boot-spin 0.8s linear infinite',
+          }}
+        />
+        <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#172b24' }}>{title}</div>
+        <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8 }}>{desc}</div>
+      </div>
+    </div>
+  )
+}
+
 function WelfareCallbackEntryPage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { liffChecked, liffReady, needLineLogin } = useLiff()
   const hasLiffState = searchParams.has('liff.state')
 
@@ -60,9 +90,10 @@ function WelfareCallbackEntryPage() {
 
   React.useEffect(() => {
     if (!targetPath) return
-    if (hasLiffState && !(liffReady || needLineLogin)) return
-    window.location.replace(targetPath)
-  }, [hasLiffState, liffReady, needLineLogin, targetPath])
+    if (hasLiffState && !liffChecked) return
+    if (hasLiffState && !liffReady && !needLineLogin) return
+    navigate(targetPath, { replace: true })
+  }, [hasLiffState, liffChecked, liffReady, navigate, needLineLogin, targetPath])
 
   if (hasLiffState && liffChecked && !liffReady && !needLineLogin) {
     return (
@@ -94,46 +125,10 @@ function WelfareCallbackEntryPage() {
   }
 
   if (targetPath) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
-        <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              margin: '0 auto',
-              borderRadius: '50%',
-              border: '3px solid rgba(44, 219, 206, 0.18)',
-              borderTopColor: '#2cdbce',
-              animation: 'boot-spin 0.8s linear infinite',
-            }}
-          />
-          <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#172b24' }}>正在继续领取</div>
-          <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8 }}>系统正在确认 LINE 回调状态并自动继续当前操作。</div>
-        </div>
-      </div>
-    )
+    return <CallbackLoadingShell />
   }
 
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            margin: '0 auto',
-            borderRadius: '50%',
-            border: '3px solid rgba(44, 219, 206, 0.18)',
-            borderTopColor: '#2cdbce',
-            animation: 'boot-spin 0.8s linear infinite',
-          }}
-        />
-        <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#172b24' }}>正在继续领取</div>
-        <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8 }}>系统正在确认 LINE 身份并自动完成后续步骤。</div>
-      </div>
-    </div>
-  )
+  return <CallbackLoadingShell />
 }
 
 function WelfareCallbackEntryRoute() {
@@ -160,6 +155,14 @@ function CallbackLiffShell({ children }: { children: React.ReactNode }) {
     <LiffProvider>
       <ErrorBoundary>{children}</ErrorBoundary>
     </LiffProvider>
+  )
+}
+
+function CallbackFlowLayout() {
+  return (
+    <CallbackLiffShell>
+      <Outlet />
+    </CallbackLiffShell>
   )
 }
 
@@ -197,10 +200,38 @@ export default function CallbackEntry() {
     <BrowserRouter>
       <CallbackTitleSync />
       <Routes>
-        <Route path="/welfare" element={<WelfareCallbackEntryRoute />} />
-        <Route path="/welfare/open-in-line" element={<ErrorBoundary><OpenInLinePage /></ErrorBoundary>} />
-        <Route path="/welfare/continue" element={<CallbackLiffShell><ContinuePage /></CallbackLiffShell>} />
-        <Route path="/welfare/follow-confirm" element={<CallbackLiffShell><FollowConfirmPage /></CallbackLiffShell>} />
+        <Route
+          path="/welfare"
+          element={<CallbackFlowLayout />}
+        >
+          <Route index element={<WelfareCallbackEntryRoute />} />
+          <Route
+            path="continue"
+            element={
+              <Suspense fallback={<CallbackLoadingShell />}>
+                <ContinuePage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="follow-confirm"
+            element={
+              <Suspense fallback={<CallbackLoadingShell title="正在准备关注确认" desc="系统正在准备 LINE 关注确认流程。" />}>
+                <FollowConfirmPage />
+              </Suspense>
+            }
+          />
+        </Route>
+        <Route
+          path="/welfare/open-in-line"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<CallbackLoadingShell title="正在准备打开 LINE" desc="系统正在准备当前操作的 LINE 继续入口。" />}>
+                <OpenInLinePage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
         <Route path="/continue" element={<Navigate to="/welfare/continue" replace />} />
         <Route path="*" element={<CallbackInvalidRoutePage />} />
       </Routes>
