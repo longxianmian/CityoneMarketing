@@ -1,13 +1,12 @@
-import React, { Suspense } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import ErrorBoundary from './components/ErrorBoundary'
 import { LiffProvider, useLiff } from './providers/LiffProvider'
+import ContinuePage from './pages/user/ContinuePage'
+import OpenInLinePage from './pages/user/OpenInLinePage'
+import FollowConfirmPage from './pages/user/FollowConfirmPage'
 import { normalizeRuntimeLiffExtraPath } from './lib/line'
-
-const ContinuePage = React.lazy(() => import('./pages/user/ContinuePage'))
-const OpenInLinePage = React.lazy(() => import('./pages/user/OpenInLinePage'))
-const FollowConfirmPage = React.lazy(() => import('./pages/user/FollowConfirmPage'))
 
 function CallbackTitleSync() {
   React.useEffect(() => {
@@ -205,30 +204,14 @@ export default function CallbackEntry() {
           element={<CallbackFlowLayout />}
         >
           <Route index element={<WelfareCallbackEntryRoute />} />
-          <Route
-            path="continue"
-            element={
-              <Suspense fallback={<CallbackLoadingShell />}>
-                <ContinuePage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="follow-confirm"
-            element={
-              <Suspense fallback={<CallbackLoadingShell title="正在准备关注确认" desc="系统正在准备 LINE 关注确认流程。" />}>
-                <FollowConfirmPage />
-              </Suspense>
-            }
-          />
+          <Route path="continue" element={<ContinuePage />} />
+          <Route path="follow-confirm" element={<FollowConfirmPage />} />
         </Route>
         <Route
           path="/welfare/open-in-line"
           element={
             <ErrorBoundary>
-              <Suspense fallback={<CallbackLoadingShell title="正在准备打开 LINE" desc="系统正在准备当前操作的 LINE 继续入口。" />}>
-                <OpenInLinePage />
-              </Suspense>
+              <OpenInLinePage />
             </ErrorBoundary>
           }
         />
