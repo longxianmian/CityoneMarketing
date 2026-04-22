@@ -27,7 +27,12 @@ import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
-import { getRuntimeLineConfig, buildRuntimeLiffUrlWithPath, buildRuntimeLineSchemeUrlWithPath } from '../lib/line'
+import {
+  getRuntimeLineConfig,
+  buildRuntimeLiffUrlWithPath,
+  buildRuntimeLineSchemeUrlWithPath,
+  isRuntimeSchemePreferredBrowser,
+} from '../lib/line'
 
 interface GuardOptions {
   label?: string
@@ -164,6 +169,18 @@ export function useFollowGate() {
           `/welfare/continue?intent=${encodeURIComponent(issued.token)}`,
           lineCfg.liffId
         )
+        const preferSchemeBrowser = isRuntimeSchemePreferredBrowser()
+
+        if (preferSchemeBrowser) {
+          clientLog('guard_branch_external_interstitial', {
+            action: intentAction,
+            target: openInLinePath,
+            reason: 'scheme_preferred_browser',
+            has_scheme_fallback: !!continueLineSchemeUrl,
+          })
+          navigate(openInLinePath)
+          return
+        }
 
         if (!continueLiffUrl) {
           clientLog('guard_branch_external_no_liff_fallback', {

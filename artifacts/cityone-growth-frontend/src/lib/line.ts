@@ -184,3 +184,9 @@ export function isRuntimeFollowGateReady() {
   if (!runtimeLineConfig.requireFollow) return true
   return !!runtimeLineConfig.officialAccountId && !!runtimeLineConfig.liffId
 }
+
+export function isRuntimeSchemePreferredBrowser(ua?: string | null) {
+  const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
+  if (!raw) return false
+  return /MicroMessenger|FBAN|FBAV|Instagram|Messenger/i.test(raw)
+}

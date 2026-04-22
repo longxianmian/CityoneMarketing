@@ -7,6 +7,7 @@ import {
   buildContinueLaunchTargets,
   buildOaAddFriendUrl,
   getRuntimeLineConfig,
+  isRuntimeSchemePreferredBrowser,
 } from '../../lib/line'
 import { clientLog } from '../../lib/clientLogger'
 
@@ -35,6 +36,7 @@ export default function FollowConfirmPage() {
     () => buildContinueLaunchTargets(intentToken, lineCfg.liffId),
     [intentToken, lineCfg.liffId],
   )
+  const preferSchemeLaunch = isOpenInLineMode && !inLineClient && isRuntimeSchemePreferredBrowser()
 
   useEffect(() => {
     if (isOpenInLineMode) {
@@ -117,6 +119,49 @@ export default function FollowConfirmPage() {
             target: continuePath,
           })
           navigate(continuePath, { replace: true })
+          return
+        }
+
+        if (preferSchemeLaunch && continueLineSchemeUrl) {
+          clientLog('open_in_line_continue_click', {
+            intent_id: payload?.intent_id || '',
+            action_type: payload?.action || '',
+            branch: 'external',
+            target: 'line_scheme_primary',
+          })
+
+          let pageLeft = false
+          const clearWatchers = () => {
+            window.clearTimeout(fallbackTimer)
+            window.removeEventListener('blur', handlePageLeave)
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
+            window.removeEventListener('pagehide', handlePageLeave)
+          }
+          const handlePageLeave = () => {
+            pageLeft = true
+            clearWatchers()
+          }
+          const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+              handlePageLeave()
+            }
+          }
+
+          window.addEventListener('blur', handlePageLeave, { once: true })
+          document.addEventListener('visibilitychange', handleVisibilityChange)
+          window.addEventListener('pagehide', handlePageLeave, { once: true })
+
+          const fallbackTimer = window.setTimeout(() => {
+            if (pageLeft) return
+            clearWatchers()
+            if (continueLiffUrl) {
+              window.location.assign(continueLiffUrl)
+              return
+            }
+            setSubmitting(false)
+          }, 1200)
+
+          window.location.assign(continueLineSchemeUrl)
           return
         }
 
