@@ -45,7 +45,23 @@ function resolveInternalNavigationTarget(target: string) {
   }
 }
 
-export default function ContinuePage() {
+function canUseCallbackShellNavigate(target: string) {
+  const pathname = resolveInternalNavigationTarget(target)
+  if (!pathname) return false
+  return (
+    pathname === '/welfare' ||
+    pathname.startsWith('/welfare?') ||
+    pathname.startsWith('/welfare/continue') ||
+    pathname.startsWith('/welfare/open-in-line') ||
+    pathname.startsWith('/welfare/follow-confirm')
+  )
+}
+
+type ContinuePageProps = {
+  intentTokenOverride?: string
+}
+
+export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageProps) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffReady, liffChecked, inLineClient } = useLiff()
@@ -60,7 +76,7 @@ export default function ContinuePage() {
   const consumedRef = useRef(false)
   const mountedRef = useRef(true)
 
-  const intentToken = searchParams.get('intent') || ''
+  const intentToken = String(intentTokenOverride || searchParams.get('intent') || '')
   const intentPayload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
 
   const returnPath = String(intentPayload?.return_path || '/welfare')
@@ -110,7 +126,7 @@ export default function ContinuePage() {
   }, [autoRunKey, intentToken])
 
   const waitForIdentityReady = useCallback(async () => {
-    const deadline = Date.now() + 1500
+    const deadline = Date.now() + 450
     while (Date.now() < deadline) {
       const state = useLineUserStore.getState()
       const canonicalUserId = state.canonicalUserId || state.profile?.lineUserId || ''
@@ -167,15 +183,6 @@ export default function ContinuePage() {
     try {
       setStatus('resolving_identity')
       const identity = await waitForIdentityReady()
-      if (!mountedRef.current) return
-
-      if (!identity.canonicalUserId || !identity.lineUserId) {
-        setErrorText('当前 LINE 身份尚未建立，请先完成 LINE 登录')
-        setStatus('need_line_login')
-        return
-      }
-
-      setStatus('checking_follow')
       try {
         const refreshed = await syncLiffFriendshipIdentity()
         if (refreshed?.canonicalUserId) {
@@ -185,9 +192,17 @@ export default function ContinuePage() {
           identity.lineUserId = refreshed.lineUserId
         }
       } catch {
-        // ignore, fall back to backend follow state
+        // ignore, fall back to the identity already present in store
+      }
+      if (!mountedRef.current) return
+
+      if (!identity.canonicalUserId || !identity.lineUserId) {
+        setErrorText('当前 LINE 身份尚未建立，请先完成 LINE 登录')
+        setStatus('need_line_login')
+        return
       }
 
+      setStatus('checking_follow')
       const followed = await checkFollow(identity.canonicalUserId)
       if (!mountedRef.current) return
 
@@ -239,11 +254,11 @@ export default function ContinuePage() {
       clearAutoRunLock()
       setStatus('done')
       const internalNextPath = resolveInternalNavigationTarget(nextPath)
-      if (internalNextPath) {
+      if (internalNextPath && canUseCallbackShellNavigate(internalNextPath)) {
         navigate(internalNextPath, { replace: true })
         return
       }
-      window.location.assign(nextPath)
+      window.location.assign(internalNextPath || nextPath)
     } catch (err: any) {
       if (!mountedRef.current) return
       consumedRef.current = false
@@ -375,11 +390,11 @@ export default function ContinuePage() {
           </button>
           <button
             onClick={() => {
-              if (internalFailPath) {
+              if (internalFailPath && canUseCallbackShellNavigate(internalFailPath)) {
                 navigate(internalFailPath, { replace: true })
                 return
               }
-              window.location.assign(failPath || returnPath)
+              window.location.assign(internalFailPath || failPath || returnPath)
             }}
             style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
           >
@@ -405,11 +420,11 @@ export default function ContinuePage() {
           <button
             onClick={() => {
               clearAutoRunLock()
-              if (internalFailPath) {
+              if (internalFailPath && canUseCallbackShellNavigate(internalFailPath)) {
                 navigate(internalFailPath, { replace: true })
                 return
               }
-              window.location.assign(failPath || returnPath)
+              window.location.assign(internalFailPath || failPath || returnPath)
             }}
             style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
           >
