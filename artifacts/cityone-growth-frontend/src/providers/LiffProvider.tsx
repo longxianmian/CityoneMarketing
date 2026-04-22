@@ -8,7 +8,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
-import useLineUserStore, { type LineUserProfile } from '../store/lineUser'
+import useLineUserStore, { type IdentityTag, type LineUserProfile } from '../store/lineUser'
 import { resolveRuntimeLiffId, setRuntimeLineConfig } from '../lib/line'
 import { clientLog } from '../lib/clientLogger'
 
@@ -51,7 +51,7 @@ let _liffInstance: any = null
 let _liffReadyCache:
   | {
       ctx: LiffContextValue
-      profile: LineUserProfile
+      profile: LineUserProfile | null
       canonicalUserId: string | null
     }
   | null = null
@@ -124,20 +124,9 @@ async function syncIdentifyFromLineProfile(
   lineProfile: { userId: string; displayName: string; pictureUrl?: string },
   isFriend?: boolean
 ) {
-  useLineUserStore.getState().setProfile({
-    lineUserId: lineProfile.userId,
-    lineDisplayName: lineProfile.displayName,
-    linePictureUrl: lineProfile.pictureUrl || '',
-    identityTag: undefined,
-    memberLevel: 'standard',
-    points: 0,
-    couponCount: 0,
-    deposit: 0,
-    depositPaid: false,
-    isFriend,
-  })
-
   let canonicalUserId = lineProfile.userId
+  let resolvedIsFan = isFriend === true
+  let identityLevel: string | undefined
   try {
     const idRes = await fetch(`${API_BASE}/api/user/identify`, {
       method: 'POST',
@@ -152,21 +141,51 @@ async function syncIdentifyFromLineProfile(
     const idJson = await idRes.json()
     const idData = idJson?.data || {}
     canonicalUserId = idData.user_id || lineProfile.userId
-    useLineUserStore.getState().setCanonicalUserId(canonicalUserId)
-    const identityLevel = idData.identity_level || idData.identity_tag
-    if (identityLevel) {
-      useLineUserStore.getState().setIdentityTag(identityLevel)
-    }
     if (typeof idData.is_fan === 'boolean') {
-      useLineUserStore.getState().setIsFriend(idData.is_fan)
+      resolvedIsFan = idData.is_fan
     }
+    identityLevel = idData.identity_level || idData.identity_tag
   } catch {
-    useLineUserStore.getState().setCanonicalUserId(lineProfile.userId)
+    canonicalUserId = lineProfile.userId
+  }
+
+  const store = useLineUserStore.getState()
+  store.clearProfile()
+  store.setCanonicalUserId(canonicalUserId)
+
+  const normalizedIdentityTag = (() => {
+    const value = String(identityLevel || '').trim().toLowerCase()
+    if (
+      value === 'visitor' ||
+      value === 'fan' ||
+      value === 'customer' ||
+      value === 'member' ||
+      value === 'user'
+    ) {
+      return value as IdentityTag
+    }
+    return undefined
+  })()
+
+  if (resolvedIsFan) {
+    store.setProfile({
+      lineUserId: lineProfile.userId,
+      lineDisplayName: lineProfile.displayName,
+      linePictureUrl: lineProfile.pictureUrl || '',
+      identityTag: normalizedIdentityTag,
+      memberLevel: 'standard',
+      points: 0,
+      couponCount: 0,
+      deposit: 0,
+      depositPaid: false,
+      isFriend: true,
+    })
   }
 
   return {
     canonicalUserId,
-    isFriend: useLineUserStore.getState().profile?.isFriend,
+    lineUserId: lineProfile.userId,
+    isFriend: resolvedIsFan,
   }
 }
 
@@ -176,18 +195,7 @@ function updateReadyCacheFromStore(
 ) {
   _liffReadyCache = {
     ctx: { liffReady: true, inLineClient, liffChecked: true },
-    profile: {
-      lineUserId: lineProfile.userId,
-      lineDisplayName: lineProfile.displayName,
-      linePictureUrl: lineProfile.pictureUrl || '',
-      identityTag: useLineUserStore.getState().profile?.identityTag,
-      memberLevel: useLineUserStore.getState().profile?.memberLevel || 'standard',
-      points: useLineUserStore.getState().profile?.points || 0,
-      couponCount: useLineUserStore.getState().profile?.couponCount || 0,
-      deposit: useLineUserStore.getState().profile?.deposit || 0,
-      depositPaid: useLineUserStore.getState().profile?.depositPaid,
-      isFriend: useLineUserStore.getState().profile?.isFriend,
-    },
+    profile: useLineUserStore.getState().profile || null,
     canonicalUserId: useLineUserStore.getState().canonicalUserId || lineProfile.userId,
   }
   writePersistedJson(PERSISTED_READY_CTX_KEY, _liffReadyCache)
@@ -213,7 +221,7 @@ export async function syncLiffFriendshipIdentity() {
   updateReadyCacheFromStore(lineProfile, inLineClient)
 
   return {
-    lineUserId: lineProfile.userId,
+    lineUserId: synced.lineUserId || lineProfile.userId,
     canonicalUserId: synced.canonicalUserId || lineProfile.userId,
     isFriend: synced.isFriend,
   }
@@ -280,7 +288,7 @@ function getReusableReadyCtx() {
         inLineClient,
         liffChecked: true,
       } as LiffContextValue,
-      profile: _liffReadyCache.profile,
+      profile: _liffReadyCache.profile || null,
       canonicalUserId: _liffReadyCache.canonicalUserId,
     }
   }
@@ -299,7 +307,7 @@ function getReusableReadyCtx() {
       inLineClient,
       liffChecked: true,
     } as LiffContextValue,
-    profile: persistedReady.profile,
+    profile: persistedReady.profile || null,
     canonicalUserId: persistedReady.canonicalUserId,
   }
 }
@@ -319,7 +327,11 @@ async function initLiffOnce(
 
   const reusableReady = getReusableReadyCtx()
   if (reusableReady) {
-    useLineUserStore.getState().mergeProfile(reusableReady.profile)
+    if (reusableReady.profile) {
+      useLineUserStore.getState().mergeProfile(reusableReady.profile)
+    } else {
+      useLineUserStore.getState().clearProfile()
+    }
     if (reusableReady.canonicalUserId) {
       useLineUserStore.getState().setCanonicalUserId(reusableReady.canonicalUserId)
     }

@@ -23,6 +23,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/user/PrivacyPolicyPage'))
 const AboutUsPage = lazy(() => import('./pages/user/AboutUsPage'))
 const LuckyWheelPage = lazy(() => import('./pages/user/LuckyWheelPage'))
 const ContinuePage = lazy(() => import('./pages/user/ContinuePage'))
+const LineLoginCallbackPage = lazy(() => import('./pages/user/LineLoginCallbackPage'))
 const ScratchCardPage = lazy(() => import('./pages/user/ScratchCardPage'))
 const ThaiFortuneDrawPage = lazy(() => import('./pages/user/ThaiFortuneDrawPage'))
 const MyAddressPage = lazy(() => import('./pages/user/MyAddressPage'))
@@ -123,6 +124,7 @@ export default function App() {
         <Route path="/welfare" element={<WelfareEntryPage />} />
         <Route path="/welfare/continue" element={<ContinuePage />} />
         <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
+        <Route path="/line/login/callback" element={<LineLoginCallbackPage />} />
         <Route path="/nearby" element={<NearbyPage />} />
         <Route path="/agent" element={<AgentPage />} />
         <Route path="/agent/chat" element={<AgentChatPage />} />

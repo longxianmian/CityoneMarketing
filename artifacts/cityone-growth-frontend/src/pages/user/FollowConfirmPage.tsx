@@ -1,19 +1,13 @@
-// 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止把关注确认页改回首页 fallback 或技术报错页。
+// 先读文档再改代码：关注门控页只负责“未关注 -> 发起官方关注 -> 复核 -> 继续业务”，禁止再承担外部浏览器跳 LINE 的职责。
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { syncLiffFriendshipIdentity, useLiff } from '../../providers/LiffProvider'
+import { getLiff, syncLiffFriendshipIdentity, useLiff } from '../../providers/LiffProvider'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import {
-  buildContinueLaunchTargets,
-  buildOaAddFriendUrl,
-  getRuntimeLineConfig,
-  isRuntimeSchemePreferredBrowser,
-} from '../../lib/line'
+import { buildOaAddFriendUrl, buildRuntimeLineLoginAuthorizeUrl, getRuntimeLineConfig, setRuntimeLineConfig } from '../../lib/line'
 import { clientLog } from '../../lib/clientLogger'
 import useLineUserStore from '../../store/lineUser'
 
-const FOLLOW_GATE_VERSION = '20260423_follow_gate_v2'
-const FOLLOW_GATE_PENDING_RESET_MS = 1800
+const FOLLOW_GATE_VERSION = '20260423_follow_gate_v3'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 async function checkFollow(userId: string) {
@@ -25,36 +19,25 @@ async function checkFollow(userId: string) {
   return json?.data?.is_fan === true
 }
 
-/**
- * 强约束：
- * - 仅未关注用户进入此页
- * - 完成关注后，必须自动回到 /welfare/continue?intent=...
- * - 不允许从这里回首页或个人中心
- */
-
 export default function FollowConfirmPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffReady, inLineClient } = useLiff()
   const [submitting, setSubmitting] = useState(false)
   const [checkingFollow, setCheckingFollow] = useState(false)
+  const [hintText, setHintText] = useState('')
+  const [runtimeCfg, setRuntimeCfgState] = useState(() => getRuntimeLineConfig())
 
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
   const inLineContext = inLineClient || isLineWebView
-  const lineCfg = getRuntimeLineConfig()
-  const oaAddFriendUrl = buildOaAddFriendUrl(lineCfg.officialAccountId)
-  const { continueLiffUrl, continueLineSchemeUrl } = useMemo(
-    () => buildContinueLaunchTargets(intentToken, lineCfg.liffId),
-    [intentToken, lineCfg.liffId],
+  const oaAddFriendUrl = buildOaAddFriendUrl(runtimeCfg.officialAccountId)
+  const lineLoginUrl = useMemo(
+    () => buildRuntimeLineLoginAuthorizeUrl(intentToken, { redirectPath: '/line/login/callback' }),
+    [intentToken, runtimeCfg.channelId],
   )
-  const needsLineContinue = !inLineContext
-  const preferSchemeLaunch = needsLineContinue && isRuntimeSchemePreferredBrowser()
-  const primaryHref = needsLineContinue
-    ? ''
-    : ''
 
   const revalidateFollowState = async () => {
     let effectiveUserId = ''
@@ -118,35 +101,50 @@ export default function FollowConfirmPage() {
     clientLog('follow_gate_view', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
-      stage: needsLineContinue ? 'line_continue' : 'follow_confirm',
-      in_line_client: inLineContext,
-      has_liff_url: !!continueLiffUrl,
-      version: FOLLOW_GATE_VERSION,
-    })
-    console.info('[follow-flow] follow_gate_view', {
-      intent_id: payload?.intent_id || '',
-      action_type: payload?.action || '',
-      stage: needsLineContinue ? 'line_continue' : 'follow_confirm',
+      stage: 'follow_confirm',
       in_line_client: inLineContext,
       version: FOLLOW_GATE_VERSION,
     })
-  }, [continueLiffUrl, inLineContext, needsLineContinue, payload?.action, payload?.intent_id])
+  }, [inLineContext, payload?.action, payload?.intent_id])
 
   useEffect(() => {
-    if (needsLineContinue) return
+    if (runtimeCfg.channelId && runtimeCfg.officialAccountId) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/growth/line/config`)
+        const json = await res.json()
+        if (cancelled) return
+        setRuntimeLineConfig(json?.data || null)
+        setRuntimeCfgState(getRuntimeLineConfig())
+      } catch {
+        // ignore
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [runtimeCfg.channelId, runtimeCfg.officialAccountId])
+
+  useEffect(() => {
+    if (inLineContext) return
+    if (!lineLoginUrl) return
+    const timer = window.setTimeout(() => {
+      window.location.replace(lineLoginUrl)
+    }, 80)
+    return () => window.clearTimeout(timer)
+  }, [inLineContext, lineLoginUrl])
+
+  useEffect(() => {
+    if (!inLineContext) return
     let cancelled = false
 
     const tryResumeIfFollowed = async () => {
-      if (!inLineContext || !liffReady || checkingFollow) return
+      if (!liffReady || checkingFollow) return
       setCheckingFollow(true)
       try {
         const followState = await revalidateFollowState()
         if (!cancelled && followState.followed) {
-          console.info('[follow-flow] follow_confirm_auto_resume', {
-            intent_id: payload?.intent_id || '',
-            action_type: payload?.action || '',
-            source: followState.source,
-          })
           navigate(continuePath, { replace: true })
           return
         }
@@ -159,105 +157,57 @@ export default function FollowConfirmPage() {
 
     void tryResumeIfFollowed()
 
-    const handleVisibilityChange = () => {
+    const handleVisible = () => {
       if (document.visibilityState === 'visible') {
         void tryResumeIfFollowed()
       }
     }
-    window.addEventListener('focus', handleVisibilityChange)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    window.addEventListener('focus', handleVisible)
+    document.addEventListener('visibilitychange', handleVisible)
 
     return () => {
       cancelled = true
-      window.removeEventListener('focus', handleVisibilityChange)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleVisible)
+      document.removeEventListener('visibilitychange', handleVisible)
     }
-  }, [checkingFollow, continuePath, inLineContext, liffReady, navigate, needsLineContinue, payload?.action, payload?.intent_id])
+  }, [checkingFollow, continuePath, inLineContext, liffReady, navigate])
 
   const handleConfirm = async () => {
     clientLog('follow_gate_primary_click', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
-      stage: needsLineContinue ? 'line_continue' : 'follow_confirm',
+      stage: 'follow_confirm',
       in_line_client: inLineContext,
-      has_oa_url: !!oaAddFriendUrl,
-      has_liff_url: !!continueLiffUrl,
       version: FOLLOW_GATE_VERSION,
     })
+
+    if (!inLineContext) {
+      if (lineLoginUrl) {
+        window.location.assign(lineLoginUrl)
+      }
+      return
+    }
+
     setSubmitting(true)
+    setHintText('')
+
     try {
-      if (needsLineContinue) {
-        if (!intentToken) {
-          setSubmitting(false)
-          return
-        }
-
-        if (preferSchemeLaunch && continueLineSchemeUrl) {
-          clientLog('follow_gate_continue_click', {
-            intent_id: payload?.intent_id || '',
-            action_type: payload?.action || '',
-            branch: 'external',
-            target: 'line_scheme_primary',
-          })
-
-          let pageLeft = false
-          const clearWatchers = () => {
-            window.clearTimeout(fallbackTimer)
-            window.removeEventListener('blur', handlePageLeave)
-            document.removeEventListener('visibilitychange', handleVisibilityChange)
-            window.removeEventListener('pagehide', handlePageLeave)
-          }
-          const handlePageLeave = () => {
-            pageLeft = true
-            clearWatchers()
-          }
-          const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-              handlePageLeave()
-            }
-          }
-
-          window.addEventListener('blur', handlePageLeave, { once: true })
-          document.addEventListener('visibilitychange', handleVisibilityChange)
-          window.addEventListener('pagehide', handlePageLeave, { once: true })
-
-          const fallbackTimer = window.setTimeout(() => {
-            if (pageLeft) return
-            clearWatchers()
-            if (continueLiffUrl) {
-              window.location.assign(continueLiffUrl)
-              return
-            }
-            setSubmitting(false)
-          }, 1200)
-
-          window.location.assign(continueLineSchemeUrl)
-          return
-        }
-
-        if (continueLiffUrl) {
-          clientLog('follow_gate_continue_click', {
-            intent_id: payload?.intent_id || '',
-            action_type: payload?.action || '',
-            branch: 'external',
-            target: 'continue_liff_url',
-          })
-          window.location.assign(continueLiffUrl)
-          return
-        }
-
-        setSubmitting(false)
+      const followState = await revalidateFollowState()
+      if (followState.followed) {
+        navigate(continuePath, { replace: true })
         return
       }
 
-      const followState = await revalidateFollowState()
-      if (followState.followed) {
-        console.info('[follow-flow] follow_confirm_click_resume', {
+      const liff = getLiff()
+      if (liff && typeof liff.requestFriendship === 'function' && liffReady) {
+        clientLog('follow_confirm_request_friendship', {
           intent_id: payload?.intent_id || '',
           action_type: payload?.action || '',
-          source: followState.source,
+          version: FOLLOW_GATE_VERSION,
         })
-        navigate(continuePath, { replace: true })
+        await liff.requestFriendship()
+        setHintText('请完成关注后返回此页，系统会自动继续当前操作。')
         return
       }
 
@@ -265,88 +215,61 @@ export default function FollowConfirmPage() {
         clientLog('follow_confirm_open_oa', {
           intent_id: payload?.intent_id || '',
           action_type: payload?.action || '',
-          branch: inLineContext ? 'in_line' : 'external',
-          source: followState.source,
-        })
-        console.info('[follow-flow] follow_confirm_open_oa', {
-          intent_id: payload?.intent_id || '',
-          action_type: payload?.action || '',
-          in_line_client: inLineContext,
-          source: followState.source,
+          version: FOLLOW_GATE_VERSION,
         })
         window.location.assign(oaAddFriendUrl)
         return
       }
 
-      setSubmitting(false)
+      setHintText('当前未检测到可用的关注入口，请联系管理员检查 LINE 配置。')
     } catch (e: any) {
-      console.info('[follow-flow] follow_confirm_failed', {
+      clientLog('follow_confirm_failed', {
         intent_id: payload?.intent_id || '',
         action_type: payload?.action || '',
         error: e?.message || 'unknown',
+        version: FOLLOW_GATE_VERSION,
       })
-
       if (oaAddFriendUrl) {
         window.location.assign(oaAddFriendUrl)
         return
       }
-
+      setHintText(e?.message || '关注确认失败，请稍后重试。')
+    } finally {
       setSubmitting(false)
     }
   }
 
-  const title = needsLineContinue ? '请在 LINE 中继续' : '请先关注官方账号'
-  const description = needsLineContinue
-    ? '当前操作需要在 LINE 内继续完成。进入 LINE 后，系统会自动识别身份并继续当前业务流程。'
-    : '当前操作需要先完成官方账号关注确认。关注完成后，系统会自动继续当前步骤，不需要重新返回详情页再次点击。'
-  const primaryLabel = needsLineContinue
-    ? (submitting ? '打开中...' : '打开 LINE 继续')
-    : (submitting ? '打开中...' : '打开官方账号并关注')
-  const primaryDisabled = submitting || (!needsLineContinue && checkingFollow)
+  const title = inLineContext ? '请先关注官方账号' : '正在打开 LINE 登录'
+  const description = inLineContext
+    ? '当前操作需要先完成官方账号关注确认。关注完成后，系统会自动继续当前业务流程，不需要重新返回详情页再次点击。'
+    : '系统正在为当前操作拉起官方 LINE 登录。进入 LINE 后，会继续完成身份确认与后续业务步骤。'
+  const primaryLabel = inLineContext
+    ? (submitting ? '处理中...' : '关注并继续')
+    : '打开 LINE 登录'
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
       <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>{title}</div>
-        <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>
-          {description}
-        </div>
+        <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>{description}</div>
         {checkingFollow ? (
           <div style={{ color: '#10b981', fontSize: 13, marginBottom: 12 }}>
             正在确认当前账号是否已完成关注...
           </div>
         ) : null}
+        {hintText ? (
+          <div style={{ color: '#666', fontSize: 13, marginBottom: 12 }}>
+            {hintText}
+          </div>
+        ) : null}
         <button
           onClick={() => void handleConfirm()}
           data-clog="follow-confirm-primary"
-          disabled={primaryDisabled}
-          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: primaryDisabled ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: primaryDisabled ? 'not-allowed' : 'pointer' }}
+          disabled={submitting || checkingFollow}
+          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: submitting || checkingFollow ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: submitting || checkingFollow ? 'not-allowed' : 'pointer' }}
         >
           {primaryLabel}
         </button>
-        {needsLineContinue ? (
-          <div style={{ color: '#666', fontSize: 13, marginTop: 12 }}>
-            若未自动跳转，请点击按钮继续。
-          </div>
-        ) : null}
-        {needsLineContinue && continueLineSchemeUrl ? (
-          <div style={{ marginTop: 10 }}>
-            <a
-              href={continueLineSchemeUrl}
-              onClick={() => {
-                clientLog('follow_gate_scheme_click', {
-                  intent_id: payload?.intent_id || '',
-                  action_type: payload?.action || '',
-                  branch: 'external',
-                  target: 'line_scheme',
-                })
-              }}
-              style={{ fontSize: 13, color: '#10b981', textDecoration: 'underline' }}
-            >
-              如未自动跳转，点这里在 LINE 中打开
-            </a>
-          </div>
-        ) : null}
       </div>
     </div>
   )

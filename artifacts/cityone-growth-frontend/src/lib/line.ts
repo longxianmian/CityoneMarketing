@@ -5,6 +5,11 @@ type RuntimeLineConfig = {
   requireFollow: boolean
 }
 
+type RuntimeLineLoginState = {
+  intentToken: string
+  ts: number
+}
+
 const RUNTIME_WELFARE_CALLBACK_PATHS = [
   '/welfare/continue',
   '/welfare/follow-confirm',
@@ -19,6 +24,24 @@ const runtimeLineConfig: RuntimeLineConfig = {
   officialAccountId: '',
   liffId: '',
   requireFollow: false,
+}
+
+function encodeBase64Url(raw: string) {
+  const bytes = new TextEncoder().encode(raw)
+  let binary = ''
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte)
+  })
+  const encoded = window.btoa(binary)
+  return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+function decodeBase64Url(raw: string) {
+  const normalized = raw.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4 || 4)) % 4)
+  const binary = window.atob(padded)
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
 }
 
 export function setRuntimeLineConfig(value?: Partial<RuntimeLineConfig> | null) {
@@ -176,6 +199,60 @@ export function buildContinueLaunchTargets(
     continueLiffUrl: buildRuntimeLiffUrlWithPath(continueExtraPath, liffId),
     continueLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(continueExtraPath, liffId),
   }
+}
+
+function buildRuntimeLineLoginRedirectUri(redirectPath = '/line/login/callback') {
+  const normalized = String(redirectPath || '/line/login/callback').trim() || '/line/login/callback'
+  return new URL(normalized, window.location.origin).toString()
+}
+
+export function encodeRuntimeLineLoginState(intentToken: string): string {
+  const payload: RuntimeLineLoginState = {
+    intentToken: String(intentToken || '').trim(),
+    ts: Date.now(),
+  }
+  return encodeBase64Url(JSON.stringify(payload))
+}
+
+export function decodeRuntimeLineLoginState(raw?: string | null): RuntimeLineLoginState | null {
+  const value = String(raw || '').trim()
+  if (!value) return null
+
+  try {
+    const parsed = JSON.parse(decodeBase64Url(value)) as RuntimeLineLoginState
+    if (!parsed || !parsed.intentToken) return null
+    return {
+      intentToken: String(parsed.intentToken || '').trim(),
+      ts: Number(parsed.ts || 0),
+    }
+  } catch {
+    return null
+  }
+}
+
+export function buildRuntimeLineLoginAuthorizeUrl(
+  intentToken: string,
+  options?: {
+    redirectPath?: string
+    scope?: string[]
+    botPrompt?: 'normal' | 'aggressive'
+  },
+) {
+  const channelId = String(runtimeLineConfig.channelId || '').trim()
+  if (!channelId) return ''
+
+  const redirectUri = buildRuntimeLineLoginRedirectUri(options?.redirectPath)
+  const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: channelId,
+    redirect_uri: redirectUri,
+    state: encodeRuntimeLineLoginState(intentToken),
+    scope: (options?.scope || ['openid', 'profile']).join(' '),
+    bot_prompt: options?.botPrompt || 'aggressive',
+    nonce,
+  })
+  return `https://access.line.me/oauth2/v2.1/authorize?${params.toString()}`
 }
 
 export function isRuntimeFollowGateReady() {

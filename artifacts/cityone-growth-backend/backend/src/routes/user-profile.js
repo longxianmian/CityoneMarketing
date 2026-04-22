@@ -205,8 +205,12 @@ async function ensureUserState(
     depositPaid,
   });
 
-  const mergedDisplayName = pickLatestTruthy(displayName, row?.display_name, businessFlags.jsonAccount?.line_display_name);
-  const mergedPictureUrl = pickLatestTruthy(pictureUrl, row?.picture_url, businessFlags.jsonAccount?.line_picture_url);
+  const mergedDisplayName = isFan
+    ? pickLatestTruthy(displayName, row?.display_name, businessFlags.jsonAccount?.line_display_name)
+    : "";
+  const mergedPictureUrl = isFan
+    ? pickLatestTruthy(pictureUrl, row?.picture_url, businessFlags.jsonAccount?.line_picture_url)
+    : "";
   const memberLevel = identityLevel === "member" ? "member" : "standard";
 
   if (canonicalUserId) {
@@ -326,10 +330,10 @@ export async function handleUserProfile(req, res, url, sendJson) {
   const profile = {
     user_id: state.userId || "",
     line_user_id: state.lineUserId || "",
-    display_name: state.displayName,
-    picture_url: state.pictureUrl,
-    line_display_name: state.displayName,
-    line_picture_url: state.pictureUrl,
+    display_name: state.isFan ? state.displayName : "",
+    picture_url: state.isFan ? state.pictureUrl : "",
+    line_display_name: state.isFan ? state.displayName : "",
+    line_picture_url: state.isFan ? state.pictureUrl : "",
     is_fan: state.isFan,
     identity_level: state.identityLevel,
     identity_tag: state.identityLevel,
@@ -835,8 +839,8 @@ export async function handleUserIdentify(req, res, body, sendJson) {
       user_id: state.userId || line_user_id || device_id,
       line_user_id: state.lineUserId || null,
       device_id: device_id || null,
-      display_name: state.displayName || null,
-      picture_url: state.pictureUrl || null,
+      display_name: state.isFan ? (state.displayName || null) : null,
+      picture_url: state.isFan ? (state.pictureUrl || null) : null,
       is_fan: state.isFan,
       identity_level: state.identityLevel,
       identity_tag: state.identityLevel,

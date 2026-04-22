@@ -13,8 +13,8 @@
  *
  * 执行型动作统一流程（默认/慢路径）：
  *   1. 创建 pending intent
- *   2. 外部浏览器统一进入 `/welfare/follow-confirm?intent=...`
- *   3. 门控页负责拉起 LINE，再进入 `/welfare/continue?intent=...`
+ *   2. 外部浏览器统一进入官方 LINE Login（带 bot_prompt）
+ *   3. 登录回调后进入 LINE 内 `/welfare/continue?intent=...`
  *   4. LINE 内统一完成 identify -> check-follow -> consume
  *
  * 不保留任何 fast path。所有执行动作一律经过同一条 pending-intent 主链：
@@ -27,6 +27,7 @@ import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
+import { buildRuntimeLineLoginAuthorizeUrl, setRuntimeLineConfig } from '../lib/line'
 
 interface GuardOptions {
   label?: string
@@ -131,7 +132,9 @@ export function useFollowGate() {
           source,
         })
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
-        const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(issued.token)}`
+        let lineLoginUrl = buildRuntimeLineLoginAuthorizeUrl(issued.token, {
+          redirectPath: '/line/login/callback',
+        })
 
         // UA 兜底（2026-04 nginx 死循环诊断后加）：
         //   `inLineClient` 来自 LIFF SDK，必须 LIFF init 完成后才会 true。
@@ -152,12 +155,29 @@ export function useFollowGate() {
           return
         }
 
-        clientLog('guard_branch_external_follow_gate', {
+        if (!lineLoginUrl) {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/growth/line/config`)
+            const json = await res.json()
+            setRuntimeLineConfig(json?.data || null)
+            lineLoginUrl = buildRuntimeLineLoginAuthorizeUrl(issued.token, {
+              redirectPath: '/line/login/callback',
+            })
+          } catch {
+            // ignore
+          }
+        }
+
+        if (!lineLoginUrl) {
+          throw new Error('LINE 登录配置不完整，无法继续当前操作')
+        }
+
+        clientLog('guard_branch_external_line_login', {
           action: intentAction,
-          target: followConfirmPath,
+          target: '/line/login/callback',
           navigation: 'document',
         })
-        window.location.assign(followConfirmPath)
+        window.location.assign(lineLoginUrl)
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })

@@ -7,6 +7,7 @@ import queryClient from './lib/queryClient'
 import { LiffProvider } from './providers/LiffProvider'
 import ContinuePage from './pages/user/ContinuePage'
 import FollowConfirmPage from './pages/user/FollowConfirmPage'
+import LineLoginCallbackPage from './pages/user/LineLoginCallbackPage'
 import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
 import { useLiff } from './providers/LiffProvider'
 
@@ -100,6 +101,7 @@ export default function CallbackEntry() {
               <Route path="/welfare" element={<WelfareCallbackEntryPage />} />
               <Route path="/welfare/continue" element={<ContinuePage />} />
               <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
+              <Route path="/line/login/callback" element={<LineLoginCallbackPage />} />
               <Route path="*" element={<Navigate to="/welfare" replace />} />
             </Routes>
           </ErrorBoundary>

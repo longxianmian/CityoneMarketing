@@ -6,6 +6,7 @@ import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
 import { clientLog } from '../../lib/clientLogger'
+import { buildRuntimeLineLoginAuthorizeUrl } from '../../lib/line'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const AUTO_RUN_PREFIX = 'continue:auto-run:'
@@ -82,6 +83,9 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   const returnPath = String(intentPayload?.return_path || '/welfare')
   const failPath = String(intentPayload?.fail_path || returnPath)
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
+  const lineLoginPath = buildRuntimeLineLoginAuthorizeUrl(intentToken, {
+    redirectPath: '/line/login/callback',
+  })
   const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
   const internalFailPath = useMemo(
     () => resolveInternalNavigationTarget(failPath || returnPath),
@@ -131,17 +135,31 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       const canonicalUserId = state.canonicalUserId || state.profile?.lineUserId || ''
       const lineUserId = state.profile?.lineUserId || ''
       if (canonicalUserId && lineUserId) {
-        return { canonicalUserId, lineUserId }
+        return { canonicalUserId, lineUserId, isFriend: state.profile?.isFriend }
       }
       await sleep(60)
+    }
+
+    if (inLineContext && liffReady) {
+      try {
+        const refreshed = await syncLiffFriendshipIdentity()
+        return {
+          canonicalUserId: refreshed?.canonicalUserId || '',
+          lineUserId: refreshed?.lineUserId || '',
+          isFriend: refreshed?.isFriend,
+        }
+      } catch {
+        // ignore
+      }
     }
 
     const state = useLineUserStore.getState()
     return {
       canonicalUserId: state.canonicalUserId || state.profile?.lineUserId || '',
       lineUserId: state.profile?.lineUserId || '',
+      isFriend: state.profile?.isFriend,
     }
-  }, [])
+  }, [inLineContext, liffReady])
 
   const handleExplicitLineLogin = useCallback(() => {
     try {
@@ -167,7 +185,12 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     if (inFlightRef.current || consumedRef.current) return
 
     if (!inLineContext) {
-      window.location.replace(followConfirmPath)
+      if (lineLoginPath) {
+        window.location.replace(lineLoginPath)
+        return
+      }
+      setErrorText('当前环境无法进入 LINE 官方登录，请返回详情页重试')
+      setStatus('error')
       return
     }
 
@@ -192,33 +215,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
       setStatus('checking_follow')
       let effectiveUserId = identity.canonicalUserId
-      let followed = false
-
-      if (inLineContext && liffReady) {
-        try {
-          const refreshed = await syncLiffFriendshipIdentity()
-          if (!mountedRef.current) return
-          if (refreshed?.canonicalUserId) {
-            effectiveUserId = refreshed.canonicalUserId
-          }
-          clientLog('continue_friendship_refresh', {
-            intent_id: intentPayload.intent_id || '',
-            action_type: intentPayload.action || '',
-            line_user_id: refreshed?.lineUserId || identity.lineUserId,
-            canonical_user_id: effectiveUserId,
-            is_friend: refreshed?.isFriend === true,
-          })
-          if (refreshed?.isFriend === true) {
-            followed = true
-          }
-        } catch (err: any) {
-          clientLog('continue_friendship_refresh_failed', {
-            intent_id: intentPayload.intent_id || '',
-            action_type: intentPayload.action || '',
-            error: err?.message || 'unknown',
-          })
-        }
-      }
+      let followed = identity.isFriend === true
 
       if (!followed) {
         followed = await checkFollow(effectiveUserId)
@@ -294,6 +291,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [
     clearAutoRunLock,
     followConfirmPath,
+    lineLoginPath,
     inLineContext,
     intentPayload,
     intentToken,
