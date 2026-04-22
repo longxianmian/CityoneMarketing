@@ -15,6 +15,10 @@ import { clientLog } from '../lib/clientLogger'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const LIFF_INIT_TIMEOUT_MS = 5000
 const INIT_COOLDOWN_MS = 4000
+const PERSISTED_READY_CTX_KEY = '_cityone_liff_ready_ctx_v1'
+const PERSISTED_READY_CTX_TTL_MS = 2 * 60 * 1000
+const PERSISTED_LINE_CONFIG_KEY = '_cityone_line_config_v1'
+const PERSISTED_LINE_CONFIG_TTL_MS = 10 * 60 * 1000
 const INIT_COOLDOWN_BYPASS_PATHS = new Set([
   '/welfare/continue',
   '/welfare/open-in-line',
@@ -52,6 +56,49 @@ let _liffReadyCache:
       canonicalUserId: string | null
     }
   | null = null
+
+function readPersistedJson<T>(key: string, ttlMs: number) {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { ts?: number; data?: T }
+    const ts = Number(parsed?.ts || 0)
+    if (!ts || Date.now() - ts > ttlMs) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+    return parsed?.data ?? null
+  } catch {
+    return null
+  }
+}
+
+function writePersistedJson<T>(key: string, data: T) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }))
+  } catch {
+    // ignore
+  }
+}
+
+function readPersistedLineConfig() {
+  return readPersistedJson<{
+    channelId?: string
+    officialAccountId?: string
+    liffId?: string
+    requireFollow?: boolean
+  }>(PERSISTED_LINE_CONFIG_KEY, PERSISTED_LINE_CONFIG_TTL_MS)
+}
+
+function writePersistedLineConfig(value?: {
+  channelId?: string
+  officialAccountId?: string
+  liffId?: string
+  requireFollow?: boolean
+} | null) {
+  if (!value) return
+  writePersistedJson(PERSISTED_LINE_CONFIG_KEY, value)
+}
 
 export function getLiff() {
   return _liffInstance
@@ -144,6 +191,7 @@ function updateReadyCacheFromStore(
     },
     canonicalUserId: useLineUserStore.getState().canonicalUserId || lineProfile.userId,
   }
+  writePersistedJson(PERSISTED_READY_CTX_KEY, _liffReadyCache)
 }
 
 export async function syncLiffFriendshipIdentity() {
@@ -219,23 +267,41 @@ function clearInitAttempt(initKey: string) {
 }
 
 function getReusableReadyCtx() {
-  if (!_liffInstance || !_liffReadyCache?.ctx?.liffReady) return null
+  if (_liffInstance && _liffReadyCache?.ctx?.liffReady) {
+    try {
+      if (!_liffInstance.isLoggedIn()) return null
+    } catch {
+      return null
+    }
 
-  try {
-    if (!_liffInstance.isLoggedIn()) return null
-  } catch {
-    return null
+    const inLineClient = _liffReadyCache.ctx.inLineClient || detectLineAppUA()
+    return {
+      ctx: {
+        liffReady: true,
+        inLineClient,
+        liffChecked: true,
+      } as LiffContextValue,
+      profile: _liffReadyCache.profile,
+      canonicalUserId: _liffReadyCache.canonicalUserId,
+    }
   }
 
-  const inLineClient = _liffReadyCache.ctx.inLineClient || detectLineAppUA()
+  const persistedReady = readPersistedJson<NonNullable<typeof _liffReadyCache>>(
+    PERSISTED_READY_CTX_KEY,
+    PERSISTED_READY_CTX_TTL_MS
+  )
+  if (!persistedReady?.ctx?.liffReady) return null
+
+  _liffReadyCache = persistedReady
+  const inLineClient = persistedReady.ctx.inLineClient || detectLineAppUA()
   return {
     ctx: {
       liffReady: true,
       inLineClient,
       liffChecked: true,
     } as LiffContextValue,
-    profile: _liffReadyCache.profile,
-    canonicalUserId: _liffReadyCache.canonicalUserId,
+    profile: persistedReady.profile,
+    canonicalUserId: persistedReady.canonicalUserId,
   }
 }
 
@@ -289,11 +355,16 @@ async function initLiffOnce(
   markInitAttempt(initKey)
 
   try {
-    const res = await fetch(`${API_BASE}/api/growth/line/config`)
-    const json = await res.json()
-    setRuntimeLineConfig(json?.data || null)
+    let lineConfig = readPersistedLineConfig()
+    if (!lineConfig) {
+      const res = await fetch(`${API_BASE}/api/growth/line/config`)
+      const json = await res.json()
+      lineConfig = json?.data || null
+      writePersistedLineConfig(lineConfig)
+    }
+    setRuntimeLineConfig(lineConfig || null)
 
-    const liffId: string = resolveRuntimeLiffId(json?.data?.liffId)
+    const liffId: string = resolveRuntimeLiffId(lineConfig?.liffId)
     if (!liffId) {
       clearInitAttempt(initKey)
       clientLog('liff_init_no_liff_id', {})
