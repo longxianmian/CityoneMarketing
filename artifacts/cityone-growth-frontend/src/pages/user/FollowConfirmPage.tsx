@@ -10,9 +10,20 @@ import {
   isRuntimeSchemePreferredBrowser,
 } from '../../lib/line'
 import { clientLog } from '../../lib/clientLogger'
+import useLineUserStore from '../../store/lineUser'
 
 const FOLLOW_GATE_VERSION = '20260423_follow_gate_v2'
 const FOLLOW_GATE_PENDING_RESET_MS = 1800
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+async function checkFollow(userId: string) {
+  const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
+  const json = await res.json()
+  if (!res.ok || json?.code !== 200) {
+    throw new Error(json?.msg || '关注状态校验失败')
+  }
+  return json?.data?.is_fan === true
+}
 
 /**
  * 强约束：
@@ -43,7 +54,65 @@ export default function FollowConfirmPage() {
   const preferSchemeLaunch = needsLineContinue && isRuntimeSchemePreferredBrowser()
   const primaryHref = needsLineContinue
     ? ''
-    : oaAddFriendUrl
+    : ''
+
+  const revalidateFollowState = async () => {
+    let effectiveUserId = ''
+    let lineUserId = ''
+    let followed = false
+    let source: 'liff_friendship' | 'backend_check_follow' | 'none' = 'none'
+
+    const current = useLineUserStore.getState()
+    effectiveUserId = current.canonicalUserId || current.profile?.lineUserId || ''
+    lineUserId = current.profile?.lineUserId || ''
+
+    if (inLineContext && liffReady) {
+      try {
+        const refreshed = await syncLiffFriendshipIdentity()
+        if (refreshed?.canonicalUserId) effectiveUserId = refreshed.canonicalUserId
+        if (refreshed?.lineUserId) lineUserId = refreshed.lineUserId
+        if (refreshed?.isFriend === true) {
+          followed = true
+          source = 'liff_friendship'
+        }
+      } catch (err: any) {
+        clientLog('follow_confirm_refresh_failed', {
+          intent_id: payload?.intent_id || '',
+          action_type: payload?.action || '',
+          error: err?.message || 'unknown',
+          version: FOLLOW_GATE_VERSION,
+        })
+      }
+    }
+
+    if (!followed && effectiveUserId) {
+      try {
+        followed = await checkFollow(effectiveUserId)
+        if (followed) source = 'backend_check_follow'
+      } catch (err: any) {
+        clientLog('follow_confirm_check_follow_failed', {
+          intent_id: payload?.intent_id || '',
+          action_type: payload?.action || '',
+          canonical_user_id: effectiveUserId,
+          error: err?.message || 'unknown',
+          version: FOLLOW_GATE_VERSION,
+        })
+      }
+    }
+
+    clientLog('follow_confirm_revalidate', {
+      intent_id: payload?.intent_id || '',
+      action_type: payload?.action || '',
+      in_line_client: inLineContext,
+      canonical_user_id: effectiveUserId,
+      line_user_id: lineUserId,
+      followed,
+      source,
+      version: FOLLOW_GATE_VERSION,
+    })
+
+    return { followed, effectiveUserId, lineUserId, source }
+  }
 
   useEffect(() => {
     clientLog('follow_gate_view', {
@@ -71,11 +140,12 @@ export default function FollowConfirmPage() {
       if (!inLineContext || !liffReady || checkingFollow) return
       setCheckingFollow(true)
       try {
-        const refreshed = await syncLiffFriendshipIdentity()
-        if (!cancelled && refreshed?.isFriend === true) {
+        const followState = await revalidateFollowState()
+        if (!cancelled && followState.followed) {
           console.info('[follow-flow] follow_confirm_auto_resume', {
             intent_id: payload?.intent_id || '',
             action_type: payload?.action || '',
+            source: followState.source,
           })
           navigate(continuePath, { replace: true })
           return
@@ -180,16 +250,29 @@ export default function FollowConfirmPage() {
         return
       }
 
+      const followState = await revalidateFollowState()
+      if (followState.followed) {
+        console.info('[follow-flow] follow_confirm_click_resume', {
+          intent_id: payload?.intent_id || '',
+          action_type: payload?.action || '',
+          source: followState.source,
+        })
+        navigate(continuePath, { replace: true })
+        return
+      }
+
       if (oaAddFriendUrl) {
         clientLog('follow_confirm_open_oa', {
           intent_id: payload?.intent_id || '',
           action_type: payload?.action || '',
           branch: inLineContext ? 'in_line' : 'external',
+          source: followState.source,
         })
         console.info('[follow-flow] follow_confirm_open_oa', {
           intent_id: payload?.intent_id || '',
           action_type: payload?.action || '',
           in_line_client: inLineContext,
+          source: followState.source,
         })
         window.location.assign(oaAddFriendUrl)
         return
@@ -210,29 +293,6 @@ export default function FollowConfirmPage() {
 
       setSubmitting(false)
     }
-  }
-
-  const handleFollowAnchorClick = () => {
-    clientLog('follow_confirm_open_oa', {
-      intent_id: payload?.intent_id || '',
-      action_type: payload?.action || '',
-      branch: inLineContext ? 'in_line' : 'external',
-      target: 'oa_add_friend_url',
-      navigation: 'anchor',
-      version: FOLLOW_GATE_VERSION,
-    })
-    console.info('[follow-flow] follow_confirm_open_oa', {
-      intent_id: payload?.intent_id || '',
-      action_type: payload?.action || '',
-      in_line_client: inLineContext,
-      version: FOLLOW_GATE_VERSION,
-    })
-    setSubmitting(true)
-    window.setTimeout(() => {
-      if (document.visibilityState === 'visible') {
-        setSubmitting(false)
-      }
-    }, FOLLOW_GATE_PENDING_RESET_MS)
   }
 
   const title = needsLineContinue ? '请在 LINE 中继续' : '请先关注官方账号'
@@ -256,39 +316,14 @@ export default function FollowConfirmPage() {
             正在确认当前账号是否已完成关注...
           </div>
         ) : null}
-        {primaryHref ? (
-          <a
-            href={primaryHref}
-            data-clog="follow-confirm-primary"
-            onClick={handleFollowAnchorClick}
-            aria-disabled={primaryDisabled ? 'true' : 'false'}
-            style={{
-              width: '100%',
-              height: 48,
-              borderRadius: 999,
-              background: primaryDisabled ? '#b7ead7' : '#12b981',
-              color: '#fff',
-              fontWeight: 700,
-              cursor: primaryDisabled ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textDecoration: 'none',
-              pointerEvents: primaryDisabled ? 'none' : 'auto',
-            }}
-          >
-            {primaryLabel}
-          </a>
-        ) : (
-          <button
-            onClick={() => void handleConfirm()}
-            data-clog="follow-confirm-primary"
-            disabled={primaryDisabled}
-            style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: primaryDisabled ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: primaryDisabled ? 'not-allowed' : 'pointer' }}
-          >
-            {primaryLabel}
-          </button>
-        )}
+        <button
+          onClick={() => void handleConfirm()}
+          data-clog="follow-confirm-primary"
+          disabled={primaryDisabled}
+          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: primaryDisabled ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: primaryDisabled ? 'not-allowed' : 'pointer' }}
+        >
+          {primaryLabel}
+        </button>
         {needsLineContinue ? (
           <div style={{ color: '#666', fontSize: 13, marginTop: 12 }}>
             若未自动跳转，请点击按钮继续。
