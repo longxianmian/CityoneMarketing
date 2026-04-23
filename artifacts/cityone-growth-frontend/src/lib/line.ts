@@ -197,7 +197,7 @@ export function isRuntimeFollowGateReady() {
 export function isRuntimeSchemePreferredBrowser(ua?: string | null) {
   const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
   if (!raw) return false
-  return /MicroMessenger|FBAN|FBAV|Instagram|Messenger/i.test(raw)
+  return /MicroMessenger|XWEB|FBAN|FBAV|Instagram|Messenger|GSA\//i.test(raw)
 }
 
 export function detectTerminal(userAgent: string = navigator.userAgent): Terminal {

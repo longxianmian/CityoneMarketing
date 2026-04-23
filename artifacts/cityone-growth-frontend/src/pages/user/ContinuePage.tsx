@@ -10,6 +10,8 @@ import { clientLog } from '../../lib/clientLogger'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const AUTO_RUN_PREFIX = 'continue:auto-run:'
 const AUTO_REENTRY_COOLDOWN_MS = 4000
+const EXTERNAL_CONTEXT_SETTLE_MS = 2200
+const IN_LINE_LOGIN_GRACE_MS = 1800
 
 type ContinueStatus =
   | 'idle'
@@ -101,10 +103,12 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   const [status, setStatus] = useState<ContinueStatus>('idle')
   const [errorText, setErrorText] = useState('')
+  const [contextWatchElapsed, setContextWatchElapsed] = useState(false)
 
   const inFlightRef = useRef(false)
   const consumedRef = useRef(false)
   const mountedRef = useRef(true)
+  const mountedAtRef = useRef(Date.now())
 
   const intentToken = String(intentTokenOverride || searchParams.get('intent') || '')
   const intentPayload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
@@ -125,6 +129,11 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       mountedRef.current = false
     }
   }, [])
+
+  useEffect(() => {
+    mountedAtRef.current = Date.now()
+    setContextWatchElapsed(false)
+  }, [intentToken])
 
   useEffect(() => {
     if (!intentPayload) return
@@ -228,6 +237,19 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       if (!mountedRef.current) return
 
       if (!identity.canonicalUserId || !identity.lineUserId) {
+        if (inLineContext && Date.now() - mountedAtRef.current < IN_LINE_LOGIN_GRACE_MS) {
+          clientLog('continue_identity_grace_wait', {
+            intent_id: intentPayload.intent_id || '',
+            action_type: intentPayload.action || '',
+            elapsed_ms: Date.now() - mountedAtRef.current,
+          })
+          window.setTimeout(() => {
+            if (!mountedRef.current || consumedRef.current) return
+            clearAutoRunLock()
+            void runFlow()
+          }, 450)
+          return
+        }
         if (readSdkLoggedIn()) {
           setErrorText('LINE 身份同步超时，请稍后重试')
           setStatus('error')
@@ -355,6 +377,20 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [intentToken, intentPayload])
 
   useEffect(() => {
+    if (inLineContext || liffChecked) {
+      setContextWatchElapsed(false)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      setContextWatchElapsed(true)
+    }, EXTERNAL_CONTEXT_SETTLE_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [inLineContext, liffChecked])
+
+  useEffect(() => {
     if (!intentToken || !intentPayload || !liffChecked) return
 
     if (!inLineContext) {
@@ -382,6 +418,26 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     navigate,
     runFlow,
     setAutoRunLock,
+  ])
+
+  useEffect(() => {
+    if (!intentToken || !intentPayload) return
+    if (inLineContext || liffChecked || !contextWatchElapsed) return
+
+    clientLog('continue_context_watchdog_open_in_line', {
+      intent_id: intentPayload.intent_id || '',
+      action_type: intentPayload.action || '',
+      elapsed_ms: Date.now() - mountedAtRef.current,
+    })
+    navigate(openInLinePath, { replace: true })
+  }, [
+    contextWatchElapsed,
+    inLineContext,
+    intentPayload,
+    intentToken,
+    liffChecked,
+    navigate,
+    openInLinePath,
   ])
 
   const handleRetry = async () => {

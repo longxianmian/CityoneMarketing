@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import { buildContinueLaunchTargets, getRuntimeLineConfig, isDesktopBrowser } from '../../lib/line'
+import {
+  buildContinueLaunchTargets,
+  getRuntimeLineConfig,
+  isDesktopBrowser,
+  isRuntimeSchemePreferredBrowser,
+} from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
 
@@ -78,14 +83,14 @@ export default function OpenInLinePage() {
     window.addEventListener('pagehide', markDone, { once: true })
     document.addEventListener('visibilitychange', onHidden)
 
-    const trySchemeThenBail = () => {
+    const tryLiffThenBail = () => {
       if (stageRef.current === 'done') {
         clearListeners()
         return
       }
-      if (continueLineSchemeUrl) {
-        stageRef.current = 'scheme'
-        window.location.assign(continueLineSchemeUrl)
+      if (continueLiffUrl) {
+        stageRef.current = 'liff'
+        window.location.assign(continueLiffUrl)
         window.setTimeout(() => {
           if (stageRef.current === 'done') {
             clearListeners()
@@ -100,14 +105,39 @@ export default function OpenInLinePage() {
       setOpening(false)
     }
 
+    const trySchemeThenMaybeLiff = () => {
+      if (stageRef.current === 'done') {
+        clearListeners()
+        return
+      }
+      if (continueLineSchemeUrl) {
+        stageRef.current = 'scheme'
+        window.location.assign(continueLineSchemeUrl)
+        window.setTimeout(() => {
+          if (stageRef.current === 'done') {
+            clearListeners()
+            return
+          }
+          tryLiffThenBail()
+        }, WAIT_MS)
+        return
+      }
+      tryLiffThenBail()
+    }
+
+    if (isRuntimeSchemePreferredBrowser() && continueLineSchemeUrl) {
+      trySchemeThenMaybeLiff()
+      return
+    }
+
     if (continueLiffUrl) {
       stageRef.current = 'liff'
-      window.setTimeout(trySchemeThenBail, WAIT_MS)
+      window.setTimeout(trySchemeThenMaybeLiff, WAIT_MS)
       window.location.assign(continueLiffUrl)
       return
     }
 
-    trySchemeThenBail()
+    trySchemeThenMaybeLiff()
   }
 
   if (!tokenValid) {

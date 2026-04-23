@@ -32,6 +32,7 @@ import {
   detectTerminal,
   getRuntimeLineConfig,
   isDesktopBrowser,
+  isRuntimeSchemePreferredBrowser,
 } from '../lib/line'
 
 const WAIT_MS = 1500
@@ -164,6 +165,8 @@ export function useFollowGate() {
           return
         }
 
+        const preferScheme = isRuntimeSchemePreferredBrowser()
+
         let stage: 'idle' | 'liff' | 'scheme' | 'done' = 'idle'
         const markDone = () => {
           stage = 'done'
@@ -180,14 +183,14 @@ export function useFollowGate() {
         window.addEventListener('pagehide', markDone, { once: true })
         document.addEventListener('visibilitychange', onHidden)
 
-        const trySchemeThenBail = () => {
+        const tryLiffThenBail = () => {
           if (stage === 'done') {
             clearListeners()
             return
           }
-          if (continueLineSchemeUrl) {
-            stage = 'scheme'
-            window.location.assign(continueLineSchemeUrl)
+          if (continueLiffUrl) {
+            stage = 'liff'
+            window.location.assign(continueLiffUrl)
             window.setTimeout(() => {
               if (stage === 'done') {
                 clearListeners()
@@ -202,14 +205,43 @@ export function useFollowGate() {
           navigate(openInLinePath)
         }
 
+        const trySchemeThenMaybeLiff = () => {
+          if (stage === 'done') {
+            clearListeners()
+            return
+          }
+          if (continueLineSchemeUrl) {
+            stage = 'scheme'
+            window.location.assign(continueLineSchemeUrl)
+            window.setTimeout(() => {
+              if (stage === 'done') {
+                clearListeners()
+                return
+              }
+              tryLiffThenBail()
+            }, WAIT_MS)
+            return
+          }
+          tryLiffThenBail()
+        }
+
+        if (preferScheme && continueLineSchemeUrl) {
+          clientLog('guard_branch_external_scheme_first', {
+            action: intentAction,
+            resource_id: resourceId,
+          })
+          trySchemeThenMaybeLiff()
+          return
+        }
+
         if (continueLiffUrl) {
           stage = 'liff'
-          window.setTimeout(trySchemeThenBail, WAIT_MS)
+          window.setTimeout(trySchemeThenMaybeLiff, WAIT_MS)
           window.location.assign(continueLiffUrl)
           return
         }
 
-        trySchemeThenBail()
+        trySchemeThenMaybeLiff()
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })
