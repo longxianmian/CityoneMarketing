@@ -19,14 +19,19 @@ const PERSISTED_READY_CTX_KEY = '_cityone_liff_ready_ctx_v1'
 const PERSISTED_READY_CTX_TTL_MS = 2 * 60 * 1000
 const PERSISTED_LINE_CONFIG_KEY = '_cityone_line_config_v1'
 const PERSISTED_LINE_CONFIG_TTL_MS = 10 * 60 * 1000
+const STALE_KEYS = [
+  '_cityone_line_login_state_v1',
+  '_cityone_line_login_state',
+]
 const INIT_COOLDOWN_BYPASS_PATHS = new Set([
   '/welfare/continue',
   '/welfare/follow-confirm',
+  '/welfare/open-in-line',
 ])
 
 export interface LiffContextValue {
   liffReady: boolean
-  inLineClient: boolean
+  inLineContext: boolean
   liffChecked: boolean
 }
 
@@ -37,7 +42,7 @@ function detectLineAppUA(): boolean {
 
 export const LiffContext = createContext<LiffContextValue>({
   liffReady: false,
-  inLineClient: false,
+  inLineContext: false,
   liffChecked: false,
 })
 
@@ -135,14 +140,14 @@ async function syncIdentifyFromLineProfile(
         line_user_id: lineProfile.userId,
         display_name: lineProfile.displayName,
         picture_url: lineProfile.pictureUrl || '',
-        is_fan: isFriend === true,
       }),
     })
     const idJson = await idRes.json()
     const idData = idJson?.data || {}
     canonicalUserId = idData.user_id || lineProfile.userId
-    if (typeof idData.is_fan === 'boolean') {
-      resolvedIsFan = idData.is_fan
+    const serverFanValue = idData?.is_fan
+    if (typeof serverFanValue === 'boolean') {
+      resolvedIsFan = serverFanValue
     }
     identityLevel = idData.identity_level || idData.identity_tag
   } catch {
@@ -191,10 +196,10 @@ async function syncIdentifyFromLineProfile(
 
 function updateReadyCacheFromStore(
   lineProfile: { userId: string; displayName: string; pictureUrl?: string },
-  inLineClient: boolean
+  inLineContext: boolean
 ) {
   _liffReadyCache = {
-    ctx: { liffReady: true, inLineClient, liffChecked: true },
+    ctx: { liffReady: true, inLineContext, liffChecked: true },
     profile: useLineUserStore.getState().profile || null,
     canonicalUserId: useLineUserStore.getState().canonicalUserId || lineProfile.userId,
   }
@@ -207,7 +212,7 @@ export async function syncLiffFriendshipIdentity() {
     return { lineUserId: '', canonicalUserId: '', isFriend: undefined as boolean | undefined }
   }
 
-  const inLineClient = (() => {
+  const inLineContext = (() => {
     try {
       return liff.isInClient?.() === true || detectLineAppUA()
     } catch {
@@ -216,9 +221,9 @@ export async function syncLiffFriendshipIdentity() {
   })()
 
   const lineProfile = await liff.getProfile()
-  const isFriend = await readLiffFriendship(liff, inLineClient)
+  const isFriend = await readLiffFriendship(liff, inLineContext)
   const synced = await syncIdentifyFromLineProfile(lineProfile, isFriend)
-  updateReadyCacheFromStore(lineProfile, inLineClient)
+  updateReadyCacheFromStore(lineProfile, inLineContext)
 
   return {
     lineUserId: synced.lineUserId || lineProfile.userId,
@@ -281,11 +286,11 @@ function getReusableReadyCtx() {
       return null
     }
 
-    const inLineClient = _liffReadyCache.ctx.inLineClient || detectLineAppUA()
+    const inLineContext = _liffReadyCache.ctx.inLineContext || detectLineAppUA()
     return {
       ctx: {
         liffReady: true,
-        inLineClient,
+        inLineContext,
         liffChecked: true,
       } as LiffContextValue,
       profile: _liffReadyCache.profile || null,
@@ -300,11 +305,11 @@ function getReusableReadyCtx() {
   if (!persistedReady?.ctx?.liffReady) return null
 
   _liffReadyCache = persistedReady
-  const inLineClient = persistedReady.ctx.inLineClient || detectLineAppUA()
+  const inLineContext = persistedReady.ctx.inLineContext || detectLineAppUA()
   return {
     ctx: {
       liffReady: true,
-      inLineClient,
+      inLineContext,
       liffChecked: true,
     } as LiffContextValue,
     profile: persistedReady.profile || null,
@@ -338,7 +343,7 @@ async function initLiffOnce(
     clientLog('liff_init_reused_ready_ctx', {
       pathname: window.location.pathname,
       search: window.location.search,
-      in_line_client: reusableReady.ctx.inLineClient,
+      in_line_context: reusableReady.ctx.inLineContext,
     })
     onReady(reusableReady.ctx)
     return
@@ -379,7 +384,7 @@ async function initLiffOnce(
     if (!liffId) {
       clearInitAttempt(initKey)
       clientLog('liff_init_no_liff_id', {})
-      onReady({ liffReady: false, inLineClient: false, liffChecked: true })
+      onReady({ liffReady: false, inLineContext: false, liffChecked: true })
       return
     }
 
@@ -396,12 +401,12 @@ async function initLiffOnce(
         return false
       }
     })()
-    const inLineClient = isInClientSdk || inLineUA
+    const inLineContext = isInClientSdk || inLineUA
 
     clientLog('liff_init_done', {
       in_client_sdk: isInClientSdk,
       in_line_ua: inLineUA,
-      in_line_client: inLineClient,
+      in_line_context: inLineContext,
       logged_in: (() => {
         try {
           return liff.isLoggedIn()
@@ -416,9 +421,9 @@ async function initLiffOnce(
       clientLog('liff_not_logged_in_unlock', {
         pathname: window.location.pathname,
         search: window.location.search,
-        in_line_client: inLineClient,
+        in_line_context: inLineContext,
       })
-      onReady({ liffReady: false, inLineClient, liffChecked: true })
+      onReady({ liffReady: false, inLineContext, liffChecked: true })
       return
     }
 
@@ -454,29 +459,48 @@ async function initLiffOnce(
       // ignore
     }
 
-    const isFriend = await readLiffFriendship(liff, inLineClient)
+    const isFriend = await readLiffFriendship(liff, inLineContext)
     await syncIdentifyFromLineProfile(lineProfile, isFriend)
 
     clearInitAttempt(initKey)
-    updateReadyCacheFromStore(lineProfile, inLineClient)
-    onReady({ liffReady: true, inLineClient, liffChecked: true })
+    updateReadyCacheFromStore(lineProfile, inLineContext)
+    onReady({ liffReady: true, inLineContext, liffChecked: true })
   } catch (err) {
     clearInitAttempt(initKey)
     console.warn('[LIFF] init failed:', err)
-    onReady({ liffReady: false, inLineClient: inLineUA, liffChecked: true })
+    onReady({ liffReady: false, inLineContext: inLineUA, liffChecked: true })
   }
 }
 
 export function LiffProvider({ children }: { children: React.ReactNode }) {
   const [ctx, setCtx] = useState<LiffContextValue>({
     liffReady: false,
-    inLineClient: false,
+    inLineContext: false,
     liffChecked: false,
   })
 
   const initStartedRef = useRef(false)
   const initResolvedRef = useRef(false)
   const initKeyRef = useRef('')
+
+  useEffect(() => {
+    try {
+      for (const key of STALE_KEYS) {
+        sessionStorage.removeItem(key)
+        localStorage.removeItem(key)
+      }
+      for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+        const key = sessionStorage.key(i)
+        if (key && /line[-_]?login/i.test(key)) sessionStorage.removeItem(key)
+      }
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+        const key = localStorage.key(i)
+        if (key && /line[-_]?login/i.test(key)) localStorage.removeItem(key)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
 
   useEffect(() => {
     const signal = { cancelled: false }
@@ -504,7 +528,7 @@ export function LiffProvider({ children }: { children: React.ReactNode }) {
       clearInitAttempt(initKey)
       safeSetCtx({
         liffReady: false,
-        inLineClient: detectLineAppUA(),
+        inLineContext: detectLineAppUA(),
         liffChecked: true,
       })
     }, LIFF_INIT_TIMEOUT_MS)

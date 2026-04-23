@@ -3,7 +3,6 @@
   "channelId": "YOUR_LINE_CHANNEL_ID",
   "officialAccountId": "@your_oa_handle",
   "liffId": "",
-  "lineLoginRedirectPath": "/welfare",
   "requireFollow": false,
   "channelSecret": "YOUR_LINE_CHANNEL_SECRET",
   "channelAccessToken": "YOUR_LINE_CHANNEL_ACCESS_TOKEN",

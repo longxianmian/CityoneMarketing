@@ -2,14 +2,10 @@ type RuntimeLineConfig = {
   channelId: string
   officialAccountId: string
   liffId: string
-  lineLoginRedirectPath: string
   requireFollow: boolean
 }
 
-type RuntimeLineLoginState = {
-  intentToken: string
-  ts: number
-}
+export type Terminal = 'chrome' | 'safari' | 'line_client' | 'other'
 
 const RUNTIME_WELFARE_CALLBACK_PATHS = [
   '/welfare/continue',
@@ -24,7 +20,6 @@ const runtimeLineConfig: RuntimeLineConfig = {
   channelId: '',
   officialAccountId: '',
   liffId: '',
-  lineLoginRedirectPath: '',
   requireFollow: false,
 }
 
@@ -44,29 +39,10 @@ function normalizeRuntimePath(value?: string | null, fallback = '') {
   return normalized.replace(/^\/+/, '/')
 }
 
-function encodeBase64Url(raw: string) {
-  const bytes = new TextEncoder().encode(raw)
-  let binary = ''
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte)
-  })
-  const encoded = window.btoa(binary)
-  return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-}
-
-function decodeBase64Url(raw: string) {
-  const normalized = raw.replace(/-/g, '+').replace(/_/g, '/')
-  const padded = normalized + '='.repeat((4 - (normalized.length % 4 || 4)) % 4)
-  const binary = window.atob(padded)
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
-  return new TextDecoder().decode(bytes)
-}
-
 export function setRuntimeLineConfig(value?: Partial<RuntimeLineConfig> | null) {
   runtimeLineConfig.channelId = String(value?.channelId || '').trim()
   runtimeLineConfig.officialAccountId = String(value?.officialAccountId || '').trim()
   runtimeLineConfig.liffId = String(value?.liffId || '').trim()
-  runtimeLineConfig.lineLoginRedirectPath = normalizeRuntimePath(value?.lineLoginRedirectPath, '')
   runtimeLineConfig.requireFollow = value?.requireFollow === true
 }
 
@@ -110,12 +86,6 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
     return `/welfare/continue?intent=${encodeURIComponent(intent)}`
   }
 
-  const lineLoginCode = searchParams.get('code') || ''
-  const lineLoginState = decodeRuntimeLineLoginState(searchParams.get('state'))
-  if (lineLoginCode && lineLoginState?.intentToken) {
-    return `/welfare/continue?intent=${encodeURIComponent(lineLoginState.intentToken)}`
-  }
-
   const liffState = searchParams.get('liff.state') || ''
   if (!liffState) return ''
 
@@ -128,7 +98,7 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
 
 export function isRuntimeCallbackBootPath(pathname: string, search: string) {
   const params = new URLSearchParams(search || '')
-  const hasCallbackPayload = params.has('intent') || params.has('liff.state') || params.has('code')
+  const hasCallbackPayload = params.has('intent') || params.has('liff.state')
 
   return (
     ((pathname === '/' || pathname === '/welfare') && hasCallbackPayload) ||
@@ -209,69 +179,14 @@ export function buildOaAddFriendUrl(value?: string | null) {
 export function buildContinueLaunchTargets(
   intentToken: string,
   liffId?: string | null,
+  officialAccountId?: string | null,
 ) {
   const continueExtraPath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   return {
     continueLiffUrl: buildRuntimeLiffUrlWithPath(continueExtraPath, liffId),
     continueLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(continueExtraPath, liffId),
+    oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
   }
-}
-
-function buildRuntimeLineLoginRedirectUri(redirectPath?: string | null) {
-  const normalized = normalizeRuntimePath(
-    redirectPath || runtimeLineConfig.lineLoginRedirectPath || '/welfare',
-    '/welfare',
-  )
-  return new URL(normalized, window.location.origin).toString()
-}
-
-export function encodeRuntimeLineLoginState(intentToken: string): string {
-  const payload: RuntimeLineLoginState = {
-    intentToken: String(intentToken || '').trim(),
-    ts: Date.now(),
-  }
-  return encodeBase64Url(JSON.stringify(payload))
-}
-
-export function decodeRuntimeLineLoginState(raw?: string | null): RuntimeLineLoginState | null {
-  const value = String(raw || '').trim()
-  if (!value) return null
-
-  try {
-    const parsed = JSON.parse(decodeBase64Url(value)) as RuntimeLineLoginState
-    if (!parsed || !parsed.intentToken) return null
-    return {
-      intentToken: String(parsed.intentToken || '').trim(),
-      ts: Number(parsed.ts || 0),
-    }
-  } catch {
-    return null
-  }
-}
-
-export function buildRuntimeLineLoginAuthorizeUrl(
-  intentToken: string,
-  options?: {
-    redirectPath?: string
-    scope?: string[]
-    botPrompt?: 'normal' | 'aggressive'
-  },
-) {
-  const channelId = String(runtimeLineConfig.channelId || '').trim()
-  if (!channelId) return ''
-
-  const redirectUri = buildRuntimeLineLoginRedirectUri(options?.redirectPath)
-  const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: channelId,
-    redirect_uri: redirectUri,
-    state: encodeRuntimeLineLoginState(intentToken),
-    scope: (options?.scope || ['openid', 'profile']).join(' '),
-    bot_prompt: options?.botPrompt || 'aggressive',
-    nonce,
-  })
-  return `https://access.line.me/oauth2/v2.1/authorize?${params.toString()}`
 }
 
 export function isRuntimeFollowGateReady() {
@@ -283,4 +198,17 @@ export function isRuntimeSchemePreferredBrowser(ua?: string | null) {
   const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
   if (!raw) return false
   return /MicroMessenger|FBAN|FBAV|Instagram|Messenger/i.test(raw)
+}
+
+export function detectTerminal(userAgent: string = navigator.userAgent): Terminal {
+  if (/Line\/\d/i.test(userAgent)) return 'line_client'
+  if (/CriOS|Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent)) return 'chrome'
+  if (/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent)) return 'safari'
+  return 'other'
+}
+
+export function isDesktopBrowser(userAgent: string = navigator.userAgent): boolean {
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(userAgent)) return false
+  if (/Line\/\d/i.test(userAgent)) return false
+  return true
 }

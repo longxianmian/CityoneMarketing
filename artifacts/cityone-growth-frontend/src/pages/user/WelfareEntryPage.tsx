@@ -1,6 +1,6 @@
 // 先读文档再改代码：本页只负责 /welfare 入口分流，禁止把 LIFF 回流再交给首页渲染后补救。
 import React, { useEffect, useMemo } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import WelfareHomePage from './WelfareHomePage'
 import { resolveRuntimeWelfareCallbackTarget } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
@@ -20,6 +20,7 @@ import { clientLog } from '../../lib/clientLogger'
  *   = true 再 navigate，让 LIFF SDK 先把 OAuth 处理完。
  */
 export default function WelfareEntryPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffChecked } = useLiff()
 
@@ -27,17 +28,17 @@ export default function WelfareEntryPage() {
     return resolveRuntimeWelfareCallbackTarget(searchParams)
   }, [searchParams])
 
-  // 有 LIFF 回流参数（liff.state / code）时，必须等 LiffProvider 完成 OAuth
-  // 兑换（liffChecked=true）后再 navigate，否则 LIFF SDK 会被打断进入死循环。
-  // 普通 intent 直跳无此约束（intent 走自家 ContinuePage 链路，与 LIFF SDK 无关）。
-  const hasLiffCallback =
-    searchParams.has('liff.state') || searchParams.has('code')
+  const hasLiffCallback = searchParams.has('liff.state')
+
+  useEffect(() => {
+    if (!searchParams.has('code')) return
+    navigate('/welfare', { replace: true })
+  }, [navigate, searchParams])
 
   useEffect(() => {
     clientLog('welfare_entry_render', {
       has_intent: searchParams.has('intent'),
       has_liff_state: searchParams.has('liff.state'),
-      has_code: searchParams.has('code'),
       target_path: targetPath || '(home)',
       liff_checked: liffChecked,
       will_wait_for_liff: !!(targetPath && hasLiffCallback && !liffChecked),

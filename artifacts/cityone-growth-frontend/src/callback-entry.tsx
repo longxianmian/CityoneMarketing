@@ -7,7 +7,7 @@ import queryClient from './lib/queryClient'
 import { LiffProvider } from './providers/LiffProvider'
 import ContinuePage from './pages/user/ContinuePage'
 import FollowConfirmPage from './pages/user/FollowConfirmPage'
-import LineLoginCallbackPage from './pages/user/LineLoginCallbackPage'
+import OpenInLinePage from './pages/user/OpenInLinePage'
 import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
 import { useLiff } from './providers/LiffProvider'
 
@@ -35,7 +35,7 @@ function WelfareCallbackEntryPage() {
   const targetPath = React.useMemo(() => {
     return resolveRuntimeWelfareCallbackTarget(searchParams)
   }, [searchParams])
-  const hasLiffCallback = searchParams.has('liff.state') || searchParams.has('code')
+  const hasLiffCallback = searchParams.has('liff.state')
   const continueIntentToken = React.useMemo(() => getContinueIntentToken(targetPath), [targetPath])
 
   // 兜底：未识别的 liff.state / 缺失 intent，1.2s 后回 /welfare 主页（避免无限转圈）
@@ -99,9 +99,9 @@ export default function CallbackEntry() {
             <Routes>
               <Route path="/" element={<RootCallbackEntryPage />} />
               <Route path="/welfare" element={<WelfareCallbackEntryPage />} />
+              <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
               <Route path="/welfare/continue" element={<ContinuePage />} />
               <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
-              <Route path="/line/login/callback" element={<LineLoginCallbackPage />} />
               <Route path="*" element={<Navigate to="/welfare" replace />} />
             </Routes>
           </ErrorBoundary>

@@ -61,32 +61,16 @@
           desc: '系统正在准备页面内容。'
         }
 
-        if (pathname !== '/welfare' && pathname !== '/line/login/callback') {
-          window.__CITYONE_BOOT__ = boot
-          return
-        }
-
-        if (pathname === '/line/login/callback') {
-          boot.title = '正在打开 LINE'
-          boot.desc = '系统已完成官方登录回调，正在进入 LINE 内继续当前业务流程。'
+        if (pathname !== '/welfare') {
           window.__CITYONE_BOOT__ = boot
           return
         }
 
         var params = new URLSearchParams(window.location.search || '')
         var directIntent = (params.get('intent') || '').trim()
-        var lineLoginCode = (params.get('code') || '').trim()
-        var lineLoginState = (params.get('state') || '').trim()
         if (directIntent) {
           boot.title = '正在继续领取'
           boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
-          window.__CITYONE_BOOT__ = boot
-          return
-        }
-
-        if (lineLoginCode && lineLoginState) {
-          boot.title = '正在继续领取'
-          boot.desc = '系统已完成 LINE 登录回调，正在恢复当前业务流程。'
           window.__CITYONE_BOOT__ = boot
           return
         }
@@ -143,10 +127,10 @@
       const pathname = window.location.pathname || ''
       const params = new URLSearchParams(window.location.search || '')
       const isCallbackEntry =
-        ((pathname === '/' || pathname === '/welfare') && (params.has('intent') || params.has('liff.state') || params.has('code'))) ||
+        ((pathname === '/' || pathname === '/welfare') && (params.has('intent') || params.has('liff.state'))) ||
+        pathname === '/welfare/open-in-line' ||
         pathname === '/welfare/continue' ||
-        pathname === '/welfare/follow-confirm' ||
-        pathname === '/line/login/callback'
+        pathname === '/welfare/follow-confirm'
       const root = document.getElementById('root')
 
       const entryLoader = isCallbackEntry

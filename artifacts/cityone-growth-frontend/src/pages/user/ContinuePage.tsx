@@ -6,7 +6,6 @@ import useLineUserStore from '../../store/lineUser'
 import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
 import { clientLog } from '../../lib/clientLogger'
-import { buildRuntimeLineLoginAuthorizeUrl } from '../../lib/line'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const AUTO_RUN_PREFIX = 'continue:auto-run:'
@@ -65,10 +64,7 @@ type ContinuePageProps = {
 export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageProps) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { liffReady, liffChecked, inLineClient } = useLiff()
-
-  const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
-  const inLineContext = inLineClient || isLineWebView
+  const { liffReady, liffChecked, inLineContext } = useLiff()
 
   const [status, setStatus] = useState<ContinueStatus>('idle')
   const [errorText, setErrorText] = useState('')
@@ -82,8 +78,8 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   const returnPath = String(intentPayload?.return_path || '/welfare')
   const failPath = String(intentPayload?.fail_path || returnPath)
+  const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
-  const lineLoginPath = buildRuntimeLineLoginAuthorizeUrl(intentToken)
   const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
   const internalFailPath = useMemo(
     () => resolveInternalNavigationTarget(failPath || returnPath),
@@ -183,12 +179,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     if (inFlightRef.current || consumedRef.current) return
 
     if (!inLineContext) {
-      if (lineLoginPath) {
-        window.location.replace(lineLoginPath)
-        return
-      }
-      setErrorText('当前环境无法进入 LINE 官方登录，请返回详情页重试')
-      setStatus('error')
+      navigate(openInLinePath, { replace: true })
       return
     }
 
@@ -222,7 +213,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
       if (!followed) {
         clearAutoRunLock()
-        window.location.replace(followConfirmPath)
+        navigate(followConfirmPath, { replace: true })
         return
       }
 
@@ -289,7 +280,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [
     clearAutoRunLock,
     followConfirmPath,
-    lineLoginPath,
+    openInLinePath,
     inLineContext,
     intentPayload,
     intentToken,
@@ -310,13 +301,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       setStatus('error')
     }
   }, [intentToken, intentPayload])
-
-  useEffect(() => {
-    if (!intentToken || !intentPayload) return
-    if (!inLineContext) {
-      navigate(followConfirmPath, { replace: true })
-    }
-  }, [intentToken, intentPayload, followConfirmPath, inLineContext, navigate])
 
   useEffect(() => {
     if (!intentToken || !intentPayload || !liffChecked || !inLineContext) return
@@ -399,7 +383,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
             onClick={handleExplicitLineLogin}
             style={{ width: '100%', height: 44, borderRadius: 999, border: 'none', background: '#12b981', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
           >
-            使用 LINE 登录并继续
+            使用 LINE 登录继续
           </button>
           <button
             onClick={() => {

@@ -13,8 +13,8 @@
  *
  * 执行型动作统一流程（默认/慢路径）：
  *   1. 创建 pending intent
- *   2. 外部浏览器统一进入官方 LINE Login（带 bot_prompt）
- *   3. 登录回调后进入 LINE 内 `/welfare/continue?intent=...`
+ *   2. 外部浏览器优先唤起 LIFF URL，必要时 line:// scheme 兜底
+ *   3. 唤起失败时进入 `/welfare/open-in-line?intent=...`
  *   4. LINE 内统一完成 identify -> check-follow -> consume
  *
  * 不保留任何 fast path。所有执行动作一律经过同一条 pending-intent 主链：
@@ -27,7 +27,14 @@ import useLineUserStore from '../store/lineUser'
 import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
-import { buildRuntimeLineLoginAuthorizeUrl, setRuntimeLineConfig } from '../lib/line'
+import {
+  buildContinueLaunchTargets,
+  detectTerminal,
+  getRuntimeLineConfig,
+  isDesktopBrowser,
+} from '../lib/line'
+
+const WAIT_MS = 1500
 
 interface GuardOptions {
   label?: string
@@ -53,7 +60,7 @@ export function useFollowGate() {
   const [searchParams] = useSearchParams()
   const lineProfile = useLineUserStore((s) => s.profile)
   const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
-  const { inLineClient, liffReady, liffChecked } = useLiff()
+  const { inLineContext, liffReady, liffChecked } = useLiff()
   const isFriendFromStore = lineProfile?.isFriend === true
   const [checking, setChecking] = useState(false)
   // 防双击：guard 调用是异步的，setChecking 跨 React render 不可靠，必须用 ref 同步锁
@@ -104,7 +111,7 @@ export function useFollowGate() {
       clientLog('guard_enter', {
         action: intentAction,
         resource_id: resourceId,
-        in_line_client: inLineClient,
+        in_line_context: inLineContext,
         in_line_ua: /Line\/\d/i.test(navigator.userAgent),
         liff_checked: liffChecked,
         liff_ready: liffReady,
@@ -122,6 +129,7 @@ export function useFollowGate() {
         const issued = await issuePendingIntent({
           userId: canonicalUserId || lineProfile?.lineUserId || '',
           lineUserId: lineProfile?.lineUserId || '',
+          terminal: detectTerminal(),
           action: intentAction,
           resourceId,
           returnPath: fullReturn,
@@ -132,48 +140,76 @@ export function useFollowGate() {
           source,
         })
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
-        let lineLoginUrl = buildRuntimeLineLoginAuthorizeUrl(issued.token)
+        const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
+        const lineCfg = getRuntimeLineConfig()
+        const { continueLiffUrl, continueLineSchemeUrl } = buildContinueLaunchTargets(
+          issued.token,
+          lineCfg.liffId,
+          lineCfg.officialAccountId,
+        )
 
-        // UA 兜底（2026-04 nginx 死循环诊断后加）：
-        //   `inLineClient` 来自 LIFF SDK，必须 LIFF init 完成后才会 true。
-        //   LINE 内冷启动时 init 异步，用户若在 init 完成前点击，inLineClient 仍为 false，
-        //   会被误判为外部 UA → window.location.assign(liffUrl) → LINE 服务器 redirect 回
-        //   /welfare?liff.state=... → LIFF SDK 又触发 OAuth → 死循环。
-        //   navigator.userAgent 是同步的，可立即可靠识别 LINE 内置 WebView (Line/x.x)。
         const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
-        if (inLineClient || isLineWebView) {
+        if (inLineContext || isLineWebView) {
           clientLog('guard_branch_in_line_continue', {
-            in_line_client: inLineClient,
+            in_line_context: inLineContext,
             in_line_ua: isLineWebView,
             target: continuePath,
           })
-          // 在 LINE 内置 WebView 内：进 ContinuePage，由其调用 identity / check-follow
-          // 完成"是 OA 粉丝 → 系统用户"识别后再 dispatch 业务路径。
           navigate(continuePath)
           return
         }
 
-        if (!lineLoginUrl) {
-          try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/growth/line/config`)
-            const json = await res.json()
-            setRuntimeLineConfig(json?.data || null)
-            lineLoginUrl = buildRuntimeLineLoginAuthorizeUrl(issued.token)
-          } catch {
-            // ignore
+        if (isDesktopBrowser()) {
+          navigate(openInLinePath)
+          return
+        }
+
+        let stage: 'idle' | 'liff' | 'scheme' | 'done' = 'idle'
+        const markDone = () => {
+          stage = 'done'
+        }
+        const onHidden = () => {
+          if (document.visibilityState === 'hidden') markDone()
+        }
+        const clearListeners = () => {
+          window.removeEventListener('blur', markDone)
+          window.removeEventListener('pagehide', markDone)
+          document.removeEventListener('visibilitychange', onHidden)
+        }
+        window.addEventListener('blur', markDone, { once: true })
+        window.addEventListener('pagehide', markDone, { once: true })
+        document.addEventListener('visibilitychange', onHidden)
+
+        const trySchemeThenBail = () => {
+          if (stage === 'done') {
+            clearListeners()
+            return
           }
+          if (continueLineSchemeUrl) {
+            stage = 'scheme'
+            window.location.assign(continueLineSchemeUrl)
+            window.setTimeout(() => {
+              if (stage === 'done') {
+                clearListeners()
+                return
+              }
+              clearListeners()
+              navigate(openInLinePath)
+            }, WAIT_MS)
+            return
+          }
+          clearListeners()
+          navigate(openInLinePath)
         }
 
-        if (!lineLoginUrl) {
-          throw new Error('LINE 登录配置不完整，无法继续当前操作')
+        if (continueLiffUrl) {
+          stage = 'liff'
+          window.setTimeout(trySchemeThenBail, WAIT_MS)
+          window.location.assign(continueLiffUrl)
+          return
         }
 
-        clientLog('guard_branch_external_line_login', {
-          action: intentAction,
-          target: 'runtime_line_login_callback',
-          navigation: 'document',
-        })
-        window.location.assign(lineLoginUrl)
+        trySchemeThenBail()
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })
@@ -186,7 +222,7 @@ export function useFollowGate() {
     [
       buildReturnPath,
       canonicalUserId,
-      inLineClient,
+      inLineContext,
       isFriendFromStore,
       liffChecked,
       liffReady,

@@ -9,6 +9,7 @@ export type PendingIntentAction =
 type IssuePendingIntentInput = {
   userId?: string
   lineUserId?: string
+  terminal?: string
   action: PendingIntentAction
   resourceId: string
   returnPath: string
@@ -26,6 +27,7 @@ export async function issuePendingIntent(input: IssuePendingIntentInput) {
     body: JSON.stringify({
       user_id: input.userId || '',
       line_user_id: input.lineUserId || '',
+      terminal: input.terminal || '',
       action: input.action,
       resource_id: input.resourceId,
       return_path: input.returnPath,
@@ -62,31 +64,57 @@ export async function consumePendingIntent({
     }),
   })
   const json = await res.json()
-  if (!res.ok || json?.code !== 200) {
+  if (!res.ok) {
     throw new Error(json?.msg || 'pending intent 消费失败')
   }
-  return json.data as {
-    replayed: boolean
-    payload: any
-    result: {
-      nextPath?: string
-      resultCode?: string
-      action_result?: any
-      // 后端 pending-intent-service 对 status='failed' 的 intent 在 replay 时
-      // 会返回 { error: true, code, message }（见 services/pending-intent-service.js 269-275）
-      error?: boolean
-      code?: string
-      message?: string
+  if (json?.code === 200) {
+    return json.data as {
+      replayed: boolean
+      payload: any
+      result: {
+        nextPath?: string
+        resultCode?: string
+        action_result?: any
+        error?: boolean
+        code?: string
+        message?: string
+      }
     }
   }
+  if (json?.code === 4090) {
+    return {
+      replayed: true,
+      payload: json?.data?.payload,
+      result: {
+        ...(json?.data?.result || {}),
+        error: true,
+        message: json?.msg || json?.data?.result?.message || 'pending intent 已失败',
+      },
+    } as {
+      replayed: boolean
+      payload: any
+      result: {
+        nextPath?: string
+        resultCode?: string
+        action_result?: any
+        error?: boolean
+        code?: string
+        message?: string
+      }
+    }
+  }
+  throw new Error(json?.msg || 'pending intent 消费失败')
 }
 
 export function decodePendingIntentPayload(token: string) {
   try {
     const [encoded] = String(token || '').trim().split('.')
     if (!encoded) return null
-    const padded = encoded.replace(/-/g, '+').replace(/_/g, '/')
-    const json = atob(padded)
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64 + '='.repeat((4 - (base64.length % 4 || 4)) % 4)
+    const binary = atob(padded)
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+    const json = new TextDecoder('utf-8').decode(bytes)
     return JSON.parse(json)
   } catch {
     return null
