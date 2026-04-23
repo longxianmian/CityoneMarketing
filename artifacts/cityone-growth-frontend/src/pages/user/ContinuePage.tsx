@@ -12,6 +12,7 @@ const AUTO_RUN_PREFIX = 'continue:auto-run:'
 const AUTO_REENTRY_COOLDOWN_MS = 4000
 const EXTERNAL_CONTEXT_SETTLE_MS = 2200
 const IN_LINE_LOGIN_GRACE_MS = 1800
+const WECHAT_CONTEXT_SETTLE_MS = 4500
 
 type ContinueStatus =
   | 'idle'
@@ -115,9 +116,13 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   const returnPath = String(intentPayload?.return_path || '/welfare')
   const failPath = String(intentPayload?.fail_path || returnPath)
+  const sourceTerminal = String(intentPayload?.terminal || '').trim()
   const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
   const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
+  const contextSettleMs = sourceTerminal === 'wechat_webview'
+    ? WECHAT_CONTEXT_SETTLE_MS
+    : EXTERNAL_CONTEXT_SETTLE_MS
   const internalFailPath = useMemo(
     () => resolveInternalNavigationTarget(failPath || returnPath),
     [failPath, returnPath]
@@ -377,7 +382,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [intentToken, intentPayload])
 
   useEffect(() => {
-    if (inLineContext || liffChecked) {
+    if (inLineContext) {
       setContextWatchElapsed(false)
       return
     }
@@ -385,20 +390,15 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     const timer = window.setTimeout(() => {
       if (!mountedRef.current) return
       setContextWatchElapsed(true)
-    }, EXTERNAL_CONTEXT_SETTLE_MS)
+    }, contextSettleMs)
 
     return () => window.clearTimeout(timer)
-  }, [inLineContext, liffChecked])
+  }, [contextSettleMs, inLineContext])
 
   useEffect(() => {
     if (!intentToken || !intentPayload || !liffChecked) return
 
     if (!inLineContext) {
-      clientLog('continue_redirect_open_in_line', {
-        intent_id: intentPayload.intent_id || '',
-        action_type: intentPayload.action || '',
-      })
-      navigate(openInLinePath, { replace: true })
       return
     }
 
@@ -422,12 +422,14 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   useEffect(() => {
     if (!intentToken || !intentPayload) return
-    if (inLineContext || liffChecked || !contextWatchElapsed) return
+    if (inLineContext || !contextWatchElapsed) return
 
-    clientLog('continue_context_watchdog_open_in_line', {
+    clientLog('continue_redirect_open_in_line', {
       intent_id: intentPayload.intent_id || '',
       action_type: intentPayload.action || '',
       elapsed_ms: Date.now() - mountedAtRef.current,
+      liff_checked: liffChecked,
+      source_terminal: sourceTerminal || '',
     })
     navigate(openInLinePath, { replace: true })
   }, [
@@ -438,6 +440,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     liffChecked,
     navigate,
     openInLinePath,
+    sourceTerminal,
   ])
 
   const handleRetry = async () => {

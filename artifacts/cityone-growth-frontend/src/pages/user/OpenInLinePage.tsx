@@ -32,6 +32,10 @@ export default function OpenInLinePage() {
     cfg.officialAccountId,
   )
   const desktop = isDesktopBrowser()
+  const preferScheme = isRuntimeSchemePreferredBrowser()
+  const primaryLaunchUrl = preferScheme
+    ? (continueLineSchemeUrl || continueLiffUrl)
+    : (continueLiffUrl || continueLineSchemeUrl)
 
   useEffect(() => {
     clientLog('open_in_line_view', {
@@ -63,10 +67,19 @@ export default function OpenInLinePage() {
     }
   }, [continueLiffUrl, desktop])
 
-  const handleOpen = () => {
-    if (opening || !tokenValid || desktop) return
+  const handleOpen = (ev?: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+    if (opening || !tokenValid || desktop || !primaryLaunchUrl) {
+      ev?.preventDefault()
+      return
+    }
+    ev?.preventDefault()
     setOpening(true)
     stageRef.current = 'idle'
+    clientLog('open_in_line_primary_click', {
+      intent_id: payload?.intent_id || '',
+      prefer_scheme: preferScheme,
+      primary_launch_url: primaryLaunchUrl.startsWith('line://') ? 'line-scheme' : 'liff-url',
+    })
 
     const markDone = () => {
       stageRef.current = 'done'
@@ -125,7 +138,7 @@ export default function OpenInLinePage() {
       tryLiffThenBail()
     }
 
-    if (isRuntimeSchemePreferredBrowser() && continueLineSchemeUrl) {
+    if (preferScheme && continueLineSchemeUrl) {
       trySchemeThenMaybeLiff()
       return
     }
@@ -184,13 +197,28 @@ export default function OpenInLinePage() {
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
           当前操作需要在 LINE App 内继续处理。进入 LINE 后，系统会自动识别身份并继续当前业务流程。
         </div>
-        <button
+        <a
+          href={primaryLaunchUrl || '#'}
           onClick={handleOpen}
-          disabled={opening}
-          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: opening ? '#9fdcc6' : '#12b981', color: '#fff', fontWeight: 700, cursor: opening ? 'not-allowed' : 'pointer' }}
+          aria-disabled={opening || !primaryLaunchUrl}
+          style={{
+            width: '100%',
+            height: 48,
+            borderRadius: 999,
+            border: 'none',
+            background: opening ? '#9fdcc6' : '#12b981',
+            color: '#fff',
+            fontWeight: 700,
+            cursor: opening || !primaryLaunchUrl ? 'not-allowed' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textDecoration: 'none',
+            pointerEvents: opening || !primaryLaunchUrl ? 'none' : 'auto',
+          }}
         >
           {opening ? '正在尝试打开 LINE...' : '打开 LINE 继续'}
-        </button>
+        </a>
         <div style={{ marginTop: 14, color: '#888', fontSize: 13 }}>
           如未自动跳转，请再次点击按钮继续。
         </div>
