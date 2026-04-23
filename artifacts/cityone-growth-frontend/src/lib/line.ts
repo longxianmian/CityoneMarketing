@@ -15,6 +15,7 @@ export type Terminal =
   | 'other'
 
 const RUNTIME_WELFARE_CALLBACK_PATHS = [
+  '/welfare',
   '/welfare/continue',
   '/welfare/follow-confirm',
 ] as const
@@ -88,12 +89,15 @@ export function isRuntimeWelfareCallbackExtraPath(value?: string | null) {
 }
 
 export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParams) {
+  const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
+  if (explicitResumeIntent) return ''
+
   const intent = searchParams.get('intent') || ''
   if (intent) {
-    if (shouldRouteContinueViaOpenInLine()) {
-      return `/welfare/open-in-line?intent=${encodeURIComponent(intent)}`
+    if (isRuntimeLineClientUserAgent()) {
+      return `/welfare/continue?intent=${encodeURIComponent(intent)}`
     }
-    return `/welfare/continue?intent=${encodeURIComponent(intent)}`
+    return `/welfare?resume_intent=${encodeURIComponent(intent)}`
   }
 
   const liffState = searchParams.get('liff.state') || ''
@@ -103,15 +107,19 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
   const normalized = normalizeRuntimeLiffExtraPath(decoded)
   if (!isRuntimeWelfareCallbackExtraPath(normalized)) return ''
 
-  if (shouldRouteContinueViaOpenInLine() && isRuntimeContinuePath(normalized)) {
+   if (normalized.startsWith('/welfare?')) {
+    return normalized
+  }
+
+  if (!isRuntimeLineClientUserAgent() && isRuntimeContinuePath(normalized)) {
     try {
       const url = new URL(normalized, window.location.origin)
       const callbackIntent = url.searchParams.get('intent') || ''
       return callbackIntent
-        ? `/welfare/open-in-line?intent=${encodeURIComponent(callbackIntent)}&handoff=returned`
-        : '/welfare/open-in-line?handoff=returned'
+        ? `/welfare?resume_intent=${encodeURIComponent(callbackIntent)}&handoff=returned`
+        : '/welfare?handoff=returned'
     } catch {
-      return '/welfare/open-in-line?handoff=returned'
+      return '/welfare?handoff=returned'
     }
   }
 
@@ -211,6 +219,19 @@ export function buildContinueLaunchTargets(
   }
 }
 
+export function buildResumeLaunchTargets(
+  intentToken: string,
+  liffId?: string | null,
+  officialAccountId?: string | null,
+) {
+  const resumeExtraPath = `/welfare?resume_intent=${encodeURIComponent(intentToken)}`
+  return {
+    resumeLiffUrl: buildRuntimeLiffUrlWithPath(resumeExtraPath, liffId),
+    resumeLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(resumeExtraPath, liffId),
+    oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
+  }
+}
+
 export function isRuntimeFollowGateReady() {
   if (!runtimeLineConfig.requireFollow) return true
   return !!runtimeLineConfig.officialAccountId && !!runtimeLineConfig.liffId
@@ -277,8 +298,4 @@ function isRuntimeContinuePath(value?: string | null) {
   const normalized = normalizeRuntimeLiffExtraPath(value)
   if (!normalized) return false
   return normalized === '/welfare/continue' || normalized.startsWith('/welfare/continue?')
-}
-
-function shouldRouteContinueViaOpenInLine() {
-  return !isRuntimeLineClientUserAgent()
 }

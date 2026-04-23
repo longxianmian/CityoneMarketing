@@ -45,7 +45,7 @@ export default function FollowConfirmPage() {
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const tokenValid = !!intentToken && !!payload
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
-  const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
+  const resumeEntryPath = `/welfare?resume_intent=${encodeURIComponent(intentToken)}`
   const oaAddFriendUrl = buildOaAddFriendUrl(runtimeCfg.officialAccountId)
 
   useEffect(() => {
@@ -80,8 +80,8 @@ export default function FollowConfirmPage() {
 
   useEffect(() => {
     if (!intentToken || !tokenValid || inLineContext) return
-    navigate(openInLinePath, { replace: true })
-  }, [inLineContext, intentToken, navigate, openInLinePath, tokenValid])
+    navigate(resumeEntryPath, { replace: true })
+  }, [inLineContext, intentToken, navigate, resumeEntryPath, tokenValid])
 
   const handleConfirm = async () => {
     clientLog('follow_gate_primary_click', {

@@ -70,9 +70,16 @@
 
         var params = new URLSearchParams(window.location.search || '')
         var directIntent = (params.get('intent') || '').trim()
+        var resumeIntent = (params.get('resume_intent') || '').trim()
         if (directIntent) {
           boot.title = '正在继续领取'
           boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
+          window.__CITYONE_BOOT__ = boot
+          return
+        }
+        if (resumeIntent) {
+          boot.title = '正在进入 LINE 继续'
+          boot.desc = '系统正在恢复当前操作，并准备在 LINE 内继续后续步骤。'
           window.__CITYONE_BOOT__ = boot
           return
         }
@@ -134,7 +141,7 @@
       const pathname = window.location.pathname || ''
       const params = new URLSearchParams(window.location.search || '')
       const isCallbackEntry =
-        ((pathname === '/' || pathname === '/welfare') && (params.has('intent') || params.has('liff.state'))) ||
+        ((pathname === '/' || pathname === '/welfare') && (params.has('intent') || params.has('liff.state') || params.has('resume_intent'))) ||
         pathname === '/welfare/open-in-line' ||
         pathname === '/welfare/continue' ||
         pathname === '/welfare/follow-confirm'

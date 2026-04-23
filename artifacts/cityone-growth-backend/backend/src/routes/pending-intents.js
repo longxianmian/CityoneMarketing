@@ -8,6 +8,7 @@ import {
   consumePendingIntent,
   createPendingIntentError,
   decodePendingIntentToken,
+  findLatestPendingIntent,
   issuePendingIntent,
 } from "../services/pending-intent-service.js";
 
@@ -286,6 +287,27 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
       err.statusCode || 500,
       err.errorCode || "PENDING_INTENT_CONSUME_FAILED",
       err.message || "pending intent 消费失败"
+    );
+  }
+}
+
+export async function handlePendingIntentLatest(req, res, url, sendJson) {
+  try {
+    const userId = String(url.searchParams.get("user_id") || "").trim();
+    const lineUserId = String(url.searchParams.get("line_user_id") || "").trim();
+    if (!userId && !lineUserId) {
+      return sendError(res, sendJson, 400, "MISSING_PENDING_IDENTITY", "缺少 user_id 或 line_user_id");
+    }
+
+    const latest = await findLatestPendingIntent({ userId, lineUserId });
+    return sendOk(res, sendJson, latest ? "pending intent found" : "pending intent not found", latest);
+  } catch (err) {
+    return sendError(
+      res,
+      sendJson,
+      err.statusCode || 500,
+      err.errorCode || "PENDING_INTENT_FETCH_FAILED",
+      err.message || "pending intent 查询失败"
     );
   }
 }

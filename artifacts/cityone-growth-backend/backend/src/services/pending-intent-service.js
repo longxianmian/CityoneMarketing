@@ -175,6 +175,24 @@ export async function issuePendingIntent({
   };
 }
 
+function rebuildPayloadFromRow(row) {
+  return buildPayload({
+    intentId: row.intent_id,
+    nonce: row.nonce,
+    userId: row.user_id || "",
+    lineUserId: row.line_user_id || "",
+    action: row.action || "",
+    resourceId: row.resource_id || "",
+    returnPath: row.return_path || "/welfare",
+    successPath: row.success_path || row.return_path || "/welfare",
+    failPath: row.fail_path || row.return_path || "/welfare",
+    backPath: row.back_path || "/welfare",
+    terminal: row.terminal || "",
+    actionName: row.action_name || "",
+    exp: Math.floor(new Date(row.expires_at).getTime() / 1000),
+  });
+}
+
 function normalizeStoredJson(value) {
   if (!value) return null;
   if (typeof value === "string") {
@@ -231,6 +249,47 @@ function resolveEffectiveIdentity(row, { userId, lineUserId }) {
 
 export function decodePendingIntentToken(token) {
   return verifyToken(token);
+}
+
+export async function findLatestPendingIntent({
+  userId,
+  lineUserId,
+}) {
+  const normalizedUserId = String(userId || "").trim();
+  const normalizedLineUserId = String(lineUserId || "").trim();
+  if (!normalizedUserId && !normalizedLineUserId) return null;
+
+  const params = [];
+  const where = [`status = 'pending'`, `expires_at > NOW()`];
+
+  if (normalizedUserId && normalizedLineUserId) {
+    params.push(normalizedUserId, normalizedLineUserId);
+    where.push(`(user_id = $${params.length - 1} OR line_user_id = $${params.length})`);
+  } else if (normalizedUserId) {
+    params.push(normalizedUserId);
+    where.push(`user_id = $${params.length}`);
+  } else {
+    params.push(normalizedLineUserId);
+    where.push(`line_user_id = $${params.length}`);
+  }
+
+  const { rows } = await query(
+    `SELECT *
+       FROM pending_intents
+      WHERE ${where.join(" AND ")}
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    params
+  );
+
+  if (!rows.length) return null;
+
+  const row = rows[0];
+  const payload = rebuildPayloadFromRow(row);
+  return {
+    token: signPayload(payload),
+    payload,
+  };
 }
 
 export async function consumePendingIntent({

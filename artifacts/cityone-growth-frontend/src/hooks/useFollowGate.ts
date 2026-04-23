@@ -28,11 +28,10 @@ import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingInte
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
 import {
-  buildContinueLaunchTargets,
+  buildResumeLaunchTargets,
   detectTerminal,
   getRuntimeLineConfig,
   isDesktopBrowser,
-  isRuntimeUnsupportedHandoffBrowser,
 } from '../lib/line'
 
 const WAIT_MS = 1500
@@ -140,10 +139,9 @@ export function useFollowGate() {
           actionName: label,
           source,
         })
-        const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
         const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
         const lineCfg = getRuntimeLineConfig()
-        const { continueLiffUrl } = buildContinueLaunchTargets(
+        const { resumeLiffUrl } = buildResumeLaunchTargets(
           issued.token,
           lineCfg.liffId,
           lineCfg.officialAccountId,
@@ -154,24 +152,13 @@ export function useFollowGate() {
           clientLog('guard_branch_in_line_continue', {
             in_line_context: inLineContext,
             in_line_ua: isLineWebView,
-            target: continuePath,
+            target: `/welfare/continue?intent=${encodeURIComponent(issued.token)}`,
           })
-          navigate(continuePath)
+          navigate(`/welfare/continue?intent=${encodeURIComponent(issued.token)}`)
           return
         }
 
         if (isDesktopBrowser()) {
-          navigate(openInLinePath)
-          return
-        }
-
-        const unsupportedHandoffBrowser = isRuntimeUnsupportedHandoffBrowser()
-
-        if (unsupportedHandoffBrowser) {
-          clientLog('guard_branch_external_open_in_line', {
-            action: intentAction,
-            resource_id: resourceId,
-          })
           navigate(openInLinePath)
           return
         }
@@ -192,14 +179,14 @@ export function useFollowGate() {
         window.addEventListener('pagehide', markDone, { once: true })
         document.addEventListener('visibilitychange', onHidden)
 
-        const tryLiffThenBail = () => {
+        const tryResumeThenBail = () => {
           if (stage === 'done') {
             clearListeners()
             return
           }
-          if (continueLiffUrl) {
+          if (resumeLiffUrl) {
             stage = 'liff'
-            window.location.assign(continueLiffUrl)
+            window.location.assign(resumeLiffUrl)
             window.setTimeout(() => {
               if (stage === 'done') {
                 clearListeners()
@@ -213,13 +200,13 @@ export function useFollowGate() {
           clearListeners()
           navigate(openInLinePath)
         }
-        if (continueLiffUrl) {
-          clientLog('guard_branch_external_liff_url', {
+        if (resumeLiffUrl) {
+          clientLog('guard_branch_external_resume_liff', {
             action: intentAction,
             resource_id: resourceId,
           })
         }
-        tryLiffThenBail()
+        tryResumeThenBail()
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })

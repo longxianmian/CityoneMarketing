@@ -5,6 +5,8 @@ import WelfareHomePage from './WelfareHomePage'
 import { resolveRuntimeWelfareCallbackTarget } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
+import useLineUserStore from '../../store/lineUser'
+import { fetchLatestPendingIntent } from '../../lib/pendingIntent'
 
 /**
  * 强约束：
@@ -22,13 +24,19 @@ import { clientLog } from '../../lib/clientLogger'
 export default function WelfareEntryPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { liffChecked } = useLiff()
+  const { liffChecked, inLineContext } = useLiff()
+  const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
+  const lineProfile = useLineUserStore((s) => s.profile)
 
   const targetPath = useMemo(() => {
     return resolveRuntimeWelfareCallbackTarget(searchParams)
   }, [searchParams])
+  const explicitResumeIntent = useMemo(() => {
+    return (searchParams.get('resume_intent') || '').trim()
+  }, [searchParams])
 
   const hasLiffCallback = searchParams.has('liff.state')
+  const hasExplicitResumeTarget = !!targetPath || !!explicitResumeIntent
 
   useEffect(() => {
     if (!searchParams.has('code')) return
@@ -40,11 +48,48 @@ export default function WelfareEntryPage() {
     clientLog('welfare_entry_render', {
       has_intent: searchParams.has('intent'),
       has_liff_state: searchParams.has('liff.state'),
+      has_resume_intent: !!explicitResumeIntent,
       target_path: targetPath || '(home)',
       liff_checked: liffChecked,
       will_wait_for_liff: !!(targetPath && hasLiffCallback && !liffChecked),
     })
-  }, [searchParams, targetPath, liffChecked, hasLiffCallback])
+  }, [searchParams, explicitResumeIntent, targetPath, liffChecked, hasLiffCallback])
+
+  useEffect(() => {
+    if (!explicitResumeIntent || !liffChecked || !inLineContext) return
+    navigate(`/welfare/continue?intent=${encodeURIComponent(explicitResumeIntent)}&resume=1`, {
+      replace: true,
+    })
+  }, [explicitResumeIntent, inLineContext, liffChecked, navigate])
+
+  useEffect(() => {
+    if (!liffChecked || !inLineContext || hasExplicitResumeTarget) return
+
+    const userId = canonicalUserId || lineProfile?.lineUserId || ''
+    const lineUserId = lineProfile?.lineUserId || ''
+    if (!userId && !lineUserId) return
+
+    let cancelled = false
+    void fetchLatestPendingIntent({ userId, lineUserId })
+      .then((latest) => {
+        if (cancelled || !latest?.token) return
+        navigate(`/welfare/continue?intent=${encodeURIComponent(latest.token)}&resume=1`, { replace: true })
+      })
+      .catch(() => {
+        // ignore: no resumable pending intent is a normal case
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    canonicalUserId,
+    hasExplicitResumeTarget,
+    inLineContext,
+    liffChecked,
+    lineProfile?.lineUserId,
+    navigate,
+  ])
 
   if (targetPath && hasLiffCallback && !liffChecked) {
     // 占位，不渲染首页（避免闪屏），等 LIFF init 完成后再跳

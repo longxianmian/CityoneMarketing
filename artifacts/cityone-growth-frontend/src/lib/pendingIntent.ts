@@ -106,6 +106,28 @@ export async function consumePendingIntent({
   throw new Error(json?.msg || 'pending intent 消费失败')
 }
 
+export async function fetchLatestPendingIntent({
+  userId,
+  lineUserId,
+}: {
+  userId?: string
+  lineUserId?: string
+}) {
+  const params = new URLSearchParams()
+  if (userId) params.set('user_id', userId)
+  if (lineUserId) params.set('line_user_id', lineUserId)
+  if (!params.toString()) return null
+
+  const res = await fetch(`${API_BASE}/api/user/pending-intents/latest?${params.toString()}`)
+  const json = await res.json()
+  if (!res.ok || json?.code !== 200) {
+    throw new Error(json?.msg || 'pending intent 查询失败')
+  }
+
+  if (!json?.data?.token) return null
+  return json.data as { token: string; payload: any }
+}
+
 export function decodePendingIntentPayload(token: string) {
   try {
     const [encoded] = String(token || '').trim().split('.')

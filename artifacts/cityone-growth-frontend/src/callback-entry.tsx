@@ -30,15 +30,17 @@ function getContinueIntentToken(targetPath: string) {
 
 function WelfareCallbackEntryPage() {
   const [searchParams] = useSearchParams()
-  const { liffChecked } = useLiff()
+  const { liffChecked, inLineContext } = useLiff()
 
   const targetPath = React.useMemo(() => {
     return resolveRuntimeWelfareCallbackTarget(searchParams)
   }, [searchParams])
   const hasLiffCallback = searchParams.has('liff.state')
+  const hasResumeIntent = !!(searchParams.get('resume_intent') || '').trim()
+  const resumeIntent = (searchParams.get('resume_intent') || '').trim()
   const continueIntentToken = React.useMemo(() => getContinueIntentToken(targetPath), [targetPath])
 
-  if (hasLiffCallback && !liffChecked) {
+  if ((hasLiffCallback || hasResumeIntent) && !liffChecked) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
         <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
@@ -62,15 +64,19 @@ function WelfareCallbackEntryPage() {
 
   // 兜底：未识别的 liff.state / 缺失 intent，1.2s 后回 /welfare 主页（避免无限转圈）
   React.useEffect(() => {
-    if (targetPath || (hasLiffCallback && !liffChecked)) return
+    if (targetPath || hasResumeIntent || (hasLiffCallback && !liffChecked)) return
     const t = window.setTimeout(() => {
       window.location.replace('/welfare')
     }, 1200)
     return () => window.clearTimeout(t)
-  }, [hasLiffCallback, liffChecked, targetPath])
+  }, [hasLiffCallback, hasResumeIntent, liffChecked, targetPath])
 
   if (continueIntentToken) {
     return <ContinuePage intentTokenOverride={continueIntentToken} />
+  }
+
+  if (hasResumeIntent && liffChecked && !inLineContext && resumeIntent) {
+    return <Navigate to={`/welfare/open-in-line?intent=${encodeURIComponent(resumeIntent)}`} replace />
   }
 
   if (targetPath) {
@@ -100,10 +106,11 @@ function WelfareCallbackEntryPage() {
 
 function RootCallbackEntryPage() {
   const [searchParams] = useSearchParams()
+  const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
   const targetPath = React.useMemo(() => resolveRuntimeWelfareCallbackTarget(searchParams), [searchParams])
 
   // LINE 回流有时会落在站点根路径，必须保留原 query 并重定向到福利回调入口。
-  if (targetPath) {
+  if (targetPath || explicitResumeIntent) {
     const query = searchParams.toString()
     return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
   }

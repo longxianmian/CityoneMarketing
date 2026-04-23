@@ -117,7 +117,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   const returnPath = String(intentPayload?.return_path || '/welfare')
   const failPath = String(intentPayload?.fail_path || returnPath)
   const sourceTerminal = String(intentPayload?.terminal || '').trim()
-  const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(intentToken)}`
+  const resumeEntryPath = `/welfare?resume_intent=${encodeURIComponent(intentToken)}`
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
   const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
   const contextSettleMs = sourceTerminal === 'wechat_webview'
@@ -230,7 +230,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
         intent_id: intentPayload.intent_id || '',
         action_type: intentPayload.action || '',
       })
-      navigate(openInLinePath, { replace: true })
+      navigate(resumeEntryPath, { replace: true })
       return
     }
 
@@ -359,7 +359,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [
     clearAutoRunLock,
     followConfirmPath,
-    openInLinePath,
+    resumeEntryPath,
     inLineContext,
     intentPayload,
     intentToken,
@@ -414,7 +414,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     intentPayload,
     intentToken,
     liffChecked,
-    openInLinePath,
     navigate,
     runFlow,
     setAutoRunLock,
@@ -431,7 +430,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       liff_checked: liffChecked,
       source_terminal: sourceTerminal || '',
     })
-    navigate(openInLinePath, { replace: true })
+    navigate(resumeEntryPath, { replace: true })
   }, [
     contextWatchElapsed,
     inLineContext,
@@ -439,7 +438,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     intentToken,
     liffChecked,
     navigate,
-    openInLinePath,
+    resumeEntryPath,
     sourceTerminal,
   ])
 

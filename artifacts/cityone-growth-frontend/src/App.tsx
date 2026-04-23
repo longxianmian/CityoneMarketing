@@ -105,9 +105,10 @@ function CS({ title, description }: { title: string; description?: string }) {
 
 function RootEntryRedirectPage() {
   const [searchParams] = useSearchParams()
+  const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
   const targetPath = resolveRuntimeWelfareCallbackTarget(searchParams)
 
-  if (targetPath) {
+  if (targetPath || explicitResumeIntent) {
     const query = searchParams.toString()
     return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
   }
