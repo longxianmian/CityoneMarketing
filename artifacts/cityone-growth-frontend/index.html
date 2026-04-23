@@ -57,7 +57,7 @@
       (function () {
         var pathname = window.location.pathname || ''
         var ua = navigator.userAgent || ''
-        var inWechat = /MicroMessenger|XWEB/i.test(ua) && !/Line\/\d/i.test(ua)
+        var inExternalShell = !/Line\/\d/i.test(ua)
         var boot = {
           title: '页面加载中',
           desc: '系统正在准备页面内容。'
@@ -92,7 +92,7 @@
         if (decoded.charAt(0) !== '/') decoded = '/' + decoded
         decoded = decoded.replace(/^\/+/, '/')
         if (decoded.indexOf('/welfare/continue?') === 0) {
-          if (inWechat) {
+          if (inExternalShell) {
             boot.title = '请在 LINE 中继续'
             boot.desc = '系统正在准备 LINE 打开入口，请稍候。'
           } else {

@@ -13,7 +13,7 @@
  *
  * 执行型动作统一流程（默认/慢路径）：
  *   1. 创建 pending intent
- *   2. 外部浏览器优先唤起 LIFF URL，必要时 line:// scheme 兜底
+ *   2. 外部浏览器只尝试官方 LIFF URL
  *   3. 唤起失败时进入 `/welfare/open-in-line?intent=...`
  *   4. LINE 内统一完成 identify -> check-follow -> consume
  *
@@ -32,8 +32,7 @@ import {
   detectTerminal,
   getRuntimeLineConfig,
   isDesktopBrowser,
-  isRuntimeSchemePreferredBrowser,
-  isRuntimeWeChatBrowser,
+  isRuntimeUnsupportedHandoffBrowser,
 } from '../lib/line'
 
 const WAIT_MS = 1500
@@ -144,7 +143,7 @@ export function useFollowGate() {
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
         const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
         const lineCfg = getRuntimeLineConfig()
-        const { continueLiffUrl, continueLineSchemeUrl } = buildContinueLaunchTargets(
+        const { continueLiffUrl } = buildContinueLaunchTargets(
           issued.token,
           lineCfg.liffId,
           lineCfg.officialAccountId,
@@ -166,11 +165,10 @@ export function useFollowGate() {
           return
         }
 
-        const preferScheme = isRuntimeSchemePreferredBrowser()
-        const wechatBrowser = isRuntimeWeChatBrowser()
+        const unsupportedHandoffBrowser = isRuntimeUnsupportedHandoffBrowser()
 
-        if (wechatBrowser) {
-          clientLog('guard_branch_wechat_open_in_line', {
+        if (unsupportedHandoffBrowser) {
+          clientLog('guard_branch_external_open_in_line', {
             action: intentAction,
             resource_id: resourceId,
           })
@@ -215,49 +213,13 @@ export function useFollowGate() {
           clearListeners()
           navigate(openInLinePath)
         }
-
-        const trySchemeThenMaybeLiff = () => {
-          if (stage === 'done') {
-            clearListeners()
-            return
-          }
-          if (continueLineSchemeUrl) {
-            stage = 'scheme'
-            window.location.assign(continueLineSchemeUrl)
-            window.setTimeout(() => {
-              if (stage === 'done') {
-                clearListeners()
-                return
-              }
-              if (wechatBrowser) {
-                clearListeners()
-                navigate(openInLinePath)
-                return
-              }
-              tryLiffThenBail()
-            }, WAIT_MS)
-            return
-          }
-          tryLiffThenBail()
-        }
-
-        if (preferScheme && continueLineSchemeUrl) {
-          clientLog('guard_branch_external_scheme_first', {
+        if (continueLiffUrl) {
+          clientLog('guard_branch_external_liff_url', {
             action: intentAction,
             resource_id: resourceId,
           })
-          trySchemeThenMaybeLiff()
-          return
         }
-
-        if (continueLiffUrl) {
-          stage = 'liff'
-          window.setTimeout(trySchemeThenMaybeLiff, WAIT_MS)
-          window.location.assign(continueLiffUrl)
-          return
-        }
-
-        trySchemeThenMaybeLiff()
+        tryLiffThenBail()
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })

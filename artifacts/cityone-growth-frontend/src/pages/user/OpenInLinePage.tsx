@@ -6,7 +6,9 @@ import {
   buildContinueLaunchTargets,
   getRuntimeLineConfig,
   isDesktopBrowser,
-  isRuntimeSchemePreferredBrowser,
+  isRuntimeGsaShell,
+  isRuntimeHuaweiBrowser,
+  isRuntimeUnsupportedHandoffBrowser,
   isRuntimeWeChatBrowser,
 } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
@@ -27,17 +29,18 @@ export default function OpenInLinePage() {
   const tokenValid = !!intentToken && !!payload
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   const cfg = getRuntimeLineConfig()
-  const { continueLiffUrl, continueLineSchemeUrl } = buildContinueLaunchTargets(
+  const { continueLiffUrl } = buildContinueLaunchTargets(
     intentToken,
     cfg.liffId,
     cfg.officialAccountId,
   )
   const desktop = isDesktopBrowser()
-  const preferScheme = isRuntimeSchemePreferredBrowser()
   const wechatBrowser = isRuntimeWeChatBrowser()
-  const primaryLaunchUrl = preferScheme
-    ? (continueLineSchemeUrl || continueLiffUrl)
-    : (continueLiffUrl || continueLineSchemeUrl)
+  const gsaShell = isRuntimeGsaShell()
+  const huaweiBrowser = isRuntimeHuaweiBrowser()
+  const unsupportedHandoffBrowser = isRuntimeUnsupportedHandoffBrowser()
+  const handoffReturned = searchParams.get('handoff') === 'returned'
+  const primaryLaunchUrl = continueLiffUrl
   const qrContinueUrl = useMemo(() => {
     if (typeof window === 'undefined') return continuePath
     return `${window.location.origin}${window.location.pathname}${window.location.search}`
@@ -49,11 +52,22 @@ export default function OpenInLinePage() {
       token_valid: tokenValid,
       in_line_context: inLineContext,
       is_desktop: desktop,
+      unsupported_handoff_browser: unsupportedHandoffBrowser,
+      handoff_returned: handoffReturned,
     })
     if (tokenValid && inLineContext) {
       navigate(continuePath, { replace: true })
     }
-  }, [continuePath, desktop, inLineContext, navigate, payload?.intent_id, tokenValid])
+  }, [
+    continuePath,
+    desktop,
+    handoffReturned,
+    inLineContext,
+    navigate,
+    payload?.intent_id,
+    tokenValid,
+    unsupportedHandoffBrowser,
+  ])
 
   useEffect(() => {
     if (!desktop || !qrContinueUrl) {
@@ -82,8 +96,8 @@ export default function OpenInLinePage() {
     stageRef.current = 'idle'
     clientLog('open_in_line_primary_click', {
       intent_id: payload?.intent_id || '',
-      prefer_scheme: preferScheme,
-      primary_launch_url: primaryLaunchUrl.startsWith('line://') ? 'line-scheme' : 'liff-url',
+      primary_launch_url: primaryLaunchUrl ? 'liff-url' : 'missing',
+      unsupported_handoff_browser: unsupportedHandoffBrowser,
     })
 
     const markDone = () => {
@@ -101,80 +115,17 @@ export default function OpenInLinePage() {
     window.addEventListener('pagehide', markDone, { once: true })
     document.addEventListener('visibilitychange', onHidden)
 
-    if (wechatBrowser) {
-      window.setTimeout(() => {
-        if (stageRef.current === 'done') {
-          clearListeners()
-          return
-        }
-        clearListeners()
-        setOpening(false)
-      }, WAIT_MS)
-      return
-    }
-
     ev?.preventDefault()
-
-    const tryLiffThenBail = () => {
+    stageRef.current = 'liff'
+    window.location.assign(continueLiffUrl)
+    window.setTimeout(() => {
       if (stageRef.current === 'done') {
         clearListeners()
-        return
-      }
-      if (continueLiffUrl) {
-        stageRef.current = 'liff'
-        window.location.assign(continueLiffUrl)
-        window.setTimeout(() => {
-          if (stageRef.current === 'done') {
-            clearListeners()
-            return
-          }
-          clearListeners()
-          setOpening(false)
-        }, WAIT_MS)
         return
       }
       clearListeners()
       setOpening(false)
-    }
-
-    const trySchemeThenMaybeLiff = () => {
-      if (stageRef.current === 'done') {
-        clearListeners()
-        return
-      }
-      if (continueLineSchemeUrl) {
-        stageRef.current = 'scheme'
-        window.location.assign(continueLineSchemeUrl)
-        window.setTimeout(() => {
-          if (stageRef.current === 'done') {
-            clearListeners()
-            return
-          }
-          if (wechatBrowser) {
-            clearListeners()
-            setOpening(false)
-            return
-          }
-          tryLiffThenBail()
-        }, WAIT_MS)
-        return
-      }
-      tryLiffThenBail()
-    }
-
-    if (preferScheme && continueLineSchemeUrl) {
-      trySchemeThenMaybeLiff()
-      return
-    }
-
-    if (continueLiffUrl) {
-      stageRef.current = 'liff'
-      window.setTimeout(trySchemeThenMaybeLiff, WAIT_MS)
-      window.location.assign(continueLiffUrl)
-      return
-    }
-
-    trySchemeThenMaybeLiff()
+    }, WAIT_MS)
   }
 
   if (!tokenValid) {
@@ -214,12 +165,28 @@ export default function OpenInLinePage() {
     )
   }
 
+  const browserHint = unsupportedHandoffBrowser
+    ? (
+        wechatBrowser
+          ? '当前在微信内置浏览器中。根据 LINE 官方文档，LIFF 链接在外部 App 的 WebView 里能否直接切进 LINE 取决于 WebView 规格，并不保证成功。请先点右上角“···”，选择“在浏览器打开”，再点击下方按钮继续。'
+          : gsaShell
+            ? '当前在 Google App 内置浏览器中。这个容器里 LINE handoff 不稳定，请改用系统浏览器打开本页后，再点击下方按钮继续。'
+            : huaweiBrowser
+              ? '当前在华为浏览器中，系统尚未稳定建立 LINE 上下文。请优先改用系统浏览器或直接在 LINE 中打开后继续。'
+              : '当前浏览器无法稳定直接切进 LINE。请改用系统浏览器打开本页后，再点击下方按钮继续。'
+      )
+    : '当前操作需要在 LINE App 内继续处理。进入 LINE 后，系统会自动识别身份并继续当前业务流程。'
+
+  const title = handoffReturned && unsupportedHandoffBrowser
+    ? '当前浏览器无法直接进入 LINE'
+    : '请在 LINE 中继续'
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
       <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 24, background: '#fff', padding: 28, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>请在 LINE 中继续</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>{title}</div>
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-          当前操作需要在 LINE App 内继续处理。进入 LINE 后，系统会自动识别身份并继续当前业务流程。
+          {browserHint}
         </div>
         <a
           href={primaryLaunchUrl || '#'}
@@ -244,8 +211,8 @@ export default function OpenInLinePage() {
           {opening ? '正在尝试打开 LINE...' : '打开 LINE 继续'}
         </a>
         <div style={{ marginTop: 14, color: '#888', fontSize: 13 }}>
-          {wechatBrowser
-            ? '如未自动跳转，请再次点击按钮；若微信仍拦截，请改用手机浏览器打开。'
+          {unsupportedHandoffBrowser
+            ? '如果点击后仍回到本页，请先按提示切到系统浏览器，再重试。'
             : '如未自动跳转，请再次点击按钮继续。'}
         </div>
       </div>

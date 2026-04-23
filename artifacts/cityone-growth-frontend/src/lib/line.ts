@@ -11,6 +11,7 @@ export type Terminal =
   | 'line_client'
   | 'wechat_webview'
   | 'gsa_shell'
+  | 'huawei_browser'
   | 'other'
 
 const RUNTIME_WELFARE_CALLBACK_PATHS = [
@@ -107,10 +108,10 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
       const url = new URL(normalized, window.location.origin)
       const callbackIntent = url.searchParams.get('intent') || ''
       return callbackIntent
-        ? `/welfare/open-in-line?intent=${encodeURIComponent(callbackIntent)}`
-        : '/welfare/open-in-line'
+        ? `/welfare/open-in-line?intent=${encodeURIComponent(callbackIntent)}&handoff=returned`
+        : '/welfare/open-in-line?handoff=returned'
     } catch {
-      return '/welfare/open-in-line'
+      return '/welfare/open-in-line?handoff=returned'
     }
   }
 
@@ -218,7 +219,7 @@ export function isRuntimeFollowGateReady() {
 export function isRuntimeSchemePreferredBrowser(ua?: string | null) {
   const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
   if (!raw) return false
-  return /MicroMessenger|XWEB|FBAN|FBAV|Instagram|Messenger|GSA\//i.test(raw)
+  return false
 }
 
 export function isRuntimeWeChatBrowser(ua?: string | null) {
@@ -233,10 +234,34 @@ export function isRuntimeLineClientUserAgent(ua?: string | null) {
   return /Line\/\d/i.test(raw)
 }
 
+export function isRuntimeGsaShell(ua?: string | null) {
+  const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
+  if (!raw) return false
+  return /GSA\//i.test(raw)
+}
+
+export function isRuntimeHuaweiBrowser(ua?: string | null) {
+  const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
+  if (!raw) return false
+  return /HuaweiBrowser/i.test(raw)
+}
+
+export function isRuntimeUnsupportedHandoffBrowser(ua?: string | null) {
+  const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
+  if (!raw) return false
+  return (
+    isRuntimeWeChatBrowser(raw) ||
+    isRuntimeGsaShell(raw) ||
+    isRuntimeHuaweiBrowser(raw) ||
+    /FBAN|FBAV|Instagram|Messenger/i.test(raw)
+  )
+}
+
 export function detectTerminal(userAgent: string = navigator.userAgent): Terminal {
   if (isRuntimeLineClientUserAgent(userAgent)) return 'line_client'
   if (isRuntimeWeChatBrowser(userAgent)) return 'wechat_webview'
   if (/GSA\//i.test(userAgent)) return 'gsa_shell'
+  if (isRuntimeHuaweiBrowser(userAgent)) return 'huawei_browser'
   if (/CriOS|Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent)) return 'chrome'
   if (/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent)) return 'safari'
   return 'other'
@@ -255,5 +280,5 @@ function isRuntimeContinuePath(value?: string | null) {
 }
 
 function shouldRouteContinueViaOpenInLine() {
-  return isRuntimeWeChatBrowser() && !isRuntimeLineClientUserAgent()
+  return !isRuntimeLineClientUserAgent()
 }
