@@ -33,6 +33,7 @@ import {
   getRuntimeLineConfig,
   isDesktopBrowser,
   isRuntimeSchemePreferredBrowser,
+  isRuntimeWeChatBrowser,
 } from '../lib/line'
 
 const WAIT_MS = 1500
@@ -166,6 +167,7 @@ export function useFollowGate() {
         }
 
         const preferScheme = isRuntimeSchemePreferredBrowser()
+        const wechatBrowser = isRuntimeWeChatBrowser()
 
         let stage: 'idle' | 'liff' | 'scheme' | 'done' = 'idle'
         const markDone = () => {
@@ -216,6 +218,11 @@ export function useFollowGate() {
             window.setTimeout(() => {
               if (stage === 'done') {
                 clearListeners()
+                return
+              }
+              if (wechatBrowser) {
+                clearListeners()
+                navigate(openInLinePath)
                 return
               }
               tryLiffThenBail()

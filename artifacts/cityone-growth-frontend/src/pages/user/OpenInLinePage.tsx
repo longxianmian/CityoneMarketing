@@ -7,6 +7,7 @@ import {
   getRuntimeLineConfig,
   isDesktopBrowser,
   isRuntimeSchemePreferredBrowser,
+  isRuntimeWeChatBrowser,
 } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
@@ -33,6 +34,7 @@ export default function OpenInLinePage() {
   )
   const desktop = isDesktopBrowser()
   const preferScheme = isRuntimeSchemePreferredBrowser()
+  const wechatBrowser = isRuntimeWeChatBrowser()
   const primaryLaunchUrl = preferScheme
     ? (continueLineSchemeUrl || continueLiffUrl)
     : (continueLiffUrl || continueLineSchemeUrl)
@@ -131,6 +133,11 @@ export default function OpenInLinePage() {
             clearListeners()
             return
           }
+          if (wechatBrowser) {
+            clearListeners()
+            setOpening(false)
+            return
+          }
           tryLiffThenBail()
         }, WAIT_MS)
         return
@@ -220,7 +227,9 @@ export default function OpenInLinePage() {
           {opening ? '正在尝试打开 LINE...' : '打开 LINE 继续'}
         </a>
         <div style={{ marginTop: 14, color: '#888', fontSize: 13 }}>
-          如未自动跳转，请再次点击按钮继续。
+          {wechatBrowser
+            ? '如未自动跳转，请再次点击按钮；若微信仍拦截，请改用手机浏览器打开。'
+            : '如未自动跳转，请再次点击按钮继续。'}
         </div>
       </div>
     </div>

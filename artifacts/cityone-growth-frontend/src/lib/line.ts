@@ -200,6 +200,12 @@ export function isRuntimeSchemePreferredBrowser(ua?: string | null) {
   return /MicroMessenger|XWEB|FBAN|FBAV|Instagram|Messenger|GSA\//i.test(raw)
 }
 
+export function isRuntimeWeChatBrowser(ua?: string | null) {
+  const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
+  if (!raw) return false
+  return /MicroMessenger|XWEB/i.test(raw)
+}
+
 export function detectTerminal(userAgent: string = navigator.userAgent): Terminal {
   if (/Line\/\d/i.test(userAgent)) return 'line_client'
   if (/CriOS|Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent)) return 'chrome'
