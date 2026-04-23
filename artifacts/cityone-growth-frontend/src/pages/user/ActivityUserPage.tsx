@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Card, Tag, Space, Spin } from 'antd'
-import { CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { pickLocalizedText, useI18n, type AppLanguage } from '../../i18n'
 import request from '../../api/request'
 import { useFollowGate } from '../../hooks/useFollowGate'
@@ -198,26 +198,39 @@ export default function ActivityUserPage() {
 
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-      <div style={{ maxWidth: 540, margin: '0 auto', padding: '0 0 32px 0' }}>
-        <div
-          style={{
-            height: 280,
-            background: coverImage
-              ? `url(${coverImage}) center/cover no-repeat`
-              : 'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            padding: 20,
-            color: '#fff',
-          }}
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f7fb' }}>
+      <div style={{ flexShrink: 0, position: 'sticky', top: 0, zIndex: 30, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
+        <button
+          onClick={() => navigate('/welfare')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}
         >
-          <div>
-            <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{title}</div>
-            <div style={{ fontSize: 15, opacity: 0.95 }}>{subTitle}</div>
-          </div>
-        </div>
+          <ArrowLeftOutlined style={{ fontSize: 20 }} />
+        </button>
+        <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>{t('detail.detail')}</span>
+        <Tag color="green" style={{ margin: 0 }}>{t('welfare.activity')}</Tag>
+      </div>
 
+      <div
+        style={{
+          flexShrink: 0,
+          height: 'clamp(188px, 31vh, 280px)',
+          minHeight: 188,
+          background: coverImage
+            ? `url(${coverImage}) center/cover no-repeat`
+            : 'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
+          display: 'flex',
+          alignItems: 'flex-end',
+          padding: 20,
+          color: '#fff',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>{title}</div>
+          <div style={{ fontSize: 15, opacity: 0.95 }}>{subTitle}</div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <div style={{ padding: 16 }}>
           {coverVideo ? (
             <Card style={{ marginBottom: 16, borderRadius: 16 }}>
@@ -253,16 +266,18 @@ export default function ActivityUserPage() {
             <div style={{ fontWeight: 700, marginBottom: 10 }}>{t('detail.notice')}</div>
             <div style={{ color: '#555', lineHeight: 1.9 }}>{noticeText}</div>
           </Card>
-
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Button type="primary" size="large" block icon={<CheckCircleOutlined />} onClick={handlePrimaryAction} disabled={checking}>
-              {buttonText}
-            </Button>
-            <Button size="large" block onClick={() => navigate('/welfare')}>
-              {t('detail.backToWelfare')}
-            </Button>
-          </Space>
         </div>
+      </div>
+
+      <div style={{ flexShrink: 0, padding: '12px 16px calc(14px + env(safe-area-inset-bottom, 0px))', background: '#fff', borderTop: '1px solid #f0f0f0', boxShadow: '0 -8px 24px rgba(15, 23, 42, 0.06)' }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Button type="primary" size="large" block icon={<CheckCircleOutlined />} onClick={handlePrimaryAction} disabled={checking}>
+            {buttonText}
+          </Button>
+          <Button size="large" block onClick={() => navigate('/welfare')}>
+            {t('detail.backToWelfare')}
+          </Button>
+        </Space>
       </div>
     </div>
   )

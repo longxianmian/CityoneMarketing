@@ -188,8 +188,8 @@ export default function ActivityDetailPage() {
 
   // ── 活动详情主视图 ─────────────────────────────────────────────────────────
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
-      <div style={{ flexShrink: 0, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f5' }}>
+      <div style={{ flexShrink: 0, position: 'sticky', top: 0, zIndex: 30, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
         <button onClick={() => { const b = (location.state as any)?.backTo; b ? nav(b) : location.key !== 'default' ? nav(-1) : nav('/welfare') }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}>
           <ArrowLeftOutlined style={{ fontSize: 20 }} />
         </button>
@@ -213,7 +213,17 @@ export default function ActivityDetailPage() {
         campaignId={activity?.campaign_id}
       />
 
-      <div style={{ flexShrink: 0, width: '100%', aspectRatio: '16/9', background: '#f0f0f0', overflow: 'hidden', position: 'relative' } as React.CSSProperties}>
+      <div
+        style={{
+          flexShrink: 0,
+          width: '100%',
+          height: 'clamp(188px, 31vh, 280px)',
+          minHeight: 188,
+          background: '#f0f0f0',
+          overflow: 'hidden',
+          position: 'relative',
+        } as React.CSSProperties}
+      >
         {/* 视频始终保留在DOM，避免安卓重新挂载后autoPlay不在手势上下文 */}
         {videoReady && (
           <video
@@ -329,7 +339,7 @@ export default function ActivityDetailPage() {
       </div>
       </div>
 
-      <div style={{ flexShrink: 0, padding: '12px 16px 24px', background: '#fff', borderTop: '1px solid #f0f0f0' }}>
+      <div style={{ flexShrink: 0, padding: '12px 16px calc(14px + env(safe-area-inset-bottom, 0px))', background: '#fff', borderTop: '1px solid #f0f0f0', boxShadow: '0 -8px 24px rgba(15, 23, 42, 0.06)' }}>
         <button
           onClick={handleAction}
           disabled={checking}

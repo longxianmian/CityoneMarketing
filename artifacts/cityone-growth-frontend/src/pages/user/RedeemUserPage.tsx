@@ -232,24 +232,28 @@ export default function RedeemUserPage() {
   const itemDesc = pickML(item.description, language) || ''
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-      <div style={{ maxWidth: 540, margin: '0 auto', paddingBottom: 32 }}>
-        <div style={{ height: 280, ...coverBg, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 20 }}>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.9)', border: 'none' }}
-            onClick={() => navigate('/welfare')}
-          >
-            {labels.backLabel}
-          </Button>
-          <div style={{ color: '#fff' }}>
-            <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 6, textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{itemName}</div>
-            {itemDesc && (
-              <div style={{ fontSize: 14, opacity: 0.92, textShadow: '0 1px 3px rgba(0,0,0,0.25)' }}>{itemDesc}</div>
-            )}
-          </div>
-        </div>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f7fb' }}>
+      <div style={{ flexShrink: 0, position: 'sticky', top: 0, zIndex: 30, background: '#fff', display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, borderBottom: '1px solid #f0f0f0' }}>
+        <button
+          onClick={() => navigate('/welfare')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, marginRight: 8, display: 'flex', alignItems: 'center', color: '#333' }}
+        >
+          <ArrowLeftOutlined style={{ fontSize: 20 }} />
+        </button>
+        <span style={{ fontWeight: 600, fontSize: 16, flex: 1 }}>{labels.descLabel}</span>
+        {item.tag && <Tag color="orange" style={{ margin: 0 }}>{item.tag}</Tag>}
+      </div>
 
+      <div style={{ flexShrink: 0, height: 'clamp(188px, 31vh, 280px)', minHeight: 188, ...coverBg, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 20, overflow: 'hidden' }}>
+        <div style={{ color: '#fff' }}>
+          <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 6, textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{itemName}</div>
+          {itemDesc && (
+            <div style={{ fontSize: 14, opacity: 0.92, textShadow: '0 1px 3px rgba(0,0,0,0.25)' }}>{itemDesc}</div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <div style={{ padding: 16 }}>
           {item.cover_video ? (
             <Card style={{ marginBottom: 16, borderRadius: 16, overflow: 'hidden', padding: 0 }}>
@@ -289,24 +293,26 @@ export default function RedeemUserPage() {
               </ul>
             </Card>
           )}
-
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Button
-              type="primary" size="large" block
-              icon={<ShoppingCartOutlined />}
-              disabled={item.item_type === 'physical' || checking}
-              loading={checking}
-              onClick={handleRedeem}
-            >
-              {checking
-                ? labels.checkingLabel
-                : item.item_type === 'physical'
-                  ? (language === 'zh' ? '实物商品，后续开放' : language === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon')
-                  : labels.redeemBtn}
-            </Button>
-            <Button size="large" block onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
-          </Space>
         </div>
+      </div>
+
+      <div style={{ flexShrink: 0, padding: '12px 16px calc(14px + env(safe-area-inset-bottom, 0px))', background: '#fff', borderTop: '1px solid #f0f0f0', boxShadow: '0 -8px 24px rgba(15, 23, 42, 0.06)' }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Button
+            type="primary" size="large" block
+            icon={<ShoppingCartOutlined />}
+            disabled={item.item_type === 'physical' || checking}
+            loading={checking}
+            onClick={handleRedeem}
+          >
+            {checking
+              ? labels.checkingLabel
+              : item.item_type === 'physical'
+                ? (language === 'zh' ? '实物商品，后续开放' : language === 'th' ? 'เปิดให้บริการเร็ว ๆ นี้' : 'Coming Soon')
+                : labels.redeemBtn}
+          </Button>
+          <Button size="large" block onClick={() => navigate('/welfare')}>{labels.backWelfare}</Button>
+        </Space>
       </div>
 
       <Modal
