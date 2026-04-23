@@ -38,6 +38,10 @@ export default function OpenInLinePage() {
   const primaryLaunchUrl = preferScheme
     ? (continueLineSchemeUrl || continueLiffUrl)
     : (continueLiffUrl || continueLineSchemeUrl)
+  const qrContinueUrl = useMemo(() => {
+    if (typeof window === 'undefined') return continuePath
+    return `${window.location.origin}${window.location.pathname}${window.location.search}`
+  }, [continuePath])
 
   useEffect(() => {
     clientLog('open_in_line_view', {
@@ -52,12 +56,12 @@ export default function OpenInLinePage() {
   }, [continuePath, desktop, inLineContext, navigate, payload?.intent_id, tokenValid])
 
   useEffect(() => {
-    if (!desktop || !continueLiffUrl) {
+    if (!desktop || !qrContinueUrl) {
       setQrDataUrl('')
       return
     }
     let cancelled = false
-    void QRCode.toDataURL(continueLiffUrl, { width: 220, margin: 1 })
+    void QRCode.toDataURL(qrContinueUrl, { width: 220, margin: 1 })
       .then((dataUrl) => {
         if (!cancelled) setQrDataUrl(dataUrl)
       })
@@ -67,14 +71,13 @@ export default function OpenInLinePage() {
     return () => {
       cancelled = true
     }
-  }, [continueLiffUrl, desktop])
+  }, [desktop, qrContinueUrl])
 
   const handleOpen = (ev?: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
     if (opening || !tokenValid || desktop || !primaryLaunchUrl) {
       ev?.preventDefault()
       return
     }
-    ev?.preventDefault()
     setOpening(true)
     stageRef.current = 'idle'
     clientLog('open_in_line_primary_click', {
@@ -82,6 +85,12 @@ export default function OpenInLinePage() {
       prefer_scheme: preferScheme,
       primary_launch_url: primaryLaunchUrl.startsWith('line://') ? 'line-scheme' : 'liff-url',
     })
+
+    if (wechatBrowser) {
+      return
+    }
+
+    ev?.preventDefault()
 
     const markDone = () => {
       stageRef.current = 'done'

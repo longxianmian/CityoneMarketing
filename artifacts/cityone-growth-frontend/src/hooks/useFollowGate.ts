@@ -169,6 +169,15 @@ export function useFollowGate() {
         const preferScheme = isRuntimeSchemePreferredBrowser()
         const wechatBrowser = isRuntimeWeChatBrowser()
 
+        if (wechatBrowser) {
+          clientLog('guard_branch_wechat_open_in_line', {
+            action: intentAction,
+            resource_id: resourceId,
+          })
+          navigate(openInLinePath)
+          return
+        }
+
         let stage: 'idle' | 'liff' | 'scheme' | 'done' = 'idle'
         const markDone = () => {
           stage = 'done'
