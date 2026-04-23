@@ -29,6 +29,29 @@ async function checkFollow(userId: string) {
   return json?.data?.is_fan === true
 }
 
+async function registerFanTruth(params: {
+  userId: string
+  lineUserId: string
+  displayName?: string
+  pictureUrl?: string
+}) {
+  const { userId, lineUserId, displayName = '', pictureUrl = '' } = params
+  if (!userId || !lineUserId) return false
+
+  const res = await fetch(`${API_BASE}/api/user/set-fan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      line_user_id: lineUserId,
+      line_display_name: displayName,
+      line_picture_url: pictureUrl,
+    }),
+  })
+  const json = await res.json().catch(() => ({}))
+  return res.ok && json?.code === 200
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -219,7 +242,23 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       let effectiveUserId = identity.canonicalUserId
       let followed = identity.isFriend === true
 
-      if (!followed) {
+      if (followed) {
+        const profile = useLineUserStore.getState().profile
+        const fanSynced = await registerFanTruth({
+          userId: effectiveUserId,
+          lineUserId: identity.lineUserId,
+          displayName: profile?.lineDisplayName || '',
+          pictureUrl: profile?.linePictureUrl || '',
+        }).catch(() => false)
+
+        clientLog('continue_fan_truth_sync', {
+          intent_id: intentPayload.intent_id || '',
+          action_type: intentPayload.action || '',
+          line_user_id: identity.lineUserId,
+          canonical_user_id: effectiveUserId,
+          synced: fanSynced,
+        })
+      } else {
         followed = await checkFollow(effectiveUserId)
       }
       if (!mountedRef.current) return

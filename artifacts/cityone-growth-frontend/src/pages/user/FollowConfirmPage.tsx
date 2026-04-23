@@ -5,9 +5,33 @@ import { getLiff, useLiff } from '../../providers/LiffProvider'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
 import { buildOaAddFriendUrl, getRuntimeLineConfig, setRuntimeLineConfig } from '../../lib/line'
 import { clientLog } from '../../lib/clientLogger'
+import useLineUserStore from '../../store/lineUser'
 
 const FOLLOW_GATE_VERSION = '20260423_follow_gate_v4'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+async function registerFanTruth(params: {
+  userId: string
+  lineUserId: string
+  displayName?: string
+  pictureUrl?: string
+}) {
+  const { userId, lineUserId, displayName = '', pictureUrl = '' } = params
+  if (!userId || !lineUserId) return false
+
+  const res = await fetch(`${API_BASE}/api/user/set-fan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      line_user_id: lineUserId,
+      line_display_name: displayName,
+      line_picture_url: pictureUrl,
+    }),
+  })
+  const json = await res.json().catch(() => ({}))
+  return res.ok && json?.code === 200
+}
 
 export default function FollowConfirmPage() {
   const navigate = useNavigate()
@@ -75,6 +99,58 @@ export default function FollowConfirmPage() {
       const liff = getLiff()
       if (liff && typeof liff.requestFriendship === 'function' && liffReady) {
         await liff.requestFriendship()
+        let friendFlag = false
+        try {
+          const friendship = await liff.getFriendship?.()
+          friendFlag = friendship?.friendFlag === true
+        } catch {
+          friendFlag = false
+        }
+
+        if (friendFlag) {
+          let displayName = ''
+          let pictureUrl = ''
+          let lineUserId = useLineUserStore.getState().profile?.lineUserId || ''
+
+          try {
+            const profile = await liff.getProfile?.()
+            displayName = profile?.displayName || ''
+            pictureUrl = profile?.pictureUrl || ''
+            lineUserId = profile?.userId || lineUserId
+          } catch {
+            // ignore
+          }
+
+          const state = useLineUserStore.getState()
+          const canonicalUserId = state.canonicalUserId || lineUserId
+          const synced = await registerFanTruth({
+            userId: canonicalUserId,
+            lineUserId,
+            displayName: displayName || state.profile?.lineDisplayName || '',
+            pictureUrl: pictureUrl || state.profile?.linePictureUrl || '',
+          }).catch(() => false)
+
+          if (lineUserId) {
+            state.mergeProfile({
+              lineUserId,
+              lineDisplayName: displayName || state.profile?.lineDisplayName || '',
+              linePictureUrl: pictureUrl || state.profile?.linePictureUrl || '',
+              isFriend: true,
+            })
+            if (canonicalUserId) {
+              state.setCanonicalUserId(canonicalUserId)
+            }
+          }
+
+          clientLog('follow_confirm_friendship_confirmed', {
+            intent_id: payload?.intent_id || '',
+            action_type: payload?.action || '',
+            line_user_id: lineUserId,
+            canonical_user_id: canonicalUserId,
+            synced,
+            version: FOLLOW_GATE_VERSION,
+          })
+        }
         navigate(continuePath, { replace: true })
         return
       }
