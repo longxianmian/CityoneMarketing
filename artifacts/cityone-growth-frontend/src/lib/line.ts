@@ -69,7 +69,13 @@ export function resolveRuntimeLiffUrl(value?: string | null) {
 }
 
 export function normalizeRuntimeLiffExtraPath(value?: string | null) {
-  const normalizedRaw = normalizeRuntimePath(value, '')
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (raw.startsWith('?')) {
+    return `/welfare${raw}`
+  }
+
+  const normalizedRaw = normalizeRuntimePath(raw, '')
   if (!normalizedRaw) return ''
 
   let normalized = normalizedRaw
@@ -145,6 +151,10 @@ export function isRuntimeHomeBootPath(pathname: string, search: string) {
 function toRuntimeLiffEndpointExtraPath(value?: string | null) {
   const normalized = normalizeRuntimeLiffExtraPath(value)
   if (!normalized) return ''
+
+  if (normalized.startsWith('/welfare?')) {
+    return normalized.slice('/welfare'.length)
+  }
 
   for (const [legacyPath, canonicalPath] of Object.entries(LEGACY_WELFARE_CALLBACK_PATH_ALIASES)) {
     if (normalized === canonicalPath) return legacyPath
@@ -224,7 +234,7 @@ export function buildResumeLaunchTargets(
   liffId?: string | null,
   officialAccountId?: string | null,
 ) {
-  const resumeExtraPath = `/welfare?resume_intent=${encodeURIComponent(intentToken)}`
+  const resumeExtraPath = `?resume_intent=${encodeURIComponent(intentToken)}`
   return {
     resumeLiffUrl: buildRuntimeLiffUrlWithPath(resumeExtraPath, liffId),
     resumeLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(resumeExtraPath, liffId),
