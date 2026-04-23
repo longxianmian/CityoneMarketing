@@ -32,6 +32,7 @@ import {
   detectTerminal,
   getRuntimeLineConfig,
   isDesktopBrowser,
+  isRuntimeUnsupportedHandoffBrowser,
 } from '../lib/line'
 
 const WAIT_MS = 1500
@@ -146,6 +147,7 @@ export function useFollowGate() {
           lineCfg.liffId,
           lineCfg.officialAccountId,
         )
+        const unsupportedHandoffBrowser = isRuntimeUnsupportedHandoffBrowser(navigator.userAgent)
 
         const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
         if (inLineContext || isLineWebView) {
@@ -159,6 +161,16 @@ export function useFollowGate() {
         }
 
         if (isDesktopBrowser()) {
+          navigate(openInLinePath)
+          return
+        }
+
+        if (unsupportedHandoffBrowser) {
+          clientLog('guard_branch_external_open_in_line', {
+            action: intentAction,
+            resource_id: resourceId,
+            terminal: detectTerminal(),
+          })
           navigate(openInLinePath)
           return
         }
