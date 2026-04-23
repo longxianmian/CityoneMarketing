@@ -5,7 +5,13 @@ type RuntimeLineConfig = {
   requireFollow: boolean
 }
 
-export type Terminal = 'chrome' | 'safari' | 'line_client' | 'other'
+export type Terminal =
+  | 'chrome'
+  | 'safari'
+  | 'line_client'
+  | 'wechat_webview'
+  | 'gsa_shell'
+  | 'other'
 
 const RUNTIME_WELFARE_CALLBACK_PATHS = [
   '/welfare/continue',
@@ -83,6 +89,9 @@ export function isRuntimeWelfareCallbackExtraPath(value?: string | null) {
 export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParams) {
   const intent = searchParams.get('intent') || ''
   if (intent) {
+    if (shouldRouteContinueViaOpenInLine()) {
+      return `/welfare/open-in-line?intent=${encodeURIComponent(intent)}`
+    }
     return `/welfare/continue?intent=${encodeURIComponent(intent)}`
   }
 
@@ -92,6 +101,18 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
   const decoded = decodeURIComponent(liffState)
   const normalized = normalizeRuntimeLiffExtraPath(decoded)
   if (!isRuntimeWelfareCallbackExtraPath(normalized)) return ''
+
+  if (shouldRouteContinueViaOpenInLine() && isRuntimeContinuePath(normalized)) {
+    try {
+      const url = new URL(normalized, window.location.origin)
+      const callbackIntent = url.searchParams.get('intent') || ''
+      return callbackIntent
+        ? `/welfare/open-in-line?intent=${encodeURIComponent(callbackIntent)}`
+        : '/welfare/open-in-line'
+    } catch {
+      return '/welfare/open-in-line'
+    }
+  }
 
   return normalized
 }
@@ -206,8 +227,16 @@ export function isRuntimeWeChatBrowser(ua?: string | null) {
   return /MicroMessenger|XWEB/i.test(raw)
 }
 
+export function isRuntimeLineClientUserAgent(ua?: string | null) {
+  const raw = String(ua || (typeof navigator !== 'undefined' ? navigator.userAgent : '')).trim()
+  if (!raw) return false
+  return /Line\/\d/i.test(raw)
+}
+
 export function detectTerminal(userAgent: string = navigator.userAgent): Terminal {
-  if (/Line\/\d/i.test(userAgent)) return 'line_client'
+  if (isRuntimeLineClientUserAgent(userAgent)) return 'line_client'
+  if (isRuntimeWeChatBrowser(userAgent)) return 'wechat_webview'
+  if (/GSA\//i.test(userAgent)) return 'gsa_shell'
   if (/CriOS|Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent)) return 'chrome'
   if (/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent)) return 'safari'
   return 'other'
@@ -215,6 +244,16 @@ export function detectTerminal(userAgent: string = navigator.userAgent): Termina
 
 export function isDesktopBrowser(userAgent: string = navigator.userAgent): boolean {
   if (/Mobi|Android|iPhone|iPad|iPod/i.test(userAgent)) return false
-  if (/Line\/\d/i.test(userAgent)) return false
+  if (isRuntimeLineClientUserAgent(userAgent)) return false
   return true
+}
+
+function isRuntimeContinuePath(value?: string | null) {
+  const normalized = normalizeRuntimeLiffExtraPath(value)
+  if (!normalized) return false
+  return normalized === '/welfare/continue' || normalized.startsWith('/welfare/continue?')
+}
+
+function shouldRouteContinueViaOpenInLine() {
+  return isRuntimeWeChatBrowser() && !isRuntimeLineClientUserAgent()
 }

@@ -86,12 +86,6 @@ export default function OpenInLinePage() {
       primary_launch_url: primaryLaunchUrl.startsWith('line://') ? 'line-scheme' : 'liff-url',
     })
 
-    if (wechatBrowser) {
-      return
-    }
-
-    ev?.preventDefault()
-
     const markDone = () => {
       stageRef.current = 'done'
     }
@@ -106,6 +100,20 @@ export default function OpenInLinePage() {
     window.addEventListener('blur', markDone, { once: true })
     window.addEventListener('pagehide', markDone, { once: true })
     document.addEventListener('visibilitychange', onHidden)
+
+    if (wechatBrowser) {
+      window.setTimeout(() => {
+        if (stageRef.current === 'done') {
+          clearListeners()
+          return
+        }
+        clearListeners()
+        setOpening(false)
+      }, WAIT_MS)
+      return
+    }
+
+    ev?.preventDefault()
 
     const tryLiffThenBail = () => {
       if (stageRef.current === 'done') {

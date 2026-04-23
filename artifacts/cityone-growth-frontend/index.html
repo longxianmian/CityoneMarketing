@@ -56,6 +56,8 @@
     <script>
       (function () {
         var pathname = window.location.pathname || ''
+        var ua = navigator.userAgent || ''
+        var inWechat = /MicroMessenger|XWEB/i.test(ua) && !/Line\/\d/i.test(ua)
         var boot = {
           title: '页面加载中',
           desc: '系统正在准备页面内容。'
@@ -90,8 +92,13 @@
         if (decoded.charAt(0) !== '/') decoded = '/' + decoded
         decoded = decoded.replace(/^\/+/, '/')
         if (decoded.indexOf('/welfare/continue?') === 0) {
-          boot.title = '正在继续领取'
-          boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
+          if (inWechat) {
+            boot.title = '请在 LINE 中继续'
+            boot.desc = '系统正在准备 LINE 打开入口，请稍候。'
+          } else {
+            boot.title = '正在继续领取'
+            boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
+          }
           window.__CITYONE_BOOT__ = boot
           return
         }
