@@ -23,8 +23,8 @@ export default function LineLoginCallbackPage() {
     [intentToken, runtimeCfg.liffId],
   )
   const retryLoginUrl = useMemo(
-    () => buildRuntimeLineLoginAuthorizeUrl(intentToken, { redirectPath: '/line/login/callback' }),
-    [intentToken, runtimeCfg.channelId],
+    () => buildRuntimeLineLoginAuthorizeUrl(intentToken),
+    [intentToken, runtimeCfg.channelId, runtimeCfg.lineLoginRedirectPath],
   )
   const friendshipChanged = searchParams.get('friendship_status_changed') || ''
   const launchTarget = continueLiffUrl || continueLineSchemeUrl || ''

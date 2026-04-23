@@ -2,6 +2,7 @@ type RuntimeLineConfig = {
   channelId: string
   officialAccountId: string
   liffId: string
+  lineLoginRedirectPath: string
   requireFollow: boolean
 }
 
@@ -23,7 +24,24 @@ const runtimeLineConfig: RuntimeLineConfig = {
   channelId: '',
   officialAccountId: '',
   liffId: '',
+  lineLoginRedirectPath: '',
   requireFollow: false,
+}
+
+function normalizeRuntimePath(value?: string | null, fallback = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return fallback
+
+  let normalized = raw
+  if (normalized.startsWith(window.location.origin)) {
+    normalized = normalized.slice(window.location.origin.length)
+  }
+
+  if (!normalized.startsWith('/')) {
+    normalized = `/${normalized}`
+  }
+
+  return normalized.replace(/^\/+/, '/')
 }
 
 function encodeBase64Url(raw: string) {
@@ -48,6 +66,7 @@ export function setRuntimeLineConfig(value?: Partial<RuntimeLineConfig> | null) 
   runtimeLineConfig.channelId = String(value?.channelId || '').trim()
   runtimeLineConfig.officialAccountId = String(value?.officialAccountId || '').trim()
   runtimeLineConfig.liffId = String(value?.liffId || '').trim()
+  runtimeLineConfig.lineLoginRedirectPath = normalizeRuntimePath(value?.lineLoginRedirectPath, '')
   runtimeLineConfig.requireFollow = value?.requireFollow === true
 }
 
@@ -66,19 +85,10 @@ export function resolveRuntimeLiffUrl(value?: string | null) {
 }
 
 export function normalizeRuntimeLiffExtraPath(value?: string | null) {
-  const raw = String(value || '').trim()
-  if (!raw) return ''
+  const normalizedRaw = normalizeRuntimePath(value, '')
+  if (!normalizedRaw) return ''
 
-  let normalized = raw
-  if (normalized.startsWith(window.location.origin)) {
-    normalized = normalized.slice(window.location.origin.length)
-  }
-
-  if (!normalized.startsWith('/')) {
-    normalized = `/${normalized}`
-  }
-
-  normalized = normalized.replace(/^\/+/, '/')
+  let normalized = normalizedRaw
   if (normalized === '/welfare') return ''
   if (LEGACY_WELFARE_CALLBACK_PATH_ALIASES[normalized]) {
     return LEGACY_WELFARE_CALLBACK_PATH_ALIASES[normalized]
@@ -100,6 +110,12 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
     return `/welfare/continue?intent=${encodeURIComponent(intent)}`
   }
 
+  const lineLoginCode = searchParams.get('code') || ''
+  const lineLoginState = decodeRuntimeLineLoginState(searchParams.get('state'))
+  if (lineLoginCode && lineLoginState?.intentToken) {
+    return `/welfare/continue?intent=${encodeURIComponent(lineLoginState.intentToken)}`
+  }
+
   const liffState = searchParams.get('liff.state') || ''
   if (!liffState) return ''
 
@@ -112,7 +128,7 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
 
 export function isRuntimeCallbackBootPath(pathname: string, search: string) {
   const params = new URLSearchParams(search || '')
-  const hasCallbackPayload = params.has('intent') || params.has('liff.state')
+  const hasCallbackPayload = params.has('intent') || params.has('liff.state') || params.has('code')
 
   return (
     ((pathname === '/' || pathname === '/welfare') && hasCallbackPayload) ||
@@ -201,8 +217,11 @@ export function buildContinueLaunchTargets(
   }
 }
 
-function buildRuntimeLineLoginRedirectUri(redirectPath = '/line/login/callback') {
-  const normalized = String(redirectPath || '/line/login/callback').trim() || '/line/login/callback'
+function buildRuntimeLineLoginRedirectUri(redirectPath?: string | null) {
+  const normalized = normalizeRuntimePath(
+    redirectPath || runtimeLineConfig.lineLoginRedirectPath || '/welfare',
+    '/welfare',
+  )
   return new URL(normalized, window.location.origin).toString()
 }
 

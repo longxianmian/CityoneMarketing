@@ -35,8 +35,8 @@ export default function FollowConfirmPage() {
   const inLineContext = inLineClient || isLineWebView
   const oaAddFriendUrl = buildOaAddFriendUrl(runtimeCfg.officialAccountId)
   const lineLoginUrl = useMemo(
-    () => buildRuntimeLineLoginAuthorizeUrl(intentToken, { redirectPath: '/line/login/callback' }),
-    [intentToken, runtimeCfg.channelId],
+    () => buildRuntimeLineLoginAuthorizeUrl(intentToken),
+    [intentToken, runtimeCfg.channelId, runtimeCfg.lineLoginRedirectPath],
   )
 
   const revalidateFollowState = async () => {

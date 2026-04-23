@@ -773,6 +773,7 @@ const server = http.createServer(async (req, res) => {
         channelId: cfg.channelId || "",
         officialAccountId: cfg.officialAccountId || "",
         liffId: cfg.liffId || "",
+        lineLoginRedirectPath: cfg.lineLoginRedirectPath || "/welfare",
         requireFollow: !!cfg.requireFollow,
         isReadyForFollowGate: !!cfg.channelId && !!cfg.officialAccountId && !!cfg.liffId,
         hasChannelSecret: !!cfg.channelSecret,
@@ -785,6 +786,8 @@ const server = http.createServer(async (req, res) => {
       const requireFollow = !!body.requireFollow;
       const officialAccountId = String(body.officialAccountId || "").trim();
       const liffId = String(body.liffId || "").trim();
+      const lineLoginRedirectPath = String(body.lineLoginRedirectPath || "").trim() || "/welfare";
+      const allowedLineLoginRedirectPaths = new Set(["/welfare", "/line/login/callback"]);
 
       if (!body.channelId || !String(body.channelId).trim()) {
         return fail(res, 400, "channelId 必填");
@@ -795,12 +798,16 @@ const server = http.createServer(async (req, res) => {
       if (requireFollow && !liffId) {
         return fail(res, 400, "开启关注门控时必须填写真实 LINE LIFF ID");
       }
+      if (!allowedLineLoginRedirectPaths.has(lineLoginRedirectPath)) {
+        return fail(res, 400, "LINE 登录回调路径仅支持 /welfare 或 /line/login/callback");
+      }
 
       const current = loadLineConfig() || {};
       const nextConfig = {
         channelId: String(body.channelId || "").trim(),
         officialAccountId,
         liffId,
+        lineLoginRedirectPath,
         requireFollow,
         // 留空保持不变
         channelSecret:
@@ -820,6 +827,7 @@ const server = http.createServer(async (req, res) => {
         channelId: nextConfig.channelId,
         officialAccountId: nextConfig.officialAccountId,
         liffId: nextConfig.liffId,
+        lineLoginRedirectPath: nextConfig.lineLoginRedirectPath,
         requireFollow: nextConfig.requireFollow,
         isReadyForFollowGate: !!nextConfig.channelId && !!nextConfig.officialAccountId && !!nextConfig.liffId,
         hasChannelSecret: !!nextConfig.channelSecret,

@@ -83,9 +83,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   const returnPath = String(intentPayload?.return_path || '/welfare')
   const failPath = String(intentPayload?.fail_path || returnPath)
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
-  const lineLoginPath = buildRuntimeLineLoginAuthorizeUrl(intentToken, {
-    redirectPath: '/line/login/callback',
-  })
+  const lineLoginPath = buildRuntimeLineLoginAuthorizeUrl(intentToken)
   const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
   const internalFailPath = useMemo(
     () => resolveInternalNavigationTarget(failPath || returnPath),

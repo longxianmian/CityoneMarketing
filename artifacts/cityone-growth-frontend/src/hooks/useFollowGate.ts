@@ -132,9 +132,7 @@ export function useFollowGate() {
           source,
         })
         const continuePath = `/welfare/continue?intent=${encodeURIComponent(issued.token)}`
-        let lineLoginUrl = buildRuntimeLineLoginAuthorizeUrl(issued.token, {
-          redirectPath: '/line/login/callback',
-        })
+        let lineLoginUrl = buildRuntimeLineLoginAuthorizeUrl(issued.token)
 
         // UA 兜底（2026-04 nginx 死循环诊断后加）：
         //   `inLineClient` 来自 LIFF SDK，必须 LIFF init 完成后才会 true。
@@ -160,9 +158,7 @@ export function useFollowGate() {
             const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/growth/line/config`)
             const json = await res.json()
             setRuntimeLineConfig(json?.data || null)
-            lineLoginUrl = buildRuntimeLineLoginAuthorizeUrl(issued.token, {
-              redirectPath: '/line/login/callback',
-            })
+            lineLoginUrl = buildRuntimeLineLoginAuthorizeUrl(issued.token)
           } catch {
             // ignore
           }
@@ -174,7 +170,7 @@ export function useFollowGate() {
 
         clientLog('guard_branch_external_line_login', {
           action: intentAction,
-          target: '/line/login/callback',
+          target: 'runtime_line_login_callback',
           navigation: 'document',
         })
         window.location.assign(lineLoginUrl)

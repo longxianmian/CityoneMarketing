@@ -28,6 +28,7 @@ export default function LineConfig() {
           channelId: cfg.channelId || '',
           officialAccountId: cfg.officialAccountId || '',
           liffId: cfg.liffId || '',
+          lineLoginRedirectPath: cfg.lineLoginRedirectPath || '/welfare',
           channelSecret: '',
           channelAccessToken: '',
         })
@@ -66,6 +67,7 @@ export default function LineConfig() {
         channelId: vals.channelId?.trim(),
         officialAccountId: vals.officialAccountId?.trim() || '',
         liffId: vals.liffId?.trim() || '',
+        lineLoginRedirectPath: vals.lineLoginRedirectPath?.trim() || '/welfare',
         requireFollow,
       }
 
@@ -151,6 +153,13 @@ export default function LineConfig() {
             rules={requireFollow ? [{ required: true, message: lt('liffIdRequiredWhenFollow') }] : undefined}
           >
             <Input placeholder={lt('liffIdPlaceholder')} />
+          </Form.Item>
+
+          <Form.Item
+            name="lineLoginRedirectPath"
+            label={lt('lineLoginRedirectPath')}
+          >
+            <Input placeholder={lt('lineLoginRedirectPathPlaceholder')} />
           </Form.Item>
 
           <Divider />
