@@ -1,6 +1,6 @@
 // 先读文档再改代码：本页只负责 /welfare 入口分流，禁止把 LIFF 回流再交给首页渲染后补救。
-import React, { useEffect, useMemo } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import WelfareHomePage from './WelfareHomePage'
 import { resolveRuntimeWelfareCallbackTarget } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
@@ -22,11 +22,13 @@ import { fetchLatestPendingIntent } from '../../lib/pendingIntent'
  *   = true 再 navigate，让 LIFF SDK 先把 OAuth 处理完。
  */
 export default function WelfareEntryPage() {
+  const DEBUG_REDIRECT_DELAY_MS = 2000
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffChecked, inLineContext } = useLiff()
   const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
   const lineProfile = useLineUserStore((s) => s.profile)
+  const redirectingRef = useRef(false)
 
   const targetPath = useMemo(() => {
     return resolveRuntimeWelfareCallbackTarget(searchParams)
@@ -34,33 +36,57 @@ export default function WelfareEntryPage() {
   const explicitResumeIntent = useMemo(() => {
     return (searchParams.get('resume_intent') || '').trim()
   }, [searchParams])
+  const hasExternalLoginCallback = useMemo(() => {
+    return (
+      searchParams.has('code') &&
+      (searchParams.has('state') || searchParams.has('liffClientId') || searchParams.has('liffRedirectUri'))
+    )
+  }, [searchParams])
 
   const hasLiffCallback = searchParams.has('liff.state')
   const hasExplicitResumeTarget = !!targetPath || !!explicitResumeIntent
 
+  const scheduleReplace = useCallback((target: string, reason: string) => {
+    if (!target || redirectingRef.current) return
+    redirectingRef.current = true
+    console.log('龙码调试：进入校验逻辑', {
+      page: 'WelfareEntryPage',
+      reason,
+      target,
+      search: window.location.search,
+      liffChecked,
+    })
+    window.setTimeout(() => {
+      navigate(target, { replace: true })
+    }, DEBUG_REDIRECT_DELAY_MS)
+  }, [liffChecked, navigate])
+
   useEffect(() => {
     if (!searchParams.has('code')) return
     if (searchParams.has('liff.state')) return
-    navigate('/welfare', { replace: true })
-  }, [navigate, searchParams])
+    if (hasExternalLoginCallback) return
+    scheduleReplace('/welfare', 'strip_unknown_code_callback')
+  }, [hasExternalLoginCallback, scheduleReplace, searchParams])
 
   useEffect(() => {
     clientLog('welfare_entry_render', {
       has_intent: searchParams.has('intent'),
       has_liff_state: searchParams.has('liff.state'),
       has_resume_intent: !!explicitResumeIntent,
+      has_external_login_callback: hasExternalLoginCallback,
       target_path: targetPath || '(home)',
       liff_checked: liffChecked,
       will_wait_for_liff: !!(targetPath && hasLiffCallback && !liffChecked),
     })
-  }, [searchParams, explicitResumeIntent, targetPath, liffChecked, hasLiffCallback])
+  }, [searchParams, explicitResumeIntent, targetPath, liffChecked, hasLiffCallback, hasExternalLoginCallback])
 
   useEffect(() => {
     if (!explicitResumeIntent || !liffChecked) return
-    navigate(`/welfare/continue?intent=${encodeURIComponent(explicitResumeIntent)}&resume=1`, {
-      replace: true,
-    })
-  }, [explicitResumeIntent, liffChecked, navigate])
+    scheduleReplace(
+      `/welfare/continue?intent=${encodeURIComponent(explicitResumeIntent)}&resume=1`,
+      'resume_intent_continue'
+    )
+  }, [explicitResumeIntent, liffChecked, scheduleReplace])
 
   useEffect(() => {
     if (!liffChecked || hasExplicitResumeTarget) return
@@ -73,7 +99,10 @@ export default function WelfareEntryPage() {
     void fetchLatestPendingIntent({ userId, lineUserId })
       .then((latest) => {
         if (cancelled || !latest?.token) return
-        navigate(`/welfare/continue?intent=${encodeURIComponent(latest.token)}&resume=1`, { replace: true })
+        scheduleReplace(
+          `/welfare/continue?intent=${encodeURIComponent(latest.token)}&resume=1`,
+          'latest_pending_continue'
+        )
       })
       .catch(() => {
         // ignore: no resumable pending intent is a normal case
@@ -88,16 +117,21 @@ export default function WelfareEntryPage() {
     inLineContext,
     liffChecked,
     lineProfile?.lineUserId,
-    navigate,
+    scheduleReplace,
   ])
 
-  if (targetPath && hasLiffCallback && !liffChecked) {
+  useEffect(() => {
+    if (!targetPath) return
+    scheduleReplace(targetPath, 'target_path_callback')
+  }, [scheduleReplace, targetPath])
+
+  if ((targetPath && hasLiffCallback && !liffChecked) || (hasExternalLoginCallback && !liffChecked)) {
     // 占位，不渲染首页（避免闪屏），等 LIFF init 完成后再跳
     return null
   }
 
   if (targetPath) {
-    return <Navigate to={targetPath} replace />
+    return null
   }
 
   return <WelfareHomePage />

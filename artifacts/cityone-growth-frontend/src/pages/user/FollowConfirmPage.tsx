@@ -1,5 +1,5 @@
 // 先读文档再改代码：关注门控页只负责“未关注 -> 发起官方关注 -> 复核 -> 继续业务”，禁止再承担外部浏览器跳 LINE 的职责。
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getLiff, useLiff } from '../../providers/LiffProvider'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
@@ -9,6 +9,7 @@ import useLineUserStore from '../../store/lineUser'
 
 const FOLLOW_GATE_VERSION = '20260423_follow_gate_v4'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const DEBUG_REDIRECT_DELAY_MS = 2000
 
 type FollowGateStage = 'checking' | 'ready' | 'submitting' | 'error'
 
@@ -42,15 +43,37 @@ export default function FollowConfirmPage() {
   const [stage, setStage] = useState<FollowGateStage>('checking')
   const [hintText, setHintText] = useState('')
   const [runtimeCfg, setRuntimeCfgState] = useState(() => getRuntimeLineConfig())
+  const [isProcessing, setIsProcessing] = useState(false)
+  const redirectingRef = useRef(false)
+  const probeKeyRef = useRef('')
 
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const tokenValid = !!intentToken && !!payload
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   const oaAddFriendUrl = buildOaAddFriendUrl(runtimeCfg.officialAccountId)
-  const submitting = stage === 'submitting'
+  const submitting = stage === 'submitting' || isProcessing
+
+  const scheduleContinueRedirect = useCallback((reason: string) => {
+    if (!tokenValid || redirectingRef.current) return
+    redirectingRef.current = true
+    setIsProcessing(true)
+    console.log('龙码调试：进入校验逻辑', {
+      page: 'FollowConfirmPage',
+      reason,
+      target: continuePath,
+      in_line_context: inLineContext,
+      liff_ready: liffReady,
+      stage,
+      search: window.location.search,
+    })
+    window.setTimeout(() => {
+      navigate(continuePath, { replace: true })
+    }, DEBUG_REDIRECT_DELAY_MS)
+  }, [continuePath, inLineContext, liffReady, navigate, stage, tokenValid])
 
   useEffect(() => {
+    if (!tokenValid) return
     clientLog('follow_gate_view', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
@@ -68,12 +91,20 @@ export default function FollowConfirmPage() {
       return
     }
 
+    const probeKey = `${intentToken}:friendship-probe`
+    if (probeKeyRef.current === probeKey || redirectingRef.current || isProcessing) return
+
     let cancelled = false
+    probeKeyRef.current = probeKey
+    setIsProcessing(true)
     void (async () => {
       try {
         const liff = getLiff()
         if (!liff || typeof liff.getFriendship !== 'function') {
-          if (!cancelled) setStage('ready')
+          if (!cancelled) {
+            setStage('ready')
+            setIsProcessing(false)
+          }
           return
         }
 
@@ -85,10 +116,11 @@ export default function FollowConfirmPage() {
             action_type: payload?.action || '',
             version: FOLLOW_GATE_VERSION,
           })
-          navigate(continuePath, { replace: true })
+          scheduleContinueRedirect('friendship_probe_true')
           return
         }
         setStage('ready')
+        setIsProcessing(false)
       } catch (e: any) {
         if (cancelled) return
         clientLog('follow_confirm_friendship_probe_failed', {
@@ -98,13 +130,14 @@ export default function FollowConfirmPage() {
           version: FOLLOW_GATE_VERSION,
         })
         setStage('ready')
+        setIsProcessing(false)
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [continuePath, inLineContext, liffReady, navigate, payload?.action, payload?.intent_id, tokenValid])
+  }, [inLineContext, intentToken, isProcessing, liffReady, payload?.action, payload?.intent_id, scheduleContinueRedirect, tokenValid])
 
   useEffect(() => {
     if (runtimeCfg.channelId && runtimeCfg.officialAccountId) return
@@ -126,6 +159,7 @@ export default function FollowConfirmPage() {
   }, [runtimeCfg.channelId, runtimeCfg.officialAccountId])
 
   const handleConfirm = async () => {
+    if (isProcessing || redirectingRef.current) return
     clientLog('follow_gate_primary_click', {
       intent_id: payload?.intent_id || '',
       action_type: payload?.action || '',
@@ -136,6 +170,7 @@ export default function FollowConfirmPage() {
 
     setStage('submitting')
     setHintText('')
+    setIsProcessing(true)
 
     try {
       const liff = getLiff()
@@ -193,11 +228,12 @@ export default function FollowConfirmPage() {
             version: FOLLOW_GATE_VERSION,
           })
           setStage('checking')
-          navigate(continuePath, { replace: true })
+          scheduleContinueRedirect('friendship_confirmed')
           return
         }
         setHintText('尚未确认关注成功，请完成关注后再继续。')
         setStage('ready')
+        setIsProcessing(false)
         return
       }
 
@@ -208,12 +244,12 @@ export default function FollowConfirmPage() {
           version: FOLLOW_GATE_VERSION,
         })
         window.location.assign(oaAddFriendUrl)
-        setStage('ready')
         return
       }
 
       setHintText('当前未检测到可用的关注入口，请联系管理员检查 LINE 配置。')
       setStage('error')
+      setIsProcessing(false)
     } catch (e: any) {
       clientLog('follow_confirm_request_friendship_failed', {
         intent_id: payload?.intent_id || '',
@@ -223,6 +259,7 @@ export default function FollowConfirmPage() {
       })
       setHintText('关注确认没有完成，请重试。')
       setStage('ready')
+      setIsProcessing(false)
     }
   }
 

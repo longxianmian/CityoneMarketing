@@ -47,6 +47,25 @@ function normalizeRuntimePath(value?: string | null, fallback = '') {
   return normalized.replace(/^\/+/, '/')
 }
 
+function extractRuntimePathFromRedirectUri(value?: string | null) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  try {
+    const decoded = decodeURIComponent(raw)
+    const url = new URL(decoded, window.location.origin)
+    if (url.origin !== window.location.origin) return ''
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    try {
+      const url = new URL(raw, window.location.origin)
+      if (url.origin !== window.location.origin) return ''
+      return `${url.pathname}${url.search}${url.hash}`
+    } catch {
+      return ''
+    }
+  }
+}
+
 export function setRuntimeLineConfig(value?: Partial<RuntimeLineConfig> | null) {
   runtimeLineConfig.channelId = String(value?.channelId || '').trim()
   runtimeLineConfig.officialAccountId = String(value?.officialAccountId || '').trim()
@@ -98,6 +117,37 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
   const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
   if (explicitResumeIntent) return ''
 
+  const hasExternalLoginCallback = searchParams.has('code') && (
+    searchParams.has('state') ||
+    searchParams.has('liffClientId') ||
+    searchParams.has('liffRedirectUri')
+  )
+  if (hasExternalLoginCallback) {
+    const redirectPath = extractRuntimePathFromRedirectUri(searchParams.get('liffRedirectUri'))
+    if (redirectPath) {
+      const redirectUrl = new URL(redirectPath, window.location.origin)
+      const redirectResumeIntent = (redirectUrl.searchParams.get('resume_intent') || '').trim()
+      if (redirectResumeIntent) {
+        return `/welfare/continue?intent=${encodeURIComponent(redirectResumeIntent)}&resume=1`
+      }
+      const redirectIntent = (redirectUrl.searchParams.get('intent') || '').trim()
+      if (redirectIntent) {
+        if (isRuntimeLineClientUserAgent()) {
+          return `/welfare/continue?intent=${encodeURIComponent(redirectIntent)}`
+        }
+        return `/welfare?resume_intent=${encodeURIComponent(redirectIntent)}&handoff=returned`
+      }
+
+      const normalizedRedirectPath = normalizeRuntimeLiffExtraPath(redirectPath)
+      if (normalizedRedirectPath.startsWith('/welfare?')) {
+        return normalizedRedirectPath
+      }
+      if (normalizedRedirectPath) {
+        return normalizedRedirectPath
+      }
+    }
+  }
+
   const intent = searchParams.get('intent') || ''
   if (intent) {
     if (isRuntimeLineClientUserAgent()) {
@@ -134,7 +184,9 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
 
 export function isRuntimeCallbackBootPath(pathname: string, search: string) {
   const params = new URLSearchParams(search || '')
-  const hasCallbackPayload = params.has('intent') || params.has('liff.state')
+  const hasCallbackPayload = params.has('intent') ||
+    params.has('liff.state') ||
+    (params.has('code') && (params.has('state') || params.has('liffClientId') || params.has('liffRedirectUri')))
 
   return (
     ((pathname === '/' || pathname === '/welfare') && hasCallbackPayload) ||
@@ -145,7 +197,10 @@ export function isRuntimeCallbackBootPath(pathname: string, search: string) {
 
 export function isRuntimeHomeBootPath(pathname: string, search: string) {
   const params = new URLSearchParams(search || '')
-  return pathname === '/welfare' && !params.has('intent') && !params.has('liff.state')
+  return pathname === '/welfare' &&
+    !params.has('intent') &&
+    !params.has('liff.state') &&
+    !(params.has('code') && (params.has('state') || params.has('liffClientId') || params.has('liffRedirectUri')))
 }
 
 function toRuntimeLiffEndpointExtraPath(value?: string | null) {

@@ -36,19 +36,24 @@ function WelfareCallbackEntryPage() {
     return resolveRuntimeWelfareCallbackTarget(searchParams)
   }, [searchParams])
   const hasLiffCallback = searchParams.has('liff.state')
+  const hasExternalLoginCallback = searchParams.has('code') && (
+    searchParams.has('state') ||
+    searchParams.has('liffClientId') ||
+    searchParams.has('liffRedirectUri')
+  )
   const hasResumeIntent = !!(searchParams.get('resume_intent') || '').trim()
   const resumeIntent = (searchParams.get('resume_intent') || '').trim()
   const continueIntentToken = React.useMemo(() => getContinueIntentToken(targetPath), [targetPath])
 
   React.useEffect(() => {
-    if (targetPath || hasResumeIntent || (hasLiffCallback && !liffChecked)) return
+    if (targetPath || hasResumeIntent || ((hasLiffCallback || hasExternalLoginCallback) && !liffChecked)) return
     const t = window.setTimeout(() => {
       window.location.replace('/welfare')
     }, 1200)
     return () => window.clearTimeout(t)
-  }, [hasLiffCallback, hasResumeIntent, liffChecked, targetPath])
+  }, [hasExternalLoginCallback, hasLiffCallback, hasResumeIntent, liffChecked, targetPath])
 
-  if ((hasLiffCallback || hasResumeIntent) && !liffChecked) {
+  if ((hasLiffCallback || hasResumeIntent || hasExternalLoginCallback) && !liffChecked) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
         <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
@@ -107,9 +112,14 @@ function RootCallbackEntryPage() {
   const [searchParams] = useSearchParams()
   const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
   const targetPath = React.useMemo(() => resolveRuntimeWelfareCallbackTarget(searchParams), [searchParams])
+  const hasExternalLoginCallback = searchParams.has('code') && (
+    searchParams.has('state') ||
+    searchParams.has('liffClientId') ||
+    searchParams.has('liffRedirectUri')
+  )
 
   // LINE 回流有时会落在站点根路径，必须保留原 query 并重定向到福利回调入口。
-  if (targetPath || explicitResumeIntent) {
+  if (targetPath || explicitResumeIntent || hasExternalLoginCallback) {
     const query = searchParams.toString()
     return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
   }
