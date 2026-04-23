@@ -33,6 +33,16 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+function readSdkLoggedIn() {
+  try {
+    const liff = getLiff()
+    if (!liff || typeof liff.isLoggedIn !== 'function') return false
+    return liff.isLoggedIn() === true
+  } catch {
+    return false
+  }
+}
+
 function resolveInternalNavigationTarget(target: string) {
   const raw = String(target || '').trim()
   if (!raw) return null
@@ -123,7 +133,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [autoRunKey, intentToken])
 
   const waitForIdentityReady = useCallback(async () => {
-    const deadline = Date.now() + 450
+    const deadline = Date.now() + 1600
     while (Date.now() < deadline) {
       const state = useLineUserStore.getState()
       const canonicalUserId = state.canonicalUserId || state.profile?.lineUserId || ''
@@ -134,7 +144,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       await sleep(60)
     }
 
-    if (inLineContext && liffReady) {
+    if (inLineContext && (liffReady || readSdkLoggedIn())) {
       try {
         const refreshed = await syncLiffFriendshipIdentity()
         return {
@@ -179,13 +189,11 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     if (inFlightRef.current || consumedRef.current) return
 
     if (!inLineContext) {
+      clientLog('continue_missing_line_context', {
+        intent_id: intentPayload.intent_id || '',
+        action_type: intentPayload.action || '',
+      })
       navigate(openInLinePath, { replace: true })
-      return
-    }
-
-    if (!liffReady) {
-      setErrorText('请先使用 LINE 登录，再继续当前操作')
-      setStatus('need_line_login')
       return
     }
 
@@ -197,6 +205,11 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       if (!mountedRef.current) return
 
       if (!identity.canonicalUserId || !identity.lineUserId) {
+        if (readSdkLoggedIn()) {
+          setErrorText('LINE 身份同步超时，请稍后重试')
+          setStatus('error')
+          return
+        }
         setErrorText('当前 LINE 身份尚未建立，请先完成 LINE 登录')
         setStatus('need_line_login')
         return
@@ -303,11 +316,14 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [intentToken, intentPayload])
 
   useEffect(() => {
-    if (!intentToken || !intentPayload || !liffChecked || !inLineContext) return
+    if (!intentToken || !intentPayload || !liffChecked) return
 
-    if (!liffReady) {
-      setErrorText('请先使用 LINE 登录，再继续当前操作')
-      setStatus('need_line_login')
+    if (!inLineContext) {
+      clientLog('continue_redirect_open_in_line', {
+        intent_id: intentPayload.intent_id || '',
+        action_type: intentPayload.action || '',
+      })
+      navigate(openInLinePath, { replace: true })
       return
     }
 
@@ -323,7 +339,8 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     intentPayload,
     intentToken,
     liffChecked,
-    liffReady,
+    openInLinePath,
+    navigate,
     runFlow,
     setAutoRunLock,
   ])
@@ -332,12 +349,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     clearAutoRunLock()
     consumedRef.current = false
     inFlightRef.current = false
-
-    if (inLineContext && !liffReady) {
-      setErrorText('请先使用 LINE 登录，再继续当前操作')
-      setStatus('need_line_login')
-      return
-    }
 
     await runFlow()
   }
