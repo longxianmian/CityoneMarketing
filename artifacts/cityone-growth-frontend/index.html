@@ -61,7 +61,14 @@
           desc: '系统正在准备页面内容。'
         }
 
-        if (pathname !== '/welfare') {
+        if (pathname !== '/welfare' && pathname !== '/line/login/callback') {
+          window.__CITYONE_BOOT__ = boot
+          return
+        }
+
+        if (pathname === '/line/login/callback') {
+          boot.title = '正在打开 LINE'
+          boot.desc = '系统已完成官方登录回调，正在进入 LINE 内继续当前业务流程。'
           window.__CITYONE_BOOT__ = boot
           return
         }
@@ -89,9 +96,6 @@
         }
         if (decoded.charAt(0) !== '/') decoded = '/' + decoded
         decoded = decoded.replace(/^\/+/, '/')
-        if (decoded.indexOf('/continue?') === 0) {
-          decoded = '/welfare' + decoded
-        }
         if (decoded.indexOf('/welfare/continue?') === 0) {
           boot.title = '正在继续领取'
           boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
@@ -132,7 +136,8 @@
       const isCallbackEntry =
         ((pathname === '/' || pathname === '/welfare') && (params.has('intent') || params.has('liff.state'))) ||
         pathname === '/welfare/continue' ||
-        pathname === '/welfare/follow-confirm'
+        pathname === '/welfare/follow-confirm' ||
+        pathname === '/line/login/callback'
       const root = document.getElementById('root')
 
       const entryLoader = isCallbackEntry
