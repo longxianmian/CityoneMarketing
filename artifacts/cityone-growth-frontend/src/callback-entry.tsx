@@ -38,6 +38,28 @@ function WelfareCallbackEntryPage() {
   const hasLiffCallback = searchParams.has('liff.state')
   const continueIntentToken = React.useMemo(() => getContinueIntentToken(targetPath), [targetPath])
 
+  if (hasLiffCallback && !liffChecked) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
+        <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              margin: '0 auto',
+              borderRadius: '50%',
+              border: '3px solid rgba(44, 219, 206, 0.18)',
+              borderTopColor: '#2cdbce',
+              animation: 'boot-spin 0.8s linear infinite',
+            }}
+          />
+          <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#172b24' }}>正在继续领取</div>
+          <div style={{ marginTop: 10, color: '#666', lineHeight: 1.8 }}>系统正在确认 LINE 回流上下文，请稍候。</div>
+        </div>
+      </div>
+    )
+  }
+
   // 兜底：未识别的 liff.state / 缺失 intent，1.2s 后回 /welfare 主页（避免无限转圈）
   React.useEffect(() => {
     if (targetPath || (hasLiffCallback && !liffChecked)) return

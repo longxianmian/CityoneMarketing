@@ -32,6 +32,7 @@ export default function WelfareEntryPage() {
 
   useEffect(() => {
     if (!searchParams.has('code')) return
+    if (searchParams.has('liff.state')) return
     navigate('/welfare', { replace: true })
   }, [navigate, searchParams])
 
