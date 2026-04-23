@@ -236,6 +236,19 @@ function buildInitKey() {
   return `${window.location.pathname}${window.location.search}`
 }
 
+function shouldAutoLoginOnExternalBrowser() {
+  const pathname = window.location.pathname || ''
+  const search = window.location.search || ''
+  const params = new URLSearchParams(search)
+  if (detectLineAppUA()) return false
+
+  return (
+    (pathname === '/welfare' && (params.has('resume_intent') || params.has('liff.state'))) ||
+    pathname === '/welfare/continue' ||
+    pathname === '/welfare/follow-confirm'
+  )
+}
+
 function getInitAttemptKey(initKey: string) {
   return `_liff_init_attempted:${initKey}`
 }
@@ -389,7 +402,10 @@ async function initLiffOnce(
     }
 
     const liff = (await import('@line/liff')).default
-    await liff.init({ liffId })
+    const initConfig = shouldAutoLoginOnExternalBrowser()
+      ? { liffId, withLoginOnExternalBrowser: true }
+      : { liffId }
+    await liff.init(initConfig)
     if (signal.cancelled) return
 
     _liffInstance = liff

@@ -13,9 +13,9 @@
  *
  * 执行型动作统一流程（默认/慢路径）：
  *   1. 创建 pending intent
- *   2. 外部浏览器只尝试官方 LIFF URL
- *   3. 唤起失败时进入 `/welfare/open-in-line?intent=...`
- *   4. LINE 内统一完成 identify -> check-follow -> consume
+ *   2. 外部浏览器整页进入 `/welfare?resume_intent=...`
+ *   3. 由 `/welfare` 入口统一执行 LIFF init / LINE Login
+ *   4. `/welfare/continue` 完成 identify -> check-follow -> consume
  *
  * 不保留任何 fast path。所有执行动作一律经过同一条 pending-intent 主链：
  * identify -> check-follow -> consume -> 落业务结果页。
@@ -28,14 +28,9 @@ import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingInte
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
 import {
-  buildResumeLaunchTargets,
   detectTerminal,
-  getRuntimeLineConfig,
   isDesktopBrowser,
-  isRuntimeUnsupportedHandoffBrowser,
 } from '../lib/line'
-
-const WAIT_MS = 1500
 
 interface GuardOptions {
   label?: string
@@ -140,14 +135,8 @@ export function useFollowGate() {
           actionName: label,
           source,
         })
+        const resumeEntryPath = `/welfare?resume_intent=${encodeURIComponent(issued.token)}`
         const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
-        const lineCfg = getRuntimeLineConfig()
-        const { resumeLiffUrl } = buildResumeLaunchTargets(
-          issued.token,
-          lineCfg.liffId,
-          lineCfg.officialAccountId,
-        )
-        const unsupportedHandoffBrowser = isRuntimeUnsupportedHandoffBrowser(navigator.userAgent)
 
         const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
         if (inLineContext || isLineWebView) {
@@ -165,60 +154,13 @@ export function useFollowGate() {
           return
         }
 
-        if (unsupportedHandoffBrowser) {
-          clientLog('guard_branch_external_open_in_line', {
-            action: intentAction,
-            resource_id: resourceId,
-            terminal: detectTerminal(),
-          })
-          navigate(openInLinePath)
-          return
-        }
-
-        let stage: 'idle' | 'liff' | 'scheme' | 'done' = 'idle'
-        const markDone = () => {
-          stage = 'done'
-        }
-        const onHidden = () => {
-          if (document.visibilityState === 'hidden') markDone()
-        }
-        const clearListeners = () => {
-          window.removeEventListener('blur', markDone)
-          window.removeEventListener('pagehide', markDone)
-          document.removeEventListener('visibilitychange', onHidden)
-        }
-        window.addEventListener('blur', markDone, { once: true })
-        window.addEventListener('pagehide', markDone, { once: true })
-        document.addEventListener('visibilitychange', onHidden)
-
-        const tryResumeThenBail = () => {
-          if (stage === 'done') {
-            clearListeners()
-            return
-          }
-          if (resumeLiffUrl) {
-            stage = 'liff'
-            window.location.assign(resumeLiffUrl)
-            window.setTimeout(() => {
-              if (stage === 'done') {
-                clearListeners()
-                return
-              }
-              clearListeners()
-              navigate(openInLinePath)
-            }, WAIT_MS)
-            return
-          }
-          clearListeners()
-          navigate(openInLinePath)
-        }
-        if (resumeLiffUrl) {
-          clientLog('guard_branch_external_resume_liff', {
-            action: intentAction,
-            resource_id: resourceId,
-          })
-        }
-        tryResumeThenBail()
+        clientLog('guard_branch_external_resume_flow', {
+          action: intentAction,
+          resource_id: resourceId,
+          terminal: detectTerminal(),
+          target: resumeEntryPath,
+        })
+        window.location.assign(resumeEntryPath)
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })

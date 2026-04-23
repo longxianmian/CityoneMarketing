@@ -56,14 +56,14 @@ export default function WelfareEntryPage() {
   }, [searchParams, explicitResumeIntent, targetPath, liffChecked, hasLiffCallback])
 
   useEffect(() => {
-    if (!explicitResumeIntent || !liffChecked || !inLineContext) return
+    if (!explicitResumeIntent || !liffChecked) return
     navigate(`/welfare/continue?intent=${encodeURIComponent(explicitResumeIntent)}&resume=1`, {
       replace: true,
     })
-  }, [explicitResumeIntent, inLineContext, liffChecked, navigate])
+  }, [explicitResumeIntent, liffChecked, navigate])
 
   useEffect(() => {
-    if (!liffChecked || !inLineContext || hasExplicitResumeTarget) return
+    if (!liffChecked || hasExplicitResumeTarget) return
 
     const userId = canonicalUserId || lineProfile?.lineUserId || ''
     const lineUserId = lineProfile?.lineUserId || ''

@@ -10,9 +10,7 @@ import { clientLog } from '../../lib/clientLogger'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const AUTO_RUN_PREFIX = 'continue:auto-run:'
 const AUTO_REENTRY_COOLDOWN_MS = 4000
-const EXTERNAL_CONTEXT_SETTLE_MS = 2200
 const IN_LINE_LOGIN_GRACE_MS = 1800
-const WECHAT_CONTEXT_SETTLE_MS = 4500
 
 type ContinueStatus =
   | 'idle'
@@ -104,7 +102,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   const [status, setStatus] = useState<ContinueStatus>('idle')
   const [errorText, setErrorText] = useState('')
-  const [contextWatchElapsed, setContextWatchElapsed] = useState(false)
 
   const inFlightRef = useRef(false)
   const consumedRef = useRef(false)
@@ -116,13 +113,8 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   const returnPath = String(intentPayload?.return_path || '/welfare')
   const failPath = String(intentPayload?.fail_path || returnPath)
-  const sourceTerminal = String(intentPayload?.terminal || '').trim()
-  const resumeEntryPath = `/welfare?resume_intent=${encodeURIComponent(intentToken)}`
   const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
   const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
-  const contextSettleMs = sourceTerminal === 'wechat_webview'
-    ? WECHAT_CONTEXT_SETTLE_MS
-    : EXTERNAL_CONTEXT_SETTLE_MS
   const internalFailPath = useMemo(
     () => resolveInternalNavigationTarget(failPath || returnPath),
     [failPath, returnPath]
@@ -137,7 +129,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   useEffect(() => {
     mountedAtRef.current = Date.now()
-    setContextWatchElapsed(false)
   }, [intentToken])
 
   useEffect(() => {
@@ -181,7 +172,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       await sleep(60)
     }
 
-    if (inLineContext && (liffReady || readSdkLoggedIn())) {
+    if (inLineContext || liffReady || readSdkLoggedIn()) {
       try {
         const refreshed = await syncLiffFriendshipIdentity()
         return {
@@ -225,12 +216,14 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     }
     if (inFlightRef.current || consumedRef.current) return
 
-    if (!inLineContext) {
-      clientLog('continue_missing_line_context', {
+    const hasLoggedInLineSession = inLineContext || liffReady || readSdkLoggedIn()
+    if (!hasLoggedInLineSession) {
+      clientLog('continue_need_line_login', {
         intent_id: intentPayload.intent_id || '',
         action_type: intentPayload.action || '',
       })
-      navigate(resumeEntryPath, { replace: true })
+      setErrorText('当前浏览器尚未完成 LINE 登录，请点击下方按钮登录后继续。')
+      setStatus('need_line_login')
       return
     }
 
@@ -242,7 +235,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       if (!mountedRef.current) return
 
       if (!identity.canonicalUserId || !identity.lineUserId) {
-        if (inLineContext && Date.now() - mountedAtRef.current < IN_LINE_LOGIN_GRACE_MS) {
+        if (hasLoggedInLineSession && Date.now() - mountedAtRef.current < IN_LINE_LOGIN_GRACE_MS) {
           clientLog('continue_identity_grace_wait', {
             intent_id: intentPayload.intent_id || '',
             action_type: intentPayload.action || '',
@@ -359,7 +352,6 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [
     clearAutoRunLock,
     followConfirmPath,
-    resumeEntryPath,
     inLineContext,
     intentPayload,
     intentToken,
@@ -382,25 +374,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   }, [intentToken, intentPayload])
 
   useEffect(() => {
-    if (inLineContext) {
-      setContextWatchElapsed(false)
-      return
-    }
-
-    const timer = window.setTimeout(() => {
-      if (!mountedRef.current) return
-      setContextWatchElapsed(true)
-    }, contextSettleMs)
-
-    return () => window.clearTimeout(timer)
-  }, [contextSettleMs, inLineContext])
-
-  useEffect(() => {
     if (!intentToken || !intentPayload || !liffChecked) return
-
-    if (!inLineContext) {
-      return
-    }
 
     if (hitAutoRunCooldown()) {
       return
@@ -410,36 +384,11 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     void runFlow()
   }, [
     hitAutoRunCooldown,
-    inLineContext,
     intentPayload,
     intentToken,
     liffChecked,
-    navigate,
     runFlow,
     setAutoRunLock,
-  ])
-
-  useEffect(() => {
-    if (!intentToken || !intentPayload) return
-    if (inLineContext || !contextWatchElapsed) return
-
-    clientLog('continue_redirect_open_in_line', {
-      intent_id: intentPayload.intent_id || '',
-      action_type: intentPayload.action || '',
-      elapsed_ms: Date.now() - mountedAtRef.current,
-      liff_checked: liffChecked,
-      source_terminal: sourceTerminal || '',
-    })
-    navigate(resumeEntryPath, { replace: true })
-  }, [
-    contextWatchElapsed,
-    inLineContext,
-    intentPayload,
-    intentToken,
-    liffChecked,
-    navigate,
-    resumeEntryPath,
-    sourceTerminal,
   ])
 
   const handleRetry = async () => {
@@ -485,7 +434,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
         <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>请先完成 LINE 登录</div>
           <div style={{ color: '#666', marginBottom: 16 }}>
-            当前已进入 LINE，但尚未完成登录。请点击下方按钮登录后继续当前操作。
+            系统需要先完成 LINE 登录，才能继续恢复当前操作。请点击下方按钮登录后继续。
           </div>
           <button
             onClick={handleExplicitLineLogin}

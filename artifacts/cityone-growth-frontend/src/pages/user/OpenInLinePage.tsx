@@ -2,13 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { decodePendingIntentPayload } from '../../lib/pendingIntent'
-import {
-  buildResumeLaunchTargets,
-  detectTerminal,
-  getRuntimeLineConfig,
-  isDesktopBrowser,
-  isRuntimeUnsupportedHandoffBrowser,
-} from '../../lib/line'
+import { buildResumeLaunchTargets, getRuntimeLineConfig, isDesktopBrowser } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
 
@@ -20,38 +14,22 @@ export default function OpenInLinePage() {
   const { inLineContext } = useLiff()
   const [opening, setOpening] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState('')
-  const [showFallbackAction, setShowFallbackAction] = useState(false)
-  const stageRef = useRef<'idle' | 'liff' | 'scheme' | 'done'>('idle')
+  const [showRetryAction, setShowRetryAction] = useState(false)
+  const stageRef = useRef<'idle' | 'liff' | 'done'>('idle')
 
   const intentToken = searchParams.get('intent') || ''
   const payload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
   const tokenValid = !!intentToken && !!payload
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   const cfg = getRuntimeLineConfig()
-  const { resumeLiffUrl, resumeLineSchemeUrl, resumeLineAppUrl } = buildResumeLaunchTargets(
+  const { resumeLiffUrl } = buildResumeLaunchTargets(
     intentToken,
     cfg.liffId,
     cfg.officialAccountId,
   )
   const desktop = isDesktopBrowser()
-  const terminal = detectTerminal()
-  const unsupportedHandoffBrowser = isRuntimeUnsupportedHandoffBrowser()
   const handoffReturned = searchParams.get('handoff') === 'returned'
-  const qrContinueUrl = useMemo(() => {
-    return resumeLiffUrl || continuePath
-  }, [continuePath, resumeLiffUrl])
-  const primaryLaunchUrl = useMemo(() => {
-    if (unsupportedHandoffBrowser) {
-      return resumeLineSchemeUrl || resumeLineAppUrl || resumeLiffUrl || ''
-    }
-    return resumeLiffUrl || resumeLineAppUrl || resumeLineSchemeUrl || ''
-  }, [resumeLiffUrl, resumeLineAppUrl, resumeLineSchemeUrl, unsupportedHandoffBrowser])
-  const fallbackLaunchUrl = useMemo(() => {
-    if (unsupportedHandoffBrowser) {
-      return resumeLineAppUrl || resumeLiffUrl || ''
-    }
-    return resumeLineSchemeUrl || resumeLineAppUrl || ''
-  }, [resumeLiffUrl, resumeLineAppUrl, resumeLineSchemeUrl, unsupportedHandoffBrowser])
+  const qrContinueUrl = useMemo(() => resumeLiffUrl || continuePath, [continuePath, resumeLiffUrl])
 
   useEffect(() => {
     clientLog('open_in_line_view', {
@@ -60,21 +38,11 @@ export default function OpenInLinePage() {
       in_line_context: inLineContext,
       is_desktop: desktop,
       handoff_returned: handoffReturned,
-      terminal,
     })
     if (tokenValid && inLineContext) {
       navigate(continuePath, { replace: true })
     }
-  }, [
-    continuePath,
-    desktop,
-    handoffReturned,
-    inLineContext,
-    navigate,
-    payload?.intent_id,
-    terminal,
-    tokenValid,
-  ])
+  }, [continuePath, desktop, handoffReturned, inLineContext, navigate, payload?.intent_id, tokenValid])
 
   useEffect(() => {
     if (!desktop || !qrContinueUrl) {
@@ -94,21 +62,17 @@ export default function OpenInLinePage() {
     }
   }, [desktop, qrContinueUrl])
 
-  const handleOpen = (
-    href: string,
-    stage: 'liff' | 'scheme',
-    ev?: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>
-  ) => {
+  const handleOpen = (href: string, ev?: React.MouseEvent<HTMLAnchorElement>) => {
     if (opening || !tokenValid || desktop || !href) {
       ev?.preventDefault()
       return
     }
+
     setOpening(true)
-    setShowFallbackAction(false)
+    setShowRetryAction(false)
     clientLog('open_in_line_primary_click', {
       intent_id: payload?.intent_id || '',
-      primary_launch_url: stage,
-      terminal,
+      primary_launch_url: 'liff',
     })
 
     const markDone = () => {
@@ -126,7 +90,7 @@ export default function OpenInLinePage() {
     window.addEventListener('pagehide', markDone, { once: true })
     document.addEventListener('visibilitychange', onHidden)
 
-    stageRef.current = stage
+    stageRef.current = 'liff'
     window.setTimeout(() => {
       if (stageRef.current === 'done') {
         clearListeners()
@@ -134,9 +98,7 @@ export default function OpenInLinePage() {
       }
       clearListeners()
       setOpening(false)
-      if (fallbackLaunchUrl && fallbackLaunchUrl !== href) {
-        setShowFallbackAction(true)
-      }
+      setShowRetryAction(true)
     }, WAIT_MS)
   }
 
@@ -165,7 +127,7 @@ export default function OpenInLinePage() {
         <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 24, background: '#fff', padding: 28, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
           <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>请用手机 LINE App 扫码继续</div>
           <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-            当前设备无法直接唤起 LINE App，请用手机上的 LINE 扫描下方二维码继续当前操作。
+            当前设备无法直接完成 LINE 侧恢复，请用手机上的 LINE 扫描下方二维码继续当前操作。
           </div>
           {qrDataUrl ? (
             <img src={qrDataUrl} alt="请用手机 LINE App 扫码继续" style={{ width: 220, height: 220, borderRadius: 16, border: '1px solid #e5e7eb', padding: 12, background: '#fff' }} />
@@ -179,19 +141,18 @@ export default function OpenInLinePage() {
 
   const title = handoffReturned ? '请继续打开 LINE' : '请在 LINE 中继续'
   const openingText = opening ? '正在尝试打开 LINE...' : '打开 LINE 继续'
-  const fallbackActionLabel = unsupportedHandoffBrowser ? '再次尝试打开 LINE' : '改用另一种方式打开 LINE'
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
       <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 24, background: '#fff', padding: 28, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>{title}</div>
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-          当前操作需要在 LINE App 内继续处理。进入 LINE 后，系统会自动恢复刚才的当前操作，再继续完成身份识别与业务流程。
+          当前功能必须在 LINE 环境内继续处理。进入 LINE 后，系统会自动恢复当前操作并继续后续步骤。
         </div>
         <a
-          href={primaryLaunchUrl || '#'}
-          onClick={(ev) => handleOpen(primaryLaunchUrl, unsupportedHandoffBrowser ? 'scheme' : 'liff', ev)}
-          aria-disabled={opening || !primaryLaunchUrl}
+          href={resumeLiffUrl || '#'}
+          onClick={(ev) => handleOpen(resumeLiffUrl || '', ev)}
+          aria-disabled={opening || !resumeLiffUrl}
           style={{
             width: '100%',
             height: 48,
@@ -200,20 +161,20 @@ export default function OpenInLinePage() {
             background: opening ? '#9fdcc6' : '#12b981',
             color: '#fff',
             fontWeight: 700,
-            cursor: opening || !primaryLaunchUrl ? 'not-allowed' : 'pointer',
+            cursor: opening || !resumeLiffUrl ? 'not-allowed' : 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             textDecoration: 'none',
-            pointerEvents: opening || !primaryLaunchUrl ? 'none' : 'auto',
+            pointerEvents: opening || !resumeLiffUrl ? 'none' : 'auto',
           }}
         >
           {openingText}
         </a>
-        {showFallbackAction && !!fallbackLaunchUrl && (
+        {showRetryAction && !!resumeLiffUrl && (
           <a
-            href={fallbackLaunchUrl}
-            onClick={(ev) => handleOpen(fallbackLaunchUrl, 'liff', ev)}
+            href={resumeLiffUrl}
+            onClick={(ev) => handleOpen(resumeLiffUrl, ev)}
             style={{
               width: '100%',
               height: 44,
@@ -231,7 +192,7 @@ export default function OpenInLinePage() {
               marginTop: 12,
             }}
           >
-            {fallbackActionLabel}
+            再次尝试打开 LINE
           </a>
         )}
         <div style={{ marginTop: 14, color: '#888', fontSize: 13 }}>

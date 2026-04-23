@@ -30,7 +30,7 @@ function getContinueIntentToken(targetPath: string) {
 
 function WelfareCallbackEntryPage() {
   const [searchParams] = useSearchParams()
-  const { liffChecked, inLineContext } = useLiff()
+  const { liffChecked } = useLiff()
 
   const targetPath = React.useMemo(() => {
     return resolveRuntimeWelfareCallbackTarget(searchParams)
@@ -75,8 +75,8 @@ function WelfareCallbackEntryPage() {
     return <ContinuePage intentTokenOverride={continueIntentToken} />
   }
 
-  if (hasResumeIntent && liffChecked && !inLineContext && resumeIntent) {
-    return <Navigate to={`/welfare/open-in-line?intent=${encodeURIComponent(resumeIntent)}`} replace />
+  if (hasResumeIntent && liffChecked && resumeIntent) {
+    return <ContinuePage intentTokenOverride={resumeIntent} />
   }
 
   if (targetPath) {
