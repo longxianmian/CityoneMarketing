@@ -10,6 +10,8 @@ import useLineUserStore from '../../store/lineUser'
 const FOLLOW_GATE_VERSION = '20260423_follow_gate_v4'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
+type FollowGateStage = 'checking' | 'ready' | 'submitting' | 'error'
+
 async function registerFanTruth(params: {
   userId: string
   lineUserId: string
@@ -37,7 +39,7 @@ export default function FollowConfirmPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffReady, inLineContext } = useLiff()
-  const [submitting, setSubmitting] = useState(false)
+  const [stage, setStage] = useState<FollowGateStage>('checking')
   const [hintText, setHintText] = useState('')
   const [runtimeCfg, setRuntimeCfgState] = useState(() => getRuntimeLineConfig())
 
@@ -46,6 +48,7 @@ export default function FollowConfirmPage() {
   const tokenValid = !!intentToken && !!payload
   const continuePath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   const oaAddFriendUrl = buildOaAddFriendUrl(runtimeCfg.officialAccountId)
+  const submitting = stage === 'submitting'
 
   useEffect(() => {
     clientLog('follow_gate_view', {
@@ -57,6 +60,51 @@ export default function FollowConfirmPage() {
       version: FOLLOW_GATE_VERSION,
     })
   }, [inLineContext, payload?.action, payload?.intent_id, tokenValid])
+
+  useEffect(() => {
+    if (!tokenValid) return
+    if (!inLineContext || !liffReady) {
+      setStage('checking')
+      return
+    }
+
+    let cancelled = false
+    void (async () => {
+      try {
+        const liff = getLiff()
+        if (!liff || typeof liff.getFriendship !== 'function') {
+          if (!cancelled) setStage('ready')
+          return
+        }
+
+        const friendship = await liff.getFriendship()
+        if (cancelled) return
+        if (friendship?.friendFlag === true) {
+          clientLog('follow_confirm_already_friend', {
+            intent_id: payload?.intent_id || '',
+            action_type: payload?.action || '',
+            version: FOLLOW_GATE_VERSION,
+          })
+          navigate(continuePath, { replace: true })
+          return
+        }
+        setStage('ready')
+      } catch (e: any) {
+        if (cancelled) return
+        clientLog('follow_confirm_friendship_probe_failed', {
+          intent_id: payload?.intent_id || '',
+          action_type: payload?.action || '',
+          error: e?.message || 'unknown',
+          version: FOLLOW_GATE_VERSION,
+        })
+        setStage('ready')
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [continuePath, inLineContext, liffReady, navigate, payload?.action, payload?.intent_id, tokenValid])
 
   useEffect(() => {
     if (runtimeCfg.channelId && runtimeCfg.officialAccountId) return
@@ -86,7 +134,7 @@ export default function FollowConfirmPage() {
       version: FOLLOW_GATE_VERSION,
     })
 
-    setSubmitting(true)
+    setStage('submitting')
     setHintText('')
 
     try {
@@ -144,8 +192,12 @@ export default function FollowConfirmPage() {
             synced,
             version: FOLLOW_GATE_VERSION,
           })
+          setStage('checking')
+          navigate(continuePath, { replace: true })
+          return
         }
-        navigate(continuePath, { replace: true })
+        setHintText('尚未确认关注成功，请完成关注后再继续。')
+        setStage('ready')
         return
       }
 
@@ -156,10 +208,12 @@ export default function FollowConfirmPage() {
           version: FOLLOW_GATE_VERSION,
         })
         window.location.assign(oaAddFriendUrl)
+        setStage('ready')
         return
       }
 
       setHintText('当前未检测到可用的关注入口，请联系管理员检查 LINE 配置。')
+      setStage('error')
     } catch (e: any) {
       clientLog('follow_confirm_request_friendship_failed', {
         intent_id: payload?.intent_id || '',
@@ -167,9 +221,8 @@ export default function FollowConfirmPage() {
         error: e?.message || 'unknown',
         version: FOLLOW_GATE_VERSION,
       })
-      navigate(continuePath, { replace: true })
-    } finally {
-      setSubmitting(false)
+      setHintText('关注确认没有完成，请重试。')
+      setStage('ready')
     }
   }
 
@@ -201,6 +254,11 @@ export default function FollowConfirmPage() {
       <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>{title}</div>
         <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 18 }}>{description}</div>
+        {stage === 'checking' ? (
+          <div style={{ color: '#666', fontSize: 13, marginBottom: 12 }}>
+            正在确认当前 LINE 身份和关注状态，请稍候。
+          </div>
+        ) : null}
         {hintText ? (
           <div style={{ color: '#666', fontSize: 13, marginBottom: 12 }}>
             {hintText}
@@ -209,8 +267,8 @@ export default function FollowConfirmPage() {
         <button
           onClick={() => void handleConfirm()}
           data-clog="follow-confirm-primary"
-          disabled={submitting}
-          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: submitting ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}
+          disabled={submitting || stage === 'checking'}
+          style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: submitting || stage === 'checking' ? '#b7ead7' : '#12b981', color: '#fff', fontWeight: 700, cursor: submitting || stage === 'checking' ? 'not-allowed' : 'pointer' }}
         >
           {primaryLabel}
         </button>

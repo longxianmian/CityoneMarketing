@@ -40,6 +40,14 @@ function WelfareCallbackEntryPage() {
   const resumeIntent = (searchParams.get('resume_intent') || '').trim()
   const continueIntentToken = React.useMemo(() => getContinueIntentToken(targetPath), [targetPath])
 
+  React.useEffect(() => {
+    if (targetPath || hasResumeIntent || (hasLiffCallback && !liffChecked)) return
+    const t = window.setTimeout(() => {
+      window.location.replace('/welfare')
+    }, 1200)
+    return () => window.clearTimeout(t)
+  }, [hasLiffCallback, hasResumeIntent, liffChecked, targetPath])
+
   if ((hasLiffCallback || hasResumeIntent) && !liffChecked) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
@@ -61,15 +69,6 @@ function WelfareCallbackEntryPage() {
       </div>
     )
   }
-
-  // 兜底：未识别的 liff.state / 缺失 intent，1.2s 后回 /welfare 主页（避免无限转圈）
-  React.useEffect(() => {
-    if (targetPath || hasResumeIntent || (hasLiffCallback && !liffChecked)) return
-    const t = window.setTimeout(() => {
-      window.location.replace('/welfare')
-    }, 1200)
-    return () => window.clearTimeout(t)
-  }, [hasLiffCallback, hasResumeIntent, liffChecked, targetPath])
 
   if (continueIntentToken) {
     return <ContinuePage intentTokenOverride={continueIntentToken} />
