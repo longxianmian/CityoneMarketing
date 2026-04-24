@@ -3,7 +3,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiff, getLiff, syncLiffFriendshipIdentity } from '../../providers/LiffProvider'
 import useLineUserStore from '../../store/lineUser'
-import { consumePendingIntent, decodePendingIntentPayload } from '../../lib/pendingIntent'
+import {
+  clearPendingIntentResume,
+  consumePendingIntent,
+  decodePendingIntentPayload,
+} from '../../lib/pendingIntent'
 import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
 import { clientLog } from '../../lib/clientLogger'
 
@@ -210,6 +214,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   const runFlow = useCallback(async () => {
     if (!mountedRef.current || !intentToken || !intentPayload) {
+      clearPendingIntentResume(intentToken)
       setErrorText('待恢复动作无效或已损坏')
       setStatus('error')
       return
@@ -312,6 +317,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
         })
         setErrorText(errMsg)
         setStatus('error')
+        clearPendingIntentResume(intentToken)
         return
       }
 
@@ -329,6 +335,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       })
 
       clearAutoRunLock()
+      clearPendingIntentResume(intentToken)
       setStatus('done')
       const internalNextPath = resolveInternalNavigationTarget(nextPath)
       if (internalNextPath && canUseCallbackShellNavigate(internalNextPath)) {
@@ -363,11 +370,13 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   useEffect(() => {
     if (!intentToken) {
+      clearPendingIntentResume()
       setErrorText('待恢复动作无效或已损坏')
       setStatus('error')
       return
     }
     if (!intentPayload) {
+      clearPendingIntentResume(intentToken)
       setErrorText('待恢复动作无效或已损坏')
       setStatus('error')
     }

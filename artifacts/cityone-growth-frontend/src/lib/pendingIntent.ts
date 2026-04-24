@@ -1,4 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const PERSISTED_RESUME_INTENT_KEY = '_cityone_resume_pending_v1'
+const PERSISTED_RESUME_INTENT_TTL_MS = 30 * 60 * 1000
 
 export type PendingIntentAction =
   | 'claim_coupon'
@@ -18,6 +20,96 @@ type IssuePendingIntentInput = {
   backPath: string
   actionName?: string
   source?: Record<string, any>
+}
+
+type PersistedResumeIntent = {
+  token: string
+  ts: number
+}
+
+function readRawResumeIntent(storage: Storage | undefined | null) {
+  if (!storage) return null
+  try {
+    const raw = storage.getItem(PERSISTED_RESUME_INTENT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PersistedResumeIntent
+    if (!parsed?.token || !parsed?.ts) {
+      storage.removeItem(PERSISTED_RESUME_INTENT_KEY)
+      return null
+    }
+    if (Date.now() - Number(parsed.ts) > PERSISTED_RESUME_INTENT_TTL_MS) {
+      storage.removeItem(PERSISTED_RESUME_INTENT_KEY)
+      return null
+    }
+    return parsed
+  } catch {
+    try {
+      storage.removeItem(PERSISTED_RESUME_INTENT_KEY)
+    } catch {
+      // ignore
+    }
+    return null
+  }
+}
+
+function writeRawResumeIntent(storage: Storage | undefined | null, value: PersistedResumeIntent) {
+  if (!storage) return
+  try {
+    storage.setItem(PERSISTED_RESUME_INTENT_KEY, JSON.stringify(value))
+  } catch {
+    // ignore
+  }
+}
+
+function clearRawResumeIntent(storage: Storage | undefined | null) {
+  if (!storage) return
+  try {
+    storage.removeItem(PERSISTED_RESUME_INTENT_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+export function writePendingIntentResume(token: string) {
+  const normalized = String(token || '').trim()
+  if (!normalized) return
+  const payload = { token: normalized, ts: Date.now() }
+  writeRawResumeIntent(typeof sessionStorage !== 'undefined' ? sessionStorage : null, payload)
+  writeRawResumeIntent(typeof localStorage !== 'undefined' ? localStorage : null, payload)
+}
+
+export function readPendingIntentResume() {
+  const sessionValue = readRawResumeIntent(
+    typeof sessionStorage !== 'undefined' ? sessionStorage : null
+  )
+  if (sessionValue?.token) return sessionValue.token
+
+  const localValue = readRawResumeIntent(
+    typeof localStorage !== 'undefined' ? localStorage : null
+  )
+  if (localValue?.token) {
+    writeRawResumeIntent(typeof sessionStorage !== 'undefined' ? sessionStorage : null, localValue)
+    return localValue.token
+  }
+  return ''
+}
+
+export function clearPendingIntentResume(token?: string) {
+  const expected = String(token || '').trim()
+  const sessionValue = readRawResumeIntent(
+    typeof sessionStorage !== 'undefined' ? sessionStorage : null
+  )
+  const localValue = readRawResumeIntent(
+    typeof localStorage !== 'undefined' ? localStorage : null
+  )
+  const shouldClearSession = !expected || sessionValue?.token === expected
+  const shouldClearLocal = !expected || localValue?.token === expected
+  if (shouldClearSession) {
+    clearRawResumeIntent(typeof sessionStorage !== 'undefined' ? sessionStorage : null)
+  }
+  if (shouldClearLocal) {
+    clearRawResumeIntent(typeof localStorage !== 'undefined' ? localStorage : null)
+  }
 }
 
 export async function issuePendingIntent(input: IssuePendingIntentInput) {

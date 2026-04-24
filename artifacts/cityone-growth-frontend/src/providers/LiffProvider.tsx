@@ -9,8 +9,13 @@
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import useLineUserStore, { type IdentityTag, type LineUserProfile } from '../store/lineUser'
-import { resolveRuntimeLiffId, setRuntimeLineConfig } from '../lib/line'
+import {
+  isRuntimeExternalLiffLoginCallback,
+  resolveRuntimeLiffId,
+  setRuntimeLineConfig,
+} from '../lib/line'
 import { clientLog } from '../lib/clientLogger'
+import { readPendingIntentResume } from '../lib/pendingIntent'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const LIFF_INIT_TIMEOUT_MS = 5000
@@ -242,8 +247,14 @@ function shouldAutoLoginOnExternalBrowser() {
   const params = new URLSearchParams(search)
   if (detectLineAppUA()) return false
 
+  const persistedResumeIntent = readPendingIntentResume()
   return (
-    (pathname === '/welfare' && (params.has('resume_intent') || params.has('liff.state'))) ||
+    (pathname === '/welfare' && (
+      params.has('resume_intent') ||
+      params.has('liff.state') ||
+      !!persistedResumeIntent ||
+      isRuntimeExternalLiffLoginCallback(params)
+    )) ||
     pathname === '/welfare/continue' ||
     pathname === '/welfare/follow-confirm'
   )

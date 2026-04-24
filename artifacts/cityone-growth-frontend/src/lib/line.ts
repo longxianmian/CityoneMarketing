@@ -182,11 +182,19 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
   return normalized
 }
 
+export function isRuntimeExternalLiffLoginCallback(searchParams: URLSearchParams) {
+  return searchParams.has('code') && (
+    searchParams.has('state') ||
+    searchParams.has('liffClientId') ||
+    searchParams.has('liffRedirectUri')
+  )
+}
+
 export function isRuntimeCallbackBootPath(pathname: string, search: string) {
   const params = new URLSearchParams(search || '')
   const hasCallbackPayload = params.has('intent') ||
     params.has('liff.state') ||
-    (params.has('code') && (params.has('state') || params.has('liffClientId') || params.has('liffRedirectUri')))
+    isRuntimeExternalLiffLoginCallback(params)
 
   return (
     ((pathname === '/' || pathname === '/welfare') && hasCallbackPayload) ||
@@ -200,7 +208,7 @@ export function isRuntimeHomeBootPath(pathname: string, search: string) {
   return pathname === '/welfare' &&
     !params.has('intent') &&
     !params.has('liff.state') &&
-    !(params.has('code') && (params.has('state') || params.has('liffClientId') || params.has('liffRedirectUri')))
+    !isRuntimeExternalLiffLoginCallback(params)
 }
 
 function toRuntimeLiffEndpointExtraPath(value?: string | null) {

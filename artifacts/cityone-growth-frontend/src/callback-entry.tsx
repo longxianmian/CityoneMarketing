@@ -10,6 +10,7 @@ import FollowConfirmPage from './pages/user/FollowConfirmPage'
 import OpenInLinePage from './pages/user/OpenInLinePage'
 import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
 import { useLiff } from './providers/LiffProvider'
+import { readPendingIntentResume } from './lib/pendingIntent'
 
 function CallbackTitleSync() {
   React.useEffect(() => {
@@ -41,8 +42,12 @@ function WelfareCallbackEntryPage() {
     searchParams.has('liffClientId') ||
     searchParams.has('liffRedirectUri')
   )
-  const hasResumeIntent = !!(searchParams.get('resume_intent') || '').trim()
-  const resumeIntent = (searchParams.get('resume_intent') || '').trim()
+  const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
+  const persistedResumeIntent = React.useMemo(() => {
+    return explicitResumeIntent ? '' : readPendingIntentResume()
+  }, [explicitResumeIntent, searchParams])
+  const resumeIntent = explicitResumeIntent || persistedResumeIntent
+  const hasResumeIntent = !!resumeIntent
   const continueIntentToken = React.useMemo(() => getContinueIntentToken(targetPath), [targetPath])
 
   React.useEffect(() => {
@@ -111,6 +116,10 @@ function WelfareCallbackEntryPage() {
 function RootCallbackEntryPage() {
   const [searchParams] = useSearchParams()
   const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
+  const persistedResumeIntent = React.useMemo(() => {
+    return explicitResumeIntent ? '' : readPendingIntentResume()
+  }, [explicitResumeIntent, searchParams])
+  const effectiveResumeIntent = explicitResumeIntent || persistedResumeIntent
   const targetPath = React.useMemo(() => resolveRuntimeWelfareCallbackTarget(searchParams), [searchParams])
   const hasExternalLoginCallback = searchParams.has('code') && (
     searchParams.has('state') ||
@@ -119,7 +128,7 @@ function RootCallbackEntryPage() {
   )
 
   // LINE 回流有时会落在站点根路径，必须保留原 query 并重定向到福利回调入口。
-  if (targetPath || explicitResumeIntent || hasExternalLoginCallback) {
+  if (targetPath || effectiveResumeIntent || hasExternalLoginCallback) {
     const query = searchParams.toString()
     return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
   }

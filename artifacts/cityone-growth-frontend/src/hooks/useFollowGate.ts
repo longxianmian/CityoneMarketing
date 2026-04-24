@@ -24,7 +24,11 @@ import { useState, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
-import { issuePendingIntent, type PendingIntentAction } from '../lib/pendingIntent'
+import {
+  issuePendingIntent,
+  writePendingIntentResume,
+  type PendingIntentAction,
+} from '../lib/pendingIntent'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
 import {
@@ -135,6 +139,7 @@ export function useFollowGate() {
           actionName: label,
           source,
         })
+        writePendingIntentResume(issued.token)
         const resumeEntryPath = `/welfare?resume_intent=${encodeURIComponent(issued.token)}`
         const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
 
