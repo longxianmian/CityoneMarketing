@@ -2,11 +2,19 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import WelfareHomePage from './WelfareHomePage'
-import { resolveRuntimeWelfareCallbackTarget } from '../../lib/line'
+import {
+  buildRuntimeContinueTargetFromResume,
+  extractRuntimeResumeTarget,
+  resolveRuntimeWelfareCallbackTarget,
+} from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
 import useLineUserStore from '../../store/lineUser'
-import { fetchLatestPendingIntent, readPendingIntentResume } from '../../lib/pendingIntent'
+import {
+  fetchLatestPendingIntent,
+  readPendingIntentResume,
+  readPendingIntentResumeKey,
+} from '../../lib/pendingIntent'
 
 /**
  * 强约束：
@@ -36,10 +44,30 @@ export default function WelfareEntryPage() {
   const explicitResumeIntent = useMemo(() => {
     return (searchParams.get('resume_intent') || '').trim()
   }, [searchParams])
+  const explicitResumeKey = useMemo(() => {
+    return (searchParams.get('resume_key') || searchParams.get('resume') || '').trim()
+  }, [searchParams])
+  const parsedResumeTarget = useMemo(() => {
+    return extractRuntimeResumeTarget(searchParams)
+  }, [searchParams])
   const persistedResumeIntent = useMemo(() => {
-    return explicitResumeIntent ? '' : readPendingIntentResume()
-  }, [explicitResumeIntent, searchParams])
-  const effectiveResumeIntent = explicitResumeIntent || persistedResumeIntent
+    return explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey
+      ? ''
+      : readPendingIntentResume()
+  }, [explicitResumeIntent, explicitResumeKey, parsedResumeTarget.intentToken, parsedResumeTarget.resumeKey])
+  const persistedResumeKey = useMemo(() => {
+    return explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey
+      ? ''
+      : readPendingIntentResumeKey()
+  }, [explicitResumeIntent, explicitResumeKey, parsedResumeTarget.intentToken, parsedResumeTarget.resumeKey])
+  const effectiveResumeIntent = explicitResumeIntent || parsedResumeTarget.intentToken || persistedResumeIntent
+  const effectiveResumeKey = explicitResumeKey || parsedResumeTarget.resumeKey || persistedResumeKey
+  const effectiveResumeTarget = useMemo(() => (
+    buildRuntimeContinueTargetFromResume({
+      resumeKey: effectiveResumeKey,
+      intentToken: effectiveResumeIntent,
+    })
+  ), [effectiveResumeIntent, effectiveResumeKey])
   const hasExternalLoginCallback = useMemo(() => {
     return (
       searchParams.has('code') &&
@@ -48,7 +76,7 @@ export default function WelfareEntryPage() {
   }, [searchParams])
 
   const hasLiffCallback = searchParams.has('liff.state')
-  const hasExplicitResumeTarget = !!targetPath || !!effectiveResumeIntent
+  const hasExplicitResumeTarget = !!targetPath || !!effectiveResumeTarget
 
   const scheduleReplace = useCallback((target: string, reason: string) => {
     if (!target || redirectingRef.current) return
@@ -77,21 +105,20 @@ export default function WelfareEntryPage() {
       has_intent: searchParams.has('intent'),
       has_liff_state: searchParams.has('liff.state'),
       has_resume_intent: !!effectiveResumeIntent,
+      has_resume_key: !!effectiveResumeKey,
       persisted_resume_intent: !!persistedResumeIntent,
+      persisted_resume_key: !!persistedResumeKey,
       has_external_login_callback: hasExternalLoginCallback,
       target_path: targetPath || '(home)',
       liff_checked: liffChecked,
       will_wait_for_liff: !!(targetPath && hasLiffCallback && !liffChecked),
     })
-  }, [searchParams, effectiveResumeIntent, persistedResumeIntent, targetPath, liffChecked, hasLiffCallback, hasExternalLoginCallback])
+  }, [searchParams, effectiveResumeIntent, effectiveResumeKey, persistedResumeIntent, persistedResumeKey, targetPath, liffChecked, hasLiffCallback, hasExternalLoginCallback])
 
   useEffect(() => {
-    if (!effectiveResumeIntent || !liffChecked) return
-    scheduleReplace(
-      `/welfare/continue?intent=${encodeURIComponent(effectiveResumeIntent)}&resume=1`,
-      'resume_intent_continue'
-    )
-  }, [effectiveResumeIntent, liffChecked, scheduleReplace])
+    if (!effectiveResumeTarget || !liffChecked) return
+    scheduleReplace(effectiveResumeTarget, 'resume_target_continue')
+  }, [effectiveResumeTarget, liffChecked, scheduleReplace])
 
   useEffect(() => {
     if (!liffChecked || hasExplicitResumeTarget) return
@@ -133,7 +160,7 @@ export default function WelfareEntryPage() {
   if (
     (targetPath && hasLiffCallback && !liffChecked) ||
     (hasExternalLoginCallback && !liffChecked) ||
-    (!!effectiveResumeIntent && !liffChecked)
+    (!!effectiveResumeTarget && !liffChecked)
   ) {
     // 占位，不渲染首页（避免闪屏），等 LIFF init 完成后再跳
     return null

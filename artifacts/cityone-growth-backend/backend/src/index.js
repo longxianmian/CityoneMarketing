@@ -208,6 +208,7 @@ import {
 import {
   handlePendingIntentIssue,
   handlePendingIntentLatest,
+  handlePendingIntentResume,
   handlePendingIntentConsume,
 } from "./routes/pending-intents.js";
 import {
@@ -1411,6 +1412,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/user/pending-intents/latest") {
       return handlePendingIntentLatest(req, res, url, sendJson);
+    }
+    if (req.method === "GET" && url.pathname === "/api/user/pending-intents/resume") {
+      return handlePendingIntentResume(req, res, url, sendJson);
     }
     if (req.method === "POST" && url.pathname === "/api/user/pending-intents/consume") {
       return handlePendingIntentConsume(req, res, url, sendJson, readBody);

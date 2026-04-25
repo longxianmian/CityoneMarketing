@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import useAuthStore from './store/auth'
 import AdminLayout from './layout/AdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
-import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
+import { extractRuntimeResumeTarget, resolveRuntimeWelfareCallbackTarget } from './lib/line'
 import FollowConfirmPage from './pages/user/FollowConfirmPage'
 
 const Login = lazy(() => import('./pages/Login'))
@@ -106,9 +106,11 @@ function CS({ title, description }: { title: string; description?: string }) {
 function RootEntryRedirectPage() {
   const [searchParams] = useSearchParams()
   const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
+  const explicitResumeKey = (searchParams.get('resume_key') || searchParams.get('resume') || '').trim()
+  const parsedResumeTarget = extractRuntimeResumeTarget(searchParams)
   const targetPath = resolveRuntimeWelfareCallbackTarget(searchParams)
 
-  if (targetPath || explicitResumeIntent) {
+  if (targetPath || explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey) {
     const query = searchParams.toString()
     return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
   }

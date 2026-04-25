@@ -79,6 +79,10 @@ export function createPendingIntentError(statusCode, errorCode, message) {
   return err;
 }
 
+function createResumeKey() {
+  return `rk_${crypto.randomBytes(12).toString("base64url")}`;
+}
+
 function buildPayload({
   intentId,
   nonce,
@@ -129,6 +133,7 @@ export async function issuePendingIntent({
   const exp = Math.floor((now + ttlSeconds * 1000) / 1000);
   const intentId = `intent_${now}_${crypto.randomBytes(4).toString("hex")}`;
   const nonce = crypto.randomBytes(16).toString("hex");
+  const resumeKey = createResumeKey();
   const payload = buildPayload({
     intentId,
     nonce,
@@ -149,8 +154,8 @@ export async function issuePendingIntent({
     `INSERT INTO pending_intents
        (intent_id, nonce, user_id, line_user_id, action, resource_id,
         return_path, success_path, fail_path, back_path, terminal,
-        action_name, metadata, expires_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        action_name, metadata, expires_at, resume_key)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
     [
       intentId,
       nonce,
@@ -166,11 +171,13 @@ export async function issuePendingIntent({
       payload.action_name || null,
       JSON.stringify(metadata || {}),
       new Date(exp * 1000),
+      resumeKey,
     ]
   );
 
   return {
     token: signPayload(payload),
+    resumeKey,
     payload,
   };
 }
@@ -288,6 +295,37 @@ export async function findLatestPendingIntent({
   const payload = rebuildPayloadFromRow(row);
   return {
     token: signPayload(payload),
+    payload,
+  };
+}
+
+export async function resolvePendingIntentResumeKey(resumeKey) {
+  const key = String(resumeKey || "").trim();
+  if (!key) {
+    throw createPendingIntentError(400, "MISSING_PENDING_RESUME_KEY", "缺少 pending intent resume key");
+  }
+
+  const { rows } = await query(
+    `SELECT *
+       FROM pending_intents
+      WHERE resume_key = $1
+      LIMIT 1`,
+    [key]
+  );
+
+  if (!rows.length) {
+    throw createPendingIntentError(404, "PENDING_RESUME_KEY_NOT_FOUND", "pending intent resume key 不存在");
+  }
+
+  const row = rows[0];
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    throw createPendingIntentError(410, "PENDING_INTENT_EXPIRED", "pending intent 已过期");
+  }
+
+  const payload = rebuildPayloadFromRow(row);
+  return {
+    token: signPayload(payload),
+    resumeKey: key,
     payload,
   };
 }

@@ -139,8 +139,11 @@ export function useFollowGate() {
           actionName: label,
           source,
         })
-        writePendingIntentResume(issued.token)
-        const resumeEntryPath = `/welfare?resume_intent=${encodeURIComponent(issued.token)}`
+        const resumeKey = String(issued.resume_key || '').trim()
+        writePendingIntentResume(issued.token, resumeKey)
+        const resumeEntryPath = resumeKey
+          ? `/welfare?resume_key=${encodeURIComponent(resumeKey)}`
+          : `/welfare?resume_intent=${encodeURIComponent(issued.token)}`
         const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
 
         const isLineWebView = /Line\/\d/i.test(navigator.userAgent)

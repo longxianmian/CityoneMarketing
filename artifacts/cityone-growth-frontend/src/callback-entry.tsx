@@ -8,9 +8,13 @@ import { LiffProvider } from './providers/LiffProvider'
 import ContinuePage from './pages/user/ContinuePage'
 import FollowConfirmPage from './pages/user/FollowConfirmPage'
 import OpenInLinePage from './pages/user/OpenInLinePage'
-import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
+import {
+  buildRuntimeContinueTargetFromResume,
+  extractRuntimeResumeTarget,
+  resolveRuntimeWelfareCallbackTarget,
+} from './lib/line'
 import { useLiff } from './providers/LiffProvider'
-import { readPendingIntentResume } from './lib/pendingIntent'
+import { readPendingIntentResume, readPendingIntentResumeKey } from './lib/pendingIntent'
 
 function CallbackTitleSync() {
   React.useEffect(() => {
@@ -24,6 +28,16 @@ function getContinueIntentToken(targetPath: string) {
     const url = new URL(targetPath, window.location.origin)
     if (url.pathname !== '/welfare/continue') return ''
     return url.searchParams.get('intent') || ''
+  } catch {
+    return ''
+  }
+}
+
+function getContinueResumeKey(targetPath: string) {
+  try {
+    const url = new URL(targetPath, window.location.origin)
+    if (url.pathname !== '/welfare/continue') return ''
+    return url.searchParams.get('resume_key') || ''
   } catch {
     return ''
   }
@@ -43,22 +57,33 @@ function WelfareCallbackEntryPage() {
     searchParams.has('liffRedirectUri')
   )
   const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
+  const explicitResumeKey = (searchParams.get('resume_key') || searchParams.get('resume') || '').trim()
+  const parsedResumeTarget = React.useMemo(() => extractRuntimeResumeTarget(searchParams), [searchParams])
   const persistedResumeIntent = React.useMemo(() => {
-    return explicitResumeIntent ? '' : readPendingIntentResume()
-  }, [explicitResumeIntent, searchParams])
-  const resumeIntent = explicitResumeIntent || persistedResumeIntent
-  const hasResumeIntent = !!resumeIntent
+    return explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey
+      ? ''
+      : readPendingIntentResume()
+  }, [explicitResumeIntent, explicitResumeKey, parsedResumeTarget.intentToken, parsedResumeTarget.resumeKey])
+  const persistedResumeKey = React.useMemo(() => {
+    return explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey
+      ? ''
+      : readPendingIntentResumeKey()
+  }, [explicitResumeIntent, explicitResumeKey, parsedResumeTarget.intentToken, parsedResumeTarget.resumeKey])
+  const resumeIntent = explicitResumeIntent || parsedResumeTarget.intentToken || persistedResumeIntent
+  const resumeKey = explicitResumeKey || parsedResumeTarget.resumeKey || persistedResumeKey
+  const hasResumeTarget = !!(resumeIntent || resumeKey)
   const continueIntentToken = React.useMemo(() => getContinueIntentToken(targetPath), [targetPath])
+  const continueResumeKey = React.useMemo(() => getContinueResumeKey(targetPath), [targetPath])
 
   React.useEffect(() => {
-    if (targetPath || hasResumeIntent || ((hasLiffCallback || hasExternalLoginCallback) && !liffChecked)) return
+    if (targetPath || hasResumeTarget || ((hasLiffCallback || hasExternalLoginCallback) && !liffChecked)) return
     const t = window.setTimeout(() => {
       window.location.replace('/welfare')
     }, 1200)
     return () => window.clearTimeout(t)
-  }, [hasExternalLoginCallback, hasLiffCallback, hasResumeIntent, liffChecked, targetPath])
+  }, [hasExternalLoginCallback, hasLiffCallback, hasResumeTarget, liffChecked, targetPath])
 
-  if ((hasLiffCallback || hasResumeIntent || hasExternalLoginCallback) && !liffChecked) {
+  if ((hasLiffCallback || hasResumeTarget || hasExternalLoginCallback) && !liffChecked) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f6ffed', padding: 24 }}>
         <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', background: '#fff', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', padding: '28px 24px' }}>
@@ -84,8 +109,16 @@ function WelfareCallbackEntryPage() {
     return <ContinuePage intentTokenOverride={continueIntentToken} />
   }
 
-  if (hasResumeIntent && liffChecked && resumeIntent) {
+  if (continueResumeKey) {
+    return <ContinuePage resumeKeyOverride={continueResumeKey} />
+  }
+
+  if (resumeIntent && liffChecked) {
     return <ContinuePage intentTokenOverride={resumeIntent} />
+  }
+
+  if (resumeKey && liffChecked) {
+    return <ContinuePage resumeKeyOverride={resumeKey} />
   }
 
   if (targetPath) {
@@ -116,10 +149,24 @@ function WelfareCallbackEntryPage() {
 function RootCallbackEntryPage() {
   const [searchParams] = useSearchParams()
   const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
+  const explicitResumeKey = (searchParams.get('resume_key') || searchParams.get('resume') || '').trim()
+  const parsedResumeTarget = React.useMemo(() => extractRuntimeResumeTarget(searchParams), [searchParams])
   const persistedResumeIntent = React.useMemo(() => {
-    return explicitResumeIntent ? '' : readPendingIntentResume()
-  }, [explicitResumeIntent, searchParams])
-  const effectiveResumeIntent = explicitResumeIntent || persistedResumeIntent
+    return explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey
+      ? ''
+      : readPendingIntentResume()
+  }, [explicitResumeIntent, explicitResumeKey, parsedResumeTarget.intentToken, parsedResumeTarget.resumeKey])
+  const persistedResumeKey = React.useMemo(() => {
+    return explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey
+      ? ''
+      : readPendingIntentResumeKey()
+  }, [explicitResumeIntent, explicitResumeKey, parsedResumeTarget.intentToken, parsedResumeTarget.resumeKey])
+  const effectiveResumeIntent = explicitResumeIntent || parsedResumeTarget.intentToken || persistedResumeIntent
+  const effectiveResumeKey = explicitResumeKey || parsedResumeTarget.resumeKey || persistedResumeKey
+  const resumeContinueTarget = buildRuntimeContinueTargetFromResume({
+    resumeKey: effectiveResumeKey,
+    intentToken: effectiveResumeIntent,
+  })
   const targetPath = React.useMemo(() => resolveRuntimeWelfareCallbackTarget(searchParams), [searchParams])
   const hasExternalLoginCallback = searchParams.has('code') && (
     searchParams.has('state') ||
@@ -128,7 +175,7 @@ function RootCallbackEntryPage() {
   )
 
   // LINE 回流有时会落在站点根路径，必须保留原 query 并重定向到福利回调入口。
-  if (targetPath || effectiveResumeIntent || hasExternalLoginCallback) {
+  if (targetPath || resumeContinueTarget || hasExternalLoginCallback) {
     const query = searchParams.toString()
     return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
   }

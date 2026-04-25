@@ -10,6 +10,7 @@ import {
   decodePendingIntentToken,
   findLatestPendingIntent,
   issuePendingIntent,
+  resolvePendingIntentResumeKey,
 } from "../services/pending-intent-service.js";
 
 // 先读规范再改代码：
@@ -117,6 +118,7 @@ export async function handlePendingIntentIssue(req, res, url, sendJson, readBody
 
     return sendOk(res, sendJson, "pending intent issued", {
       token: issued.token,
+      resume_key: issued.resumeKey,
       payload: issued.payload,
     });
   } catch (err) {
@@ -287,6 +289,26 @@ export async function handlePendingIntentConsume(req, res, url, sendJson, readBo
       err.statusCode || 500,
       err.errorCode || "PENDING_INTENT_CONSUME_FAILED",
       err.message || "pending intent 消费失败"
+    );
+  }
+}
+
+export async function handlePendingIntentResume(req, res, url, sendJson) {
+  try {
+    const resumeKey = String(url.searchParams.get("resume_key") || url.searchParams.get("key") || "").trim();
+    const resolved = await resolvePendingIntentResumeKey(resumeKey);
+    return sendOk(res, sendJson, "pending intent resume resolved", {
+      token: resolved.token,
+      resume_key: resolved.resumeKey,
+      payload: resolved.payload,
+    });
+  } catch (err) {
+    return sendError(
+      res,
+      sendJson,
+      err.statusCode || 500,
+      err.errorCode || "PENDING_INTENT_RESUME_FAILED",
+      err.message || "pending intent resume key 解析失败"
     );
   }
 }

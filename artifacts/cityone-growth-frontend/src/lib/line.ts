@@ -66,6 +66,76 @@ function extractRuntimePathFromRedirectUri(value?: string | null) {
   }
 }
 
+function parseRuntimeUrl(value?: string | null) {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  try {
+    return new URL(raw, window.location.origin)
+  } catch {
+    try {
+      return new URL(decodeURIComponent(raw), window.location.origin)
+    } catch {
+      return null
+    }
+  }
+}
+
+function readResumeTargetFromUrl(url: URL, depth = 0): { resumeKey: string; intentToken: string } {
+  if (depth > 4) return { resumeKey: '', intentToken: '' }
+
+  const resumeKey = (url.searchParams.get('resume_key') || url.searchParams.get('resume') || '').trim()
+  if (resumeKey) return { resumeKey, intentToken: '' }
+
+  const intentToken = (url.searchParams.get('resume_intent') || url.searchParams.get('intent') || '').trim()
+  if (intentToken) return { resumeKey: '', intentToken }
+
+  const liffState = url.searchParams.get('liff.state') || ''
+  if (liffState) {
+    const stateUrl = parseRuntimeUrl(liffState)
+    if (stateUrl) {
+      const nested = readResumeTargetFromUrl(stateUrl, depth + 1)
+      if (nested.resumeKey || nested.intentToken) return nested
+    }
+  }
+
+  const redirectUri = url.searchParams.get('liffRedirectUri') || ''
+  if (redirectUri) {
+    const redirectPath = extractRuntimePathFromRedirectUri(redirectUri)
+    const redirectUrl = parseRuntimeUrl(redirectPath)
+    if (redirectUrl) {
+      const nested = readResumeTargetFromUrl(redirectUrl, depth + 1)
+      if (nested.resumeKey || nested.intentToken) return nested
+    }
+  }
+
+  return { resumeKey: '', intentToken: '' }
+}
+
+export function extractRuntimeResumeTarget(searchParams: URLSearchParams) {
+  const url = new URL('/welfare', window.location.origin)
+  for (const [key, value] of searchParams.entries()) {
+    url.searchParams.append(key, value)
+  }
+  return readResumeTargetFromUrl(url)
+}
+
+export function buildRuntimeContinueTargetFromResume(params: {
+  resumeKey?: string
+  intentToken?: string
+}) {
+  const resumeKey = String(params.resumeKey || '').trim()
+  if (resumeKey) {
+    return `/welfare/continue?resume_key=${encodeURIComponent(resumeKey)}&resume=1`
+  }
+
+  const intentToken = String(params.intentToken || '').trim()
+  if (intentToken) {
+    return `/welfare/continue?intent=${encodeURIComponent(intentToken)}&resume=1`
+  }
+
+  return ''
+}
+
 export function setRuntimeLineConfig(value?: Partial<RuntimeLineConfig> | null) {
   runtimeLineConfig.channelId = String(value?.channelId || '').trim()
   runtimeLineConfig.officialAccountId = String(value?.officialAccountId || '').trim()
@@ -114,14 +184,24 @@ export function isRuntimeWelfareCallbackExtraPath(value?: string | null) {
 }
 
 export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParams) {
-  const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
-  if (explicitResumeIntent) return ''
-
   const hasExternalLoginCallback = searchParams.has('code') && (
     searchParams.has('state') ||
     searchParams.has('liffClientId') ||
     searchParams.has('liffRedirectUri')
   )
+  const hasLiffState = searchParams.has('liff.state')
+  const hasDirectResume = searchParams.has('resume_key') ||
+    searchParams.has('resume') ||
+    searchParams.has('resume_intent')
+
+  // `/welfare?resume_key=...` 是外部浏览器的登录启动页，不能马上改到
+  // ContinuePage；必须先让 LiffProvider 完成外部 LIFF 登录。
+  if (hasDirectResume && !hasExternalLoginCallback && !hasLiffState) return ''
+
+  const resumeTarget = extractRuntimeResumeTarget(searchParams)
+  const resumeContinueTarget = buildRuntimeContinueTargetFromResume(resumeTarget)
+  if (resumeContinueTarget) return resumeContinueTarget
+
   if (hasExternalLoginCallback) {
     const redirectPath = extractRuntimePathFromRedirectUri(searchParams.get('liffRedirectUri'))
     if (redirectPath) {
@@ -270,8 +350,12 @@ export function buildResumeLaunchTargets(
   intentToken: string,
   liffId?: string | null,
   officialAccountId?: string | null,
+  resumeKey?: string | null,
 ) {
-  const resumeExtraPath = `?resume_intent=${encodeURIComponent(intentToken)}`
+  const key = String(resumeKey || '').trim()
+  const resumeExtraPath = key
+    ? `?resume_key=${encodeURIComponent(key)}`
+    : `?resume_intent=${encodeURIComponent(intentToken)}`
   return {
     resumeLiffUrl: buildRuntimeLiffUrlWithPath(resumeExtraPath, liffId),
     oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),

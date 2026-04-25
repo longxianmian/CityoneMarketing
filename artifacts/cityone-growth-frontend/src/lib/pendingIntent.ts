@@ -24,6 +24,7 @@ type IssuePendingIntentInput = {
 
 type PersistedResumeIntent = {
   token: string
+  resumeKey?: string
   ts: number
 }
 
@@ -70,10 +71,14 @@ function clearRawResumeIntent(storage: Storage | undefined | null) {
   }
 }
 
-export function writePendingIntentResume(token: string) {
+export function writePendingIntentResume(token: string, resumeKey = '') {
   const normalized = String(token || '').trim()
   if (!normalized) return
-  const payload = { token: normalized, ts: Date.now() }
+  const payload = {
+    token: normalized,
+    resumeKey: String(resumeKey || '').trim(),
+    ts: Date.now(),
+  }
   writeRawResumeIntent(typeof sessionStorage !== 'undefined' ? sessionStorage : null, payload)
   writeRawResumeIntent(typeof localStorage !== 'undefined' ? localStorage : null, payload)
 }
@@ -90,6 +95,22 @@ export function readPendingIntentResume() {
   if (localValue?.token) {
     writeRawResumeIntent(typeof sessionStorage !== 'undefined' ? sessionStorage : null, localValue)
     return localValue.token
+  }
+  return ''
+}
+
+export function readPendingIntentResumeKey() {
+  const sessionValue = readRawResumeIntent(
+    typeof sessionStorage !== 'undefined' ? sessionStorage : null
+  )
+  if (sessionValue?.resumeKey) return sessionValue.resumeKey
+
+  const localValue = readRawResumeIntent(
+    typeof localStorage !== 'undefined' ? localStorage : null
+  )
+  if (localValue?.resumeKey) {
+    writeRawResumeIntent(typeof sessionStorage !== 'undefined' ? sessionStorage : null, localValue)
+    return localValue.resumeKey
   }
   return ''
 }
@@ -134,7 +155,20 @@ export async function issuePendingIntent(input: IssuePendingIntentInput) {
   if (!res.ok || json?.code !== 200 || !json?.data?.token) {
     throw new Error(json?.msg || 'pending intent 创建失败')
   }
-  return json.data as { token: string; payload: any }
+  return json.data as { token: string; resume_key?: string; payload: any }
+}
+
+export async function resolvePendingIntentResumeKey(resumeKey: string) {
+  const normalized = String(resumeKey || '').trim()
+  if (!normalized) throw new Error('缺少待恢复操作 key')
+
+  const params = new URLSearchParams({ resume_key: normalized })
+  const res = await fetch(`${API_BASE}/api/user/pending-intents/resume?${params.toString()}`)
+  const json = await res.json()
+  if (!res.ok || json?.code !== 200 || !json?.data?.token) {
+    throw new Error(json?.msg || '待恢复操作解析失败')
+  }
+  return json.data as { token: string; resume_key?: string; payload: any }
 }
 
 export async function consumePendingIntent({

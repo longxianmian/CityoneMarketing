@@ -7,6 +7,7 @@ import {
   clearPendingIntentResume,
   consumePendingIntent,
   decodePendingIntentPayload,
+  resolvePendingIntentResumeKey,
 } from '../../lib/pendingIntent'
 import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
 import { clientLog } from '../../lib/clientLogger'
@@ -71,9 +72,11 @@ function readSdkLoggedIn() {
   }
 }
 
-function buildResumeLoginRedirectUri(intentToken: string) {
+function buildResumeLoginRedirectUri(intentToken: string, resumeKey = '') {
   const url = new URL('/welfare', window.location.origin)
-  if (intentToken) {
+  if (resumeKey) {
+    url.searchParams.set('resume_key', resumeKey)
+  } else if (intentToken) {
     url.searchParams.set('resume_intent', intentToken)
   }
   return url.toString()
@@ -105,22 +108,28 @@ function canUseCallbackShellNavigate(target: string) {
 
 type ContinuePageProps = {
   intentTokenOverride?: string
+  resumeKeyOverride?: string
 }
 
-export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageProps) {
+export default function ContinuePage({
+  intentTokenOverride = '',
+  resumeKeyOverride = '',
+}: ContinuePageProps) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffReady, liffChecked, inLineContext } = useLiff()
 
   const [status, setStatus] = useState<ContinueStatus>('idle')
   const [errorText, setErrorText] = useState('')
+  const [resolvedIntentToken, setResolvedIntentToken] = useState('')
 
   const inFlightRef = useRef(false)
   const consumedRef = useRef(false)
   const mountedRef = useRef(true)
   const mountedAtRef = useRef(Date.now())
 
-  const intentToken = String(intentTokenOverride || searchParams.get('intent') || '')
+  const resumeKey = String(resumeKeyOverride || searchParams.get('resume_key') || searchParams.get('resume') || '')
+  const intentToken = String(intentTokenOverride || searchParams.get('intent') || resolvedIntentToken || '')
   const intentPayload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
 
   const returnPath = String(intentPayload?.return_path || '/welfare')
@@ -141,7 +150,32 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
 
   useEffect(() => {
     mountedAtRef.current = Date.now()
-  }, [intentToken])
+  }, [intentToken, resumeKey])
+
+  useEffect(() => {
+    if (!resumeKey || intentTokenOverride || searchParams.get('intent')) return
+
+    let cancelled = false
+    setStatus('idle')
+    setErrorText('')
+    void resolvePendingIntentResumeKey(resumeKey)
+      .then((resolved) => {
+        if (cancelled) return
+        if (resolved?.token) {
+          setResolvedIntentToken(resolved.token)
+        }
+      })
+      .catch((err: any) => {
+        if (cancelled) return
+        setErrorText(err?.message || '待恢复操作解析失败')
+        setStatus('error')
+        clearPendingIntentResume()
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [intentTokenOverride, resumeKey, searchParams])
 
   useEffect(() => {
     if (!intentPayload) return
@@ -209,7 +243,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     try {
       const liff = getLiff()
       if (liff && typeof liff.login === 'function') {
-        liff.login({ redirectUri: buildResumeLoginRedirectUri(intentToken) })
+        liff.login({ redirectUri: buildResumeLoginRedirectUri(intentToken, resumeKey) })
         return
       }
       setErrorText('当前环境无法拉起 LINE 登录，请返回详情页重试')
@@ -218,7 +252,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       setErrorText(err?.message || '拉起 LINE 登录失败，请返回详情页重试')
       setStatus('error')
     }
-  }, [intentToken])
+  }, [intentToken, resumeKey])
 
   const runFlow = useCallback(async () => {
     if (!mountedRef.current || !intentToken || !intentPayload) {
@@ -381,6 +415,9 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
   ])
 
   useEffect(() => {
+    if (!intentToken && resumeKey) {
+      return
+    }
     if (!intentToken) {
       clearPendingIntentResume()
       setErrorText('待恢复动作无效或已损坏')
@@ -392,7 +429,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       setErrorText('待恢复动作无效或已损坏')
       setStatus('error')
     }
-  }, [intentToken, intentPayload])
+  }, [intentToken, intentPayload, resumeKey])
 
   useEffect(() => {
     if (!intentToken || !intentPayload || !liffChecked) return

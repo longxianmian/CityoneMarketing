@@ -10,12 +10,13 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import useLineUserStore, { type IdentityTag, type LineUserProfile } from '../store/lineUser'
 import {
+  extractRuntimeResumeTarget,
   isRuntimeExternalLiffLoginCallback,
   resolveRuntimeLiffId,
   setRuntimeLineConfig,
 } from '../lib/line'
 import { clientLog } from '../lib/clientLogger'
-import { readPendingIntentResume } from '../lib/pendingIntent'
+import { readPendingIntentResume, readPendingIntentResumeKey } from '../lib/pendingIntent'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const LIFF_INIT_TIMEOUT_MS = 5000
@@ -249,10 +250,13 @@ function shouldAutoLoginOnExternalBrowser() {
   if (detectLineAppUA()) return false
 
   const persistedResumeIntent = readPendingIntentResume()
+  const persistedResumeKey = readPendingIntentResumeKey()
   return (
     (pathname === '/welfare' && (
+      params.has('resume_key') ||
       params.has('resume_intent') ||
       params.has('liff.state') ||
+      !!persistedResumeKey ||
       !!persistedResumeIntent ||
       isRuntimeExternalLiffLoginCallback(params)
     )) ||
@@ -264,6 +268,8 @@ function shouldAutoLoginOnExternalBrowser() {
 function readIntentTokenFromLocation() {
   try {
     const url = new URL(window.location.href)
+    const resumeTarget = extractRuntimeResumeTarget(url.searchParams)
+    if (resumeTarget.intentToken) return resumeTarget.intentToken
     const directIntent = url.searchParams.get('resume_intent') || url.searchParams.get('intent') || ''
     if (directIntent) return directIntent
 
@@ -279,18 +285,35 @@ function readIntentTokenFromLocation() {
   return readPendingIntentResume()
 }
 
+function readResumeKeyFromLocation() {
+  try {
+    const url = new URL(window.location.href)
+    const resumeTarget = extractRuntimeResumeTarget(url.searchParams)
+    if (resumeTarget.resumeKey) return resumeTarget.resumeKey
+  } catch {
+    // ignore
+  }
+  return readPendingIntentResumeKey()
+}
+
 function buildResumeLoginRedirectUri() {
+  const resumeKey = readResumeKeyFromLocation()
   const token = readIntentTokenFromLocation()
   const url = new URL('/welfare', window.location.origin)
-  if (token) url.searchParams.set('resume_intent', token)
+  if (resumeKey) {
+    url.searchParams.set('resume_key', resumeKey)
+  } else if (token) {
+    url.searchParams.set('resume_intent', token)
+  }
   return url.toString()
 }
 
 function shouldStartExternalLiffLogin() {
   if (!shouldAutoLoginOnExternalBrowser() || detectLineAppUA()) return false
 
+  const resumeKey = readResumeKeyFromLocation()
   const token = readIntentTokenFromLocation()
-  const currentKey = token || window.location.pathname
+  const currentKey = resumeKey || token || window.location.pathname
   try {
     const raw = sessionStorage.getItem(EXTERNAL_LIFF_LOGIN_ATTEMPT_KEY)
     const parsed = raw ? JSON.parse(raw) as { key?: string; ts?: number } : null
