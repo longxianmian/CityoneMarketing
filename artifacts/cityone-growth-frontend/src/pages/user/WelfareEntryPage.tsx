@@ -27,7 +27,6 @@ import {
  *   = true 再 navigate，让 LIFF SDK 先把 OAuth 处理完。
  */
 export default function WelfareEntryPage() {
-  const DEBUG_REDIRECT_DELAY_MS = 2000
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { liffChecked } = useLiff()
@@ -66,16 +65,14 @@ export default function WelfareEntryPage() {
   const scheduleReplace = useCallback((target: string, reason: string) => {
     if (!target || redirectingRef.current) return
     redirectingRef.current = true
-    console.log('龙码调试：进入校验逻辑', {
+    clientLog('welfare_entry_redirect', {
       page: 'WelfareEntryPage',
       reason,
       target,
       search: window.location.search,
       liffChecked,
     })
-    window.setTimeout(() => {
-      navigate(target, { replace: true })
-    }, DEBUG_REDIRECT_DELAY_MS)
+    navigate(target, { replace: true })
   }, [liffChecked, navigate])
 
   useEffect(() => {
