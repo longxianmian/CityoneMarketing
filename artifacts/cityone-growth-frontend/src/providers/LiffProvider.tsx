@@ -249,15 +249,11 @@ function shouldAutoLoginOnExternalBrowser() {
   const params = new URLSearchParams(search)
   if (detectLineAppUA()) return false
 
-  const persistedResumeIntent = readPendingIntentResume()
-  const persistedResumeKey = readPendingIntentResumeKey()
   return (
     (pathname === '/welfare' && (
       params.has('resume_key') ||
       params.has('resume_intent') ||
       params.has('liff.state') ||
-      !!persistedResumeKey ||
-      !!persistedResumeIntent ||
       isRuntimeExternalLiffLoginCallback(params)
     )) ||
     pathname === '/welfare/continue' ||
@@ -282,7 +278,11 @@ function readIntentTokenFromLocation() {
   } catch {
     // ignore
   }
-  return readPendingIntentResume()
+
+  if (window.location.pathname !== '/welfare') {
+    return readPendingIntentResume()
+  }
+  return ''
 }
 
 function readResumeKeyFromLocation() {
@@ -293,7 +293,11 @@ function readResumeKeyFromLocation() {
   } catch {
     // ignore
   }
-  return readPendingIntentResumeKey()
+
+  if (window.location.pathname !== '/welfare') {
+    return readPendingIntentResumeKey()
+  }
+  return ''
 }
 
 function buildResumeLoginRedirectUri() {

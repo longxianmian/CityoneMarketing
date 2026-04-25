@@ -9,11 +9,8 @@ import {
 } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
-import useLineUserStore from '../../store/lineUser'
 import {
-  fetchLatestPendingIntent,
-  readPendingIntentResume,
-  readPendingIntentResumeKey,
+  clearPendingIntentResume,
 } from '../../lib/pendingIntent'
 
 /**
@@ -33,9 +30,7 @@ export default function WelfareEntryPage() {
   const DEBUG_REDIRECT_DELAY_MS = 2000
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { liffChecked, inLineContext } = useLiff()
-  const canonicalUserId = useLineUserStore((s) => s.canonicalUserId)
-  const lineProfile = useLineUserStore((s) => s.profile)
+  const { liffChecked } = useLiff()
   const redirectingRef = useRef(false)
 
   const targetPath = useMemo(() => {
@@ -50,18 +45,8 @@ export default function WelfareEntryPage() {
   const parsedResumeTarget = useMemo(() => {
     return extractRuntimeResumeTarget(searchParams)
   }, [searchParams])
-  const persistedResumeIntent = useMemo(() => {
-    return explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey
-      ? ''
-      : readPendingIntentResume()
-  }, [explicitResumeIntent, explicitResumeKey, parsedResumeTarget.intentToken, parsedResumeTarget.resumeKey])
-  const persistedResumeKey = useMemo(() => {
-    return explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey
-      ? ''
-      : readPendingIntentResumeKey()
-  }, [explicitResumeIntent, explicitResumeKey, parsedResumeTarget.intentToken, parsedResumeTarget.resumeKey])
-  const effectiveResumeIntent = explicitResumeIntent || parsedResumeTarget.intentToken || persistedResumeIntent
-  const effectiveResumeKey = explicitResumeKey || parsedResumeTarget.resumeKey || persistedResumeKey
+  const effectiveResumeIntent = explicitResumeIntent || parsedResumeTarget.intentToken
+  const effectiveResumeKey = explicitResumeKey || parsedResumeTarget.resumeKey
   const effectiveResumeTarget = useMemo(() => (
     buildRuntimeContinueTargetFromResume({
       resumeKey: effectiveResumeKey,
@@ -101,56 +86,29 @@ export default function WelfareEntryPage() {
   }, [hasExternalLoginCallback, scheduleReplace, searchParams])
 
   useEffect(() => {
+    if (targetPath || effectiveResumeTarget || hasExternalLoginCallback || hasLiffCallback) return
+    clearPendingIntentResume()
+  }, [effectiveResumeTarget, hasExternalLoginCallback, hasLiffCallback, targetPath])
+
+  useEffect(() => {
     clientLog('welfare_entry_render', {
       has_intent: searchParams.has('intent'),
       has_liff_state: searchParams.has('liff.state'),
       has_resume_intent: !!effectiveResumeIntent,
       has_resume_key: !!effectiveResumeKey,
-      persisted_resume_intent: !!persistedResumeIntent,
-      persisted_resume_key: !!persistedResumeKey,
+      persisted_resume_intent: false,
+      persisted_resume_key: false,
       has_external_login_callback: hasExternalLoginCallback,
       target_path: targetPath || '(home)',
       liff_checked: liffChecked,
       will_wait_for_liff: !!(targetPath && hasLiffCallback && !liffChecked),
     })
-  }, [searchParams, effectiveResumeIntent, effectiveResumeKey, persistedResumeIntent, persistedResumeKey, targetPath, liffChecked, hasLiffCallback, hasExternalLoginCallback])
+  }, [searchParams, effectiveResumeIntent, effectiveResumeKey, targetPath, liffChecked, hasLiffCallback, hasExternalLoginCallback])
 
   useEffect(() => {
     if (!effectiveResumeTarget || !liffChecked) return
     scheduleReplace(effectiveResumeTarget, 'resume_target_continue')
   }, [effectiveResumeTarget, liffChecked, scheduleReplace])
-
-  useEffect(() => {
-    if (!liffChecked || hasExplicitResumeTarget) return
-
-    const userId = canonicalUserId || lineProfile?.lineUserId || ''
-    const lineUserId = lineProfile?.lineUserId || ''
-    if (!userId && !lineUserId) return
-
-    let cancelled = false
-    void fetchLatestPendingIntent({ userId, lineUserId })
-      .then((latest) => {
-        if (cancelled || !latest?.token) return
-        scheduleReplace(
-          `/welfare/continue?intent=${encodeURIComponent(latest.token)}&resume=1`,
-          'latest_pending_continue'
-        )
-      })
-      .catch(() => {
-        // ignore: no resumable pending intent is a normal case
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    canonicalUserId,
-    hasExplicitResumeTarget,
-    inLineContext,
-    liffChecked,
-    lineProfile?.lineUserId,
-    scheduleReplace,
-  ])
 
   useEffect(() => {
     if (!targetPath) return
