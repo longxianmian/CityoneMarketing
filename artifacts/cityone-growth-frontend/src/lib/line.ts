@@ -316,6 +316,13 @@ export function buildRuntimeLiffUrlWithPath(extraPath?: string | null, value?: s
   return `${liffUrl}${normalized}`
 }
 
+export function buildRuntimeLineSchemeUrlWithPath(extraPath?: string | null, value?: string | null) {
+  const liffId = resolveRuntimeLiffId(value)
+  if (!liffId) return ''
+  const normalized = toRuntimeLiffEndpointExtraPath(extraPath)
+  return `line://app/${liffId}${normalized}`
+}
+
 /**
  * 构造 LINE OA 加好友直链。
  * 外部浏览器场景下，"关注 OA" 必须用 https://line.me/R/ti/p/{basicId} 拉起 LINE app
@@ -342,6 +349,7 @@ export function buildContinueLaunchTargets(
   const continueExtraPath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   return {
     continueLiffUrl: buildRuntimeLiffUrlWithPath(continueExtraPath, liffId),
+    continueLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(continueExtraPath, liffId),
     oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
   }
 }
@@ -358,6 +366,7 @@ export function buildResumeLaunchTargets(
     : `?resume_intent=${encodeURIComponent(intentToken)}`
   return {
     resumeLiffUrl: buildRuntimeLiffUrlWithPath(resumeExtraPath, liffId),
+    resumeLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(resumeExtraPath, liffId),
     oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
   }
 }

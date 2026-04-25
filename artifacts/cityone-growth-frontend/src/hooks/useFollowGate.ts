@@ -32,9 +32,69 @@ import {
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
 import {
+  buildResumeLaunchTargets,
   detectTerminal,
+  getRuntimeLineConfig,
   isDesktopBrowser,
 } from '../lib/line'
+
+const HANDOFF_WAIT_MS = 1200
+
+function launchLineAppThenFallback(options: {
+  resumeLineSchemeUrl?: string
+  resumeLiffUrl?: string
+  fallbackPath: string
+  navigate: ReturnType<typeof useNavigate>
+  logPayload: Record<string, any>
+}) {
+  let stage: 'idle' | 'scheme' | 'liff' | 'done' = 'idle'
+  const markDone = () => { stage = 'done' }
+  const onHidden = () => {
+    if (document.visibilityState === 'hidden') markDone()
+  }
+  const clearListeners = () => {
+    window.removeEventListener('blur', markDone)
+    window.removeEventListener('pagehide', markDone)
+    document.removeEventListener('visibilitychange', onHidden)
+  }
+  const failToWebLogin = () => {
+    if (stage === 'done') {
+      clearListeners()
+      return
+    }
+    clearListeners()
+    clientLog('guard_external_app_handoff_fallback_web_login', options.logPayload)
+    options.navigate(options.fallbackPath)
+  }
+  const tryLiffUrl = () => {
+    if (stage === 'done') {
+      clearListeners()
+      return
+    }
+    if (options.resumeLiffUrl) {
+      stage = 'liff'
+      clientLog('guard_external_app_handoff_try_liff', options.logPayload)
+      window.location.assign(options.resumeLiffUrl)
+      window.setTimeout(failToWebLogin, HANDOFF_WAIT_MS)
+      return
+    }
+    failToWebLogin()
+  }
+
+  window.addEventListener('blur', markDone, { once: true })
+  window.addEventListener('pagehide', markDone, { once: true })
+  document.addEventListener('visibilitychange', onHidden)
+
+  if (options.resumeLineSchemeUrl) {
+    stage = 'scheme'
+    clientLog('guard_external_app_handoff_try_scheme', options.logPayload)
+    window.setTimeout(tryLiffUrl, HANDOFF_WAIT_MS)
+    window.location.assign(options.resumeLineSchemeUrl)
+    return
+  }
+
+  tryLiffUrl()
+}
 
 interface GuardOptions {
   label?: string
@@ -162,13 +222,30 @@ export function useFollowGate() {
           return
         }
 
-        clientLog('guard_branch_external_resume_flow', {
+        const lineCfg = getRuntimeLineConfig()
+        const { resumeLineSchemeUrl, resumeLiffUrl } = buildResumeLaunchTargets(
+          issued.token,
+          lineCfg.liffId,
+          lineCfg.officialAccountId,
+          resumeKey,
+        )
+        const logPayload = {
           action: intentAction,
           resource_id: resourceId,
           terminal: detectTerminal(),
-          target: resumeEntryPath,
+          fallback: resumeEntryPath,
+          has_resume_key: !!resumeKey,
+          has_scheme_url: !!resumeLineSchemeUrl,
+          has_liff_url: !!resumeLiffUrl,
+        }
+        clientLog('guard_branch_external_app_handoff', logPayload)
+        launchLineAppThenFallback({
+          resumeLineSchemeUrl,
+          resumeLiffUrl,
+          fallbackPath: resumeEntryPath,
+          navigate,
+          logPayload,
         })
-        window.location.assign(resumeEntryPath)
         return
       } catch (err: any) {
         clientLog('guard_error', { message: err?.message || 'unknown' })
