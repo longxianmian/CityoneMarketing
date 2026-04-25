@@ -9,9 +9,30 @@ import useLineUserStore from '../../store/lineUser'
 
 const FOLLOW_GATE_VERSION = '20260423_follow_gate_v4'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-const DEBUG_REDIRECT_DELAY_MS = 2000
+const FRIENDSHIP_PROBE_TIMEOUT_MS = 3000
+const REQUEST_FRIENDSHIP_TIMEOUT_MS = 10000
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`${label}_timeout`))
+    }, timeoutMs)
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
+}
 
 type FollowGateStage = 'checking' | 'ready' | 'submitting' | 'error'
+type LiffFriendship = { friendFlag?: boolean } | null | undefined
 
 async function registerFanTruth(params: {
   userId: string
@@ -45,6 +66,7 @@ export default function FollowConfirmPage() {
   const [runtimeCfg, setRuntimeCfgState] = useState(() => getRuntimeLineConfig())
   const [isProcessing, setIsProcessing] = useState(false)
   const redirectingRef = useRef(false)
+  const probeRunningRef = useRef(false)
   const probeKeyRef = useRef('')
 
   const intentToken = searchParams.get('intent') || ''
@@ -67,9 +89,7 @@ export default function FollowConfirmPage() {
       stage,
       search: window.location.search,
     })
-    window.setTimeout(() => {
-      navigate(continuePath, { replace: true })
-    }, DEBUG_REDIRECT_DELAY_MS)
+    navigate(continuePath, { replace: true })
   }, [continuePath, inLineContext, liffReady, navigate, stage, tokenValid])
 
   useEffect(() => {
@@ -88,14 +108,18 @@ export default function FollowConfirmPage() {
     if (!tokenValid) return
     if (!inLineContext || !liffReady) {
       setStage('checking')
+      setIsProcessing(false)
+      probeRunningRef.current = false
       return
     }
 
     const probeKey = `${intentToken}:friendship-probe`
-    if (probeKeyRef.current === probeKey || redirectingRef.current || isProcessing) return
+    if (probeKeyRef.current === probeKey || redirectingRef.current || probeRunningRef.current) return
 
     let cancelled = false
     probeKeyRef.current = probeKey
+    probeRunningRef.current = true
+    setStage('checking')
     setIsProcessing(true)
     void (async () => {
       try {
@@ -104,11 +128,16 @@ export default function FollowConfirmPage() {
           if (!cancelled) {
             setStage('ready')
             setIsProcessing(false)
+            probeRunningRef.current = false
           }
           return
         }
 
-        const friendship = await liff.getFriendship()
+        const friendship = await withTimeout(
+          liff.getFriendship(),
+          FRIENDSHIP_PROBE_TIMEOUT_MS,
+          'follow_confirm_friendship_probe',
+        ) as LiffFriendship
         if (cancelled) return
         if (friendship?.friendFlag === true) {
           clientLog('follow_confirm_already_friend', {
@@ -116,11 +145,13 @@ export default function FollowConfirmPage() {
             action_type: payload?.action || '',
             version: FOLLOW_GATE_VERSION,
           })
+          probeRunningRef.current = false
           scheduleContinueRedirect('friendship_probe_true')
           return
         }
         setStage('ready')
         setIsProcessing(false)
+        probeRunningRef.current = false
       } catch (e: any) {
         if (cancelled) return
         clientLog('follow_confirm_friendship_probe_failed', {
@@ -129,15 +160,18 @@ export default function FollowConfirmPage() {
           error: e?.message || 'unknown',
           version: FOLLOW_GATE_VERSION,
         })
+        setHintText('暂未确认关注状态，请点击下方按钮完成关注后继续。')
         setStage('ready')
         setIsProcessing(false)
+        probeRunningRef.current = false
       }
     })()
 
     return () => {
       cancelled = true
+      probeRunningRef.current = false
     }
-  }, [inLineContext, intentToken, isProcessing, liffReady, payload?.action, payload?.intent_id, scheduleContinueRedirect, tokenValid])
+  }, [inLineContext, intentToken, liffReady, payload?.action, payload?.intent_id, scheduleContinueRedirect, tokenValid])
 
   useEffect(() => {
     if (runtimeCfg.channelId && runtimeCfg.officialAccountId) return
@@ -175,10 +209,20 @@ export default function FollowConfirmPage() {
     try {
       const liff = getLiff()
       if (liff && typeof liff.requestFriendship === 'function' && liffReady) {
-        await liff.requestFriendship()
+        await withTimeout(
+          liff.requestFriendship(),
+          REQUEST_FRIENDSHIP_TIMEOUT_MS,
+          'follow_confirm_request_friendship',
+        )
         let friendFlag = false
         try {
-          const friendship = await liff.getFriendship?.()
+          const friendship = typeof liff.getFriendship === 'function'
+            ? await withTimeout(
+              liff.getFriendship(),
+              FRIENDSHIP_PROBE_TIMEOUT_MS,
+              'follow_confirm_friendship_after_request',
+            ) as LiffFriendship
+            : null
           friendFlag = friendship?.friendFlag === true
         } catch {
           friendFlag = false
@@ -257,6 +301,18 @@ export default function FollowConfirmPage() {
         error: e?.message || 'unknown',
         version: FOLLOW_GATE_VERSION,
       })
+
+      if (oaAddFriendUrl) {
+        clientLog('follow_confirm_request_friendship_fallback_oa', {
+          intent_id: payload?.intent_id || '',
+          action_type: payload?.action || '',
+          error: e?.message || 'unknown',
+          version: FOLLOW_GATE_VERSION,
+        })
+        window.location.assign(oaAddFriendUrl)
+        return
+      }
+
       setHintText('关注确认没有完成，请重试。')
       setStage('ready')
       setIsProcessing(false)
