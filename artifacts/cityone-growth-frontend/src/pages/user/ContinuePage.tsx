@@ -71,6 +71,14 @@ function readSdkLoggedIn() {
   }
 }
 
+function buildResumeLoginRedirectUri(intentToken: string) {
+  const url = new URL('/welfare', window.location.origin)
+  if (intentToken) {
+    url.searchParams.set('resume_intent', intentToken)
+  }
+  return url.toString()
+}
+
 function resolveInternalNavigationTarget(target: string) {
   const raw = String(target || '').trim()
   if (!raw) return null
@@ -176,7 +184,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       await sleep(60)
     }
 
-    if (inLineContext || liffReady || readSdkLoggedIn()) {
+    if (liffReady || readSdkLoggedIn()) {
       try {
         const refreshed = await syncLiffFriendshipIdentity()
         return {
@@ -195,13 +203,13 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       lineUserId: state.profile?.lineUserId || '',
       isFriend: state.profile?.isFriend,
     }
-  }, [inLineContext, liffReady])
+  }, [liffReady])
 
   const handleExplicitLineLogin = useCallback(() => {
     try {
       const liff = getLiff()
       if (liff && typeof liff.login === 'function') {
-        liff.login({ redirectUri: window.location.href })
+        liff.login({ redirectUri: buildResumeLoginRedirectUri(intentToken) })
         return
       }
       setErrorText('当前环境无法拉起 LINE 登录，请返回详情页重试')
@@ -210,7 +218,7 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
       setErrorText(err?.message || '拉起 LINE 登录失败，请返回详情页重试')
       setStatus('error')
     }
-  }, [])
+  }, [intentToken])
 
   const runFlow = useCallback(async () => {
     if (!mountedRef.current || !intentToken || !intentPayload) {
@@ -221,11 +229,15 @@ export default function ContinuePage({ intentTokenOverride = '' }: ContinuePageP
     }
     if (inFlightRef.current || consumedRef.current) return
 
-    const hasLoggedInLineSession = inLineContext || liffReady || readSdkLoggedIn()
+    const sdkLoggedIn = readSdkLoggedIn()
+    const hasLoggedInLineSession = liffReady || sdkLoggedIn
     if (!hasLoggedInLineSession) {
       clientLog('continue_need_line_login', {
         intent_id: intentPayload.intent_id || '',
         action_type: intentPayload.action || '',
+        in_line_context: inLineContext,
+        liff_ready: liffReady,
+        sdk_logged_in: sdkLoggedIn,
       })
       setErrorText('当前浏览器尚未完成 LINE 登录，请点击下方按钮登录后继续。')
       setStatus('need_line_login')

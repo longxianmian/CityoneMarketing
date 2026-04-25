@@ -28,6 +28,7 @@ const STALE_KEYS = [
   '_cityone_line_login_state_v1',
   '_cityone_line_login_state',
 ]
+const EXTERNAL_LIFF_LOGIN_ATTEMPT_KEY = '_cityone_external_liff_login_attempt_v1'
 const INIT_COOLDOWN_BYPASS_PATHS = new Set([
   '/welfare/continue',
   '/welfare/follow-confirm',
@@ -260,6 +261,53 @@ function shouldAutoLoginOnExternalBrowser() {
   )
 }
 
+function readIntentTokenFromLocation() {
+  try {
+    const url = new URL(window.location.href)
+    const directIntent = url.searchParams.get('resume_intent') || url.searchParams.get('intent') || ''
+    if (directIntent) return directIntent
+
+    const liffState = url.searchParams.get('liff.state') || ''
+    if (liffState) {
+      const stateUrl = new URL(liffState, window.location.origin)
+      const stateIntent = stateUrl.searchParams.get('intent') || stateUrl.searchParams.get('resume_intent') || ''
+      if (stateIntent) return stateIntent
+    }
+  } catch {
+    // ignore
+  }
+  return readPendingIntentResume()
+}
+
+function buildResumeLoginRedirectUri() {
+  const token = readIntentTokenFromLocation()
+  const url = new URL('/welfare', window.location.origin)
+  if (token) url.searchParams.set('resume_intent', token)
+  return url.toString()
+}
+
+function shouldStartExternalLiffLogin() {
+  if (!shouldAutoLoginOnExternalBrowser() || detectLineAppUA()) return false
+
+  const token = readIntentTokenFromLocation()
+  const currentKey = token || window.location.pathname
+  try {
+    const raw = sessionStorage.getItem(EXTERNAL_LIFF_LOGIN_ATTEMPT_KEY)
+    const parsed = raw ? JSON.parse(raw) as { key?: string; ts?: number } : null
+    if (parsed?.key === currentKey && parsed?.ts && Date.now() - parsed.ts < 15000) {
+      return false
+    }
+    sessionStorage.setItem(
+      EXTERNAL_LIFF_LOGIN_ATTEMPT_KEY,
+      JSON.stringify({ key: currentKey, ts: Date.now() })
+    )
+  } catch {
+    // ignore
+  }
+
+  return true
+}
+
 function getInitAttemptKey(initKey: string) {
   return `_liff_init_attempted:${initKey}`
 }
@@ -413,10 +461,7 @@ async function initLiffOnce(
     }
 
     const liff = (await import('@line/liff')).default
-    const initConfig = shouldAutoLoginOnExternalBrowser()
-      ? { liffId, withLoginOnExternalBrowser: true }
-      : { liffId }
-    await liff.init(initConfig)
+    await liff.init({ liffId })
     if (signal.cancelled) return
 
     _liffInstance = liff
@@ -444,6 +489,18 @@ async function initLiffOnce(
     })
 
     if (!liff.isLoggedIn()) {
+      if (shouldStartExternalLiffLogin() && typeof liff.login === 'function') {
+        const redirectUri = buildResumeLoginRedirectUri()
+        clientLog('liff_external_login_start', {
+          pathname: window.location.pathname,
+          search: window.location.search,
+          redirect_uri: redirectUri,
+          has_resume_intent: !!readIntentTokenFromLocation(),
+        })
+        liff.login({ redirectUri })
+        return
+      }
+
       clearInitAttempt(initKey)
       clientLog('liff_not_logged_in_unlock', {
         pathname: window.location.pathname,
