@@ -63,6 +63,53 @@ test("cityone line shear facts builder emits expected domains", async () => {
   assert.equal(facts.legacy_flags.has_resume_key, true);
 });
 
+test("identified status without fan evidence stays unconfirmed for friendship", async () => {
+  const facts = await buildCityoneLineShearFacts({
+    row: {
+      intent_id: "intent_identified_not_fan",
+      action: "claim_coupon",
+      status: "identified",
+      target_type: "coupon",
+      resource_id: "coupon_002",
+      source_url: "/coupon/coupon_002",
+      terminal_source: "chrome",
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      user_id: "U456",
+      line_user_id: "U456",
+      resume_key: "rk_456",
+    },
+    payload: {
+      intent_id: "intent_identified_not_fan",
+      action: "claim_coupon",
+      resource_id: "coupon_002",
+    },
+    effectiveIdentity: {
+      userId: "U456",
+      lineUserId: "U456",
+    },
+    providedIdentity: {
+      userId: "U456",
+      lineUserId: "U456",
+    },
+    consumeKey: "consume:intent_identified_not_fan",
+    legacyFlags: {
+      usedLegacyConsumeEndpoint: false,
+      malformedConsume: false,
+      identityMismatch: false,
+    },
+    client: {
+      async query() {
+        return { rows: [{ is_fan: false }] };
+      },
+    },
+  });
+
+  assert.equal(facts.identity.identity_bound, true);
+  assert.equal(facts.friendship.friendship_confirmed, false);
+  assert.equal(facts.friendship.follow_unconfirmed, true);
+  assert.equal(facts.safety.mainline_ready, false);
+});
+
 test("policy file covers required verdict rules and frontend does not call shear", () => {
   const policyPath = path.resolve(backendRoot, "src", "policies", "cityone-line-main-chain-policy.v1.json");
   const policy = JSON.parse(fs.readFileSync(policyPath, "utf8"));

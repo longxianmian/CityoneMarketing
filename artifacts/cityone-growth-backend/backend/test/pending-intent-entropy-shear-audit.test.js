@@ -173,6 +173,62 @@ test("guard mode with Hold verdict passes and logs hold-pass", async () => {
   assert.equal(hasLog(outcome.warnCalls, "[entropy-shear][guard][hold-pass]"), true);
 });
 
+test("identified status without fan evidence evaluates to Hold in audit mode and still executes", async () => {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "audit",
+    isFan: false,
+    row: { status: "identified" },
+    evaluateEntropyShear: async ({ facts }) => {
+      assert.equal(facts.identity.identity_bound, true);
+      assert.equal(facts.friendship.friendship_confirmed, false);
+      assert.equal(facts.friendship.follow_unconfirmed, true);
+      assert.equal(facts.safety.mainline_ready, false);
+      return {
+        verdict: "Hold",
+        reason: "follow_unconfirmed",
+        applied_rule_id: "cityone.hold.follow_unconfirmed",
+        trace: { verdict: "Hold" },
+        signature: "sig_hold",
+        shear_id: "shear_hold",
+        mode: "audit",
+        fail_open: false,
+      };
+    },
+  });
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.executorCalls, 1);
+  assert.equal(outcome.result.replayed, false);
+  assert.equal(hasLog(outcome.infoCalls, "[entropy-shear][audit]"), true);
+});
+
+test("identified status without fan evidence evaluates to Hold in guard mode and still executes", async () => {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "guard",
+    isFan: false,
+    row: { status: "identified" },
+    evaluateEntropyShear: async ({ facts }) => {
+      assert.equal(facts.identity.identity_bound, true);
+      assert.equal(facts.friendship.friendship_confirmed, false);
+      assert.equal(facts.friendship.follow_unconfirmed, true);
+      assert.equal(facts.safety.mainline_ready, false);
+      return {
+        verdict: "Hold",
+        reason: "follow_unconfirmed",
+        applied_rule_id: "cityone.hold.follow_unconfirmed",
+        trace: { verdict: "Hold" },
+        signature: "sig_hold_guard",
+        shear_id: "shear_hold_guard",
+        mode: "guard",
+        fail_open: false,
+      };
+    },
+  });
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.executorCalls, 1);
+  assert.equal(outcome.result.replayed, false);
+  assert.equal(hasLog(outcome.warnCalls, "[entropy-shear][guard][hold-pass]"), true);
+});
+
 test("guard mode blocks allowlisted No identity mismatch before executor", async () => {
   const outcome = await runConsumeWithEntropyShear({
     mode: "guard",
@@ -222,4 +278,30 @@ test("guard mode with fail-open result does not block and logs fail-open", async
   assert.equal(outcome.executorCalls, 1);
   assert.equal(outcome.result.replayed, false);
   assert.equal(hasLog(outcome.warnCalls, "[entropy-shear][guard][fail-open]"), true);
+});
+
+test("guard mode does not break consumed replay semantics", async () => {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "guard",
+    row: {
+      status: "consumed",
+      result_json: { resultCode: "claimed", replay: true },
+    },
+  });
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.executorCalls, 0);
+  assert.equal(outcome.result.replayed, true);
+  assert.equal(outcome.result.result.resultCode, "claimed");
+});
+
+test("guard mode keeps expired intent semantics before executor", async () => {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "guard",
+    row: {
+      expires_at: new Date(Date.now() - 60_000).toISOString(),
+      status: "identified",
+    },
+  });
+  assert.equal(outcome.executorCalls, 0);
+  assert.equal(outcome.error?.errorCode, "PENDING_INTENT_EXPIRED");
 });

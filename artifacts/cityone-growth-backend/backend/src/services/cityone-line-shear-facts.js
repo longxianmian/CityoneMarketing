@@ -83,7 +83,7 @@ export async function buildCityoneLineShearFacts({
     String(effectiveIdentity?.userId || row?.user_id || "").trim() ||
     String(effectiveIdentity?.lineUserId || row?.line_user_id || "").trim()
   );
-  const friendshipConfirmed = requireFollow === false || friendshipState.userIsFanDb === true || row?.status === "identified";
+  const friendshipConfirmed = requireFollow === false || friendshipState.userIsFanDb === true;
   const isExpired = safety.isExpired === true || (!!expiresAt && expiresAt < now);
   const isConsumed = safety.isConsumed === true || row?.status === "consumed";
   const isExecuting = safety.isExecuting === true || row?.status === "executing";
