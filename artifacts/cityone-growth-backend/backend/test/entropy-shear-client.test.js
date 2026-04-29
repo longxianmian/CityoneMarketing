@@ -22,49 +22,57 @@ test("entropy shear client reads env config with defaults", () => {
   assert.equal(config.baseUrl, "https://shear.example.com");
   assert.equal(config.mode, "audit");
   assert.equal(config.timeoutMs, 800);
-  assert.equal(config.policyVersion, "cityone-line-main-chain.v1");
+  assert.equal(config.policyVersion, "cityone-line-main-chain-v1");
+  assert.match(String(config.policyPath || ""), /cityone-line-main-chain-policy\.v1\.json$/);
 });
 
-test("entropy shear client returns normalized audit response", async () => {
+test("entropy shear client sends full policy payload and returns normalized response", async () => {
   resetEnv({
     ENTROPY_SHEAR_ENABLED: "true",
     ENTROPY_SHEAR_URL: "https://shear.example.com/base",
     ENTROPY_SHEAR_MODE: "audit",
+    ENTROPY_SHEAR_POLICY_VERSION: "cityone-line-main-chain-v1",
   });
 
   let seenUrl = "";
+  let seenBody = null;
   const result = await evaluateEntropyShear({
     requestId: "intent_1",
-    facts: { request: { mode: "audit" } },
-    fetchImpl: async (url) => {
+    facts: { request: { mode: "audit" }, safety: { mainline_ready: true } },
+    fetchImpl: async (url, options = {}) => {
       seenUrl = String(url);
+      seenBody = JSON.parse(String(options.body || "{}"));
       return {
         ok: true,
-        async json() {
-          return {
-            data: {
-              verdict: "Yes",
-              reason: "ok",
-              applied_rule_id: "rule.yes",
-              trace: { step: "done" },
-              signature: "sig_123",
-              shear_id: "shear_123",
-            },
-          };
+        async text() {
+          return JSON.stringify({
+            verdict: "Yes",
+            reason: "ok",
+            applied_rule_id: "cityone.yes.mainline_ready",
+            trace: [{ rule_id: "cityone.yes.mainline_ready", evaluated: true, matched: true, detail: "matched" }],
+            signature: `sha256:${"a".repeat(64)}`,
+            shear_id: "entropy-shear-20260429-123456"
+          });
         },
       };
     },
   });
 
   assert.equal(seenUrl, "https://shear.example.com/shear");
+  assert.ok(seenBody.policy);
+  assert.ok(seenBody.facts);
+  assert.equal(seenBody.policy.id, "cityone-line-main-chain");
+  assert.equal(seenBody.policy.version, "cityone-line-main-chain-v1");
+  assert.equal(seenBody.policy_key, undefined);
+  assert.equal(seenBody.mode, undefined);
   assert.equal(result.verdict, "Yes");
   assert.equal(result.reason, "ok");
-  assert.equal(result.applied_rule_id, "rule.yes");
-  assert.equal(result.shear_id, "shear_123");
+  assert.equal(result.applied_rule_id, "cityone.yes.mainline_ready");
+  assert.equal(result.shear_id, "entropy-shear-20260429-123456");
   assert.equal(result.fail_open, false);
 });
 
-test("entropy shear client fails open in audit mode when unavailable", async () => {
+test("entropy shear client fails open in audit mode and keeps 422 response body", async () => {
   resetEnv({
     ENTROPY_SHEAR_ENABLED: "true",
     ENTROPY_SHEAR_URL: "https://shear.example.com",
@@ -74,12 +82,24 @@ test("entropy shear client fails open in audit mode when unavailable", async () 
   const result = await evaluateEntropyShear({
     requestId: "intent_2",
     facts: { request: { mode: "audit" } },
-    fetchImpl: async () => {
-      throw new Error("service unavailable");
-    },
+    fetchImpl: async () => ({
+      ok: false,
+      status: 422,
+      async text() {
+        return JSON.stringify({
+          error: "policy_schema_violation",
+          detail: "policy.version is required",
+        });
+      },
+    }),
   });
 
   assert.equal(result.fail_open, true);
   assert.equal(result.verdict, null);
-  assert.match(String(result.reason || ""), /service unavailable|request_failed/);
+  assert.equal(result.reason, "Entropy Shear HTTP 422");
+  assert.deepEqual(result.response_body, {
+    error: "policy_schema_violation",
+    detail: "policy.version is required",
+  });
+  assert.equal(result.error_detail, "policy.version is required");
 });

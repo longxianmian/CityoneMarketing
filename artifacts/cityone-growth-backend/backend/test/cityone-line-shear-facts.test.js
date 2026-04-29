@@ -2,8 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { buildCityoneLineShearFacts } from "../src/services/cityone-line-shear-facts.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const backendRoot = path.resolve(__dirname, "..");
+const repoRoot = path.resolve(backendRoot, "..", "..", "..");
 
 test("cityone line shear facts builder emits expected domains", async () => {
   const facts = await buildCityoneLineShearFacts({
@@ -49,17 +55,21 @@ test("cityone line shear facts builder emits expected domains", async () => {
   assert.equal(facts.request.consume_endpoint_kind, "intent_id_consume");
   assert.equal(facts.pending_intent.intent_id, "intent_123");
   assert.equal(facts.identity.identity_bound, true);
+  assert.equal(facts.identity.identity_ready, true);
   assert.equal(facts.friendship.user_is_fan_db, true);
+  assert.equal(facts.friendship.follow_unconfirmed, false);
   assert.equal(facts.safety.is_expired, false);
+  assert.equal(facts.safety.mainline_ready, true);
   assert.equal(facts.legacy_flags.has_resume_key, true);
 });
 
 test("policy file covers required verdict rules and frontend does not call shear", () => {
-  const policyPath = path.resolve("artifacts/cityone-growth-backend/backend/src/policies/cityone-line-main-chain-policy.v1.json");
+  const policyPath = path.resolve(backendRoot, "src", "policies", "cityone-line-main-chain-policy.v1.json");
   const policy = JSON.parse(fs.readFileSync(policyPath, "utf8"));
   const ruleIds = new Set(policy.rules.map((rule) => rule.id));
-  assert.equal(policy.policy_key, "cityone-line-main-chain");
-  assert.deepEqual(policy.verdicts, ["Yes", "No", "Hold"]);
+  assert.equal(policy.id, "cityone-line-main-chain");
+  assert.equal(policy.version, "cityone-line-main-chain-v1");
+  assert.equal(policy.default_effect, "Hold");
   assert.ok(ruleIds.has("cityone.no.intent_expired"));
   assert.ok(ruleIds.has("cityone.no.intent_consumed"));
   assert.ok(ruleIds.has("cityone.no.identity_mismatch"));
@@ -69,7 +79,7 @@ test("policy file covers required verdict rules and frontend does not call shear
   assert.ok(ruleIds.has("cityone.hold.intent_executing"));
   assert.ok(ruleIds.has("cityone.yes.mainline_ready"));
 
-  const frontendRoot = path.resolve("artifacts/cityone-growth-frontend/src");
+  const frontendRoot = path.resolve(repoRoot, "artifacts", "cityone-growth-frontend", "src");
   const stack = [frontendRoot];
   while (stack.length) {
     const current = stack.pop();

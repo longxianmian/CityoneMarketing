@@ -78,11 +78,23 @@ export async function buildCityoneLineShearFacts({
   const now = Date.now();
   const expiresAt = row?.expires_at ? new Date(row.expires_at).getTime() : 0;
   const friendshipState = await resolveUserFanState(client, effectiveIdentity);
+  const identityMismatch = legacyFlags.identityMismatch === true;
   const identityBound = !!(
     String(effectiveIdentity?.userId || row?.user_id || "").trim() ||
     String(effectiveIdentity?.lineUserId || row?.line_user_id || "").trim()
   );
   const friendshipConfirmed = requireFollow === false || friendshipState.userIsFanDb === true || row?.status === "identified";
+  const isExpired = safety.isExpired === true || (!!expiresAt && expiresAt < now);
+  const isConsumed = safety.isConsumed === true || row?.status === "consumed";
+  const isExecuting = safety.isExecuting === true || row?.status === "executing";
+  const isFailed = safety.isFailed === true || row?.status === "failed";
+  const mainlineReady = isExpired !== true
+    && isConsumed !== true
+    && isExecuting !== true
+    && isFailed !== true
+    && identityBound === true
+    && identityMismatch !== true
+    && friendshipConfirmed === true;
 
   return {
     request: {
@@ -114,21 +126,24 @@ export async function buildCityoneLineShearFacts({
       effective_user_id: String(effectiveIdentity?.userId || "").trim(),
       effective_line_user_id: String(effectiveIdentity?.lineUserId || "").trim(),
       identity_bound: identityBound,
-      identity_mismatch: legacyFlags.identityMismatch === true,
+      identity_mismatch: identityMismatch,
+      identity_ready: identityBound === true && identityMismatch !== true,
       device_like_identity: isDeviceLikeUserId(effectiveIdentity?.userId || row?.user_id || ""),
     },
     friendship: {
       require_follow: requireFollow,
       user_is_fan_db: friendshipState.userIsFanDb,
       friendship_confirmed: friendshipConfirmed,
+      follow_unconfirmed: requireFollow === true && friendshipConfirmed !== true,
       friendship_source: friendshipState.friendshipSource,
       pending_intent_status: String(row?.status || "").trim(),
     },
     safety: {
-      is_expired: safety.isExpired === true || (!!expiresAt && expiresAt < now),
-      is_consumed: safety.isConsumed === true || row?.status === "consumed",
-      is_executing: safety.isExecuting === true || row?.status === "executing",
-      is_failed: safety.isFailed === true || row?.status === "failed",
+      is_expired: isExpired,
+      is_consumed: isConsumed,
+      is_executing: isExecuting,
+      is_failed: isFailed,
+      mainline_ready: mainlineReady,
     },
     legacy_flags: {
       used_legacy_consume_endpoint: legacyFlags.usedLegacyConsumeEndpoint === true,
