@@ -1,56 +1,64 @@
 {
-  "policy_key": "cityone-line-main-chain",
-  "policy_version": "v1",
-  "title": "CityOne LINE Main Chain Audit Policy",
-  "verdicts": ["Yes", "No", "Hold"],
+  "id": "cityone-line-main-chain",
+  "version": "cityone-line-main-chain-v1",
   "rules": [
     {
       "id": "cityone.no.intent_expired",
-      "verdict": "No",
-      "reason": "intent 已过期",
-      "when": "facts.safety.is_expired === true"
+      "priority": 10,
+      "condition": { "field": "safety.is_expired", "operator": "==", "value": true },
+      "effect": "No",
+      "reason": "intent 已过期"
     },
     {
       "id": "cityone.no.intent_consumed",
-      "verdict": "No",
-      "reason": "intent 已 consumed",
-      "when": "facts.safety.is_consumed === true"
+      "priority": 20,
+      "condition": { "field": "safety.is_consumed", "operator": "==", "value": true },
+      "effect": "No",
+      "reason": "intent 已 consumed"
     },
     {
       "id": "cityone.no.identity_mismatch",
-      "verdict": "No",
-      "reason": "identity_mismatch = true",
-      "when": "facts.identity.identity_mismatch === true"
+      "priority": 30,
+      "condition": { "field": "identity.identity_mismatch", "operator": "==", "value": true },
+      "effect": "No",
+      "reason": "identity_mismatch = true"
     },
     {
       "id": "cityone.no.legacy_malformed_consume",
-      "verdict": "No",
-      "reason": "legacy malformed consume = true",
-      "when": "facts.legacy_flags.malformed_consume === true"
+      "priority": 40,
+      "condition": { "field": "legacy_flags.malformed_consume", "operator": "==", "value": true },
+      "effect": "No",
+      "reason": "legacy malformed consume = true"
     },
     {
       "id": "cityone.hold.identity_unbound",
-      "verdict": "Hold",
-      "reason": "identity 未绑定",
-      "when": "facts.identity.identity_bound !== true"
+      "priority": 50,
+      "condition": { "field": "identity.identity_bound", "operator": "==", "value": false },
+      "effect": "Hold",
+      "reason": "identity 未绑定"
     },
     {
       "id": "cityone.hold.follow_unconfirmed",
-      "verdict": "Hold",
-      "reason": "require_follow=true 但关注未确认",
-      "when": "facts.friendship.require_follow === true && facts.friendship.friendship_confirmed !== true"
+      "priority": 60,
+      "condition": { "field": "friendship.follow_unconfirmed", "operator": "==", "value": true },
+      "effect": "Hold",
+      "reason": "require_follow=true 但关注未确认"
     },
     {
       "id": "cityone.hold.intent_executing",
-      "verdict": "Hold",
-      "reason": "is_executing=true",
-      "when": "facts.safety.is_executing === true"
+      "priority": 70,
+      "condition": { "field": "safety.is_executing", "operator": "==", "value": true },
+      "effect": "Hold",
+      "reason": "is_executing=true"
     },
     {
       "id": "cityone.yes.mainline_ready",
-      "verdict": "Yes",
-      "reason": "intent 有效且主链条件满足",
-      "when": "facts.safety.is_expired !== true && facts.safety.is_consumed !== true && facts.identity.identity_bound === true && facts.identity.identity_mismatch !== true && (facts.friendship.require_follow !== true || facts.friendship.friendship_confirmed === true) && facts.safety.is_failed !== true"
+      "priority": 80,
+      "condition": { "field": "safety.mainline_ready", "operator": "==", "value": true },
+      "effect": "Yes",
+      "reason": "intent 有效且主链条件满足"
     }
-  ]
+  ],
+  "default_effect": "Hold",
+  "default_reason": "主链条件未完全确认"
 }

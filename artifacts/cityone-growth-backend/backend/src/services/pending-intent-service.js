@@ -278,12 +278,81 @@ function createEntropyShearAuditResult(mode, overrides = {}) {
     signature: null,
     shear_id: null,
     fail_open: false,
+    error: null,
     ...overrides,
   };
 }
 
+const ENTROPY_SHEAR_GUARD_BLOCK_RULES = new Set([
+  "cityone.no.identity_mismatch",
+  "cityone.no.intent_expired",
+  "cityone.no.intent_consumed",
+  "cityone.no.legacy_malformed_consume",
+]);
+
 function logEntropyShearAudit(payload = {}) {
   console.info("[entropy-shear][audit]", payload);
+}
+
+function logEntropyShearGuard(event, payload = {}) {
+  console.warn(`[entropy-shear][guard][${event}]`, payload);
+}
+
+function createEntropyShearGuardBlockedError(result = {}) {
+  const err = createPendingIntentError(409, "ENTROPY_SHEAR_GUARD_BLOCKED", "当前请求未通过安全裁决");
+  err.guard = {
+    ok: false,
+    code: "ENTROPY_SHEAR_GUARD_BLOCKED",
+    message: "当前请求未通过安全裁决",
+    verdict: "No",
+    reason: String(result.reason || "").trim() || null,
+    applied_rule_id: String(result.applied_rule_id || "").trim() || null,
+    shear_id: String(result.shear_id || "").trim() || null,
+    mode: String(result.mode || "guard").trim() || "guard",
+  };
+  return err;
+}
+
+function handleEntropyShearGuardResult(result = {}, payload = {}, row = {}) {
+  const mode = String(result.mode || "audit").trim() || "audit";
+  if (mode !== "guard") {
+    return { blocked: false };
+  }
+
+  const summary = {
+    intent_id: String(payload?.intent_id || row?.intent_id || "").trim(),
+    action_type: String(payload?.action || row?.action || "").trim(),
+    verdict: result.verdict ?? null,
+    reason: String(result.reason || "").trim() || null,
+    applied_rule_id: String(result.applied_rule_id || "").trim() || null,
+    shear_id: String(result.shear_id || "").trim() || null,
+    mode,
+  };
+
+  if (result.fail_open === true) {
+    logEntropyShearGuard("fail-open", summary);
+    return { blocked: false };
+  }
+
+  if (result.verdict === "Hold") {
+    logEntropyShearGuard("hold-pass", summary);
+    return { blocked: false };
+  }
+
+  if (result.verdict === "No") {
+    if (ENTROPY_SHEAR_GUARD_BLOCK_RULES.has(summary.applied_rule_id)) {
+      logEntropyShearGuard("blocked", summary);
+      return {
+        blocked: true,
+        error: createEntropyShearGuardBlockedError(result),
+      };
+    }
+
+    logEntropyShearGuard("unknown-no-pass", summary);
+    return { blocked: false };
+  }
+
+  return { blocked: false };
 }
 
 export async function runPendingIntentEntropyShearAudit({
@@ -333,7 +402,6 @@ export async function runPendingIntentEntropyShearAudit({
     });
 
     const result = await evaluate({
-      policyKey: "cityone-line-main-chain",
       facts,
       requestId: String(payload?.intent_id || row?.intent_id || "").trim(),
       fetchImpl: deps.fetchImpl,
@@ -715,7 +783,7 @@ export async function consumePendingIntent({
       }
     }
 
-    await runPendingIntentEntropyShearAudit({
+    const entropyShearResult = await runPendingIntentEntropyShearAudit({
       row,
       payload: runtimePayload,
       effectiveIdentity,
@@ -733,6 +801,11 @@ export async function consumePendingIntent({
       },
       deps,
     });
+
+    const guardDecision = handleEntropyShearGuardResult(entropyShearResult, runtimePayload, row);
+    if (guardDecision.blocked) {
+      throw guardDecision.error;
+    }
 
     if (identityError) {
       throw identityError;
