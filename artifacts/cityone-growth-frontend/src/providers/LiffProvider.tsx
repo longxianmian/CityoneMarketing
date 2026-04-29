@@ -10,13 +10,10 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import useLineUserStore, { type IdentityTag, type LineUserProfile } from '../store/lineUser'
 import {
-  extractRuntimeResumeTarget,
-  isRuntimeExternalLiffLoginCallback,
   resolveRuntimeLiffId,
   setRuntimeLineConfig,
 } from '../lib/line'
 import { clientLog } from '../lib/clientLogger'
-import { readPendingIntentResume, readPendingIntentResumeKey } from '../lib/pendingIntent'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const LIFF_INIT_TIMEOUT_MS = 5000
@@ -29,9 +26,10 @@ const STALE_KEYS = [
   '_cityone_line_login_state_v1',
   '_cityone_line_login_state',
 ]
-const EXTERNAL_LIFF_LOGIN_ATTEMPT_KEY = '_cityone_external_liff_login_attempt_v1'
 const INIT_COOLDOWN_BYPASS_PATHS = new Set([
   '/welfare/continue',
+  '/welfare/follow-required',
+  '/welfare/follow',
   '/welfare/follow-confirm',
   '/welfare/open-in-line',
 ])
@@ -136,30 +134,9 @@ async function syncIdentifyFromLineProfile(
   lineProfile: { userId: string; displayName: string; pictureUrl?: string },
   isFriend?: boolean
 ) {
-  let canonicalUserId = lineProfile.userId
-  let resolvedIsFan = isFriend === true
-  let identityLevel: string | undefined
-  try {
-    const idRes = await fetch(`${API_BASE}/api/user/identify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        line_user_id: lineProfile.userId,
-        display_name: lineProfile.displayName,
-        picture_url: lineProfile.pictureUrl || '',
-      }),
-    })
-    const idJson = await idRes.json()
-    const idData = idJson?.data || {}
-    canonicalUserId = idData.user_id || lineProfile.userId
-    const serverFanValue = idData?.is_fan
-    if (typeof serverFanValue === 'boolean') {
-      resolvedIsFan = serverFanValue
-    }
-    identityLevel = idData.identity_level || idData.identity_tag
-  } catch {
-    canonicalUserId = lineProfile.userId
-  }
+  const canonicalUserId = lineProfile.userId
+  const localFriendHint = isFriend === true
+  const identityLevel: string | undefined = undefined
 
   const store = useLineUserStore.getState()
   store.clearProfile()
@@ -179,25 +156,23 @@ async function syncIdentifyFromLineProfile(
     return undefined
   })()
 
-  if (resolvedIsFan) {
-    store.setProfile({
-      lineUserId: lineProfile.userId,
-      lineDisplayName: lineProfile.displayName,
-      linePictureUrl: lineProfile.pictureUrl || '',
-      identityTag: normalizedIdentityTag,
-      memberLevel: 'standard',
-      points: 0,
-      couponCount: 0,
-      deposit: 0,
-      depositPaid: false,
-      isFriend: true,
-    })
-  }
+  store.setProfile({
+    lineUserId: lineProfile.userId,
+    lineDisplayName: lineProfile.displayName,
+    linePictureUrl: lineProfile.pictureUrl || '',
+    identityTag: normalizedIdentityTag,
+    memberLevel: 'standard',
+    points: 0,
+    couponCount: 0,
+    deposit: 0,
+    depositPaid: false,
+    isFriend: localFriendHint,
+  })
 
   return {
     canonicalUserId,
     lineUserId: lineProfile.userId,
-    isFriend: resolvedIsFan,
+    isFriend: localFriendHint,
   }
 }
 
@@ -241,98 +216,6 @@ export async function syncLiffFriendshipIdentity() {
 
 function buildInitKey() {
   return `${window.location.pathname}${window.location.search}`
-}
-
-function shouldAutoLoginOnExternalBrowser() {
-  const pathname = window.location.pathname || ''
-  const search = window.location.search || ''
-  const params = new URLSearchParams(search)
-  if (detectLineAppUA()) return false
-
-  return (
-    (pathname === '/welfare' && (
-      params.has('resume_key') ||
-      params.has('resume_intent') ||
-      params.has('liff.state') ||
-      isRuntimeExternalLiffLoginCallback(params)
-    )) ||
-    pathname === '/welfare/continue' ||
-    pathname === '/welfare/follow-confirm'
-  )
-}
-
-function readIntentTokenFromLocation() {
-  try {
-    const url = new URL(window.location.href)
-    const resumeTarget = extractRuntimeResumeTarget(url.searchParams)
-    if (resumeTarget.intentToken) return resumeTarget.intentToken
-    const directIntent = url.searchParams.get('resume_intent') || url.searchParams.get('intent') || ''
-    if (directIntent) return directIntent
-
-    const liffState = url.searchParams.get('liff.state') || ''
-    if (liffState) {
-      const stateUrl = new URL(liffState, window.location.origin)
-      const stateIntent = stateUrl.searchParams.get('intent') || stateUrl.searchParams.get('resume_intent') || ''
-      if (stateIntent) return stateIntent
-    }
-  } catch {
-    // ignore
-  }
-
-  if (window.location.pathname !== '/welfare') {
-    return readPendingIntentResume()
-  }
-  return ''
-}
-
-function readResumeKeyFromLocation() {
-  try {
-    const url = new URL(window.location.href)
-    const resumeTarget = extractRuntimeResumeTarget(url.searchParams)
-    if (resumeTarget.resumeKey) return resumeTarget.resumeKey
-  } catch {
-    // ignore
-  }
-
-  if (window.location.pathname !== '/welfare') {
-    return readPendingIntentResumeKey()
-  }
-  return ''
-}
-
-function buildResumeLoginRedirectUri() {
-  const resumeKey = readResumeKeyFromLocation()
-  const token = readIntentTokenFromLocation()
-  const url = new URL('/welfare', window.location.origin)
-  if (resumeKey) {
-    url.searchParams.set('resume_key', resumeKey)
-  } else if (token) {
-    url.searchParams.set('resume_intent', token)
-  }
-  return url.toString()
-}
-
-function shouldStartExternalLiffLogin() {
-  if (!shouldAutoLoginOnExternalBrowser() || detectLineAppUA()) return false
-
-  const resumeKey = readResumeKeyFromLocation()
-  const token = readIntentTokenFromLocation()
-  const currentKey = resumeKey || token || window.location.pathname
-  try {
-    const raw = sessionStorage.getItem(EXTERNAL_LIFF_LOGIN_ATTEMPT_KEY)
-    const parsed = raw ? JSON.parse(raw) as { key?: string; ts?: number } : null
-    if (parsed?.key === currentKey && parsed?.ts && Date.now() - parsed.ts < 15000) {
-      return false
-    }
-    sessionStorage.setItem(
-      EXTERNAL_LIFF_LOGIN_ATTEMPT_KEY,
-      JSON.stringify({ key: currentKey, ts: Date.now() })
-    )
-  } catch {
-    // ignore
-  }
-
-  return true
 }
 
 function getInitAttemptKey(initKey: string) {
@@ -488,7 +371,7 @@ async function initLiffOnce(
     }
 
     const liff = (await import('@line/liff')).default
-    await liff.init({ liffId })
+    await liff.init({ liffId, withLoginOnExternalBrowser: true })
     if (signal.cancelled) return
 
     _liffInstance = liff
@@ -516,18 +399,6 @@ async function initLiffOnce(
     })
 
     if (!liff.isLoggedIn()) {
-      if (shouldStartExternalLiffLogin() && typeof liff.login === 'function') {
-        const redirectUri = buildResumeLoginRedirectUri()
-        clientLog('liff_external_login_start', {
-          pathname: window.location.pathname,
-          search: window.location.search,
-          redirect_uri: redirectUri,
-          has_resume_intent: !!readIntentTokenFromLocation(),
-        })
-        liff.login({ redirectUri })
-        return
-      }
-
       clearInitAttempt(initKey)
       clientLog('liff_not_logged_in_unlock', {
         pathname: window.location.pathname,
@@ -579,6 +450,12 @@ async function initLiffOnce(
   } catch (err) {
     clearInitAttempt(initKey)
     console.warn('[LIFF] init failed:', err)
+    clientLog('liff_init_failed', {
+      pathname: window.location.pathname,
+      search: window.location.search,
+      message: err instanceof Error ? err.message : String(err || 'unknown'),
+      in_line_ua: inLineUA,
+    })
     onReady({ liffReady: false, inLineContext: inLineUA, liffChecked: true })
   }
 }

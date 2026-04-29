@@ -1,144 +1,190 @@
-// 先读文档再改代码：先阅读 src/pages/user/README.md 与两份唯一身份 / LINE 继续链路规范，禁止在 continue 页复活首页/个人中心 fallback 或页面自执行业务动作。
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useLiff, getLiff, syncLiffFriendshipIdentity } from '../../providers/LiffProvider'
-import useLineUserStore from '../../store/lineUser'
+import { getLiff, useLiff } from '../../providers/LiffProvider'
 import {
-  clearPendingIntentResume,
   consumePendingIntent,
-  decodePendingIntentPayload,
-  resolvePendingIntentResumeKey,
+  fetchPendingIntent,
+  type PendingIntentRecord,
 } from '../../lib/pendingIntent'
-import { resolvePendingIntentNextPath } from '../../lib/pendingIntentResult'
 import { clientLog } from '../../lib/clientLogger'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-const AUTO_RUN_PREFIX = 'continue:auto-run:'
-const AUTO_REENTRY_COOLDOWN_MS = 4000
-const IN_LINE_LOGIN_GRACE_MS = 1800
+const REDIRECT_GUARD_PREFIX = '_cityone_redirect_guard_v1:'
+const CONSUME_SINGLEFLIGHT_PREFIX = '_cityone_consume_singleflight_v1:'
+const REDIRECT_GUARD_LIMIT = 3
 
 type ContinueStatus =
   | 'idle'
+  | 'loading_intent'
   | 'resolving_identity'
-  | 'checking_follow'
+  | 'checking_friendship'
   | 'consuming'
-  | 'done'
-  | 'need_line_login'
+  | 'completed'
+  | 'expired'
   | 'error'
 
-async function checkFollow(userId: string) {
-  const res = await fetch(`${API_BASE}/api/user/check-follow?user_id=${encodeURIComponent(userId)}`)
-  const json = await res.json()
-  if (!res.ok || json?.code !== 200) {
-    throw new Error(json?.msg || '关注状态校验失败')
-  }
-  return json?.data?.is_fan === true
+type IdentitySyncResult = {
+  user_id: string
+  line_user_id: string
+  identity_level?: string
+  is_fan?: boolean
 }
 
-async function registerFanTruth(params: {
+function readRedirectCount(intentId: string) {
+  try {
+    const raw = sessionStorage.getItem(`${REDIRECT_GUARD_PREFIX}${intentId}`)
+    const parsed = raw ? JSON.parse(raw) as { count?: number } : null
+    return Number(parsed?.count || 0)
+  } catch {
+    return 0
+  }
+}
+
+function markRedirect(intentId: string, route: string) {
+  const count = readRedirectCount(intentId) + 1
+  try {
+    sessionStorage.setItem(
+      `${REDIRECT_GUARD_PREFIX}${intentId}`,
+      JSON.stringify({ count, route, ts: Date.now() }),
+    )
+  } catch {
+    // ignore
+  }
+  if (count > REDIRECT_GUARD_LIMIT) {
+    console.warn('CITYONE_REDIRECT_GUARD_STOP', {
+      intent_id: intentId,
+      redirect_to: route,
+      count,
+      error_code: 'redirect_guard_exceeded',
+    })
+    clientLog('CITYONE_REDIRECT_GUARD_STOP', {
+      intent_id: intentId,
+      redirect_to: route,
+      count,
+      error_code: 'redirect_guard_exceeded',
+    })
+    return false
+  }
+  return true
+}
+
+function clearRedirectGuard(intentId: string) {
+  try {
+    sessionStorage.removeItem(`${REDIRECT_GUARD_PREFIX}${intentId}`)
+  } catch {
+    // ignore
+  }
+}
+
+function clearConsumeSingleflight(intentId: string) {
+  try {
+    sessionStorage.removeItem(`${CONSUME_SINGLEFLIGHT_PREFIX}${intentId}`)
+  } catch {
+    // ignore
+  }
+}
+
+function markConsumeSingleflight(intentId: string) {
+  try {
+    const key = `${CONSUME_SINGLEFLIGHT_PREFIX}${intentId}`
+    if (sessionStorage.getItem(key)) return false
+    sessionStorage.setItem(key, String(Date.now()))
+    return true
+  } catch {
+    return true
+  }
+}
+
+function resolveResultPath(intent: PendingIntentRecord | null, result: any) {
+  const direct = String(result?.redirect_url || result?.nextPath || result?.next_path || '').trim()
+  if (direct) return direct
+  const source = String(intent?.source_url || '').trim()
+  return source || ''
+}
+
+async function syncIdentityWithBackend(intentId: string, idToken: string) {
+  const res = await fetch(`${API_BASE}/api/line/identity/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ intent_id: intentId, id_token: idToken }),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok || json?.code !== 200) {
+    throw new Error(json?.msg || 'LINE 身份识别失败')
+  }
+  return json.data as IdentitySyncResult
+}
+
+async function recordFriendship(params: {
+  intentId: string
   userId: string
   lineUserId: string
-  displayName?: string
-  pictureUrl?: string
+  friendFlag: boolean
 }) {
-  const { userId, lineUserId, displayName = '', pictureUrl = '' } = params
-  if (!userId || !lineUserId) return false
-
-  const res = await fetch(`${API_BASE}/api/user/set-fan`, {
+  const res = await fetch(`${API_BASE}/api/line/friendship/check`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      user_id: userId,
-      line_user_id: lineUserId,
-      line_display_name: displayName,
-      line_picture_url: pictureUrl,
+      intent_id: params.intentId,
+      user_id: params.userId,
+      line_user_id: params.lineUserId,
+      friendFlag: params.friendFlag,
+      source: 'liff',
     }),
   })
   const json = await res.json().catch(() => ({}))
-  return res.ok && json?.code === 200
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
-function readSdkLoggedIn() {
-  try {
-    const liff = getLiff()
-    if (!liff || typeof liff.isLoggedIn !== 'function') return false
-    return liff.isLoggedIn() === true
-  } catch {
-    return false
+  if (!res.ok || json?.code !== 200) {
+    throw new Error(json?.msg || 'LINE 关注状态记录失败')
   }
+  return json.data as { is_fan: boolean; source?: string; checked_at?: string }
 }
 
-function buildResumeLoginRedirectUri(intentToken: string, resumeKey = '') {
-  const url = new URL('/welfare', window.location.origin)
-  if (resumeKey) {
-    url.searchParams.set('resume_key', resumeKey)
-  } else if (intentToken) {
-    url.searchParams.set('resume_intent', intentToken)
-  }
-  return url.toString()
-}
-
-function resolveInternalNavigationTarget(target: string) {
-  const raw = String(target || '').trim()
-  if (!raw) return null
-
-  try {
-    const url = new URL(raw, window.location.origin)
-    if (url.origin !== window.location.origin) return null
-    return `${url.pathname}${url.search}${url.hash}`
-  } catch {
-    return raw.startsWith('/') ? raw : null
-  }
-}
-
-function canUseCallbackShellNavigate(target: string) {
-  const pathname = resolveInternalNavigationTarget(target)
-  if (!pathname) return false
+function CardShell({ children }: { children: React.ReactNode }) {
   return (
-    pathname === '/welfare' ||
-    pathname.startsWith('/welfare?') ||
-    pathname.startsWith('/welfare/continue') ||
-    pathname.startsWith('/welfare/follow-confirm')
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6ffed', padding: 24 }}>
+      <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', background: '#fff', padding: '28px 24px' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function Spinner() {
+  return (
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        margin: '0 auto',
+        borderRadius: '50%',
+        border: '3px solid rgba(44, 219, 206, 0.18)',
+        borderTopColor: '#2cdbce',
+        animation: 'boot-spin 0.8s linear infinite',
+      }}
+    />
   )
 }
 
 type ContinuePageProps = {
   intentTokenOverride?: string
-  resumeKeyOverride?: string
 }
 
 export default function ContinuePage({
   intentTokenOverride = '',
-  resumeKeyOverride = '',
 }: ContinuePageProps) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { liffReady, liffChecked, inLineContext } = useLiff()
-
+  const { liffChecked, inLineContext } = useLiff()
   const [status, setStatus] = useState<ContinueStatus>('idle')
   const [errorText, setErrorText] = useState('')
-  const [resolvedIntentToken, setResolvedIntentToken] = useState('')
-
-  const inFlightRef = useRef(false)
-  const consumedRef = useRef(false)
+  const [intent, setIntent] = useState<PendingIntentRecord | null>(null)
+  const [result, setResult] = useState<any>(null)
+  const startedRef = useRef('')
   const mountedRef = useRef(true)
-  const mountedAtRef = useRef(Date.now())
 
-  const resumeKey = String(resumeKeyOverride || searchParams.get('resume_key') || searchParams.get('resume') || '')
-  const intentToken = String(intentTokenOverride || searchParams.get('intent') || resolvedIntentToken || '')
-  const intentPayload = useMemo(() => decodePendingIntentPayload(intentToken), [intentToken])
-
-  const returnPath = String(intentPayload?.return_path || '/welfare')
-  const failPath = String(intentPayload?.fail_path || returnPath)
-  const followConfirmPath = `/welfare/follow-confirm?intent=${encodeURIComponent(intentToken)}`
-  const autoRunKey = `${AUTO_RUN_PREFIX}${intentToken}`
-  const internalFailPath = useMemo(
-    () => resolveInternalNavigationTarget(failPath || returnPath),
-    [failPath, returnPath]
+  const intentId = useMemo(
+    () => String(intentTokenOverride || searchParams.get('intent') || '').trim(),
+    [intentTokenOverride, searchParams],
   )
 
   useEffect(() => {
@@ -148,404 +194,264 @@ export default function ContinuePage({
     }
   }, [])
 
-  useEffect(() => {
-    mountedAtRef.current = Date.now()
-  }, [intentToken, resumeKey])
-
-  useEffect(() => {
-    if (!resumeKey || intentTokenOverride || searchParams.get('intent')) return
-
-    let cancelled = false
-    setStatus('idle')
-    setErrorText('')
-    void resolvePendingIntentResumeKey(resumeKey)
-      .then((resolved) => {
-        if (cancelled) return
-        if (resolved?.token) {
-          setResolvedIntentToken(resolved.token)
-        }
-      })
-      .catch((err: any) => {
-        if (cancelled) return
-        setErrorText(err?.message || '待恢复操作解析失败')
-        setStatus('error')
-        clearPendingIntentResume()
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [intentTokenOverride, resumeKey, searchParams])
-
-  useEffect(() => {
-    if (!intentPayload) return
-    console.info('[follow-flow] continue_processing_enter', {
-      intent_id: intentPayload.intent_id || '',
-      action_type: intentPayload.action || '',
-      in_line_context: inLineContext,
-      liff_ready: liffReady,
-      liff_checked: liffChecked,
+  const fail = useCallback((message: string, extra?: Record<string, any>) => {
+    console.warn('CITYONE_INTENT_FAILED', {
+      intent_id: intentId,
+      error_code: extra?.error_code || 'frontend_error',
+      ...extra,
     })
-  }, [intentPayload, inLineContext, liffReady, liffChecked])
-
-  const clearAutoRunLock = useCallback(() => {
-    if (!intentToken) return
-    sessionStorage.removeItem(autoRunKey)
-  }, [autoRunKey, intentToken])
-
-  const setAutoRunLock = useCallback(() => {
-    if (!intentToken) return
-    sessionStorage.setItem(autoRunKey, String(Date.now()))
-  }, [autoRunKey, intentToken])
-
-  const hitAutoRunCooldown = useCallback(() => {
-    if (!intentToken) return false
-    const raw = sessionStorage.getItem(autoRunKey)
-    const ts = Number(raw || 0)
-    if (!ts) return false
-    return Date.now() - ts < AUTO_REENTRY_COOLDOWN_MS
-  }, [autoRunKey, intentToken])
-
-  const waitForIdentityReady = useCallback(async () => {
-    const deadline = Date.now() + 1600
-    while (Date.now() < deadline) {
-      const state = useLineUserStore.getState()
-      const canonicalUserId = state.canonicalUserId || state.profile?.lineUserId || ''
-      const lineUserId = state.profile?.lineUserId || ''
-      if (canonicalUserId && lineUserId) {
-        return { canonicalUserId, lineUserId, isFriend: state.profile?.isFriend }
-      }
-      await sleep(60)
-    }
-
-    if (liffReady || readSdkLoggedIn()) {
-      try {
-        const refreshed = await syncLiffFriendshipIdentity()
-        return {
-          canonicalUserId: refreshed?.canonicalUserId || '',
-          lineUserId: refreshed?.lineUserId || '',
-          isFriend: refreshed?.isFriend,
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    const state = useLineUserStore.getState()
-    return {
-      canonicalUserId: state.canonicalUserId || state.profile?.lineUserId || '',
-      lineUserId: state.profile?.lineUserId || '',
-      isFriend: state.profile?.isFriend,
-    }
-  }, [liffReady])
-
-  const handleExplicitLineLogin = useCallback(() => {
-    try {
-      const liff = getLiff()
-      if (liff && typeof liff.login === 'function') {
-        liff.login({ redirectUri: buildResumeLoginRedirectUri(intentToken, resumeKey) })
-        return
-      }
-      setErrorText('当前环境无法拉起 LINE 登录，请返回详情页重试')
-      setStatus('error')
-    } catch (err: any) {
-      setErrorText(err?.message || '拉起 LINE 登录失败，请返回详情页重试')
-      setStatus('error')
-    }
-  }, [intentToken, resumeKey])
+    clientLog('CITYONE_INTENT_FAILED', {
+      intent_id: intentId,
+      error_code: extra?.error_code || 'frontend_error',
+      ...extra,
+    })
+    setErrorText(message)
+    setStatus('error')
+  }, [intentId])
 
   const runFlow = useCallback(async () => {
-    if (!mountedRef.current || !intentToken || !intentPayload) {
-      clearPendingIntentResume(intentToken)
-      setErrorText('待恢复动作无效或已损坏')
-      setStatus('error')
-      return
-    }
-    if (inFlightRef.current || consumedRef.current) return
-
-    const sdkLoggedIn = readSdkLoggedIn()
-    const hasLoggedInLineSession = liffReady || sdkLoggedIn
-    if (!hasLoggedInLineSession) {
-      clientLog('continue_need_line_login', {
-        intent_id: intentPayload.intent_id || '',
-        action_type: intentPayload.action || '',
-        in_line_context: inLineContext,
-        liff_ready: liffReady,
-        sdk_logged_in: sdkLoggedIn,
+    if (!intentId) {
+      fail('缺少 intent_id，无法继续当前操作。', {
+        error_code: 'missing_intent_id',
       })
-      setErrorText('当前浏览器尚未完成 LINE 登录，请点击下方按钮登录后继续。')
-      setStatus('need_line_login')
       return
     }
-
-    inFlightRef.current = true
+    if (!liffChecked) return
+    if (startedRef.current === intentId) return
+    startedRef.current = intentId
 
     try {
+      setStatus('loading_intent')
+      const currentIntent = await fetchPendingIntent(intentId)
+      if (!mountedRef.current) return
+      setIntent(currentIntent)
+
+      if (currentIntent.status === 'consumed') {
+        clearRedirectGuard(intentId)
+        clearConsumeSingleflight(intentId)
+        setResult(currentIntent.result || {})
+        setStatus('completed')
+        return
+      }
+      if (currentIntent.status === 'expired') {
+        console.info('CITYONE_INTENT_EXPIRED', { intent_id: intentId, intent_status: currentIntent.status })
+        setStatus('expired')
+        return
+      }
+      if (currentIntent.status === 'failed') {
+        fail(currentIntent.last_error || '当前操作此前已失败，请返回详情页重新发起。', {
+          error_code: 'intent_failed',
+          intent_status: currentIntent.status,
+        })
+        return
+      }
+
+      const liff = getLiff()
+      if (!liff || typeof liff.isLoggedIn !== 'function') {
+        fail('LIFF 初始化失败，当前环境暂时无法识别 LINE 身份。', { error_code: 'liff_not_ready' })
+        return
+      }
+
+      console.info('CITYONE_LIFF_INIT', {
+        intent_id: intentId,
+        liff_context: inLineContext ? 'line_client' : 'external_browser',
+        logged_in: liff.isLoggedIn(),
+      })
+
+      if (!liff.isLoggedIn()) {
+        if (typeof liff.login === 'function') {
+          liff.login({ redirectUri: window.location.href })
+          return
+        }
+        fail('当前环境无法启动 LINE 登录。', { error_code: 'liff_login_unavailable' })
+        return
+      }
+
       setStatus('resolving_identity')
-      const identity = await waitForIdentityReady()
-      if (!mountedRef.current) return
+      const idToken = typeof liff.getIDToken === 'function' ? liff.getIDToken() : ''
+      if (!idToken) {
+        if (typeof liff.login === 'function') {
+          liff.login({ redirectUri: window.location.href })
+          return
+        }
+        fail('LINE ID Token 获取失败，无法完成身份识别。', { error_code: 'missing_id_token' })
+        return
+      }
 
-      if (!identity.canonicalUserId || !identity.lineUserId) {
-        if (hasLoggedInLineSession && Date.now() - mountedAtRef.current < IN_LINE_LOGIN_GRACE_MS) {
-          clientLog('continue_identity_grace_wait', {
-            intent_id: intentPayload.intent_id || '',
-            action_type: intentPayload.action || '',
-            elapsed_ms: Date.now() - mountedAtRef.current,
+      const identity = await syncIdentityWithBackend(intentId, idToken)
+      if (!mountedRef.current) return
+      console.info('CITYONE_IDENTITY_SYNCED', {
+        intent_id: intentId,
+        user_id: identity.user_id,
+        line_user_id: identity.line_user_id,
+        identity_level: identity.identity_level,
+      })
+
+      setStatus('checking_friendship')
+      if (typeof liff.getFriendship !== 'function') {
+        fail('当前 LIFF 环境不支持关注状态校验，请检查 LINE Channel 与 OA 绑定。', {
+          error_code: 'friendship_api_unavailable',
+        })
+        return
+      }
+      const friendship = await liff.getFriendship()
+      const friendFlag = friendship?.friendFlag === true
+      const friendshipResult = await recordFriendship({
+        intentId,
+        userId: identity.user_id,
+        lineUserId: identity.line_user_id,
+        friendFlag,
+      })
+      if (!mountedRef.current) return
+      console.info('CITYONE_FRIENDSHIP_CHECKED', {
+        intent_id: intentId,
+        user_id: identity.user_id,
+        line_user_id: identity.line_user_id,
+        friendFlag,
+        source: friendshipResult.source || 'liff',
+      })
+
+      if (!friendFlag) {
+        const followPath = `/welfare/follow-required?intent=${encodeURIComponent(intentId)}`
+        console.info('CITYONE_FOLLOW_REQUIRED', {
+          intent_id: intentId,
+          user_id: identity.user_id,
+          line_user_id: identity.line_user_id,
+          redirect_to: followPath,
+        })
+        if (!markRedirect(intentId, followPath)) {
+          fail('当前关注确认流程跳转次数过多，系统已停止自动跳转以避免死循环。', {
+            error_code: 'redirect_guard_exceeded',
           })
-          window.setTimeout(() => {
-            if (!mountedRef.current || consumedRef.current) return
-            clearAutoRunLock()
-            void runFlow()
-          }, 450)
           return
         }
-        if (readSdkLoggedIn()) {
-          setErrorText('LINE 身份同步超时，请稍后重试')
-          setStatus('error')
-          return
-        }
-        setErrorText('当前 LINE 身份尚未建立，请先完成 LINE 登录')
-        setStatus('need_line_login')
+        navigate(followPath, { replace: true })
         return
       }
 
-      setStatus('checking_follow')
-      let effectiveUserId = identity.canonicalUserId
-      let followed = identity.isFriend === true
-
-      if (followed) {
-        const profile = useLineUserStore.getState().profile
-        const fanSynced = await registerFanTruth({
-          userId: effectiveUserId,
-          lineUserId: identity.lineUserId,
-          displayName: profile?.lineDisplayName || '',
-          pictureUrl: profile?.linePictureUrl || '',
-        }).catch(() => false)
-
-        clientLog('continue_fan_truth_sync', {
-          intent_id: intentPayload.intent_id || '',
-          action_type: intentPayload.action || '',
-          line_user_id: identity.lineUserId,
-          canonical_user_id: effectiveUserId,
-          synced: fanSynced,
-        })
-      } else {
-        followed = await checkFollow(effectiveUserId)
-      }
-      if (!mountedRef.current) return
-
-      if (!followed) {
-        clearAutoRunLock()
-        navigate(followConfirmPath, { replace: true })
+      if (!markConsumeSingleflight(intentId)) {
+        setStatus('consuming')
         return
       }
 
-      consumedRef.current = true
       setStatus('consuming')
-
+      console.info('CITYONE_INTENT_CONSUME_START', {
+        intent_id: intentId,
+        user_id: identity.user_id,
+        line_user_id: identity.line_user_id,
+        intent_status: currentIntent.status,
+      })
       const consumed = await consumePendingIntent({
-        token: intentToken,
-        userId: effectiveUserId,
-        lineUserId: identity.lineUserId,
+        intentId,
+        consumeKey: `consume:${intentId}`,
+        userId: identity.user_id,
+        lineUserId: identity.line_user_id,
       })
       if (!mountedRef.current) return
 
-      if (consumed?.result?.error === true) {
-        consumedRef.current = false
-        const errMsg = String(
-          (consumed.result as any)?.message || '原操作此前已执行失败，无法继续'
-        )
-        console.info('[follow-flow] consume_replay_error', {
-          intent_id: consumed?.payload?.intent_id || intentPayload.intent_id || '',
-          action_type: consumed?.payload?.action || intentPayload.action || '',
-          error_code: (consumed.result as any)?.code || '',
-          replayed: consumed?.replayed === true,
+      if (consumed.result?.error === true) {
+        clearConsumeSingleflight(intentId)
+        fail(consumed.result.message || '当前操作执行失败。', {
+          error_code: consumed.result.code || 'consume_failed',
         })
-        setErrorText(errMsg)
-        setStatus('error')
-        clearPendingIntentResume(intentToken)
         return
       }
 
-      const nextPath = resolvePendingIntentNextPath({
-        payload: consumed?.payload || intentPayload,
-        result: consumed?.result,
-        fallbackPath: returnPath,
+      clearRedirectGuard(intentId)
+      clearConsumeSingleflight(intentId)
+      setResult(consumed.result || {})
+      setStatus('completed')
+      console.info('CITYONE_INTENT_CONSUME_SUCCESS', {
+        intent_id: intentId,
+        user_id: identity.user_id,
+        line_user_id: identity.line_user_id,
+        consume_result: consumed.result?.resultCode || 'ok',
+        replayed: consumed.replayed === true,
       })
-
-      console.info('[follow-flow] consume_success', {
-        intent_id: consumed?.payload?.intent_id || intentPayload.intent_id || '',
-        action_type: consumed?.payload?.action || intentPayload.action || '',
-        result_code: consumed?.result?.resultCode || '',
-        next_path: nextPath,
-      })
-
-      clearAutoRunLock()
-      clearPendingIntentResume(intentToken)
-      setStatus('done')
-      const internalNextPath = resolveInternalNavigationTarget(nextPath)
-      if (internalNextPath && canUseCallbackShellNavigate(internalNextPath)) {
-        navigate(internalNextPath, { replace: true })
-        return
-      }
-      window.location.assign(internalNextPath || nextPath)
     } catch (err: any) {
-      if (!mountedRef.current) return
-      consumedRef.current = false
-      console.info('[follow-flow] continue_flow_fail', {
-        intent_id: intentPayload?.intent_id || '',
-        action_type: intentPayload?.action || '',
-        error: err?.message || '继续原操作失败',
-      })
-      setErrorText(err?.message || '继续原操作失败')
-      setStatus('error')
-    } finally {
-      inFlightRef.current = false
+      clearConsumeSingleflight(intentId)
+        fail(err?.message || '继续当前操作失败。', { error_code: 'continue_flow_error' })
     }
-  }, [
-    clearAutoRunLock,
-    followConfirmPath,
-    inLineContext,
-    intentPayload,
-    intentToken,
-    liffReady,
-    returnPath,
-    waitForIdentityReady,
-    navigate,
-  ])
+  }, [fail, inLineContext, intentId, liffChecked, navigate])
 
   useEffect(() => {
-    if (!intentToken && resumeKey) {
-      return
-    }
-    if (!intentToken) {
-      clearPendingIntentResume()
-      setErrorText('待恢复动作无效或已损坏')
-      setStatus('error')
-      return
-    }
-    if (!intentPayload) {
-      clearPendingIntentResume(intentToken)
-      setErrorText('待恢复动作无效或已损坏')
-      setStatus('error')
-    }
-  }, [intentToken, intentPayload, resumeKey])
-
-  useEffect(() => {
-    if (!intentToken || !intentPayload || !liffChecked) return
-
-    if (hitAutoRunCooldown()) {
-      return
-    }
-
-    setAutoRunLock()
     void runFlow()
-  }, [
-    hitAutoRunCooldown,
-    intentPayload,
-    intentToken,
-    liffChecked,
-    runFlow,
-    setAutoRunLock,
-  ])
+  }, [runFlow])
 
-  const handleRetry = async () => {
-    clearAutoRunLock()
-    consumedRef.current = false
-    inFlightRef.current = false
-
-    await runFlow()
-  }
+  const resultPath = resolveResultPath(intent, result)
 
   if (
     status === 'idle' ||
+    status === 'loading_intent' ||
     status === 'resolving_identity' ||
-    status === 'checking_follow' ||
+    status === 'checking_friendship' ||
     status === 'consuming'
   ) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6ffed', padding: 24 }}>
-        <div style={{ maxWidth: 360, width: '100%', textAlign: 'center', borderRadius: 20, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)', background: '#fff', padding: '28px 24px' }}>
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              margin: '0 auto',
-              borderRadius: '50%',
-              border: '3px solid rgba(44, 219, 206, 0.18)',
-              borderTopColor: '#2cdbce',
-              animation: 'boot-spin 0.8s linear infinite',
-            }}
-          />
-          <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700 }}>正在继续处理</div>
-          <div style={{ color: '#666', lineHeight: 1.8, marginTop: 10 }}>
-            系统正在识别当前用户，并判断是否已关注 LINE 官方账号。
-          </div>
+      <CardShell>
+        <Spinner />
+        <div style={{ marginTop: 18, fontSize: 18, fontWeight: 800 }}>正在继续处理</div>
+        <div style={{ color: '#666', lineHeight: 1.8, marginTop: 10 }}>
+          系统正在识别当前 LINE 身份，并判断是否已关注官方账号。
         </div>
-      </div>
+      </CardShell>
     )
   }
 
-  if (status === 'need_line_login') {
+  if (status === 'completed') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
-        <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>请先完成 LINE 登录</div>
-          <div style={{ color: '#666', marginBottom: 16 }}>
-            系统需要先完成 LINE 登录，才能继续恢复当前操作。请点击下方按钮登录后继续。
-          </div>
-          <button
-            onClick={handleExplicitLineLogin}
-            style={{ width: '100%', height: 44, borderRadius: 999, border: 'none', background: '#12b981', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
-          >
-            使用 LINE 登录继续
-          </button>
-          <button
-            onClick={() => {
-              if (internalFailPath && canUseCallbackShellNavigate(internalFailPath)) {
-                navigate(internalFailPath, { replace: true })
-                return
-              }
-              window.location.assign(internalFailPath || failPath || returnPath)
-            }}
-            style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
-          >
-            返回当前详情页
-          </button>
+      <CardShell>
+        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 12 }}>当前操作已完成</div>
+        <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
+          系统已完成本次业务处理，同一个任务不会重复执行。
         </div>
-      </div>
+        {resultPath ? (
+          <button
+            onClick={() => window.location.assign(resultPath)}
+            style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: '#12b981', color: '#fff', fontWeight: 800, cursor: 'pointer' }}
+          >
+            查看结果
+          </button>
+        ) : null}
+      </CardShell>
     )
   }
 
-  if (status === 'error') {
+  if (status === 'expired') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 24 }}>
-        <div style={{ maxWidth: 420, width: '100%', textAlign: 'center', borderRadius: 20, background: '#fff', padding: 24, boxShadow: '0 12px 32px rgba(17, 94, 89, 0.08)' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>继续当前操作失败</div>
-          <div style={{ color: '#666', marginBottom: 16 }}>{errorText || '当前步骤未能完成，请点击重试。'}</div>
-          <button
-            onClick={() => void handleRetry()}
-            style={{ width: '100%', height: 44, borderRadius: 999, border: 'none', background: '#12b981', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
-          >
-            重试
-          </button>
-          <button
-            onClick={() => {
-              clearAutoRunLock()
-              if (internalFailPath && canUseCallbackShellNavigate(internalFailPath)) {
-                navigate(internalFailPath, { replace: true })
-                return
-              }
-              window.location.assign(internalFailPath || failPath || returnPath)
-            }}
-            style={{ width: '100%', height: 44, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', cursor: 'pointer' }}
-          >
-            返回当前详情页
-          </button>
+      <CardShell>
+        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 12 }}>当前操作已过期</div>
+        <div style={{ color: '#666', lineHeight: 1.8 }}>
+          该任务已超过有效期。请返回原详情页重新发起，不会自动跳回首页。
         </div>
-      </div>
+      </CardShell>
     )
   }
 
-  return null
+  return (
+    <CardShell>
+      <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 12 }}>继续当前操作失败</div>
+      <div style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
+        {errorText || '当前步骤未能完成，请稍后重试。'}
+      </div>
+      <button
+        onClick={() => {
+          startedRef.current = ''
+          clearConsumeSingleflight(intentId)
+          void runFlow()
+        }}
+        style={{ width: '100%', height: 48, borderRadius: 999, border: 'none', background: '#12b981', color: '#fff', fontWeight: 800, cursor: 'pointer' }}
+      >
+        重试
+      </button>
+      {intent?.source_url ? (
+        <button
+          onClick={() => window.location.assign(intent.source_url || '')}
+          style={{ width: '100%', height: 48, marginTop: 12, borderRadius: 999, border: '1px solid #d9d9d9', background: '#fff', color: '#222', fontWeight: 700, cursor: 'pointer' }}
+        >
+          返回当前详情页
+        </button>
+      ) : null}
+    </CardShell>
+  )
 }

@@ -206,10 +206,14 @@ import {
   handleUserIdentify,
 } from "./routes/user-profile.js";
 import {
+  handleLineFriendshipCheck,
+  handleLineIdentitySync,
+  handlePendingIntentGet,
   handlePendingIntentIssue,
   handlePendingIntentLatest,
   handlePendingIntentResume,
   handlePendingIntentConsume,
+  handlePendingIntentConsumeById,
 } from "./routes/pending-intents.js";
 import {
   handleAgentsList,
@@ -1407,6 +1411,12 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       return handleUserIdentify(req, res, body, sendJson);
     }
+    if (req.method === "POST" && url.pathname === "/api/line/identity/sync") {
+      return handleLineIdentitySync(req, res, url, sendJson, readBody);
+    }
+    if (req.method === "POST" && url.pathname === "/api/line/friendship/check") {
+      return handleLineFriendshipCheck(req, res, url, sendJson, readBody);
+    }
     if (req.method === "POST" && url.pathname === "/api/user/pending-intents") {
       return handlePendingIntentIssue(req, res, url, sendJson, readBody);
     }
@@ -1415,6 +1425,16 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/user/pending-intents/resume") {
       return handlePendingIntentResume(req, res, url, sendJson);
+    }
+    {
+      const pendingConsumeMatch = url.pathname.match(/^\/api\/user\/pending-intents\/([^/]+)\/consume$/);
+      if (req.method === "POST" && pendingConsumeMatch) {
+        return handlePendingIntentConsumeById(req, res, url, sendJson, readBody, decodeURIComponent(pendingConsumeMatch[1]));
+      }
+      const pendingGetMatch = url.pathname.match(/^\/api\/user\/pending-intents\/([^/]+)$/);
+      if (req.method === "GET" && pendingGetMatch) {
+        return handlePendingIntentGet(req, res, url, sendJson, decodeURIComponent(pendingGetMatch[1]));
+      }
     }
     if (req.method === "POST" && url.pathname === "/api/user/pending-intents/consume") {
       return handlePendingIntentConsume(req, res, url, sendJson, readBody);

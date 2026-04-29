@@ -83,6 +83,14 @@ function createResumeKey() {
   return `rk_${crypto.randomBytes(12).toString("base64url")}`;
 }
 
+function inferTargetType(action) {
+  if (action === "claim_coupon") return "coupon";
+  if (action === "participate_activity") return "activity";
+  if (action === "redeem_product") return "product";
+  if (action === "use_benefit") return "benefit";
+  return "unknown";
+}
+
 function buildPayload({
   intentId,
   nonce,
@@ -119,16 +127,30 @@ export async function issuePendingIntent({
   userId,
   lineUserId,
   action,
+  actionType,
   resourceId,
+  targetId,
+  targetType,
   returnPath,
   successPath,
   failPath,
   backPath,
   terminal = "",
+  terminalSource = "",
+  sourceUrl = "",
+  attributionParams = {},
   actionName = "",
   metadata = {},
   ttlSeconds = DEFAULT_TTL_SECONDS,
 }) {
+  const normalizedAction = String(action || actionType || "").trim();
+  const normalizedResourceId = String(resourceId || targetId || "").trim();
+  const normalizedTerminal = String(terminal || terminalSource || "").trim();
+  const normalizedTargetType = String(targetType || inferTargetType(normalizedAction)).trim();
+  const normalizedSourceUrl = String(sourceUrl || returnPath || "").trim();
+  const normalizedAttribution = attributionParams && typeof attributionParams === "object"
+    ? attributionParams
+    : {};
   const now = Date.now();
   const exp = Math.floor((now + ttlSeconds * 1000) / 1000);
   const intentId = `intent_${now}_${crypto.randomBytes(4).toString("hex")}`;
@@ -139,13 +161,13 @@ export async function issuePendingIntent({
     nonce,
     userId,
     lineUserId,
-    action,
-    resourceId,
+    action: normalizedAction,
+    resourceId: normalizedResourceId,
     returnPath,
     successPath,
     failPath,
     backPath,
-    terminal,
+    terminal: normalizedTerminal,
     actionName,
     exp,
   });
@@ -154,8 +176,9 @@ export async function issuePendingIntent({
     `INSERT INTO pending_intents
        (intent_id, nonce, user_id, line_user_id, action, resource_id,
         return_path, success_path, fail_path, back_path, terminal,
-        action_name, metadata, expires_at, resume_key)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+        action_name, metadata, expires_at, resume_key,
+        target_type, source_url, attribution_params, terminal_source)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
     [
       intentId,
       nonce,
@@ -172,6 +195,10 @@ export async function issuePendingIntent({
       JSON.stringify(metadata || {}),
       new Date(exp * 1000),
       resumeKey,
+      normalizedTargetType,
+      normalizedSourceUrl || payload.return_path,
+      JSON.stringify(normalizedAttribution),
+      normalizedTerminal || "unknown",
     ]
   );
 
@@ -210,6 +237,31 @@ function normalizeStoredJson(value) {
     }
   }
   return value;
+}
+
+function normalizePendingIntentRow(row) {
+  if (!row) return null;
+  return {
+    intent_id: row.intent_id,
+    action_type: row.action,
+    target_type: row.target_type || inferTargetType(row.action),
+    target_id: row.resource_id,
+    resource_id: row.resource_id,
+    source_url: row.source_url || row.return_path,
+    attribution_params: normalizeStoredJson(row.attribution_params) || {},
+    terminal_source: row.terminal_source || row.terminal || "unknown",
+    status: row.status,
+    expires_at: row.expires_at,
+    consumed_at: row.consumed_at,
+    result: normalizeStoredJson(row.result_json) || normalizeStoredJson(row.result_payload) || null,
+    last_error: row.last_error || normalizeStoredJson(row.error_json)?.message || null,
+    return_path: row.return_path,
+    success_path: row.success_path,
+    fail_path: row.fail_path,
+    back_path: row.back_path,
+    user_id: row.user_id || "",
+    line_user_id: row.line_user_id || "",
+  };
 }
 
 function isDeviceLikeUserId(value) {
@@ -256,6 +308,125 @@ function resolveEffectiveIdentity(row, { userId, lineUserId }) {
 
 export function decodePendingIntentToken(token) {
   return verifyToken(token);
+}
+
+export async function getPendingIntentById(intentId) {
+  const normalizedIntentId = String(intentId || "").trim();
+  if (!normalizedIntentId) {
+    throw createPendingIntentError(400, "MISSING_PENDING_INTENT_ID", "缺少 pending intent id");
+  }
+
+  const { rows } = await query(
+    `SELECT *
+       FROM pending_intents
+      WHERE intent_id = $1
+      LIMIT 1`,
+    [normalizedIntentId]
+  );
+
+  if (!rows.length) {
+    throw createPendingIntentError(404, "PENDING_INTENT_NOT_FOUND", "pending intent 不存在");
+  }
+
+  const row = rows[0];
+  if (new Date(row.expires_at).getTime() < Date.now() && row.status !== "consumed") {
+    await query(
+      `UPDATE pending_intents
+          SET status = 'expired',
+              last_error = COALESCE(last_error, 'pending intent 已过期'),
+              updated_at = NOW()
+        WHERE intent_id = $1
+          AND status <> 'expired'
+          AND status <> 'consumed'`,
+      [normalizedIntentId]
+    );
+    row.status = "expired";
+    row.last_error = row.last_error || "pending intent 已过期";
+  }
+
+  return normalizePendingIntentRow(row);
+}
+
+export async function bindPendingIntentIdentity({
+  intentId,
+  userId,
+  lineUserId,
+}) {
+  const normalizedIntentId = String(intentId || "").trim();
+  const normalizedUserId = String(userId || lineUserId || "").trim();
+  const normalizedLineUserId = String(lineUserId || "").trim();
+  if (!normalizedIntentId) {
+    throw createPendingIntentError(400, "MISSING_PENDING_INTENT_ID", "缺少 pending intent id");
+  }
+  if (!normalizedUserId && !normalizedLineUserId) {
+    throw createPendingIntentError(400, "MISSING_LINE_IDENTITY", "缺少 LINE 身份");
+  }
+
+  const { rows } = await query(
+    `UPDATE pending_intents
+        SET user_id = COALESCE(NULLIF($2, ''), user_id),
+            line_user_id = COALESCE(NULLIF($3, ''), line_user_id),
+            status = CASE
+              WHEN status = 'pending' THEN 'identified'
+              ELSE status
+            END,
+            updated_at = NOW()
+      WHERE intent_id = $1
+      RETURNING *`,
+    [normalizedIntentId, normalizedUserId, normalizedLineUserId]
+  );
+  if (!rows.length) {
+    throw createPendingIntentError(404, "PENDING_INTENT_NOT_FOUND", "pending intent 不存在");
+  }
+  return normalizePendingIntentRow(rows[0]);
+}
+
+export async function recordPendingIntentFriendship({
+  intentId,
+  userId,
+  lineUserId,
+  friendFlag,
+}) {
+  const normalizedIntentId = String(intentId || "").trim();
+  const normalizedUserId = String(userId || lineUserId || "").trim();
+  const normalizedLineUserId = String(lineUserId || "").trim();
+  const isFan = friendFlag === true;
+  if (!normalizedIntentId) {
+    throw createPendingIntentError(400, "MISSING_PENDING_INTENT_ID", "缺少 pending intent id");
+  }
+
+  const { rows } = await query(
+    `UPDATE pending_intents
+        SET user_id = COALESCE(NULLIF($2, ''), user_id),
+            line_user_id = COALESCE(NULLIF($3, ''), line_user_id),
+            status = CASE
+              WHEN $4::boolean = false AND status IN ('pending', 'identified') THEN 'waiting_follow'
+              WHEN $4::boolean = true AND status = 'waiting_follow' THEN 'identified'
+              ELSE status
+            END,
+            updated_at = NOW()
+      WHERE intent_id = $1
+      RETURNING *`,
+    [normalizedIntentId, normalizedUserId, normalizedLineUserId, isFan]
+  );
+  if (!rows.length) {
+    throw createPendingIntentError(404, "PENDING_INTENT_NOT_FOUND", "pending intent 不存在");
+  }
+
+  if (normalizedLineUserId || normalizedUserId) {
+    await query(
+      `INSERT INTO users (user_id, line_user_id, is_fan, created_at, updated_at, last_follow_checked_at)
+       VALUES ($1, NULLIF($2, ''), $3, NOW(), NOW(), NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         line_user_id = COALESCE(EXCLUDED.line_user_id, users.line_user_id),
+         is_fan = EXCLUDED.is_fan,
+         updated_at = NOW(),
+         last_follow_checked_at = NOW()`,
+      [normalizedUserId || normalizedLineUserId, normalizedLineUserId, isFan]
+    ).catch(() => {});
+  }
+
+  return normalizePendingIntentRow(rows[0]);
 }
 
 export async function findLatestPendingIntent({
@@ -332,11 +503,19 @@ export async function resolvePendingIntentResumeKey(resumeKey) {
 
 export async function consumePendingIntent({
   token,
+  intentId,
+  consumeKey,
   userId,
   lineUserId,
   executor,
 }) {
-  const payload = verifyToken(token);
+  const payload = token
+    ? verifyToken(token)
+    : null;
+  const effectiveIntentId = String(intentId || payload?.intent_id || "").trim();
+  if (!effectiveIntentId) {
+    throw createPendingIntentError(400, "MISSING_PENDING_INTENT_ID", "缺少 pending intent id");
+  }
 
   return withTransaction(async (client) => {
     const { rows } = await client.query(
@@ -344,21 +523,22 @@ export async function consumePendingIntent({
          FROM pending_intents
         WHERE intent_id = $1
         FOR UPDATE`,
-      [payload.intent_id]
+      [effectiveIntentId]
     );
     if (!rows.length) {
       throw createPendingIntentError(404, "PENDING_INTENT_NOT_FOUND", "pending intent 不存在");
     }
 
     const row = rows[0];
-    if (String(row.nonce || "") !== String(payload.nonce || "")) {
+    if (payload && String(row.nonce || "") !== String(payload.nonce || "")) {
       throw createPendingIntentError(409, "PENDING_INTENT_NONCE_MISMATCH", "pending intent nonce 不匹配");
     }
+    const runtimePayload = payload || rebuildPayloadFromRow(row);
 
     if (row.status === "consumed") {
       return {
         replayed: true,
-        payload,
+        payload: runtimePayload,
         result: normalizeStoredJson(row.result_json) || normalizeStoredJson(row.result_payload) || {},
       };
     }
@@ -366,21 +546,40 @@ export async function consumePendingIntent({
     if (row.status === "failed") {
       return {
         replayed: true,
-        payload,
+        payload: runtimePayload,
         result: normalizeStoredJson(row.error_json) || { error: true },
       };
     }
 
-    if (row.status !== "pending") {
-      throw createPendingIntentError(409, "PENDING_INTENT_NOT_PENDING", "pending intent 状态不可消费");
+    if (row.status === "executing") {
+      const executingAt = row.executing_at ? new Date(row.executing_at).getTime() : 0;
+      const isStale = !executingAt || Date.now() - executingAt > 60 * 1000;
+      if (!isStale) {
+        return {
+          replayed: true,
+          payload: runtimePayload,
+          result: {
+            pending: true,
+            code: "PENDING_INTENT_EXECUTING",
+            message: "pending intent 正在处理中",
+          },
+        };
+      }
+    }
+
+    const consumableStatuses = new Set(["pending", "identified", "waiting_follow", "executing"]);
+    if (!consumableStatuses.has(row.status)) {
+      throw createPendingIntentError(409, "PENDING_INTENT_NOT_CONSUMABLE", "pending intent 状态不可消费");
     }
 
     if (new Date(row.expires_at).getTime() < Date.now()) {
       await client.query(
         `UPDATE pending_intents
-            SET status = 'expired', updated_at = NOW()
+            SET status = 'expired',
+                last_error = 'pending intent 已过期',
+                updated_at = NOW()
           WHERE intent_id = $1`,
-        [payload.intent_id]
+        [runtimePayload.intent_id]
       );
       throw createPendingIntentError(410, "PENDING_INTENT_EXPIRED", "pending intent 已过期");
     }
@@ -394,19 +593,30 @@ export async function consumePendingIntent({
                 updated_at = NOW()
           WHERE intent_id = $1`,
         [
-          payload.intent_id,
+          runtimePayload.intent_id,
           effectiveIdentity.userId || null,
           effectiveIdentity.lineUserId || null,
         ]
       );
     }
 
+    const normalizedConsumeKey = String(consumeKey || `consume:${runtimePayload.intent_id}`).trim();
+    await client.query(
+      `UPDATE pending_intents
+          SET status = 'executing',
+              executing_at = NOW(),
+              consume_key = COALESCE(consume_key, NULLIF($2, '')),
+              updated_at = NOW()
+        WHERE intent_id = $1`,
+      [runtimePayload.intent_id, normalizedConsumeKey]
+    );
+
     const metadata = row.metadata && typeof row.metadata === "object"
       ? row.metadata
       : {};
     try {
       const executionResult = await executor({
-        payload,
+        payload: runtimePayload,
         row,
         metadata,
         userId: effectiveIdentity.userId,
@@ -423,12 +633,12 @@ export async function consumePendingIntent({
                 consumed_at = NOW(),
                 updated_at = NOW()
           WHERE intent_id = $1`,
-        [payload.intent_id, JSON.stringify(executionResult || {})]
+        [runtimePayload.intent_id, JSON.stringify(executionResult || {})]
       );
 
       return {
         replayed: false,
-        payload,
+        payload: runtimePayload,
         result: executionResult || {},
       };
     } catch (err) {
@@ -441,11 +651,16 @@ export async function consumePendingIntent({
         `UPDATE pending_intents
             SET status = 'failed',
                 error_json = $2,
+                last_error = $3,
                 updated_at = NOW()
           WHERE intent_id = $1`,
-        [payload.intent_id, JSON.stringify(errorPayload)]
+        [runtimePayload.intent_id, JSON.stringify(errorPayload), errorPayload.message]
       );
-      throw err;
+      return {
+        replayed: true,
+        payload: runtimePayload,
+        result: errorPayload,
+      };
     }
   });
 }

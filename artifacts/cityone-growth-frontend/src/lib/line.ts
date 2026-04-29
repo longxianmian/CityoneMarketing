@@ -17,11 +17,18 @@ export type Terminal =
 const RUNTIME_WELFARE_CALLBACK_PATHS = [
   '/welfare',
   '/welfare/continue',
+  '/welfare/follow-required',
+  '/welfare/follow',
   '/welfare/follow-confirm',
+  '/welfare/open-in-line',
 ] as const
 
-const LEGACY_WELFARE_CALLBACK_PATH_ALIASES: Record<string, Extract<(typeof RUNTIME_WELFARE_CALLBACK_PATHS)[number], '/welfare/continue'>> = {
+const LEGACY_WELFARE_CALLBACK_PATH_ALIASES: Record<string, Extract<(typeof RUNTIME_WELFARE_CALLBACK_PATHS)[number], '/welfare/continue' | '/welfare/follow-required' | '/welfare/open-in-line'>> = {
   '/continue': '/welfare/continue',
+  '/follow': '/welfare/follow-required',
+  '/follow-confirm': '/welfare/follow-required',
+  '/follow-required': '/welfare/follow-required',
+  '/open-in-line': '/welfare/open-in-line',
 }
 
 const runtimeLineConfig: RuntimeLineConfig = {
@@ -80,21 +87,18 @@ function parseRuntimeUrl(value?: string | null) {
   }
 }
 
-function readResumeTargetFromUrl(url: URL, depth = 0): { resumeKey: string; intentToken: string } {
-  if (depth > 4) return { resumeKey: '', intentToken: '' }
+function extractIntentFromUrl(url: URL, depth = 0): string {
+  if (depth > 4) return ''
 
-  const resumeKey = (url.searchParams.get('resume_key') || url.searchParams.get('resume') || '').trim()
-  if (resumeKey) return { resumeKey, intentToken: '' }
-
-  const intentToken = (url.searchParams.get('resume_intent') || url.searchParams.get('intent') || '').trim()
-  if (intentToken) return { resumeKey: '', intentToken }
+  const directIntent = String(url.searchParams.get('intent') || '').trim()
+  if (directIntent) return directIntent
 
   const liffState = url.searchParams.get('liff.state') || ''
   if (liffState) {
     const stateUrl = parseRuntimeUrl(liffState)
     if (stateUrl) {
-      const nested = readResumeTargetFromUrl(stateUrl, depth + 1)
-      if (nested.resumeKey || nested.intentToken) return nested
+      const nestedIntent = extractIntentFromUrl(stateUrl, depth + 1)
+      if (nestedIntent) return nestedIntent
     }
   }
 
@@ -103,34 +107,9 @@ function readResumeTargetFromUrl(url: URL, depth = 0): { resumeKey: string; inte
     const redirectPath = extractRuntimePathFromRedirectUri(redirectUri)
     const redirectUrl = parseRuntimeUrl(redirectPath)
     if (redirectUrl) {
-      const nested = readResumeTargetFromUrl(redirectUrl, depth + 1)
-      if (nested.resumeKey || nested.intentToken) return nested
+      const nestedIntent = extractIntentFromUrl(redirectUrl, depth + 1)
+      if (nestedIntent) return nestedIntent
     }
-  }
-
-  return { resumeKey: '', intentToken: '' }
-}
-
-export function extractRuntimeResumeTarget(searchParams: URLSearchParams) {
-  const url = new URL('/welfare', window.location.origin)
-  for (const [key, value] of searchParams.entries()) {
-    url.searchParams.append(key, value)
-  }
-  return readResumeTargetFromUrl(url)
-}
-
-export function buildRuntimeContinueTargetFromResume(params: {
-  resumeKey?: string
-  intentToken?: string
-}) {
-  const resumeKey = String(params.resumeKey || '').trim()
-  if (resumeKey) {
-    return `/welfare/continue?resume_key=${encodeURIComponent(resumeKey)}&resume=1`
-  }
-
-  const intentToken = String(params.intentToken || '').trim()
-  if (intentToken) {
-    return `/welfare/continue?intent=${encodeURIComponent(intentToken)}&resume=1`
   }
 
   return ''
@@ -189,51 +168,27 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
     searchParams.has('liffClientId') ||
     searchParams.has('liffRedirectUri')
   )
-  const hasLiffState = searchParams.has('liff.state')
-  const hasDirectResume = searchParams.has('resume_key') ||
-    searchParams.has('resume') ||
-    searchParams.has('resume_intent')
-
-  // `/welfare?resume_key=...` 是外部浏览器的登录启动页，不能马上改到
-  // ContinuePage；必须先让 LiffProvider 完成外部 LIFF 登录。
-  if (hasDirectResume && !hasExternalLoginCallback && !hasLiffState) return ''
-
-  const resumeTarget = extractRuntimeResumeTarget(searchParams)
-  const resumeContinueTarget = buildRuntimeContinueTargetFromResume(resumeTarget)
-  if (resumeContinueTarget) return resumeContinueTarget
 
   if (hasExternalLoginCallback) {
     const redirectPath = extractRuntimePathFromRedirectUri(searchParams.get('liffRedirectUri'))
     if (redirectPath) {
       const redirectUrl = new URL(redirectPath, window.location.origin)
-      const redirectResumeIntent = (redirectUrl.searchParams.get('resume_intent') || '').trim()
-      if (redirectResumeIntent) {
-        return `/welfare/continue?intent=${encodeURIComponent(redirectResumeIntent)}&resume=1`
-      }
-      const redirectIntent = (redirectUrl.searchParams.get('intent') || '').trim()
+      const redirectIntent = extractIntentFromUrl(redirectUrl)
       if (redirectIntent) {
-        if (isRuntimeLineClientUserAgent()) {
-          return `/welfare/continue?intent=${encodeURIComponent(redirectIntent)}`
-        }
-        return `/welfare?resume_intent=${encodeURIComponent(redirectIntent)}&handoff=returned`
+        return `/welfare/continue?intent=${encodeURIComponent(redirectIntent)}`
       }
 
       const normalizedRedirectPath = normalizeRuntimeLiffExtraPath(redirectPath)
-      if (normalizedRedirectPath.startsWith('/welfare?')) {
-        return normalizedRedirectPath
-      }
-      if (normalizedRedirectPath) {
+      if (isRuntimeContinuePath(normalizedRedirectPath) || isRuntimeFollowPath(normalizedRedirectPath) || isRuntimeOpenInLinePath(normalizedRedirectPath)) {
         return normalizedRedirectPath
       }
     }
+    return '/welfare'
   }
 
   const intent = searchParams.get('intent') || ''
   if (intent) {
-    if (isRuntimeLineClientUserAgent()) {
-      return `/welfare/continue?intent=${encodeURIComponent(intent)}`
-    }
-    return `/welfare?resume_intent=${encodeURIComponent(intent)}`
+    return `/welfare/continue?intent=${encodeURIComponent(intent)}`
   }
 
   const liffState = searchParams.get('liff.state') || ''
@@ -243,20 +198,13 @@ export function resolveRuntimeWelfareCallbackTarget(searchParams: URLSearchParam
   const normalized = normalizeRuntimeLiffExtraPath(decoded)
   if (!isRuntimeWelfareCallbackExtraPath(normalized)) return ''
 
-   if (normalized.startsWith('/welfare?')) {
-    return normalized
-  }
-
-  if (!isRuntimeLineClientUserAgent() && isRuntimeContinuePath(normalized)) {
-    try {
-      const url = new URL(normalized, window.location.origin)
-      const callbackIntent = url.searchParams.get('intent') || ''
-      return callbackIntent
-        ? `/welfare?resume_intent=${encodeURIComponent(callbackIntent)}&handoff=returned`
-        : '/welfare?handoff=returned'
-    } catch {
-      return '/welfare?handoff=returned'
+  if (normalized.startsWith('/welfare?')) {
+    const nestedUrl = new URL(normalized, window.location.origin)
+    const nestedIntent = extractIntentFromUrl(nestedUrl)
+    if (nestedIntent) {
+      return `/welfare/continue?intent=${encodeURIComponent(nestedIntent)}`
     }
+    return normalized
   }
 
   return normalized
@@ -272,14 +220,15 @@ export function isRuntimeExternalLiffLoginCallback(searchParams: URLSearchParams
 
 export function isRuntimeCallbackBootPath(pathname: string, search: string) {
   const params = new URLSearchParams(search || '')
-  const hasCallbackPayload = params.has('intent') ||
-    params.has('liff.state') ||
-    isRuntimeExternalLiffLoginCallback(params)
+  const hasCallbackPayload = params.has('intent') || params.has('liff.state') || isRuntimeExternalLiffLoginCallback(params)
 
   return (
     ((pathname === '/' || pathname === '/welfare') && hasCallbackPayload) ||
     pathname === '/welfare/continue' ||
-    pathname === '/welfare/follow-confirm'
+    pathname === '/welfare/follow-required' ||
+    pathname === '/welfare/follow' ||
+    pathname === '/welfare/follow-confirm' ||
+    pathname === '/welfare/open-in-line'
   )
 }
 
@@ -317,10 +266,9 @@ export function buildRuntimeLiffUrlWithPath(extraPath?: string | null, value?: s
 }
 
 export function buildRuntimeLineSchemeUrlWithPath(extraPath?: string | null, value?: string | null) {
-  const liffId = resolveRuntimeLiffId(value)
-  if (!liffId) return ''
-  const normalized = toRuntimeLiffEndpointExtraPath(extraPath)
-  return `line://app/${liffId}${normalized}`
+  void extraPath
+  void value
+  return ''
 }
 
 /**
@@ -346,29 +294,20 @@ export function buildContinueLaunchTargets(
   liffId?: string | null,
   officialAccountId?: string | null,
 ) {
-  const continueExtraPath = `/welfare/continue?intent=${encodeURIComponent(intentToken)}`
   return {
-    continueLiffUrl: buildRuntimeLiffUrlWithPath(continueExtraPath, liffId),
-    continueLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(continueExtraPath, liffId),
+    continueLiffUrl: buildLiffContinueUrl(intentToken, liffId),
+    continueLineSchemeUrl: '',
     oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
   }
 }
 
-export function buildResumeLaunchTargets(
-  intentToken: string,
-  liffId?: string | null,
-  officialAccountId?: string | null,
-  resumeKey?: string | null,
-) {
-  const key = String(resumeKey || '').trim()
-  const resumeExtraPath = key
-    ? `?resume_key=${encodeURIComponent(key)}`
-    : `?resume_intent=${encodeURIComponent(intentToken)}`
-  return {
-    resumeLiffUrl: buildRuntimeLiffUrlWithPath(resumeExtraPath, liffId),
-    resumeLineSchemeUrl: buildRuntimeLineSchemeUrlWithPath(resumeExtraPath, liffId),
-    oaAddFriendUrl: buildOaAddFriendUrl(officialAccountId),
-  }
+export function buildLiffContinueUrl(intentId: string, liffId?: string | null) {
+  const normalizedIntent = String(intentId || '').trim()
+  if (!normalizedIntent) return ''
+  return buildRuntimeLiffUrlWithPath(
+    `/welfare/continue?intent=${encodeURIComponent(normalizedIntent)}`,
+    liffId,
+  )
 }
 
 export function isRuntimeFollowGateReady() {
@@ -426,4 +365,23 @@ function isRuntimeContinuePath(value?: string | null) {
   const normalized = normalizeRuntimeLiffExtraPath(value)
   if (!normalized) return false
   return normalized === '/welfare/continue' || normalized.startsWith('/welfare/continue?')
+}
+
+function isRuntimeFollowPath(value?: string | null) {
+  const normalized = normalizeRuntimeLiffExtraPath(value)
+  if (!normalized) return false
+  return (
+    normalized === '/welfare/follow-required' ||
+    normalized.startsWith('/welfare/follow-required?') ||
+    normalized === '/welfare/follow' ||
+    normalized.startsWith('/welfare/follow?') ||
+    normalized === '/welfare/follow-confirm' ||
+    normalized.startsWith('/welfare/follow-confirm?')
+  )
+}
+
+function isRuntimeOpenInLinePath(value?: string | null) {
+  const normalized = normalizeRuntimeLiffExtraPath(value)
+  if (!normalized) return false
+  return normalized === '/welfare/open-in-line' || normalized.startsWith('/welfare/open-in-line?')
 }

@@ -70,16 +70,9 @@
 
         var params = new URLSearchParams(window.location.search || '')
         var directIntent = (params.get('intent') || '').trim()
-        var resumeIntent = (params.get('resume_intent') || '').trim()
         if (directIntent) {
           boot.title = '正在继续领取'
           boot.desc = '系统正在确认 LINE 身份并自动完成后续步骤。'
-          window.__CITYONE_BOOT__ = boot
-          return
-        }
-        if (resumeIntent) {
-          boot.title = '正在进入 LINE 继续'
-          boot.desc = '系统正在恢复当前操作，并准备在 LINE 内继续后续步骤。'
           window.__CITYONE_BOOT__ = boot
           return
         }
@@ -140,10 +133,16 @@
       // 其它一律走 main 完整入口，避免路由表分裂导致页面跳转失效
       const pathname = window.location.pathname || ''
       const params = new URLSearchParams(window.location.search || '')
+      const hasExternalLoginCallback =
+        params.has('code') &&
+        (params.has('state') || params.has('liffClientId') || params.has('liffRedirectUri'))
       const isCallbackEntry =
-        ((pathname === '/' || pathname === '/welfare') && (params.has('intent') || params.has('liff.state') || params.has('resume_intent'))) ||
+        ((pathname === '/' || pathname === '/welfare') &&
+          (params.has('intent') || params.has('liff.state') || params.has('resume_intent') || hasExternalLoginCallback)) ||
+        pathname === '/welfare/follow-required' ||
         pathname === '/welfare/open-in-line' ||
         pathname === '/welfare/continue' ||
+        pathname === '/welfare/follow' ||
         pathname === '/welfare/follow-confirm'
       const root = document.getElementById('root')
 

@@ -4,6 +4,10 @@ import path from 'path'
 
 const port = Number(process.env.PORT) || 23097
 const basePath = process.env.BASE_PATH || '/'
+const apiProxyTarget =
+  process.env.VITE_API_PROXY_TARGET ||
+  process.env.API_PROXY_TARGET ||
+  'http://127.0.0.1:3100'
 
 export default defineConfig({
   plugins: [react()],
@@ -18,11 +22,11 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: apiProxyTarget,
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:8080',
+        target: apiProxyTarget,
         changeOrigin: true,
       },
     },

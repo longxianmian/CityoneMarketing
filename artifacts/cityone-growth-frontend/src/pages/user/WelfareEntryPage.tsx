@@ -3,15 +3,10 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import WelfareHomePage from './WelfareHomePage'
 import {
-  buildRuntimeContinueTargetFromResume,
-  extractRuntimeResumeTarget,
   resolveRuntimeWelfareCallbackTarget,
 } from '../../lib/line'
 import { useLiff } from '../../providers/LiffProvider'
 import { clientLog } from '../../lib/clientLogger'
-import {
-  clearPendingIntentResume,
-} from '../../lib/pendingIntent'
 
 /**
  * 强约束：
@@ -29,29 +24,12 @@ import {
 export default function WelfareEntryPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { liffChecked } = useLiff()
+  const { liffChecked, liffReady } = useLiff()
   const redirectingRef = useRef(false)
 
   const targetPath = useMemo(() => {
     return resolveRuntimeWelfareCallbackTarget(searchParams)
   }, [searchParams])
-  const explicitResumeIntent = useMemo(() => {
-    return (searchParams.get('resume_intent') || '').trim()
-  }, [searchParams])
-  const explicitResumeKey = useMemo(() => {
-    return (searchParams.get('resume_key') || searchParams.get('resume') || '').trim()
-  }, [searchParams])
-  const parsedResumeTarget = useMemo(() => {
-    return extractRuntimeResumeTarget(searchParams)
-  }, [searchParams])
-  const effectiveResumeIntent = explicitResumeIntent || parsedResumeTarget.intentToken
-  const effectiveResumeKey = explicitResumeKey || parsedResumeTarget.resumeKey
-  const effectiveResumeTarget = useMemo(() => (
-    buildRuntimeContinueTargetFromResume({
-      resumeKey: effectiveResumeKey,
-      intentToken: effectiveResumeIntent,
-    })
-  ), [effectiveResumeIntent, effectiveResumeKey])
   const hasExternalLoginCallback = useMemo(() => {
     return (
       searchParams.has('code') &&
@@ -60,7 +38,7 @@ export default function WelfareEntryPage() {
   }, [searchParams])
 
   const hasLiffCallback = searchParams.has('liff.state')
-  const hasExplicitResumeTarget = !!targetPath || !!effectiveResumeTarget
+  const isHomeExternalLoginCallback = hasExternalLoginCallback && targetPath === '/welfare'
 
   const scheduleReplace = useCallback((target: string, reason: string) => {
     if (!target || redirectingRef.current) return
@@ -83,39 +61,28 @@ export default function WelfareEntryPage() {
   }, [hasExternalLoginCallback, scheduleReplace, searchParams])
 
   useEffect(() => {
-    if (targetPath || effectiveResumeTarget || hasExternalLoginCallback || hasLiffCallback) return
-    clearPendingIntentResume()
-  }, [effectiveResumeTarget, hasExternalLoginCallback, hasLiffCallback, targetPath])
-
-  useEffect(() => {
     clientLog('welfare_entry_render', {
       has_intent: searchParams.has('intent'),
       has_liff_state: searchParams.has('liff.state'),
-      has_resume_intent: !!effectiveResumeIntent,
-      has_resume_key: !!effectiveResumeKey,
-      persisted_resume_intent: false,
-      persisted_resume_key: false,
       has_external_login_callback: hasExternalLoginCallback,
       target_path: targetPath || '(home)',
       liff_checked: liffChecked,
-      will_wait_for_liff: !!(targetPath && hasLiffCallback && !liffChecked),
+      will_wait_for_liff: !!(targetPath && (hasLiffCallback || hasExternalLoginCallback) && !liffChecked),
     })
-  }, [searchParams, effectiveResumeIntent, effectiveResumeKey, targetPath, liffChecked, hasLiffCallback, hasExternalLoginCallback])
-
-  useEffect(() => {
-    if (!effectiveResumeTarget || !liffChecked) return
-    scheduleReplace(effectiveResumeTarget, 'resume_target_continue')
-  }, [effectiveResumeTarget, liffChecked, scheduleReplace])
+  }, [searchParams, targetPath, liffChecked, hasLiffCallback, hasExternalLoginCallback])
 
   useEffect(() => {
     if (!targetPath) return
+    if (isHomeExternalLoginCallback && !liffReady) return
     scheduleReplace(targetPath, 'target_path_callback')
-  }, [scheduleReplace, targetPath])
+  }, [isHomeExternalLoginCallback, liffReady, scheduleReplace, targetPath])
 
   if (
-    (targetPath && hasLiffCallback && !liffChecked) ||
-    (hasExternalLoginCallback && !liffChecked) ||
-    (!!effectiveResumeTarget && !liffChecked)
+    targetPath &&
+    (
+      ((hasLiffCallback || hasExternalLoginCallback) && !liffChecked) ||
+      (isHomeExternalLoginCallback && !liffReady)
+    )
   ) {
     // 占位，不渲染首页（避免闪屏），等 LIFF init 完成后再跳
     return null

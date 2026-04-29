@@ -1,10 +1,10 @@
 import React, { Suspense, lazy } from 'react'
-import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import useAuthStore from './store/auth'
 import AdminLayout from './layout/AdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
-import { extractRuntimeResumeTarget, resolveRuntimeWelfareCallbackTarget } from './lib/line'
-import FollowConfirmPage from './pages/user/FollowConfirmPage'
+import { resolveRuntimeWelfareCallbackTarget } from './lib/line'
+import FollowRequiredPage from './pages/user/FollowRequiredPage'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -105,17 +105,19 @@ function CS({ title, description }: { title: string; description?: string }) {
 
 function RootEntryRedirectPage() {
   const [searchParams] = useSearchParams()
-  const explicitResumeIntent = (searchParams.get('resume_intent') || '').trim()
-  const explicitResumeKey = (searchParams.get('resume_key') || searchParams.get('resume') || '').trim()
-  const parsedResumeTarget = extractRuntimeResumeTarget(searchParams)
   const targetPath = resolveRuntimeWelfareCallbackTarget(searchParams)
 
-  if (targetPath || explicitResumeIntent || explicitResumeKey || parsedResumeTarget.intentToken || parsedResumeTarget.resumeKey) {
+  if (targetPath || searchParams.has('intent') || searchParams.has('liff.state')) {
     const query = searchParams.toString()
     return <Navigate to={query ? `/welfare?${query}` : '/welfare'} replace />
   }
 
   return <Navigate to="/welfare" replace />
+}
+
+function LegacyFollowRouteRedirect() {
+  const location = useLocation()
+  return <Navigate to={`/welfare/follow-required${location.search}`} replace />
 }
 
 export default function App() {
@@ -127,7 +129,9 @@ export default function App() {
         <Route path="/welfare" element={<WelfareEntryPage />} />
         <Route path="/welfare/open-in-line" element={<OpenInLinePage />} />
         <Route path="/welfare/continue" element={<ContinuePage />} />
-        <Route path="/welfare/follow-confirm" element={<FollowConfirmPage />} />
+        <Route path="/welfare/follow-required" element={<FollowRequiredPage />} />
+        <Route path="/welfare/follow" element={<LegacyFollowRouteRedirect />} />
+        <Route path="/welfare/follow-confirm" element={<LegacyFollowRouteRedirect />} />
         <Route path="/nearby" element={<NearbyPage />} />
         <Route path="/agent" element={<AgentPage />} />
         <Route path="/agent/chat" element={<AgentChatPage />} />

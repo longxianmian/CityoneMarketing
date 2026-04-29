@@ -25,6 +25,10 @@ rm -rf "${STAGE_DIR}"
 mkdir -p "${STAGE_DIR}"
 tar -xzf "${ARCHIVE_PATH}" -C "${STAGE_DIR}"
 
+# Strip macOS AppleDouble metadata files from the staged release.
+# These files can be interpreted as real migrations or source files on Linux.
+find "${STAGE_DIR}" -name '._*' -type f -delete
+
 if [[ -d "${LIVE_DIR}" ]]; then
   rm -rf "${BACKUP_DIR}"
   cp -a "${LIVE_DIR}" "${BACKUP_DIR}"

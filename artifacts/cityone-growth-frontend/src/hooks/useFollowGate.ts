@@ -12,42 +12,46 @@
  * - 当前用户身份与关注状态只认后端真源
  *
  * 执行型动作统一流程（默认/慢路径）：
- *   1. 创建 pending intent
- *   2. 外部浏览器整页进入 `/welfare?resume_intent=...`
- *   3. 由 `/welfare` 入口统一执行 LIFF init / LINE Login
- *   4. `/welfare/continue` 完成 identify -> check-follow -> consume
+ *   1. 创建 pending intent，拿到 intent_id
+ *   2. LINE 内进入 `/welfare/continue?intent=...`
+ *   3. 外部浏览器进入标准 LIFF Continue URL
+ *   4. ContinuePage 完成 identity -> friendship -> consume/follow
  *
  * 不保留任何 fast path。所有执行动作一律经过同一条 pending-intent 主链：
- * identify -> check-follow -> consume -> 落业务结果页。
+ * identity sync -> friendship check -> consume -> 落业务结果页。
  */
 import { useState, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import useLineUserStore from '../store/lineUser'
 import {
-  issuePendingIntent,
-  writePendingIntentResume,
+  createPendingIntentAndContinue,
   type PendingIntentAction,
+  type PendingIntentTargetType,
 } from '../lib/pendingIntent'
 import { useLiff } from '../providers/LiffProvider'
 import { clientLog } from '../lib/clientLogger'
 import {
-  buildResumeLaunchTargets,
   detectTerminal,
-  getRuntimeLineConfig,
   isDesktopBrowser,
 } from '../lib/line'
 
-const HANDOFF_WAIT_MS = 1200
+const HANDOFF_WAIT_MS = 1500
 
-function launchLineAppThenFallback(options: {
-  resumeLineSchemeUrl?: string
-  resumeLiffUrl?: string
+function inferTargetType(action: PendingIntentAction): PendingIntentTargetType {
+  if (action === 'participate_activity') return 'activity'
+  if (action === 'redeem_product') return 'product'
+  if (action === 'use_benefit') return 'benefit'
+  return 'coupon'
+}
+
+function launchLiffThenFallback(options: {
+  liffContinueUrl: string
   fallbackPath: string
   navigate: ReturnType<typeof useNavigate>
   logPayload: Record<string, any>
 }) {
-  let stage: 'idle' | 'scheme' | 'liff' | 'done' = 'idle'
+  let stage: 'idle' | 'liff' | 'done' = 'idle'
   const markDone = () => { stage = 'done' }
   const onHidden = () => {
     if (document.visibilityState === 'hidden') markDone()
@@ -57,43 +61,24 @@ function launchLineAppThenFallback(options: {
     window.removeEventListener('pagehide', markDone)
     document.removeEventListener('visibilitychange', onHidden)
   }
-  const failToWebLogin = () => {
+  const failToOpenInLine = () => {
     if (stage === 'done') {
       clearListeners()
       return
     }
     clearListeners()
-    clientLog('guard_external_app_handoff_fallback_web_login', options.logPayload)
-    options.navigate(options.fallbackPath)
-  }
-  const tryLiffUrl = () => {
-    if (stage === 'done') {
-      clearListeners()
-      return
-    }
-    if (options.resumeLiffUrl) {
-      stage = 'liff'
-      clientLog('guard_external_app_handoff_try_liff', options.logPayload)
-      window.location.assign(options.resumeLiffUrl)
-      window.setTimeout(failToWebLogin, HANDOFF_WAIT_MS)
-      return
-    }
-    failToWebLogin()
+    clientLog('guard_external_liff_fallback_open_in_line', options.logPayload)
+    options.navigate(options.fallbackPath, { replace: true })
   }
 
   window.addEventListener('blur', markDone, { once: true })
   window.addEventListener('pagehide', markDone, { once: true })
   document.addEventListener('visibilitychange', onHidden)
 
-  if (options.resumeLineSchemeUrl) {
-    stage = 'scheme'
-    clientLog('guard_external_app_handoff_try_scheme', options.logPayload)
-    window.setTimeout(tryLiffUrl, HANDOFF_WAIT_MS)
-    window.location.assign(options.resumeLineSchemeUrl)
-    return
-  }
-
-  tryLiffUrl()
+  stage = 'liff'
+  clientLog('guard_external_liff_continue', options.logPayload)
+  window.setTimeout(failToOpenInLine, HANDOFF_WAIT_MS)
+  window.location.assign(options.liffContinueUrl)
 }
 
 interface GuardOptions {
@@ -185,64 +170,58 @@ export function useFollowGate() {
 
         // ─── 唯一主路径 ────────────────────────────────────────────────────────
         // 所有执行动作先发 pending intent，再进入 ContinuePage 统一完成：
-        // identify -> check-follow -> consume。
-        const issued = await issuePendingIntent({
+        // identity sync -> friendship check -> consume。
+        const targetType = inferTargetType(intentAction)
+        const issued = await createPendingIntentAndContinue({
           userId: canonicalUserId || lineProfile?.lineUserId || '',
           lineUserId: lineProfile?.lineUserId || '',
-          terminal: detectTerminal(),
-          action: intentAction,
-          resourceId,
-          returnPath: fullReturn,
+          terminalSource: detectTerminal(),
+          actionType: intentAction,
+          targetType,
+          targetId: resourceId,
+          sourceUrl: fullReturn,
           successPath: successOrReturn,
           failPath: failPath || fullReturn,
           backPath,
           actionName: label,
-          source,
+          attributionParams: source,
         })
-        const resumeKey = String(issued.resume_key || '').trim()
-        writePendingIntentResume(issued.token, resumeKey)
-        const resumeEntryPath = resumeKey
-          ? `/welfare?resume_key=${encodeURIComponent(resumeKey)}`
-          : `/welfare?resume_intent=${encodeURIComponent(issued.token)}`
-        const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.token)}`
+        const openInLinePath = `/welfare/open-in-line?intent=${encodeURIComponent(issued.intent_id)}`
 
         const isLineWebView = /Line\/\d/i.test(navigator.userAgent)
         if (inLineContext || isLineWebView) {
           clientLog('guard_branch_in_line_continue', {
             in_line_context: inLineContext,
             in_line_ua: isLineWebView,
-            target: `/welfare/continue?intent=${encodeURIComponent(issued.token)}`,
+            target: issued.continue_url,
+            intent_id: issued.intent_id,
           })
-          navigate(`/welfare/continue?intent=${encodeURIComponent(issued.token)}`)
+          navigate(issued.continue_url)
           return
         }
 
         if (isDesktopBrowser()) {
-          navigate(openInLinePath)
+          navigate(openInLinePath, { replace: true })
           return
         }
 
-        const lineCfg = getRuntimeLineConfig()
-        const { resumeLineSchemeUrl, resumeLiffUrl } = buildResumeLaunchTargets(
-          issued.token,
-          lineCfg.liffId,
-          lineCfg.officialAccountId,
-          resumeKey,
-        )
         const logPayload = {
+          intent_id: issued.intent_id,
           action: intentAction,
           resource_id: resourceId,
+          target_type: targetType,
           terminal: detectTerminal(),
-          fallback: resumeEntryPath,
-          has_resume_key: !!resumeKey,
-          has_scheme_url: !!resumeLineSchemeUrl,
-          has_liff_url: !!resumeLiffUrl,
+          fallback: openInLinePath,
+          has_liff_url: !!issued.liff_continue_url,
         }
-        clientLog('guard_branch_external_app_handoff', logPayload)
-        launchLineAppThenFallback({
-          resumeLineSchemeUrl,
-          resumeLiffUrl,
-          fallbackPath: resumeEntryPath,
+        if (!issued.liff_continue_url) {
+          navigate(openInLinePath, { replace: true })
+          return
+        }
+        clientLog('guard_branch_external_liff_continue', logPayload)
+        launchLiffThenFallback({
+          liffContinueUrl: issued.liff_continue_url,
+          fallbackPath: openInLinePath,
           navigate,
           logPayload,
         })

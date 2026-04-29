@@ -55,8 +55,8 @@ export function getIntentLabels() {
 }
 
 // ─── 新增接口（baseURL=/api，下面路径不带 /api/ 前缀） ────────────────────────
-// 前端 request baseURL = '/api'，Vite proxy 把 '/api/*' 发给 API server(8080)
-// API server 的 fallback handler: path = '/api' + req.url → 发给后端(3100)
+// 前端 request baseURL = '/api'，Vite dev proxy 会把 '/api/*' 转发给
+// VITE_API_PROXY_TARGET（默认 http://127.0.0.1:3100）
 // 所以下面路径应为 '/admin/...' 而不是 '/api/admin/...'
 
 // ─── Agents 基础信息 ──────────────────────────────────────────────────────────
