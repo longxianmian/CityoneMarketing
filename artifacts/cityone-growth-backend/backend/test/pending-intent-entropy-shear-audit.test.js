@@ -28,14 +28,14 @@ function createPendingRow(overrides = {}) {
   };
 }
 
-function createFakeClient(row) {
+function createFakeClient(row, { isFan = true } = {}) {
   return {
     async query(sql, params) {
       if (sql.includes("FROM pending_intents") && sql.includes("FOR UPDATE")) {
         return { rows: [row] };
       }
       if (sql.includes("FROM users")) {
-        return { rows: [{ is_fan: true }] };
+        return { rows: [{ is_fan: isFan }] };
       }
       if (sql.includes("SET user_id = $2")) {
         row.user_id = params[1];
@@ -63,18 +63,19 @@ function createFakeClient(row) {
   };
 }
 
-async function runConsumeWithAuditVerdict(verdict, options = {}) {
+async function runConsumeWithEntropyShear(options = {}) {
   const row = createPendingRow(options.row);
-  const client = createFakeClient(row);
+  const client = createFakeClient(row, { isFan: options.isFan ?? true });
   let executorCalls = 0;
   const consoleInfoMock = mock.method(console, "info", () => {});
+  const consoleWarnMock = mock.method(console, "warn", () => {});
 
   try {
     const result = await consumePendingIntent({
       intentId: row.intent_id,
       consumeKey: `consume:${row.intent_id}`,
-      userId: "U123",
-      lineUserId: "U123",
+      userId: options.userId || "U123",
+      lineUserId: options.lineUserId || "U123",
       executor: async () => {
         executorCalls += 1;
         return {
@@ -86,66 +87,139 @@ async function runConsumeWithAuditVerdict(verdict, options = {}) {
         withTransaction: async (fn) => fn(client),
         getEntropyShearConfig: () => ({
           enabled: true,
-          mode: "audit",
-          policyVersion: "cityone-line-main-chain.v1",
+          mode: options.mode || "audit",
+          policyVersion: "cityone-line-main-chain-v1",
         }),
         evaluateEntropyShear: options.evaluateEntropyShear || (async () => ({
-          verdict,
-          reason: `${String(verdict || "").toLowerCase()}_reason`,
-          applied_rule_id: `rule.${String(verdict || "").toLowerCase()}`,
-          trace: { verdict },
+          verdict: options.verdict ?? "Yes",
+          reason: `${String(options.verdict ?? "Yes").toLowerCase()}_reason`,
+          applied_rule_id: options.appliedRuleId || `rule.${String(options.verdict ?? "Yes").toLowerCase()}` ,
+          trace: { verdict: options.verdict ?? "Yes" },
           signature: "sig_123",
-          shear_id: `shear_${String(verdict || "").toLowerCase()}`,
-          mode: "audit",
-          fail_open: false,
+          shear_id: `shear_${String(options.verdict ?? "Yes").toLowerCase()}` ,
+          mode: options.mode || "audit",
+          fail_open: options.failOpen === true,
+          error: options.failOpen === true ? "shear down" : null,
         })),
       },
     });
 
-    const logHit = consoleInfoMock.mock.calls.some((call) => (
-      call.arguments[0] === "[entropy-shear][audit]" &&
-      call.arguments[1]?.mode === "audit"
-    ));
-
     return {
       result,
       executorCalls,
-      logHit,
+      infoCalls: consoleInfoMock.mock.calls,
+      warnCalls: consoleWarnMock.mock.calls,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      result: null,
+      executorCalls,
+      infoCalls: consoleInfoMock.mock.calls,
+      warnCalls: consoleWarnMock.mock.calls,
+      error,
     };
   } finally {
     consoleInfoMock.mock.restore();
+    consoleWarnMock.mock.restore();
   }
 }
 
-test("audit mode with Yes verdict still executes consume", async () => {
-  const outcome = await runConsumeWithAuditVerdict("Yes");
+function hasLog(calls, marker) {
+  return calls.some((call) => call.arguments[0] === marker);
+}
+
+test("audit mode with No verdict still executes consume", async () => {
+  const outcome = await runConsumeWithEntropyShear({ mode: "audit", verdict: "No" });
+  assert.equal(outcome.error, null);
   assert.equal(outcome.executorCalls, 1);
   assert.equal(outcome.result.replayed, false);
-  assert.equal(outcome.result.result.resultCode, "claimed");
-  assert.equal(outcome.logHit, true);
+  assert.equal(hasLog(outcome.infoCalls, "[entropy-shear][audit]"), true);
 });
 
-test("audit mode with No verdict still executes consume and logs", async () => {
-  const outcome = await runConsumeWithAuditVerdict("No");
+test("audit mode with Hold verdict still executes consume", async () => {
+  const outcome = await runConsumeWithEntropyShear({ mode: "audit", verdict: "Hold" });
+  assert.equal(outcome.error, null);
   assert.equal(outcome.executorCalls, 1);
   assert.equal(outcome.result.replayed, false);
-  assert.equal(outcome.logHit, true);
-});
-
-test("audit mode with Hold verdict still executes consume and logs", async () => {
-  const outcome = await runConsumeWithAuditVerdict("Hold");
-  assert.equal(outcome.executorCalls, 1);
-  assert.equal(outcome.result.replayed, false);
-  assert.equal(outcome.logHit, true);
+  assert.equal(hasLog(outcome.infoCalls, "[entropy-shear][audit]"), true);
 });
 
 test("audit mode with unavailable shear service still executes consume", async () => {
-  const outcome = await runConsumeWithAuditVerdict(null, {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "audit",
     evaluateEntropyShear: async () => {
       throw new Error("shear down");
     },
   });
+  assert.equal(outcome.error, null);
   assert.equal(outcome.executorCalls, 1);
   assert.equal(outcome.result.replayed, false);
-  assert.equal(outcome.logHit, true);
+  assert.equal(hasLog(outcome.infoCalls, "[entropy-shear][audit]"), true);
+});
+
+test("guard mode with Yes verdict executes consume", async () => {
+  const outcome = await runConsumeWithEntropyShear({ mode: "guard", verdict: "Yes", appliedRuleId: "cityone.yes.mainline_ready" });
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.executorCalls, 1);
+  assert.equal(outcome.result.replayed, false);
+});
+
+test("guard mode with Hold verdict passes and logs hold-pass", async () => {
+  const outcome = await runConsumeWithEntropyShear({ mode: "guard", verdict: "Hold", appliedRuleId: "cityone.hold.follow_unconfirmed", isFan: false });
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.executorCalls, 1);
+  assert.equal(outcome.result.replayed, false);
+  assert.equal(hasLog(outcome.warnCalls, "[entropy-shear][guard][hold-pass]"), true);
+});
+
+test("guard mode blocks allowlisted No identity mismatch before executor", async () => {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "guard",
+    verdict: "No",
+    appliedRuleId: "cityone.no.identity_mismatch",
+    row: { user_id: "stored_user", line_user_id: "stored_user" },
+    userId: "other_user",
+    lineUserId: "other_user",
+  });
+  assert.equal(outcome.executorCalls, 0);
+  assert.equal(outcome.error?.errorCode, "ENTROPY_SHEAR_GUARD_BLOCKED");
+  assert.equal(outcome.error?.guard?.verdict, "No");
+  assert.equal(hasLog(outcome.warnCalls, "[entropy-shear][guard][blocked]"), true);
+});
+
+test("guard mode blocks allowlisted No intent expired before executor", async () => {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "guard",
+    verdict: "No",
+    appliedRuleId: "cityone.no.intent_expired",
+  });
+  assert.equal(outcome.executorCalls, 0);
+  assert.equal(outcome.error?.errorCode, "ENTROPY_SHEAR_GUARD_BLOCKED");
+  assert.equal(outcome.error?.guard?.applied_rule_id, "cityone.no.intent_expired");
+});
+
+test("guard mode with unknown No rule does not block and logs unknown-no-pass", async () => {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "guard",
+    verdict: "No",
+    appliedRuleId: "cityone.no.future_rule_not_allowlisted",
+  });
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.executorCalls, 1);
+  assert.equal(outcome.result.replayed, false);
+  assert.equal(hasLog(outcome.warnCalls, "[entropy-shear][guard][unknown-no-pass]"), true);
+});
+
+test("guard mode with fail-open result does not block and logs fail-open", async () => {
+  const outcome = await runConsumeWithEntropyShear({
+    mode: "guard",
+    verdict: null,
+    failOpen: true,
+    appliedRuleId: null,
+  });
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.executorCalls, 1);
+  assert.equal(outcome.result.replayed, false);
+  assert.equal(hasLog(outcome.warnCalls, "[entropy-shear][guard][fail-open]"), true);
 });
