@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
+import { evaluateEntropyShear, getEntropyShearConfig } from "./entropy-shear-client.js";
+import { buildCityoneLineShearFacts } from "./cityone-line-shear-facts.js";
 
 const DEFAULT_TTL_SECONDS = 10 * 60;
 
@@ -264,6 +266,113 @@ function normalizePendingIntentRow(row) {
   };
 }
 
+function createEntropyShearAuditResult(mode, overrides = {}) {
+  return {
+    enabled: false,
+    skipped: true,
+    mode,
+    verdict: null,
+    reason: null,
+    applied_rule_id: null,
+    trace: null,
+    signature: null,
+    shear_id: null,
+    fail_open: false,
+    ...overrides,
+  };
+}
+
+function logEntropyShearAudit(payload = {}) {
+  console.info("[entropy-shear][audit]", payload);
+}
+
+export async function runPendingIntentEntropyShearAudit({
+  row,
+  payload,
+  effectiveIdentity,
+  providedIdentity,
+  consumeKey,
+  client,
+  legacyFlags = {},
+  deps = {},
+}) {
+  const getConfig = deps.getEntropyShearConfig || getEntropyShearConfig;
+  const buildFacts = deps.buildCityoneLineShearFacts || buildCityoneLineShearFacts;
+  const evaluate = deps.evaluateEntropyShear || evaluateEntropyShear;
+  const config = getConfig();
+  const mode = String(config?.mode || "audit").trim() || "audit";
+
+  if (!config?.enabled) {
+    return createEntropyShearAuditResult(mode, {
+      reason: "entropy_shear_disabled",
+    });
+  }
+
+  try {
+    const facts = await buildFacts({
+      row,
+      payload,
+      effectiveIdentity,
+      providedIdentity,
+      consumeKey,
+      request: {
+        method: "POST",
+        consumeEndpointKind: legacyFlags.usedLegacyConsumeEndpoint === true
+          ? "legacy_token_consume"
+          : "intent_id_consume",
+        mode,
+      },
+      safety: {
+        isExpired: false,
+        isConsumed: row?.status === "consumed",
+        isExecuting: row?.status === "executing",
+        isFailed: row?.status === "failed",
+      },
+      legacyFlags,
+      client,
+    });
+
+    const result = await evaluate({
+      policyKey: "cityone-line-main-chain",
+      facts,
+      requestId: String(payload?.intent_id || row?.intent_id || "").trim(),
+      fetchImpl: deps.fetchImpl,
+    });
+
+    logEntropyShearAudit({
+      intent_id: String(payload?.intent_id || row?.intent_id || "").trim(),
+      action_type: String(payload?.action || row?.action || "").trim(),
+      verdict: result.verdict,
+      reason: result.reason,
+      applied_rule_id: result.applied_rule_id,
+      shear_id: result.shear_id,
+      mode: result.mode || mode,
+    });
+
+    return {
+      ...result,
+      facts,
+    };
+  } catch (err) {
+    const failOpen = createEntropyShearAuditResult(mode, {
+      enabled: config?.enabled === true,
+      reason: "entropy_shear_audit_sidecar_failed",
+      fail_open: true,
+      error: String(err?.message || "unknown"),
+    });
+    logEntropyShearAudit({
+      intent_id: String(payload?.intent_id || row?.intent_id || "").trim(),
+      action_type: String(payload?.action || row?.action || "").trim(),
+      verdict: failOpen.verdict,
+      reason: failOpen.reason,
+      applied_rule_id: failOpen.applied_rule_id,
+      shear_id: failOpen.shear_id,
+      mode,
+    });
+    return failOpen;
+  }
+}
+
 function isDeviceLikeUserId(value) {
   const v = String(value || "").trim();
   return !v || v.startsWith("dev_");
@@ -508,16 +617,19 @@ export async function consumePendingIntent({
   userId,
   lineUserId,
   executor,
+  deps = {},
 }) {
+  const verifyPendingIntentToken = deps.verifyToken || verifyToken;
+  const runInTransaction = deps.withTransaction || withTransaction;
   const payload = token
-    ? verifyToken(token)
+    ? verifyPendingIntentToken(token)
     : null;
   const effectiveIntentId = String(intentId || payload?.intent_id || "").trim();
   if (!effectiveIntentId) {
     throw createPendingIntentError(400, "MISSING_PENDING_INTENT_ID", "缺少 pending intent id");
   }
 
-  return withTransaction(async (client) => {
+  return runInTransaction(async (client) => {
     const { rows } = await client.query(
       `SELECT *
          FROM pending_intents
@@ -584,7 +696,48 @@ export async function consumePendingIntent({
       throw createPendingIntentError(410, "PENDING_INTENT_EXPIRED", "pending intent 已过期");
     }
 
-    const effectiveIdentity = resolveEffectiveIdentity(row, { userId, lineUserId });
+    let effectiveIdentity = null;
+    let identityMismatch = false;
+    let identityError = null;
+    try {
+      effectiveIdentity = resolveEffectiveIdentity(row, { userId, lineUserId });
+    } catch (err) {
+      if (err?.errorCode === "PENDING_INTENT_USER_MISMATCH") {
+        identityMismatch = true;
+        identityError = err;
+        effectiveIdentity = {
+          userId: String(row.user_id || "").trim(),
+          lineUserId: String(row.line_user_id || "").trim(),
+          shouldBind: false,
+        };
+      } else {
+        throw err;
+      }
+    }
+
+    await runPendingIntentEntropyShearAudit({
+      row,
+      payload: runtimePayload,
+      effectiveIdentity,
+      providedIdentity: {
+        userId,
+        lineUserId,
+      },
+      consumeKey,
+      client,
+      legacyFlags: {
+        usedLegacyConsumeEndpoint: !!token && !intentId,
+        malformedConsume: false,
+        identityMismatch,
+        usedResumeKey: false,
+      },
+      deps,
+    });
+
+    if (identityError) {
+      throw identityError;
+    }
+
     if (effectiveIdentity.shouldBind) {
       await client.query(
         `UPDATE pending_intents

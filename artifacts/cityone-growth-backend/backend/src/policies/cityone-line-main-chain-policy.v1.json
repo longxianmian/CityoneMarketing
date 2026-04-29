@@ -1,0 +1,56 @@
+{
+  "policy_key": "cityone-line-main-chain",
+  "policy_version": "v1",
+  "title": "CityOne LINE Main Chain Audit Policy",
+  "verdicts": ["Yes", "No", "Hold"],
+  "rules": [
+    {
+      "id": "cityone.no.intent_expired",
+      "verdict": "No",
+      "reason": "intent 已过期",
+      "when": "facts.safety.is_expired === true"
+    },
+    {
+      "id": "cityone.no.intent_consumed",
+      "verdict": "No",
+      "reason": "intent 已 consumed",
+      "when": "facts.safety.is_consumed === true"
+    },
+    {
+      "id": "cityone.no.identity_mismatch",
+      "verdict": "No",
+      "reason": "identity_mismatch = true",
+      "when": "facts.identity.identity_mismatch === true"
+    },
+    {
+      "id": "cityone.no.legacy_malformed_consume",
+      "verdict": "No",
+      "reason": "legacy malformed consume = true",
+      "when": "facts.legacy_flags.malformed_consume === true"
+    },
+    {
+      "id": "cityone.hold.identity_unbound",
+      "verdict": "Hold",
+      "reason": "identity 未绑定",
+      "when": "facts.identity.identity_bound !== true"
+    },
+    {
+      "id": "cityone.hold.follow_unconfirmed",
+      "verdict": "Hold",
+      "reason": "require_follow=true 但关注未确认",
+      "when": "facts.friendship.require_follow === true && facts.friendship.friendship_confirmed !== true"
+    },
+    {
+      "id": "cityone.hold.intent_executing",
+      "verdict": "Hold",
+      "reason": "is_executing=true",
+      "when": "facts.safety.is_executing === true"
+    },
+    {
+      "id": "cityone.yes.mainline_ready",
+      "verdict": "Yes",
+      "reason": "intent 有效且主链条件满足",
+      "when": "facts.safety.is_expired !== true && facts.safety.is_consumed !== true && facts.identity.identity_bound === true && facts.identity.identity_mismatch !== true && (facts.friendship.require_follow !== true || facts.friendship.friendship_confirmed === true) && facts.safety.is_failed !== true"
+    }
+  ]
+}
