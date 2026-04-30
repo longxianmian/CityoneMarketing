@@ -6,6 +6,11 @@ import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
 import { resolveOssUrl, normalizeManagedAssetRef } from "../services/ossService.js";
 import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
+import {
+  isDatabaseConnectionError,
+  readFallbackList,
+  warnReadFallback,
+} from "../services/read-fallback-data.js";
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -42,6 +47,17 @@ function itemRow(row) {
     sort_order:      Number(row.sort_order ?? 0),
     created_at:      row.created_at  ? new Date(row.created_at).toISOString()  : null,
     updated_at:      row.updated_at  ? new Date(row.updated_at).toISOString()  : null,
+  };
+}
+
+function buildMallItemFallbackResult(rows, { onlyOnShelf, page, pageSize }) {
+  const filtered = rows
+    .filter((row) => !onlyOnShelf || row.on_shelf === true)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(b.created_at || "").localeCompare(String(a.created_at || "")));
+  const offset = (page - 1) * pageSize;
+  return {
+    list: filtered.slice(offset, offset + pageSize).map(itemRow),
+    total: filtered.length,
   };
 }
 
@@ -90,20 +106,23 @@ export async function handleGetMallItemById(req, res, sendJson, itemId) {
 }
 
 // ── GET /api/growth/mall/items  — 商品列表（管理端 + 用户端） ─────────────────
-export async function handleGetMallItems(req, res, sendJson, url) {
+export async function handleGetMallItems(req, res, sendJson, url, deps = {}) {
+  const queryFn = deps.queryFn || query;
+  const readFallbackListFn = deps.readFallbackListFn || readFallbackList;
+  const warnReadFallbackFn = deps.warnReadFallbackFn || warnReadFallback;
+  const isDatabaseConnectionErrorFn = deps.isDatabaseConnectionErrorFn || isDatabaseConnectionError;
+  const onlyOnShelf = url.searchParams.get("onShelf") === "true";
+  const page = Math.max(1, parseInt(url.searchParams.get("pageNum") || "1", 10));
+  const pageSize = Math.max(1, parseInt(url.searchParams.get("pageSize") || "20", 10));
+  const offset = (page - 1) * pageSize;
   try {
-    const onlyOnShelf = url.searchParams.get("onShelf") === "true";
-    const page     = Math.max(1, parseInt(url.searchParams.get("pageNum")  || "1",  10));
-    const pageSize = Math.max(1, parseInt(url.searchParams.get("pageSize") || "20", 10));
-    const offset   = (page - 1) * pageSize;
-
     const where  = onlyOnShelf ? "WHERE on_shelf = TRUE" : "";
     const params = [pageSize, offset];
 
-    const countRes = await query(`SELECT COUNT(*) AS total FROM mall_items ${where}`);
+    const countRes = await queryFn(`SELECT COUNT(*) AS total FROM mall_items ${where}`);
     const total    = Number(countRes.rows[0].total);
 
-    const dataRes = await query(
+    const dataRes = await queryFn(
       `SELECT * FROM mall_items ${where} ORDER BY sort_order ASC, created_at DESC LIMIT $1 OFFSET $2`,
       params
     );
@@ -113,6 +132,16 @@ export async function handleGetMallItems(req, res, sendJson, url) {
       total,
     });
   } catch (err) {
+    if (isDatabaseConnectionErrorFn(err)) {
+      try {
+        const fallback = await readFallbackListFn("mall-items.json");
+        const result = buildMallItemFallbackResult(fallback.list, { onlyOnShelf, page, pageSize });
+        warnReadFallbackFn("GET /api/growth/mall/items", err, result.list.length, { filePath: fallback.filePath });
+        return sendOk(res, sendJson, "ok", result);
+      } catch (fallbackError) {
+        console.warn(`[ContentFallback] GET /api/growth/mall/items fallback failed: ${fallbackError?.message || fallbackError}`);
+      }
+    }
     return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "DB_ERROR", err.message);
   }
 }
