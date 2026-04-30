@@ -1,5 +1,10 @@
 import { query } from "../db/pool.js";
 import { resolveOssUrl, normalizeManagedAssetRef } from "../services/ossService.js";
+import {
+  isDatabaseConnectionError,
+  readFallbackList,
+  warnReadFallback,
+} from "../services/read-fallback-data.js";
 
 function sendOk(res, sendJson, msg, data) {
   return sendJson(res, 200, { code: 200, msg, data });
@@ -22,7 +27,7 @@ function toML(v) {
 }
 function rowToClient(r) {
   return {
-    id: r.banner_code,
+    id: r.banner_code || r.id,
     title: r.title || { zh: "", th: "", en: "" },
     sub_title: r.sub_title || { zh: "", th: "", en: "" },
     image_url: resolveOssUrl(r.image_url),
@@ -45,11 +50,23 @@ function rowToClient(r) {
   };
 }
 
+function buildBannerFallbackList(rows, { onlyEnabled, positionKey }) {
+  return rows
+    .filter((row) => !onlyEnabled || row.enabled === true)
+    .filter((row) => !positionKey || row.position_key === positionKey)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.id || "").localeCompare(String(b.id || "")))
+    .map(rowToClient);
+}
+
 // GET /api/growth/banners
-export async function handleGetBanners(req, res, sendJson, url) {
+export async function handleGetBanners(req, res, sendJson, url, deps = {}) {
+  const queryFn = deps.queryFn || query;
+  const readFallbackListFn = deps.readFallbackListFn || readFallbackList;
+  const warnReadFallbackFn = deps.warnReadFallbackFn || warnReadFallback;
+  const isDatabaseConnectionErrorFn = deps.isDatabaseConnectionErrorFn || isDatabaseConnectionError;
+  const onlyEnabled = url.searchParams.get("enabled") === "true";
+  const positionKey = url.searchParams.get("position_key") || "";
   try {
-    const onlyEnabled = url.searchParams.get("enabled") === "true";
-    const positionKey = url.searchParams.get("position_key") || "";
     let sql = "SELECT * FROM banners";
     const params = [];
     const where = [];
@@ -58,10 +75,20 @@ export async function handleGetBanners(req, res, sendJson, url) {
     if (where.length) sql += " WHERE " + where.join(" AND ");
     sql += " ORDER BY sort_order ASC, id ASC";
 
-    const { rows } = await query(sql, params);
+    const { rows } = await queryFn(sql, params);
     const list = rows.map(rowToClient);
     return sendOk(res, sendJson, "ok", { list, total: list.length });
   } catch (err) {
+    if (isDatabaseConnectionErrorFn(err)) {
+      try {
+        const fallback = await readFallbackListFn("banners.json");
+        const list = buildBannerFallbackList(fallback.list, { onlyEnabled, positionKey });
+        warnReadFallbackFn("GET /api/growth/banners", err, list.length, { filePath: fallback.filePath });
+        return sendOk(res, sendJson, "ok", { list, total: list.length });
+      } catch (fallbackError) {
+        console.warn(`[ContentFallback] GET /api/growth/banners fallback failed: ${fallbackError?.message || fallbackError}`);
+      }
+    }
     return sendError(res, sendJson, err.statusCode || 500, err.errorCode || "DB_ERROR", err.message);
   }
 }

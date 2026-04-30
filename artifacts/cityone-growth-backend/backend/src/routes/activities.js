@@ -2,6 +2,11 @@ import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
 import { resolveOssUrl, normalizeManagedAssetRef } from "../services/ossService.js";
 import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
+import {
+  isDatabaseConnectionError,
+  readFallbackList,
+  warnReadFallback,
+} from "../services/read-fallback-data.js";
 
 const VALID_ACTIVITY_TYPES = [
   "general", "sos", "lightning_coupon", "lucky_wheel", "scratch_card", "thai_fortune_draw", "invite_reward",
@@ -256,6 +261,16 @@ function rowToActivity(r) {
   };
 }
 
+function buildActivityFallbackList(rows, { activityType, status, page, pageSize }) {
+  const filtered = rows
+    .filter((row) => !activityType || row.activity_type === activityType)
+    .filter((row) => !status || row.status === status)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(b.created_at || "").localeCompare(String(a.created_at || "")));
+
+  const offset = (page - 1) * pageSize;
+  return filtered.slice(offset, offset + pageSize).map(rowToActivity);
+}
+
 // ─── 活动模板 ────────────────────────────────────────────────────────────────
 
 export async function handleActivityTemplateList(req, res, url, sendJson) {
@@ -367,29 +382,42 @@ export async function handleActivityTemplateUpdate(req, res, url, sendJson, read
 
 // ─── 活动实例 ────────────────────────────────────────────────────────────────
 
-export async function handleActivityList(req, res, url, sendJson) {
+export async function handleActivityList(req, res, url, sendJson, deps = {}) {
+  const queryFn = deps.queryFn || query;
+  const readFallbackListFn = deps.readFallbackListFn || readFallbackList;
+  const warnReadFallbackFn = deps.warnReadFallbackFn || warnReadFallback;
+  const isDatabaseConnectionErrorFn = deps.isDatabaseConnectionErrorFn || isDatabaseConnectionError;
+  const activityType = url.searchParams.get("activity_type");
+  const status = url.searchParams.get("status");
+  const page = Math.max(1, Number(url.searchParams.get("page") || 1));
+  const pageSize = Math.max(1, Math.min(100, Number(url.searchParams.get("pageSize") || 100)));
   try {
-    const activityType = url.searchParams.get("activity_type");
-    const status = url.searchParams.get("status");
-    const page = Math.max(1, Number(url.searchParams.get("page") || 1));
-    const pageSize = Math.max(1, Math.min(100, Number(url.searchParams.get("pageSize") || 100)));
-
     const params = [];
     const where = [];
     if (activityType) { params.push(activityType); where.push(`activity_type=$${params.length}`); }
     if (status) { params.push(status); where.push(`status=$${params.length}`); }
     const whereClause = where.length ? " WHERE " + where.join(" AND ") : "";
 
-    const { rows: countRows } = await query(`SELECT COUNT(*) AS cnt FROM activities${whereClause}`, params);
+    const { rows: countRows } = await queryFn(`SELECT COUNT(*) AS cnt FROM activities${whereClause}`, params);
     const offset = (page - 1) * pageSize;
     params.push(pageSize, offset);
-    const { rows } = await query(
+    const { rows } = await queryFn(
       `SELECT * FROM activities${whereClause} ORDER BY sort_order ASC, created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
     const enrichedRows = await enrichActivitiesWithRewards(rows);
     return sendOk(res, sendJson, "activities loaded", enrichedRows.map(rowToActivity));
   } catch (err) {
+    if (isDatabaseConnectionErrorFn(err)) {
+      try {
+        const fallback = await readFallbackListFn("activities.json");
+        const list = buildActivityFallbackList(fallback.list, { activityType, status, page, pageSize });
+        warnReadFallbackFn("GET /api/activities", err, list.length, { filePath: fallback.filePath });
+        return sendOk(res, sendJson, "activities loaded", list);
+      } catch (fallbackError) {
+        console.warn(`[ContentFallback] GET /api/activities fallback failed: ${fallbackError?.message || fallbackError}`);
+      }
+    }
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
 }

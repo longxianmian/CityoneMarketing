@@ -6,6 +6,11 @@ import crypto from "node:crypto";
 import { query, withTransaction } from "../db/pool.js";
 import { resolveOssUrl, normalizeManagedAssetRef } from "../services/ossService.js";
 import { completeMlFieldMap, normalizeMlValue, syncMlSnapshotToOss } from "../services/multilingual-service.js";
+import {
+  isDatabaseConnectionError,
+  readFallbackList,
+  warnReadFallback,
+} from "../services/read-fallback-data.js";
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -144,6 +149,14 @@ function userCouponRow(row) {
   };
 }
 
+function buildCouponFallbackList(rows, nowIso) {
+  return rows
+    .filter((row) => Number(row.status) === 1)
+    .filter((row) => !row.valid_to || String(row.valid_to) > nowIso)
+    .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+    .map(couponRow);
+}
+
 /** 生成下一个顺序 coupon ID（形如 coupon_003） */
 async function nextCouponId() {
   const res = await query(
@@ -158,10 +171,14 @@ async function nextCouponId() {
 
 // ── 用户端：有效卡券列表 ─────────────────────────────────────────────────────
 // GET /api/user/coupons
-export async function handleUserCouponList(req, res, url, sendJson) {
+export async function handleUserCouponList(req, res, url, sendJson, deps = {}) {
+  const queryFn = deps.queryFn || query;
+  const readFallbackListFn = deps.readFallbackListFn || readFallbackList;
+  const warnReadFallbackFn = deps.warnReadFallbackFn || warnReadFallback;
+  const isDatabaseConnectionErrorFn = deps.isDatabaseConnectionErrorFn || isDatabaseConnectionError;
+  const now = new Date().toISOString();
   try {
-    const now = new Date().toISOString();
-    const result = await query(`
+    const result = await queryFn(`
       SELECT
         c.*,
         mi.name AS linked_mall_item_name,
@@ -174,6 +191,16 @@ export async function handleUserCouponList(req, res, url, sendJson) {
     `, [now]);
     return sendOk(res, sendJson, "ok", result.rows.map(couponRow));
   } catch (err) {
+    if (isDatabaseConnectionErrorFn(err)) {
+      try {
+        const fallback = await readFallbackListFn("coupons.json");
+        const list = buildCouponFallbackList(fallback.list, now);
+        warnReadFallbackFn("GET /api/user/coupons", err, list.length, { filePath: fallback.filePath });
+        return sendOk(res, sendJson, "ok", list);
+      } catch (fallbackError) {
+        console.warn(`[ContentFallback] GET /api/user/coupons fallback failed: ${fallbackError?.message || fallbackError}`);
+      }
+    }
     return sendError(res, sendJson, 500, "DB_ERROR", err.message);
   }
 }
